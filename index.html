@@ -1,9 +1,9 @@
 <!-- 
-    Mobile-First Expense Tracker Design (V11 - Delete Debug & Fixes)
+    Mobile-First Expense Tracker Design (V12 - UI Fixes)
     Changes:
-    1. Robust Delete Logic: Explicit String conversion for Document IDs.
-    2. Detailed Error Handling: Alerts specific Firebase error messages (e.g., "Missing permissions").
-    3. Hybrid ID Handling: Gracefully handles legacy numeric IDs (Local) vs String IDs (Firebase).
+    1. Fixed Overlap: Moved 'Connection Status' up on mobile (bottom-20) to clear the bottom nav bar.
+    2. Desktop Layout: Kept status at bottom-4 for desktop screens.
+    3. Status: Firebase Configured (deptmoney-6682a).
 -->
 
 <!DOCTYPE html>
@@ -11,7 +11,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V11)</title>
+    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V12)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -101,8 +101,8 @@
         </div>
     </div>
 
-    <!-- CONNECTION STATUS (Bottom Left) -->
-    <div id="connection-status-global" class="fixed bottom-4 left-4 z-[80] text-[10px] flex items-center gap-1 opacity-80 pointer-events-none">
+    <!-- CONNECTION STATUS (Moved up for Mobile) -->
+    <div id="connection-status-global" class="fixed bottom-20 left-4 md:bottom-4 md:left-4 z-[80] text-[10px] flex items-center gap-1 opacity-80 pointer-events-none transition-all duration-300">
         <span class="text-slate-400">Checking...</span>
     </div>
 
@@ -312,7 +312,7 @@
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 11.0 (Delete Fixed)</p>
+            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 12.0 (UI & Delete Fix)</p>
         </section>
 
     </main>
@@ -1167,26 +1167,14 @@
                     
                     if(ENABLE_FIREBASE && db) {
                         try {
-                            // Find docs to delete (must use query if possible, but filter is fine for small apps)
                             const toDelete = this.data.transactions.filter(t => t.date.startsWith(targetMonth));
-                            
                             if (toDelete.length > 0) {
                                 const batch = writeBatch(db);
-                                let count = 0;
-                                
                                 toDelete.forEach(t => {
-                                    // Verify ID is string and exists
-                                    if(typeof t.id === 'string') {
-                                        const docRef = doc(db, "transactions", t.id);
-                                        batch.delete(docRef);
-                                        count++;
-                                    }
+                                    if(t.id && typeof t.id === 'string') batch.delete(doc(db, "transactions", t.id));
                                 });
-                                
                                 await batch.commit();
-                                console.log(`Deleted ${count} docs`);
                             }
-                            
                             this.data.transactions = this.data.transactions.filter(t => !t.date.startsWith(targetMonth));
                             alert(`ลบข้อมูลเรียบร้อย`);
                         } catch(e) {
@@ -1195,7 +1183,6 @@
                             document.getElementById('error-popup').classList.remove('hidden');
                         }
                     } else {
-                        // Local Delete
                         this.data.transactions = this.data.transactions.filter(t => !t.date.startsWith(targetMonth));
                         this.saveData();
                         alert(`ลบข้อมูลเรียบร้อย`);
