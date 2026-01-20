@@ -1,10 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker (V25 - LINE Notify Integration)
+    Mobile-First Expense Tracker (V25 - Admin LINE Notify)
     Project: deptmoney-6682a
     Changes:
-    1. Feature: Added 'Send LINE Notify' button in Admin Settings.
-    2. Logic: Integrated fetch('/api/notify') to trigger backend serverless function.
-    3. UI: Added FontAwesome Line icon.
+    1. Feature: Added "Send LINE Notification" button in Settlement view.
+    2. Logic: Button is visible ONLY to Admin users.
+    3. Logic: Captures settlement data to generate a text summary for LINE.
 -->
 
 <!DOCTYPE html>
@@ -26,6 +26,7 @@
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/brands.min.css">
 
     <!-- Google Fonts: Noto Sans Thai -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -94,7 +95,7 @@
 
     <!-- LOADING OVERLAY -->
     <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
-        <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center gap-2">
+        <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center justify-center gap-2">
             <i class="fa-solid fa-circle-notch fa-spin text-slate-800 text-2xl"></i>
             <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...</span>
         </div>
@@ -289,6 +290,14 @@
             <div id="settlement-plan" class="space-y-3">
                 <!-- Plan items -->
             </div>
+
+            <!-- ADMIN ACTION BUTTON (HIDDEN FOR MEMBERS) -->
+            <div id="settlement-admin-actions" class="hidden mt-6 pt-4 border-t border-slate-200">
+                <button onclick="window.app.sendLineNotify()" class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold shadow-lg shadow-green-100 hover:bg-[#05b34c] active:scale-[0.98] transition-all flex justify-center items-center gap-2">
+                    <i class="fa-brands fa-line text-2xl"></i> ส่งสรุปยอดเข้า LINE
+                </button>
+                <p class="text-center text-[10px] text-slate-400 mt-2">*ปุ่มนี้เห็นเฉพาะ Admin เท่านั้น</p>
+            </div>
         </section>
 
         <!-- SETTINGS -->
@@ -333,11 +342,6 @@
                         <i class="fa-solid fa-trash-can"></i> ล้างเฉพาะรายการใช้จ่ายเก่ากว่า 2 ปี (สมาชิกยังอยู่)
                     </button>
                 </div>
-
-                <!-- LINE NOTIFY BUTTON (Added Here) -->
-                <button onclick="window.app.sendLineNotify()" class="w-full border border-green-500 text-green-600 hover:bg-green-50 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-2 mt-4">
-                    <i class="fa-brands fa-line text-lg"></i> ส่งสรุปยอดเข้า LINE
-                </button>
             </div>
 
             <p class="text-center text-xs text-slate-400 mt-4">Dept Money สำหรับ Game</p>
@@ -498,7 +502,8 @@
                 currentView: 'dashboard',
                 currentMonth: new Date().toISOString().slice(0, 7),
                 editingId: null,
-                touchedParticipants: new Set()
+                touchedParticipants: new Set(),
+                settlementDebts: [] // Store simplified debts for LINE notification
             },
             
             charts: { monthlyTrend: null, payer: null },
@@ -600,7 +605,6 @@
                     const y = date.getFullYear();
                     const m = String(date.getMonth() + 1).padStart(2, '0');
                     const val = `${y}-${m}`;
-                    
                     let label = date.toLocaleString('th-TH', { month: 'short', year: '2-digit' });
                     if (val === currentMonthKey) {
                         label = "เดือนนี้";
@@ -676,11 +680,13 @@
                     roleBadge.textContent = 'ADMIN';
                     roleBadge.className = "text-[10px] bg-slate-800 px-2 py-1 rounded-full text-white font-bold";
                     document.getElementById('admin-danger-zone').classList.remove('hidden');
+                    document.getElementById('settlement-admin-actions').classList.remove('hidden'); // Show LINE button
                     exportBtn.classList.remove('hidden');
                 } else {
                     roleBadge.textContent = 'MEMBER';
                     roleBadge.className = "text-[10px] bg-slate-200 px-2 py-1 rounded-full text-slate-600 font-bold";
                     document.getElementById('admin-danger-zone').classList.add('hidden');
+                    document.getElementById('settlement-admin-actions').classList.add('hidden'); // Hide LINE button
                     exportBtn.classList.add('hidden');
                 }
                 this.navigate('dashboard');
@@ -970,7 +976,6 @@
                     }
                 }
 
-                // EDIT or CREATE
                 if (this.data.editingId) {
                     const updatedData = {
                         date: dateStr,
@@ -1256,6 +1261,7 @@
 
                 const planDiv = document.getElementById('settlement-plan');
                 let instructions = [];
+                this.data.settlementDebts = []; // Reset stored debts
                 let i = 0, j = 0;
 
                 while(i < debtors.length && j < creditors.length) {
@@ -1265,6 +1271,9 @@
                     amount = Math.round(amount*100)/100;
                     
                     if(amount > 0) {
+                        // Store for notification
+                        this.data.settlementDebts.push({ from: d.person, to: c.person, amount: amount });
+                        
                         instructions.push(`
                             <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                 <div class="flex items-center gap-2">
@@ -1286,6 +1295,26 @@
                 } else {
                     planDiv.innerHTML = instructions.join('');
                 }
+            },
+
+            sendLineNotify() {
+                const debts = this.data.settlementDebts;
+                if (!debts || debts.length === 0) {
+                    return alert("ไม่มีรายการต้องเคลียร์ครับ (ยอดเป็น 0)");
+                }
+
+                const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: '2-digit' });
+                let msg = `📊 สรุปยอดเคลียร์เงิน (${monthName})\n--------------------\n`;
+                
+                debts.forEach((d, index) => {
+                    msg += `${index + 1}. ${d.from} ➡️ ${d.to} : ${d.amount.toLocaleString()} ฿\n`;
+                });
+                
+                msg += `--------------------\n✅ ตรวจสอบยอดและโอนให้เรียบร้อยนะ`;
+
+                // Encode and Open LINE
+                const encodedMsg = encodeURIComponent(msg);
+                window.open(`https://line.me/R/msg/text/?${encodedMsg}`, '_blank');
             },
 
             renderHistory() {
@@ -1436,28 +1465,6 @@
                     }
                 }
                 document.getElementById('loading-overlay').classList.add('hidden');
-            },
-
-            async sendLineNotify() {
-                if(!confirm('ต้องการส่งสรุปยอดเข้า LINE Notify ใช่หรือไม่?')) return;
-                
-                document.getElementById('loading-overlay').classList.remove('hidden');
-                
-                try {
-                    const response = await fetch('/api/notify'); 
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        alert("✅ ส่งเข้า LINE เรียบร้อย!");
-                    } else {
-                        alert("❌ เกิดข้อผิดพลาด: " + (data.message || JSON.stringify(data)));
-                    }
-                } catch (error) {
-                    console.error(error);
-                    alert("❌ เชื่อมต่อไม่ได้ (ตรวจสอบว่ามี API /api/notify หรือยัง)");
-                } finally {
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                }
             },
 
             exportCSV() {
