@@ -1,10 +1,8 @@
 <!-- 
-    Mobile-First Expense Tracker (V30 - Animation & Interactive Title)
+    Mobile-First Expense Tracker (V31 - Added LINE OA Button)
     Project: deptmoney-6682a
     Changes:
-    1. UI: Renamed "Dept Money สำหรับ Game" to "Dept Money".
-    2. Interactive: Added 'triggerGameEmoji' effect when clicking the title.
-    3. UI: Added background floating particles animation (White scattered).
+    1. UI: Added Green LINE Official button in the login screen.
 -->
 
 <!DOCTYPE html>
@@ -179,6 +177,19 @@
                         </div>
                     </div>
                 </button>
+
+                <!-- NEW: LINE Official Button (ใส่ลิงก์ของคุณที่นี่) -->
+                <a href="https://lin.ee/1FMnsom" target="_blank" class="w-full py-3 px-4 bg-[#06C755] text-white rounded-xl font-medium flex items-center justify-between shadow-md shadow-green-100 active:scale-95 transition-transform hover:bg-[#05b34c]">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                            <i class="fa-brands fa-line text-lg"></i>
+                        </div>
+                        <div class="text-left">
+                            <span class="block font-bold text-sm">ติดต่อ LINE Official</span>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs opacity-70"></i>
+                </a>
             </div>
 
             <div id="admin-login-form" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -1427,120 +1438,6 @@
                     planDiv.innerHTML = '<div class="p-6 bg-white rounded-xl border border-dashed border-slate-300 text-center text-slate-400 text-sm">✅ เคลียร์ยอดครบหมดแล้ว</div>';
                 } else {
                     planDiv.innerHTML = instructions.join('');
-                }
-            },
-
-            async sendLineNotify() {
-                const debts = this.data.settlementDebts;
-                if (!debts || debts.length === 0) {
-                    return alert("ไม่มีรายการต้องเคลียร์ครับ (ยอดเป็น 0)");
-                }
-
-                // Show loading spinner
-                document.getElementById('loading-overlay').classList.remove('hidden');
-
-                try {
-                    const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: '2-digit' });
-                    
-                    const response = await fetch('/api/send-line', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            month: monthName,
-                            debts: debts
-                        }),
-                    });
-
-                    const result = await response.json();
-
-                    if (response.ok) {
-                        alert("✅ ส่งแจ้งเตือนเข้า LINE เรียบร้อยแล้ว!");
-                    } else {
-                        throw new Error(result.message || 'ส่งไม่สำเร็จ');
-                    }
-                } catch (error) {
-                    console.error('Error sending line notify:', error);
-                    alert(`❌ เกิดข้อผิดพลาด: ${error.message}\n(เช็คว่าไฟล์ /api/send-line.js ทำงานถูกต้องหรือไม่)`);
-                } finally {
-                    // Hide loading spinner
-                    document.getElementById('loading-overlay').classList.add('hidden');
-                }
-            },
-
-            renderHistory() {
-                const transactions = this.getFilteredTransactions().sort((a,b) => b.date.localeCompare(a.date));
-                const container = document.getElementById('transaction-list-mobile');
-                const empty = document.getElementById('empty-state');
-                
-                container.innerHTML = '';
-                if(transactions.length === 0) {
-                    empty.classList.remove('hidden');
-                } else {
-                    empty.classList.add('hidden');
-                    
-                    const groups = {};
-                    transactions.forEach(t => {
-                        if (!groups[t.date]) groups[t.date] = [];
-                        groups[t.date].push(t);
-                    });
-
-                    Object.keys(groups).forEach(date => {
-                        const dateObj = new Date(date);
-                        const today = new Date();
-                        const yesterday = new Date(today);
-                        yesterday.setDate(yesterday.getDate() - 1);
-                        
-                        let dateLabel = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
-                        if (date === today.toISOString().slice(0,10)) dateLabel = "วันนี้";
-                        else if (date === yesterday.toISOString().slice(0,10)) dateLabel = "เมื่อวาน";
-
-                        const header = document.createElement('div');
-                        header.className = "text-xs font-bold text-slate-400 mt-4 mb-2 ml-1";
-                        header.innerText = dateLabel;
-                        container.appendChild(header);
-
-                        groups[date].forEach(t => {
-                            const div = document.createElement('div');
-                            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2 last:mb-0";
-                            
-                            const editBtn = this.data.userRole === 'admin' 
-                                ? `<button onclick="window.app.editTransaction('${t.id}')" class="text-blue-400 hover:text-blue-600 p-2"><i class="fa-solid fa-pen"></i></button>` 
-                                : '';
-
-                            const deleteBtn = this.data.userRole === 'admin' 
-                                ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>` 
-                                : '';
-
-                            const typeLabel = t.paymentType === 'installment' 
-                                ? `<span class="text-[10px] text-orange-600 bg-orange-50 px-1.5 rounded ml-1">ผ่อน</span>` 
-                                : `<span class="text-[10px] text-blue-600 bg-blue-50 px-1.5 rounded ml-1">เต็ม</span>`;
-
-                            const iconClass = t.icon || 'fa-utensils';
-
-                            div.innerHTML = `
-                                <div class="flex items-center gap-3 flex-1 overflow-hidden">
-                                    <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 text-lg border border-slate-100 flex-shrink-0">
-                                        <i class="fa-solid ${iconClass}"></i>
-                                    </div>
-                                    <div class="min-w-0">
-                                        <p class="font-bold text-slate-700 text-sm truncate">${t.desc}</p>
-                                        <p class="text-xs text-slate-400 flex items-center gap-1">
-                                            <span class="bg-slate-100 px-1 rounded truncate max-w-[80px]">${t.payer}</span> 
-                                            ${typeLabel}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <span class="block font-bold text-slate-800 text-sm mr-2">${t.amount.toLocaleString()}</span>
-                                    ${editBtn}
-                                    ${deleteBtn}
-                                </div>
-                            `;
-                            container.appendChild(div);
-                        });
-                    });
                 }
             },
 
