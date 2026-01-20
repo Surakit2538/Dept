@@ -1,10 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker (V16 - Header & Layout Fix)
+    Mobile-First Expense Tracker (V17 - Grouped History & Fixed Layout)
     Changes:
-    1. Header: Changed from 'fixed' to 'relative'. It now scrolls away with content, preventing overlap issues.
-    2. Layout: Removed excessive top padding. Content starts naturally below header.
-    3. Status: Integrated 'Connection Status' inside the Mobile Header (right side) and Desktop Sidebar.
-    4. Code Structure: Module-based for Firebase support.
+    1. Layout: Mobile Header is now 'sticky top-0'. It stays visible but doesn't overlap content.
+    2. History View: Transactions are now GROUPED BY DATE with nice headers (Today/Yesterday/Date).
+    3. Settlement View: Removed the blue info alert.
+    4. Status: Firebase Configured (deptmoney-6682a).
 -->
 
 <!DOCTYPE html>
@@ -12,7 +12,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V16)</title>
+    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V17)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -108,6 +108,11 @@
         </div>
     </div>
 
+    <!-- CONNECTION STATUS (Top-Right on Mobile) -->
+    <div id="connection-status-global" class="fixed top-14 right-2 md:top-auto md:right-auto md:bottom-4 md:left-4 z-[80] text-[10px] flex items-center gap-1 opacity-90 pointer-events-none transition-all duration-300 bg-slate-50/80 md:bg-transparent px-2 py-1 rounded-b-lg">
+        <span class="text-slate-400">Checking...</span>
+    </div>
+
     <!-- LOGIN OVERLAY -->
     <div id="login-screen" class="fixed inset-0 z-[60] bg-slate-900 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-6 relative">
@@ -155,8 +160,8 @@
         </div>
     </div>
 
-    <!-- MOBILE TOP BAR (Relative Position - Scrolls away) -->
-    <header class="md:hidden bg-white border-b border-slate-200 py-3 px-4 flex flex-col gap-1 relative z-40 shadow-sm">
+    <!-- MOBILE TOP BAR (Sticky - Fixed at top but pushes content) -->
+    <header class="md:hidden sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 py-3 px-4 flex flex-col gap-1 shadow-sm">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <i class="fa-solid fa-wallet text-slate-800 text-lg"></i>
@@ -200,7 +205,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <!-- Removed top padding since header is relative -->
+    <!-- Removed padding-top since header is sticky -->
     <main class="flex-1 overflow-y-auto bg-slate-50 pb-24 md:pb-0" id="main-content">
         
         <!-- DASHBOARD -->
@@ -251,7 +256,7 @@
             </div>
         </section>
 
-        <!-- HISTORY -->
+        <!-- HISTORY (Grouped by Date) -->
         <section id="view-history" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-slate-800 px-1">ประวัติรายการ</h2>
@@ -260,9 +265,10 @@
                 </select>
             </div>
 
-            <div class="space-y-3" id="transaction-list-mobile">
-                <!-- Mobile Card List Populated by JS -->
+            <div id="transaction-list-mobile">
+                <!-- Grouped Items Populated by JS -->
             </div>
+            
             <div id="empty-state" class="hidden py-10 text-center text-slate-400">
                 <i class="fa-regular fa-folder-open text-3xl mb-2"></i>
                 <p class="text-sm">ไม่มีรายการในเดือนนี้</p>
@@ -277,12 +283,9 @@
                     <!-- Populated by JS -->
                 </select>
             </div>
-
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-800 leading-relaxed mb-4">
-                <i class="fa-solid fa-circle-info mr-1"></i> 
-                ข้อมูลเฉพาะเดือนที่เลือกเท่านั้น
-            </div>
             
+            <!-- Removed Blue Alert as requested -->
+
             <div id="settlement-status-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
                 <!-- Populated by JS -->
             </div>
@@ -327,7 +330,7 @@
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 16.0 (Relative Header)</p>
+            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 17.0 (History Groups)</p>
         </section>
 
     </main>
@@ -529,7 +532,6 @@
             async loadDataFromFirebase() {
                 document.getElementById('loading-overlay').classList.remove('hidden');
                 
-                // Set Status Text
                 const setStatus = (html) => {
                     const mobEl = document.getElementById('connection-status-mobile');
                     const deskEl = document.getElementById('connection-status-desktop');
@@ -1177,44 +1179,67 @@
                     empty.classList.remove('hidden');
                 } else {
                     empty.classList.add('hidden');
+                    
+                    // GROUP BY DATE
+                    const groups = {};
                     transactions.forEach(t => {
-                        const div = document.createElement('div');
-                        div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center";
+                        if (!groups[t.date]) groups[t.date] = [];
+                        groups[t.date].push(t);
+                    });
+
+                    // RENDER GROUPS
+                    Object.keys(groups).forEach(date => {
+                        // Date Header
+                        const dateObj = new Date(date);
+                        const today = new Date();
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
                         
-                        const deleteBtn = this.data.userRole === 'admin' 
-                            ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-500 ml-3"><i class="fa-solid fa-trash"></i></button>` 
-                            : '';
+                        let dateLabel = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+                        
+                        if (date === today.toISOString().slice(0,10)) dateLabel = "วันนี้";
+                        else if (date === yesterday.toISOString().slice(0,10)) dateLabel = "เมื่อวาน";
 
-                        const typeLabel = t.paymentType === 'installment' 
-                            ? `<span class="text-[10px] text-orange-600 bg-orange-50 px-1.5 rounded ml-1">ผ่อน</span>` 
-                            : `<span class="text-[10px] text-blue-600 bg-blue-50 px-1.5 rounded ml-1">เต็ม</span>`;
+                        const header = document.createElement('div');
+                        header.className = "text-xs font-bold text-slate-400 mt-4 mb-2 ml-1";
+                        header.innerText = dateLabel;
+                        container.appendChild(header);
 
-                        const dObj = new Date(t.date);
-                        const displayDate = dObj.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' });
-                        const iconClass = t.icon || 'fa-utensils';
+                        // Items in this group
+                        groups[date].forEach(t => {
+                            const div = document.createElement('div');
+                            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2 last:mb-0";
+                            
+                            const deleteBtn = this.data.userRole === 'admin' 
+                                ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-500 ml-3"><i class="fa-solid fa-trash"></i></button>` 
+                                : '';
 
-                        div.innerHTML = `
-                            <div class="flex items-center gap-3 flex-1 overflow-hidden">
-                                <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 text-lg border border-slate-100 flex-shrink-0">
-                                    <i class="fa-solid ${iconClass}"></i>
+                            const typeLabel = t.paymentType === 'installment' 
+                                ? `<span class="text-[10px] text-orange-600 bg-orange-50 px-1.5 rounded ml-1">ผ่อน</span>` 
+                                : `<span class="text-[10px] text-blue-600 bg-blue-50 px-1.5 rounded ml-1">เต็ม</span>`;
+
+                            const iconClass = t.icon || 'fa-utensils';
+
+                            div.innerHTML = `
+                                <div class="flex items-center gap-3 flex-1 overflow-hidden">
+                                    <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 text-lg border border-slate-100 flex-shrink-0">
+                                        <i class="fa-solid ${iconClass}"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-slate-700 text-sm truncate">${t.desc}</p>
+                                        <p class="text-xs text-slate-400 flex items-center gap-1">
+                                            <span class="bg-slate-100 px-1 rounded truncate max-w-[80px]">${t.payer}</span> 
+                                            ${typeLabel}
+                                        </p>
+                                    </div>
                                 </div>
-                                <div class="min-w-0">
-                                    <p class="font-bold text-slate-700 text-sm truncate">${t.desc}</p>
-                                    <p class="text-xs text-slate-400 flex items-center gap-1">
-                                        <span class="bg-slate-100 px-1 rounded truncate max-w-[80px]">${t.payer}</span> 
-                                        ${typeLabel}
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="flex items-center gap-3">
-                                <div class="text-right">
+                                <div class="flex items-center gap-3">
                                     <span class="block font-bold text-slate-800 text-sm">${t.amount.toLocaleString()}</span>
-                                    <span class="block text-[10px] text-slate-400">${displayDate}</span>
+                                    ${deleteBtn}
                                 </div>
-                                ${deleteBtn}
-                            </div>
-                        `;
-                        container.appendChild(div);
+                            `;
+                            container.appendChild(div);
+                        });
                     });
                 }
             },
