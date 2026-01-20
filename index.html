@@ -1,10 +1,9 @@
 <!-- 
-    Mobile-First Expense Tracker (V19 - Admin Edit & Flexible Login)
+    Mobile-First Expense Tracker (V21 - Safe Cleanup)
     Changes:
-    1. Login: Username check is now case-insensitive (admin = Admin = ADMIN).
-    2. Feature: Added 'Edit' button (Pencil icon) for Admins in History view.
-    3. Logic: Implemented 'editTransaction' and updated 'saveTransaction' to handle updates vs new entries.
-    4. UX: Modal updates title and button text when in 'Edit Mode'.
+    1. Cleanup Logic Verification: Explicitly targets ONLY 'transactions' collection/array.
+    2. UX: Updated confirmation message to reassure that Members are NOT deleted.
+    3. Status: Firebase Configured (deptmoney-6682a).
 -->
 
 <!DOCTYPE html>
@@ -12,7 +11,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V19)</title>
+    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V21)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -158,17 +157,19 @@
     </div>
 
     <!-- MOBILE TOP BAR (Sticky) -->
-    <header class="md:hidden fixed top-0 left-0 w-full h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between z-50 shadow-sm">
-        <div class="flex items-center gap-2">
-            <i class="fa-solid fa-wallet text-slate-800 text-lg"></i>
-            <span class="font-bold text-slate-800 text-lg">Expense</span>
-        </div>
-        <div class="flex flex-col items-end justify-center">
-            <div class="flex items-center gap-2 mb-0.5">
-                <span id="mobile-role-badge" class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold">GUEST</span>
+    <header class="md:hidden sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 py-3 px-4 flex flex-col gap-1 shadow-sm">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-wallet text-slate-800 text-lg"></i>
+                <span class="font-bold text-slate-800 text-lg">Expense</span>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="mobile-role-badge" class="text-[10px] bg-slate-100 px-2 py-1 rounded-full text-slate-500 font-bold">GUEST</span>
                 <button onclick="window.app.logout()" class="text-slate-400 hover:text-red-500 ml-1 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
-            <!-- Online Status -->
+        </div>
+        <!-- Online Status -->
+        <div id="mobile-status-container" class="flex justify-end">
             <span id="connection-status-mobile" class="text-[10px] text-slate-400 flex items-center gap-1">Checking...</span>
         </div>
     </header>
@@ -200,7 +201,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto bg-slate-50 pt-16 pb-20 md:pt-0 md:pb-0 h-full" id="main-content">
+    <main class="flex-1 overflow-y-auto bg-slate-50 pb-24 md:pb-0 h-full" id="main-content">
         
         <!-- DASHBOARD -->
         <section id="view-dashboard" class="p-4 md:p-8 max-w-5xl mx-auto space-y-4 md:space-y-6 fade-in">
@@ -250,7 +251,7 @@
             </div>
         </section>
 
-        <!-- HISTORY -->
+        <!-- HISTORY (Grouped by Date) -->
         <section id="view-history" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-slate-800 px-1">ประวัติรายการ</h2>
@@ -305,24 +306,34 @@
                 <i class="fa-solid fa-file-csv text-green-600"></i> Export CSV
             </button>
 
+            <!-- Admin Clear Data Zone -->
             <div id="admin-danger-zone" class="hidden bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
                 <h3 class="font-bold text-red-700 text-sm">พื้นที่อันตราย (Admin Only)</h3>
                 
                 <div class="bg-white p-3 rounded-lg border border-red-100">
-                    <label class="block text-xs text-slate-500 mb-1">เลือกลบข้อมูลของเดือน:</label>
-                    <div class="flex gap-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="block text-xs text-slate-500">จัดการข้อมูล:</label>
+                        <span class="text-[10px] text-slate-400 bg-slate-100 px-2 py-0.5 rounded">Firebase Free (1GB)</span>
+                    </div>
+                    
+                    <!-- Month Delete -->
+                    <div class="flex gap-2 mb-3">
                         <select id="delete-month-selector" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-2 py-2 outline-none text-slate-600 flex-1">
                             <!-- Populated JS -->
                         </select>
                         <button onclick="window.app.clearMonthData()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap">
-                            ลบข้อมูล
+                            ลบเดือนนี้
                         </button>
                     </div>
-                    <p class="text-[10px] text-red-400 mt-1">* ลบแล้วกู้คืนไม่ได้ เฉพาะเดือนที่เลือกเท่านั้น</p>
+
+                    <!-- Clean Old Data (>2 Years) -->
+                    <button onclick="window.app.cleanUpOldData()" class="w-full border border-red-200 text-red-500 hover:bg-red-50 py-2 rounded-lg text-xs font-medium flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trash-can"></i> ล้างเฉพาะรายการใช้จ่ายเก่ากว่า 2 ปี (สมาชิกยังอยู่)
+                    </button>
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 19.0 (Admin Edit)</p>
+            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 21.0 (Safe Cleanup)</p>
         </section>
 
     </main>
@@ -444,10 +455,6 @@
 
     <!-- MAIN SCRIPT (MODULE) -->
     <script type="module">
-        // ============================================
-        // FIREBASE CONFIGURATION
-        // ============================================
-        
         const ENABLE_FIREBASE = true; 
 
         const firebaseConfig = {
@@ -461,7 +468,7 @@
         };
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         let db = null;
         if (ENABLE_FIREBASE) {
@@ -475,10 +482,6 @@
             }
         }
 
-        // ============================================
-        // APP LOGIC
-        // ============================================
-
         const app = {
             data: {
                 userRole: 'guest', 
@@ -487,7 +490,7 @@
                 splitMode: 'equal', 
                 currentView: 'dashboard',
                 currentMonth: new Date().toISOString().slice(0, 7),
-                editingId: null // Stores ID when editing
+                editingId: null
             },
             
             charts: { monthlyTrend: null, payer: null },
@@ -641,7 +644,7 @@
             },
 
             loginAsAdmin() {
-                const user = document.getElementById('admin-user').value.trim().toLowerCase(); // Case Insensitive
+                const user = document.getElementById('admin-user').value.trim().toLowerCase();
                 const pass = document.getElementById('admin-pass').value;
                 if (user === 'admin' && pass === '0000') {
                     this.completeLogin('admin');
@@ -743,28 +746,6 @@
                 input.value = '';
             },
 
-            async quickAddMember() {
-                const name = prompt("กรอกชื่อสมาชิกใหม่:");
-                if(name) {
-                    if (this.data.members.includes(name)) return;
-                    if (this.data.members.length >= 10) return alert('เต็มแล้ว (Max 10)');
-                    
-                    if(ENABLE_FIREBASE && db) {
-                        await addDoc(collection(db, "members"), { name });
-                        this.data.members.push(name);
-                    } else {
-                        this.data.members.push(name);
-                        this.saveData();
-                    }
-
-                    this.renderMemberList();
-                    this.populateSelectors();
-                    this.renderSplitParticipants();
-                    const payerSelect = document.getElementById('t-payer');
-                    if(payerSelect) payerSelect.value = name;
-                }
-            },
-
             renderMemberList() {
                 const container = document.getElementById('member-list');
                 if(!container) return;
@@ -775,19 +756,16 @@
 
             // --- TRANSACTION ---
             openModal(modalId) {
-                // Reset to Create Mode default
                 this.data.editingId = null;
                 document.getElementById('modal-title').textContent = 'บันทึกรายจ่าย';
                 document.getElementById('btn-save-transaction').textContent = 'บันทึกรายการ';
                 
-                // Clear inputs
                 document.getElementById('t-amount').value = '';
                 document.getElementById('t-desc').value = '';
                 document.getElementById('t-payment-type').value = 'normal';
                 document.getElementById('t-installments').value = '';
                 this.toggleInstallment();
                 
-                // Set default date to today for new entry
                 const today = new Date();
                 const y = today.getFullYear();
                 const m = String(today.getMonth() + 1).padStart(2, '0');
@@ -798,16 +776,14 @@
                 this.renderSplitParticipants();
             },
 
-            // EDIT FUNCTION
             editTransaction(id) {
                 const t = this.data.transactions.find(t => String(t.id) === String(id));
                 if (!t) return;
 
-                this.data.editingId = id; // Set Edit Mode
+                this.data.editingId = id;
                 document.getElementById('modal-title').textContent = 'แก้ไขรายการ';
                 document.getElementById('btn-save-transaction').textContent = 'บันทึกการแก้ไข';
 
-                // Populate Form
                 document.getElementById('t-date').value = t.date;
                 document.getElementById('t-payment-type').value = t.paymentType || 'normal';
                 document.getElementById('t-desc').value = t.desc;
@@ -815,19 +791,17 @@
                 document.getElementById('t-payer').value = t.payer;
                 document.getElementById('t-icon').value = t.icon || 'fa-utensils';
                 
-                // Installment logic
                 this.toggleInstallment();
                 if(t.paymentType === 'installment') {
                     document.getElementById('t-installments').value = t.installments;
                 }
 
-                // Show Modal
                 document.getElementById('transaction-modal').classList.remove('hidden');
-                this.renderSplitParticipants(); // You might want to try to match checkboxes here if needed, but keeping it simple resets to default split
+                this.renderSplitParticipants(); 
             },
 
             closeModal(modalId) {
-                this.data.editingId = null; // Reset
+                this.data.editingId = null; 
                 document.getElementById(modalId).classList.add('hidden');
             },
 
@@ -918,26 +892,20 @@
                     }
                 }
 
-                // CHECK IF EDITING OR CREATING
+                // EDIT or CREATE
                 if (this.data.editingId) {
-                    // --- UPDATE SINGLE RECORD ---
-                    const tIndex = this.data.transactions.findIndex(t => String(t.id) === String(this.data.editingId));
-                    if (tIndex === -1 && !ENABLE_FIREBASE) return; 
-
-                    // Construct Updated Object
                     const updatedData = {
                         date: dateStr,
                         type: 'expense',
                         paymentType,
                         installments: paymentType === 'installment' ? installments : 1,
                         desc,
-                        amount: totalAmount, // Note: Edit assumes updating this specific record's amount, not regenerating installments
+                        amount: totalAmount,
                         payer,
                         icon,
-                        splits: {} // Re-calculate splits based on totalAmount
+                        splits: {}
                     };
 
-                    // Recalculate split values
                     for(let member in splits) {
                         updatedData.splits[member] = splits[member] * totalAmount;
                     }
@@ -946,19 +914,16 @@
                         try {
                             const ref = doc(db, "transactions", String(this.data.editingId));
                             await updateDoc(ref, updatedData);
-                            // Update local
                             const found = this.data.transactions.find(t => String(t.id) === String(this.data.editingId));
                             if(found) Object.assign(found, updatedData);
                         } catch(e) { console.error(e); alert('Update failed'); }
                     } else {
-                        // Local update
                         const found = this.data.transactions.find(t => String(t.id) === String(this.data.editingId));
                         if(found) Object.assign(found, updatedData);
                         this.saveData();
                     }
 
                 } else {
-                    // --- CREATE NEW (Batch if installment) ---
                     const amountPerInstallment = totalAmount / installments;
                     const batchTransactions = [];
                     const baseDate = new Date(dateStr);
@@ -1256,7 +1221,6 @@
                 } else {
                     empty.classList.add('hidden');
                     
-                    // GROUP BY DATE
                     const groups = {};
                     transactions.forEach(t => {
                         if (!groups[t.date]) groups[t.date] = [];
@@ -1354,6 +1318,46 @@
                     document.getElementById('loading-overlay').classList.add('hidden');
                     location.reload();
                 }
+            },
+
+            async cleanUpOldData() {
+                if(!confirm('ยืนยันลบรายการค่าใช้จ่ายที่เก่ากว่า 2 ปี? (รายชื่อสมาชิกจะไม่ถูกลบ)')) return;
+                
+                const cutoffDate = new Date();
+                cutoffDate.setFullYear(cutoffDate.getFullYear() - 2);
+                const cutoffString = cutoffDate.toISOString().slice(0, 10);
+
+                document.getElementById('loading-overlay').classList.remove('hidden');
+
+                if(ENABLE_FIREBASE && db) {
+                    try {
+                        const toDelete = this.data.transactions.filter(t => t.date < cutoffString);
+                        if (toDelete.length > 0) {
+                            const batch = writeBatch(db);
+                            toDelete.forEach(t => {
+                                if(t.id && typeof t.id === 'string') batch.delete(doc(db, "transactions", t.id));
+                            });
+                            await batch.commit();
+                            alert(`ลบข้อมูลเก่าสำเร็จ (${toDelete.length} รายการ)`);
+                        } else {
+                            alert('ไม่มีข้อมูลเก่ากว่า 2 ปี');
+                        }
+                        this.loadDataFromFirebase();
+                    } catch(e) {
+                        alert(`Error: ${e.message}`);
+                    }
+                } else {
+                    const initialCount = this.data.transactions.length;
+                    this.data.transactions = this.data.transactions.filter(t => t.date >= cutoffString);
+                    if(this.data.transactions.length < initialCount) {
+                        this.saveData();
+                        alert(`ลบข้อมูลเก่าสำเร็จ (${initialCount - this.data.transactions.length} รายการ)`);
+                        location.reload();
+                    } else {
+                        alert('ไม่มีข้อมูลเก่ากว่า 2 ปี');
+                    }
+                }
+                document.getElementById('loading-overlay').classList.add('hidden');
             },
 
             exportCSV() {
