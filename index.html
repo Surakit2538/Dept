@@ -1,10 +1,9 @@
 <!-- 
-    Mobile-First Expense Tracker (V25 - Admin LINE Notify)
+    Mobile-First Expense Tracker (V26 - Vercel API Integration)
     Project: deptmoney-6682a
     Changes:
-    1. Feature: Added "Send LINE Notification" button in Settlement view.
-    2. Logic: Button is visible ONLY to Admin users.
-    3. Logic: Captures settlement data to generate a text summary for LINE.
+    1. Logic: Updated sendLineNotify() to use fetch('/api/send-line') instead of window.open.
+    2. UX: Added loading spinner feedback during API call.
 -->
 
 <!DOCTYPE html>
@@ -1297,24 +1296,43 @@
                 }
             },
 
-            sendLineNotify() {
+            async sendLineNotify() {
                 const debts = this.data.settlementDebts;
                 if (!debts || debts.length === 0) {
                     return alert("ไม่มีรายการต้องเคลียร์ครับ (ยอดเป็น 0)");
                 }
 
-                const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: '2-digit' });
-                let msg = `📊 สรุปยอดเคลียร์เงิน (${monthName})\n--------------------\n`;
-                
-                debts.forEach((d, index) => {
-                    msg += `${index + 1}. ${d.from} ➡️ ${d.to} : ${d.amount.toLocaleString()} ฿\n`;
-                });
-                
-                msg += `--------------------\n✅ ตรวจสอบยอดและโอนให้เรียบร้อยนะ`;
+                // Show loading spinner
+                document.getElementById('loading-overlay').classList.remove('hidden');
 
-                // Encode and Open LINE
-                const encodedMsg = encodeURIComponent(msg);
-                window.open(`https://line.me/R/msg/text/?${encodedMsg}`, '_blank');
+                try {
+                    const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: '2-digit' });
+                    
+                    const response = await fetch('/api/send-line', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            month: monthName,
+                            debts: debts
+                        }),
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        alert("✅ ส่งแจ้งเตือนเข้า LINE เรียบร้อยแล้ว!");
+                    } else {
+                        throw new Error(result.message || 'ส่งไม่สำเร็จ');
+                    }
+                } catch (error) {
+                    console.error('Error sending line notify:', error);
+                    alert(`❌ เกิดข้อผิดพลาด: ${error.message}\n(เช็คว่าไฟล์ /api/send-line.js ทำงานถูกต้องหรือไม่)`);
+                } finally {
+                    // Hide loading spinner
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                }
             },
 
             renderHistory() {
