@@ -138,7 +138,7 @@ export default async function handler(req, res) {
                             action: {
                                 type: "uri",
                                 label: "เปิดแอป Dept Money",
-                                uri: "https://deptmoney-6682a.vercel.app/" // เปลี่ยนเป็น URL เว็บของคุณ
+                                uri: "https://dept-three.vercel.app/" // เปลี่ยนเป็น URL เว็บของคุณ
                             },
                             style: "primary",
                             color: "#15803d",
@@ -185,3 +185,4 @@ export default async function handler(req, res) {
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 }
+
