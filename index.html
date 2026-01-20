@@ -1,10 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker (V29 - Complete Features)
+    Mobile-First Expense Tracker (V30 - Animation & Interactive Title)
     Project: deptmoney-6682a
     Changes:
-    1. Feature: Added 'member-detail-modal' & showMemberDetails() for individual audit.
-    2. UX: Settlement cards are now clickable.
-    3. Logic: Force UPPERCASE for member names and prevent duplicates.
+    1. UI: Renamed "Dept Money สำหรับ Game" to "Dept Money".
+    2. Interactive: Added 'triggerGameEmoji' effect when clicking the title.
+    3. UI: Added background floating particles animation (White scattered).
 -->
 
 <!DOCTYPE html>
@@ -13,7 +13,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <title>Dept Money สำหรับ Game</title>
+    <title>Dept Money</title>
     
     <link rel="icon" type="image/png" href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"> 
     <link rel="apple-touch-icon" href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png">
@@ -39,8 +39,27 @@
             -webkit-tap-highlight-color: transparent;
             height: 100dvh;
             overflow: hidden;
+            position: relative;
         }
         
+        /* Floating Particles Animation */
+        .particle {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02); /* Slight shadow for visibility on light BG */
+            animation: floatUp linear infinite;
+            z-index: 0;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0.5) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-10vh) scale(1.2) rotate(360deg); opacity: 0; }
+        }
+
         .chart-container {
             position: relative;
             width: 100%;
@@ -89,9 +108,21 @@
             -webkit-appearance: none;
             appearance: none;
         }
+        
+        .interactive-title {
+            cursor: pointer;
+            user-select: none;
+            transition: transform 0.1s;
+        }
+        .interactive-title:active {
+            transform: scale(0.95);
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row">
+
+    <!-- Background Animation Container -->
+    <div id="bg-particles" class="fixed inset-0 pointer-events-none z-0 overflow-hidden"></div>
 
     <!-- LOADING OVERLAY -->
     <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
@@ -117,13 +148,13 @@
 
     <!-- LOGIN OVERLAY -->
     <div id="login-screen" class="fixed inset-0 z-[60] bg-slate-900 flex items-center justify-center p-4">
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-6 relative">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-6 relative z-[61]">
             <div class="text-center">
                 <div class="inline-block p-2 rounded-full bg-slate-50 mb-2 shadow-sm border border-slate-100">
                     <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-16 h-16 object-contain">
                 </div>
-                <h1 class="text-xl font-bold text-slate-800">Dept Money สำหรับ Game</h1>
-                <p class="text-slate-500 text-xs">Login (Online)</p>
+                <h1 class="interactive-title text-xl font-bold text-slate-800" onclick="window.app.triggerGameEmoji(event)">Dept Money</h1>
+                <p class="text-xs mt-1"><span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[8px]"></i> Online</span></p>
             </div>
             
             <div class="space-y-3" id="login-options">
@@ -163,8 +194,8 @@
     </div>
 
     <!-- MOBILE TOP BAR -->
-    <header class="md:hidden fixed top-0 left-0 w-full h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between z-50 shadow-sm">
-        <div class="flex items-center gap-2">
+    <header class="md:hidden fixed top-0 left-0 w-full h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 flex items-center justify-between z-50 shadow-sm">
+        <div class="flex items-center gap-2 interactive-title" onclick="window.app.triggerGameEmoji(event)">
             <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-8 h-8 object-contain">
             <span class="font-bold text-slate-800 text-lg">Dept Money</span>
         </div>
@@ -178,8 +209,8 @@
     </header>
 
     <!-- SIDEBAR (Desktop) -->
-    <aside class="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col z-20 shadow-sm h-full">
-        <div class="p-6 border-b border-slate-100 flex items-center gap-3">
+    <aside class="hidden md:flex w-64 bg-white/90 backdrop-blur border-r border-slate-200 flex-col z-20 shadow-sm h-full">
+        <div class="p-6 border-b border-slate-100 flex items-center gap-3 interactive-title" onclick="window.app.triggerGameEmoji(event)">
             <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-8 h-8 object-contain">
             <span class="font-bold text-lg text-slate-800 tracking-tight">Dept Money</span>
         </div>
@@ -204,7 +235,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto bg-slate-50 pt-16 pb-24 md:pt-0 md:pb-0 h-full" id="main-content">
+    <main class="flex-1 overflow-y-auto bg-slate-50/50 pt-16 pb-24 md:pt-0 md:pb-0 h-full relative z-10" id="main-content">
         
         <!-- DASHBOARD -->
         <section id="view-dashboard" class="p-4 md:p-8 max-w-5xl mx-auto space-y-4 md:space-y-6 fade-in">
@@ -346,13 +377,13 @@
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 mt-4">Dept Money สำหรับ Game</p>
+            <p class="text-center text-xs text-slate-400 mt-4">Dept Money</p>
         </section>
 
     </main>
 
     <!-- MOBILE BOTTOM NAV -->
-    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 h-16 grid grid-cols-4 px-2 z-40 pb-safe shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
+    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur border-t border-slate-200 h-16 grid grid-cols-4 px-2 z-40 pb-safe shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
         <button onclick="window.app.navigate('dashboard')" id="mob-nav-dashboard" class="bottom-nav-item flex flex-col items-center justify-center gap-1 text-slate-400 active">
             <i class="fa-solid fa-chart-pie text-lg"></i>
             <span class="text-[10px] font-medium">ภาพรวม</span>
@@ -549,12 +580,70 @@
                 const day = String(today.getDate()).padStart(2, '0');
                 document.getElementById('t-date').value = `${year}-${month}-${day}`;
                 
+                // Initialize background animation
+                this.initBackground();
+
                 this.populateSelectors();
                 this.populateAllMonthSelectors();
                 this.populateMonthSelector('delete-month-selector');
                 
                 this.renderMemberList();
                 this.renderDashboard();
+            },
+
+            initBackground() {
+                const container = document.getElementById('bg-particles');
+                const particleCount = 20; 
+                
+                for(let i=0; i<particleCount; i++) {
+                    const p = document.createElement('div');
+                    p.classList.add('particle');
+                    const size = Math.random() * 30 + 10 + 'px';
+                    p.style.width = size;
+                    p.style.height = size;
+                    p.style.left = Math.random() * 100 + 'vw';
+                    p.style.animationDuration = Math.random() * 15 + 15 + 's';
+                    p.style.animationDelay = Math.random() * 5 + 's';
+                    container.appendChild(p);
+                }
+            },
+
+            triggerGameEmoji(e) {
+                // Emojis related to games
+                const emojis = ['🎮', '👾', '🕹️', '🎲', '🎰', '🍄', '⭐', '🛡️', '🃏'];
+                
+                // Get click position
+                const x = e.clientX;
+                const y = e.clientY;
+                
+                // Create explosion
+                for(let i=0; i<12; i++) {
+                    const span = document.createElement('span');
+                    span.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                    span.style.position = 'fixed';
+                    span.style.left = x + 'px';
+                    span.style.top = y + 'px';
+                    span.style.fontSize = '24px';
+                    span.style.pointerEvents = 'none';
+                    span.style.zIndex = '9999';
+                    span.style.transition = 'all 0.8s cubic-bezier(0.25, 1, 0.5, 1)';
+                    span.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                    
+                    document.body.appendChild(span);
+                    
+                    // Trigger animation
+                    requestAnimationFrame(() => {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = 80 + Math.random() * 100;
+                        const tx = Math.cos(angle) * dist;
+                        const ty = Math.sin(angle) * dist;
+                        
+                        span.style.transform = `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) scale(1.5) rotate(${Math.random() * 360}deg)`;
+                        span.style.opacity = '0';
+                    });
+                    
+                    setTimeout(() => span.remove(), 800);
+                }
             },
 
             // --- DATA HANDLING ---
@@ -1339,59 +1428,6 @@
                 } else {
                     planDiv.innerHTML = instructions.join('');
                 }
-            },
-
-            showMemberDetails(member) {
-                const transactions = this.getFilteredTransactions();
-                // Filter: involved transactions (either payer or sharer)
-                const involved = transactions.filter(t => t.payer === member || (t.splits && t.splits[member]));
-                
-                // Sort by date desc
-                involved.sort((a,b) => b.date.localeCompare(a.date));
-
-                const list = document.getElementById('member-detail-list');
-                list.innerHTML = '';
-                
-                document.getElementById('member-detail-title').textContent = `รายการของ ${member}`;
-
-                let totalMyShare = 0;
-
-                if(involved.length === 0) {
-                    list.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs">ไม่มีรายการที่เกี่ยวข้องในเดือนนี้</div>';
-                }
-
-                involved.forEach(t => {
-                    const myShare = t.splits[member] || 0;
-                    totalMyShare += myShare;
-                    
-                    const isPayer = t.payer === member;
-                    const dateFormatted = new Date(t.date).toLocaleDateString('th-TH', {day: 'numeric', month: 'short'});
-
-                    const div = document.createElement('div');
-                    div.className = "bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex justify-between items-start";
-                    
-                    div.innerHTML = `
-                        <div class="flex gap-2">
-                            <div class="mt-0.5 text-slate-400 text-xs w-8">${dateFormatted}</div>
-                            <div>
-                                <div class="text-xs font-bold text-slate-700">${t.desc}</div>
-                                <div class="text-[10px] text-slate-500">
-                                    ${isPayer ? '<span class="text-green-600 font-bold">จ่ายเอง</span>' : `จ่ายโดย ${t.payer}`}
-                                    • ยอดเต็ม ${t.amount.toLocaleString()}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-xs font-bold text-slate-800">-${myShare.toLocaleString()}</div>
-                            <div class="text-[10px] text-slate-400">ส่วนของฉัน</div>
-                        </div>
-                    `;
-                    list.appendChild(div);
-                });
-                
-                document.getElementById('member-detail-total').textContent = `${totalMyShare.toLocaleString()} ฿`;
-                
-                document.getElementById('member-detail-modal').classList.remove('hidden');
             },
 
             async sendLineNotify() {
