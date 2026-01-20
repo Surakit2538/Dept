@@ -1275,7 +1275,10 @@
                     const m = String(d.getMonth() + 1).padStart(2, '0');
                     const key = `${y}-${m}`;
                     
-                    let label = d.toLocaleString('th-TH', { month: 'short', year: '2-digit' });
+                    // แก้ไข: เปลี่ยน Label เป็นรูปแบบ MM/YY (ปีไทย 2 หลัก) เช่น 02/68
+                    const thaiYear = String((d.getFullYear() + 543)).slice(-2);
+                    let label = `${m}/${thaiYear}`;
+
                     labels.unshift(label);
                     buckets[key] = 0;
                 }
