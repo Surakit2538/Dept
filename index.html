@@ -1,9 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker (V26 - Vercel API Integration)
+    Mobile-First Expense Tracker (V29 - Complete Features)
     Project: deptmoney-6682a
     Changes:
-    1. Logic: Updated sendLineNotify() to use fetch('/api/send-line') instead of window.open.
-    2. UX: Added loading spinner feedback during API call.
+    1. Feature: Added 'member-detail-modal' & showMemberDetails() for individual audit.
+    2. UX: Settlement cards are now clickable.
+    3. Logic: Force UPPERCASE for member names and prevent duplicates.
 -->
 
 <!DOCTYPE html>
@@ -281,6 +282,8 @@
                 </select>
             </div>
             
+            <p class="text-[10px] text-slate-400 mb-2 px-1"><i class="fa-solid fa-circle-info"></i> แตะที่การ์ดชื่อเพื่อดูรายละเอียดค่าใช้จ่าย</p>
+            
             <div id="settlement-status-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
                 <!-- Populated by JS -->
             </div>
@@ -367,6 +370,32 @@
             <span class="text-[10px] font-medium">ตั้งค่า</span>
         </button>
     </nav>
+
+    <!-- MODAL: MEMBER DETAIL (NEW) -->
+    <div id="member-detail-modal" class="hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div class="bg-white w-[90%] max-w-md max-h-[80vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden m-4">
+            <!-- Header -->
+            <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <span id="member-detail-title" class="font-bold text-slate-800">รายละเอียด</span>
+                <button onclick="window.app.closeModal('member-detail-modal')" class="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-300 transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <!-- List -->
+            <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" id="member-detail-list">
+                <!-- Items populated via JS -->
+            </div>
+
+            <!-- Footer Total -->
+            <div class="p-4 border-t border-slate-100 bg-slate-50">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs text-slate-500 font-bold">สรุปส่วนของฉัน (เดือนนี้)</span>
+                    <span id="member-detail-total" class="text-lg font-bold text-slate-800">0 ฿</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL: ADD/EDIT TRANSACTION -->
     <div id="transaction-modal" class="hidden fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
@@ -552,7 +581,9 @@
                 try {
                     const memSnap = await getDocs(collection(db, "members"));
                     if(!memSnap.empty) {
-                        this.data.members = memSnap.docs.map(d => d.data().name);
+                        // FIX: Deduplicate members from DB
+                        const rawMembers = memSnap.docs.map(d => d.data().name);
+                        this.data.members = [...new Set(rawMembers)];
                     } else {
                         await addDoc(collection(db, "members"), { name: 'GAME' });
                         await addDoc(collection(db, "members"), { name: 'CARE' });
@@ -740,8 +771,15 @@
 
             async addMember() {
                 const input = document.getElementById('new-member-name');
-                const name = input.value.trim();
-                if (!name || this.data.members.includes(name)) return;
+                // FIX: Force Uppercase
+                const name = input.value.trim().toUpperCase();
+                
+                // FIX: Check duplicate before adding
+                if (!name) return;
+                if (this.data.members.includes(name)) {
+                    input.value = ''; // Clear input
+                    return; // Do nothing
+                }
                 
                 if (this.data.members.length >= 10) return alert('เต็มแล้ว (Max 10)');
 
@@ -763,8 +801,11 @@
             },
 
             async quickAddMember() {
-                const name = prompt("กรอกชื่อสมาชิกใหม่:");
+                let name = prompt("กรอกชื่อสมาชิกใหม่:");
                 if(name) {
+                    // FIX: Force Uppercase
+                    name = name.trim().toUpperCase();
+                    
                     if (this.data.members.includes(name)) return;
                     if (this.data.members.length >= 10) return alert('เต็มแล้ว (Max 10)');
                     
@@ -1237,12 +1278,16 @@
                     }
 
                     const card = document.createElement('div');
-                    card.className = `p-3 rounded-xl border flex flex-col items-center justify-center text-center ${colorClass}`;
+                    // UPDATE: Added cursor-pointer and onclick
+                    card.className = `p-3 rounded-xl border flex flex-col items-center justify-center text-center ${colorClass} cursor-pointer hover:shadow-md transition-shadow relative group`;
+                    card.onclick = () => this.showMemberDetails(member);
+                    
                     card.innerHTML = `
                         <div class="mb-1 text-lg">${icon}</div>
                         <span class="font-bold text-sm mb-1">${member}</span>
                         <span class="text-[10px] opacity-80 mb-1">${statusText}</span>
                         <span class="font-bold text-lg">${amountText}</span>
+                        <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity text-xs"><i class="fa-solid fa-magnifying-glass"></i></div>
                     `;
                     statusGrid.appendChild(card);
                 });
@@ -1294,6 +1339,59 @@
                 } else {
                     planDiv.innerHTML = instructions.join('');
                 }
+            },
+
+            showMemberDetails(member) {
+                const transactions = this.getFilteredTransactions();
+                // Filter: involved transactions (either payer or sharer)
+                const involved = transactions.filter(t => t.payer === member || (t.splits && t.splits[member]));
+                
+                // Sort by date desc
+                involved.sort((a,b) => b.date.localeCompare(a.date));
+
+                const list = document.getElementById('member-detail-list');
+                list.innerHTML = '';
+                
+                document.getElementById('member-detail-title').textContent = `รายการของ ${member}`;
+
+                let totalMyShare = 0;
+
+                if(involved.length === 0) {
+                    list.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs">ไม่มีรายการที่เกี่ยวข้องในเดือนนี้</div>';
+                }
+
+                involved.forEach(t => {
+                    const myShare = t.splits[member] || 0;
+                    totalMyShare += myShare;
+                    
+                    const isPayer = t.payer === member;
+                    const dateFormatted = new Date(t.date).toLocaleDateString('th-TH', {day: 'numeric', month: 'short'});
+
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex justify-between items-start";
+                    
+                    div.innerHTML = `
+                        <div class="flex gap-2">
+                            <div class="mt-0.5 text-slate-400 text-xs w-8">${dateFormatted}</div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-700">${t.desc}</div>
+                                <div class="text-[10px] text-slate-500">
+                                    ${isPayer ? '<span class="text-green-600 font-bold">จ่ายเอง</span>' : `จ่ายโดย ${t.payer}`}
+                                    • ยอดเต็ม ${t.amount.toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs font-bold text-slate-800">-${myShare.toLocaleString()}</div>
+                            <div class="text-[10px] text-slate-400">ส่วนของฉัน</div>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+                
+                document.getElementById('member-detail-total').textContent = `${totalMyShare.toLocaleString()} ฿`;
+                
+                document.getElementById('member-detail-modal').classList.remove('hidden');
             },
 
             async sendLineNotify() {
