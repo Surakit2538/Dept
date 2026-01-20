@@ -1,9 +1,9 @@
 <!-- 
-    Mobile-First Expense Tracker (V21 - Safe Cleanup)
-    Changes:
-    1. Cleanup Logic Verification: Explicitly targets ONLY 'transactions' collection/array.
-    2. UX: Updated confirmation message to reassure that Members are NOT deleted.
-    3. Status: Firebase Configured (deptmoney-6682a).
+    Mobile-First Expense Tracker (V22 - Final with Custom Icon)
+    Project: deptmoney-6682a
+    Status: 
+    1. Icon Updated: Uses your Cloudinary URL.
+    2. Features: All previous features (Safe Cleanup, Installments, Admin Edit) included.
 -->
 
 <!DOCTYPE html>
@@ -11,8 +11,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V21)</title>
     
+    <!-- Custom Title -->
+    <title>Dept Money สำหรับ Game</title>
+    
+    <!-- Custom Icon (Updated) -->
+    <link rel="icon" type="image/png" href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"> 
+    <link rel="apple-touch-icon" href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png">
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -113,10 +119,11 @@
     <div id="login-screen" class="fixed inset-0 z-[60] bg-slate-900 flex items-center justify-center p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-6 relative">
             <div class="text-center">
-                <div class="inline-block p-4 rounded-full bg-slate-100 mb-2">
-                    <i class="fa-solid fa-receipt text-3xl text-slate-600"></i>
+                <!-- LOGO ICON -->
+                <div class="inline-block p-2 rounded-full bg-slate-50 mb-2 shadow-sm border border-slate-100">
+                    <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-16 h-16 object-contain">
                 </div>
-                <h1 class="text-xl font-bold text-slate-800">ระบบหารค่าใช้จ่าย</h1>
+                <h1 class="text-xl font-bold text-slate-800">Dept Money สำหรับ Game</h1>
                 <p class="text-slate-500 text-xs">Login (Online)</p>
             </div>
             
@@ -156,20 +163,19 @@
         </div>
     </div>
 
-    <!-- MOBILE TOP BAR (Sticky) -->
-    <header class="md:hidden sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 py-3 px-4 flex flex-col gap-1 shadow-sm">
-        <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-wallet text-slate-800 text-lg"></i>
-                <span class="font-bold text-slate-800 text-lg">Expense</span>
-            </div>
-            <div class="flex items-center gap-2">
-                <span id="mobile-role-badge" class="text-[10px] bg-slate-100 px-2 py-1 rounded-full text-slate-500 font-bold">GUEST</span>
+    <!-- MOBILE TOP BAR -->
+    <header class="md:hidden fixed top-0 left-0 w-full h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between z-50 shadow-sm">
+        <div class="flex items-center gap-2">
+            <!-- Header Icon -->
+            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-8 h-8 object-contain">
+            <span class="font-bold text-slate-800 text-lg">Dept Money</span>
+        </div>
+        <div class="flex flex-col items-end justify-center">
+            <div class="flex items-center gap-2 mb-0.5">
+                <span id="mobile-role-badge" class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold">GUEST</span>
                 <button onclick="window.app.logout()" class="text-slate-400 hover:text-red-500 ml-1 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
-        </div>
-        <!-- Online Status -->
-        <div id="mobile-status-container" class="flex justify-end">
+            <!-- Online Status -->
             <span id="connection-status-mobile" class="text-[10px] text-slate-400 flex items-center gap-1">Checking...</span>
         </div>
     </header>
@@ -177,8 +183,8 @@
     <!-- SIDEBAR (Desktop) -->
     <aside class="hidden md:flex w-64 bg-white border-r border-slate-200 flex-col z-20 shadow-sm h-full">
         <div class="p-6 border-b border-slate-100 flex items-center gap-3">
-            <i class="fa-solid fa-wallet text-slate-700 text-xl"></i>
-            <span class="font-bold text-lg text-slate-800 tracking-tight">Expense Tracker</span>
+            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-8 h-8 object-contain">
+            <span class="font-bold text-lg text-slate-800 tracking-tight">Dept Money</span>
         </div>
         <nav class="flex-1 overflow-y-auto p-4 space-y-1">
             <button onclick="window.app.navigate('dashboard')" id="desk-nav-dashboard" class="nav-item w-full flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg bg-slate-100 text-slate-900">
@@ -201,7 +207,7 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto bg-slate-50 pb-24 md:pb-0 h-full" id="main-content">
+    <main class="flex-1 overflow-y-auto bg-slate-50 pt-16 pb-24 md:pt-0 md:pb-0 h-full" id="main-content">
         
         <!-- DASHBOARD -->
         <section id="view-dashboard" class="p-4 md:p-8 max-w-5xl mx-auto space-y-4 md:space-y-6 fade-in">
@@ -333,7 +339,7 @@
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 21.0 (Safe Cleanup)</p>
+            <p class="text-center text-xs text-slate-400 mt-4">Dept Money สำหรับ Game</p>
         </section>
 
     </main>
@@ -592,8 +598,11 @@
                     const y = date.getFullYear();
                     const m = String(date.getMonth() + 1).padStart(2, '0');
                     const val = `${y}-${m}`;
+                    
                     let label = date.toLocaleString('th-TH', { month: 'short', year: '2-digit' });
-                    if (val === currentMonthKey) label = "เดือนนี้";
+                    if (val === currentMonthKey) {
+                        label = "เดือนนี้";
+                    }
 
                     const selected = (val === this.data.currentMonth) ? 'selected' : '';
                     optionsHTML.push(`<option value="${val}" ${selected}>${label}</option>`);
