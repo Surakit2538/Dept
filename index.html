@@ -1,10 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker (V18 - Layout & Status Fix)
+    Mobile-First Expense Tracker (V19 - Admin Edit & Flexible Login)
     Changes:
-    1. Header: Reverted to 'fixed' positioning for stability.
-    2. Layout: Added explicit 'pt-16' padding to Main content to prevent header overlap.
-    3. Status: Removed duplicate floating status. Kept only the one in the header.
-    4. Viewport: Optimized for mobile heights.
+    1. Login: Username check is now case-insensitive (admin = Admin = ADMIN).
+    2. Feature: Added 'Edit' button (Pencil icon) for Admins in History view.
+    3. Logic: Implemented 'editTransaction' and updated 'saveTransaction' to handle updates vs new entries.
+    4. UX: Modal updates title and button text when in 'Edit Mode'.
 -->
 
 <!DOCTYPE html>
@@ -12,7 +12,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V18)</title>
+    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V19)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -32,7 +32,7 @@
             background-color: #f8fafc;
             color: #334155;
             -webkit-tap-highlight-color: transparent;
-            height: 100dvh; /* Dynamic Viewport Height for Mobile */
+            height: 100dvh;
             overflow: hidden;
         }
         
@@ -157,7 +157,7 @@
         </div>
     </div>
 
-    <!-- MOBILE TOP BAR (Fixed Top) -->
+    <!-- MOBILE TOP BAR (Sticky) -->
     <header class="md:hidden fixed top-0 left-0 w-full h-16 bg-white border-b border-slate-200 px-4 flex items-center justify-between z-50 shadow-sm">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-wallet text-slate-800 text-lg"></i>
@@ -168,7 +168,7 @@
                 <span id="mobile-role-badge" class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full text-slate-500 font-bold">GUEST</span>
                 <button onclick="window.app.logout()" class="text-slate-400 hover:text-red-500 ml-1 text-sm"><i class="fa-solid fa-right-from-bracket"></i></button>
             </div>
-            <!-- Online Status (Integrated here, no duplicate) -->
+            <!-- Online Status -->
             <span id="connection-status-mobile" class="text-[10px] text-slate-400 flex items-center gap-1">Checking...</span>
         </div>
     </header>
@@ -200,7 +200,6 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <!-- pt-16 ensures content starts BELOW the fixed header -->
     <main class="flex-1 overflow-y-auto bg-slate-50 pt-16 pb-20 md:pt-0 md:pb-0 h-full" id="main-content">
         
         <!-- DASHBOARD -->
@@ -251,7 +250,7 @@
             </div>
         </section>
 
-        <!-- HISTORY (Grouped by Date) -->
+        <!-- HISTORY -->
         <section id="view-history" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-slate-800 px-1">ประวัติรายการ</h2>
@@ -323,7 +322,7 @@
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 18.0 (Final Layout)</p>
+            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 19.0 (Admin Edit)</p>
         </section>
 
     </main>
@@ -348,12 +347,12 @@
         </button>
     </nav>
 
-    <!-- MODAL: ADD TRANSACTION -->
+    <!-- MODAL: ADD/EDIT TRANSACTION -->
     <div id="transaction-modal" class="hidden fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
         <div class="bg-white w-full md:w-[500px] h-[90vh] md:h-auto rounded-t-2xl md:rounded-2xl flex flex-col shadow-2xl">
             <!-- Header -->
             <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50 rounded-t-2xl">
-                <span class="font-bold text-slate-800">บันทึกรายจ่าย</span>
+                <span id="modal-title" class="font-bold text-slate-800">บันทึกรายจ่าย</span>
                 <button onclick="window.app.closeModal('transaction-modal')" class="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
@@ -436,7 +435,7 @@
 
             <!-- Footer -->
             <div class="p-4 border-t border-slate-100 bg-white pb-safe">
-                <button onclick="window.app.saveTransaction()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg shadow-slate-200 active:scale-[0.98] transition-transform">
+                <button id="btn-save-transaction" onclick="window.app.saveTransaction()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg shadow-slate-200 active:scale-[0.98] transition-transform">
                     บันทึกรายการ
                 </button>
             </div>
@@ -487,7 +486,8 @@
                 transactions: [],
                 splitMode: 'equal', 
                 currentView: 'dashboard',
-                currentMonth: new Date().toISOString().slice(0, 7)
+                currentMonth: new Date().toISOString().slice(0, 7),
+                editingId: null // Stores ID when editing
             },
             
             charts: { monthlyTrend: null, payer: null },
@@ -589,11 +589,8 @@
                     const y = date.getFullYear();
                     const m = String(date.getMonth() + 1).padStart(2, '0');
                     const val = `${y}-${m}`;
-                    
                     let label = date.toLocaleString('th-TH', { month: 'short', year: '2-digit' });
-                    if (val === currentMonthKey) {
-                        label = "เดือนนี้";
-                    }
+                    if (val === currentMonthKey) label = "เดือนนี้";
 
                     const selected = (val === this.data.currentMonth) ? 'selected' : '';
                     optionsHTML.push(`<option value="${val}" ${selected}>${label}</option>`);
@@ -644,7 +641,7 @@
             },
 
             loginAsAdmin() {
-                const user = document.getElementById('admin-user').value;
+                const user = document.getElementById('admin-user').value.trim().toLowerCase(); // Case Insensitive
                 const pass = document.getElementById('admin-pass').value;
                 if (user === 'admin' && pass === '0000') {
                     this.completeLogin('admin');
@@ -778,10 +775,59 @@
 
             // --- TRANSACTION ---
             openModal(modalId) {
+                // Reset to Create Mode default
+                this.data.editingId = null;
+                document.getElementById('modal-title').textContent = 'บันทึกรายจ่าย';
+                document.getElementById('btn-save-transaction').textContent = 'บันทึกรายการ';
+                
+                // Clear inputs
+                document.getElementById('t-amount').value = '';
+                document.getElementById('t-desc').value = '';
+                document.getElementById('t-payment-type').value = 'normal';
+                document.getElementById('t-installments').value = '';
+                this.toggleInstallment();
+                
+                // Set default date to today for new entry
+                const today = new Date();
+                const y = today.getFullYear();
+                const m = String(today.getMonth() + 1).padStart(2, '0');
+                const d = String(today.getDate()).padStart(2, '0');
+                document.getElementById('t-date').value = `${y}-${m}-${d}`;
+
                 document.getElementById(modalId).classList.remove('hidden');
                 this.renderSplitParticipants();
             },
+
+            // EDIT FUNCTION
+            editTransaction(id) {
+                const t = this.data.transactions.find(t => String(t.id) === String(id));
+                if (!t) return;
+
+                this.data.editingId = id; // Set Edit Mode
+                document.getElementById('modal-title').textContent = 'แก้ไขรายการ';
+                document.getElementById('btn-save-transaction').textContent = 'บันทึกการแก้ไข';
+
+                // Populate Form
+                document.getElementById('t-date').value = t.date;
+                document.getElementById('t-payment-type').value = t.paymentType || 'normal';
+                document.getElementById('t-desc').value = t.desc;
+                document.getElementById('t-amount').value = t.amount;
+                document.getElementById('t-payer').value = t.payer;
+                document.getElementById('t-icon').value = t.icon || 'fa-utensils';
+                
+                // Installment logic
+                this.toggleInstallment();
+                if(t.paymentType === 'installment') {
+                    document.getElementById('t-installments').value = t.installments;
+                }
+
+                // Show Modal
+                document.getElementById('transaction-modal').classList.remove('hidden');
+                this.renderSplitParticipants(); // You might want to try to match checkboxes here if needed, but keeping it simple resets to default split
+            },
+
             closeModal(modalId) {
+                this.data.editingId = null; // Reset
                 document.getElementById(modalId).classList.add('hidden');
             },
 
@@ -872,65 +918,99 @@
                     }
                 }
 
-                const amountPerInstallment = totalAmount / installments;
-                const batchTransactions = [];
-                const baseDate = new Date(dateStr);
+                // CHECK IF EDITING OR CREATING
+                if (this.data.editingId) {
+                    // --- UPDATE SINGLE RECORD ---
+                    const tIndex = this.data.transactions.findIndex(t => String(t.id) === String(this.data.editingId));
+                    if (tIndex === -1 && !ENABLE_FIREBASE) return; 
 
-                for(let i=0; i<installments; i++) {
-                    const nextDate = new Date(baseDate);
-                    nextDate.setMonth(baseDate.getMonth() + i);
-                    
-                    const y = nextDate.getFullYear();
-                    const m = String(nextDate.getMonth() + 1).padStart(2, '0');
-                    const d = String(nextDate.getDate()).padStart(2, '0');
-                    const txnDate = `${y}-${m}-${d}`;
-
-                    let finalDesc = desc;
-                    if(installments > 1) {
-                        finalDesc += ` (งวดที่ ${i+1}/${installments})`;
-                    }
-
-                    let txnSplits = {};
-                    for(let member in splits) {
-                        txnSplits[member] = splits[member] * amountPerInstallment;
-                    }
-
-                    batchTransactions.push({
-                        id: Date.now() + i, 
-                        date: txnDate,
+                    // Construct Updated Object
+                    const updatedData = {
+                        date: dateStr,
                         type: 'expense',
                         paymentType,
-                        installments,
-                        desc: finalDesc,
-                        amount: amountPerInstallment,
+                        installments: paymentType === 'installment' ? installments : 1,
+                        desc,
+                        amount: totalAmount, // Note: Edit assumes updating this specific record's amount, not regenerating installments
                         payer,
-                        icon, 
-                        splits: txnSplits
-                    });
-                }
+                        icon,
+                        splits: {} // Re-calculate splits based on totalAmount
+                    };
 
-                if(ENABLE_FIREBASE && db) {
-                    const batch = writeBatch(db);
-                    for(const t of batchTransactions) {
-                        const newRef = doc(collection(db, "transactions")); 
-                        t.id = newRef.id;
-                        batch.set(newRef, t);
+                    // Recalculate split values
+                    for(let member in splits) {
+                        updatedData.splits[member] = splits[member] * totalAmount;
                     }
-                    await batch.commit();
-                    this.data.transactions.push(...batchTransactions);
+
+                    if(ENABLE_FIREBASE && db) {
+                        try {
+                            const ref = doc(db, "transactions", String(this.data.editingId));
+                            await updateDoc(ref, updatedData);
+                            // Update local
+                            const found = this.data.transactions.find(t => String(t.id) === String(this.data.editingId));
+                            if(found) Object.assign(found, updatedData);
+                        } catch(e) { console.error(e); alert('Update failed'); }
+                    } else {
+                        // Local update
+                        const found = this.data.transactions.find(t => String(t.id) === String(this.data.editingId));
+                        if(found) Object.assign(found, updatedData);
+                        this.saveData();
+                    }
+
                 } else {
-                    this.data.transactions.push(...batchTransactions);
-                    this.saveData();
+                    // --- CREATE NEW (Batch if installment) ---
+                    const amountPerInstallment = totalAmount / installments;
+                    const batchTransactions = [];
+                    const baseDate = new Date(dateStr);
+
+                    for(let i=0; i<installments; i++) {
+                        const nextDate = new Date(baseDate);
+                        nextDate.setMonth(baseDate.getMonth() + i);
+                        const y = nextDate.getFullYear();
+                        const m = String(nextDate.getMonth() + 1).padStart(2, '0');
+                        const d = String(nextDate.getDate()).padStart(2, '0');
+                        const txnDate = `${y}-${m}-${d}`;
+
+                        let finalDesc = desc;
+                        if(installments > 1) {
+                            finalDesc += ` (งวดที่ ${i+1}/${installments})`;
+                        }
+
+                        let txnSplits = {};
+                        for(let member in splits) {
+                            txnSplits[member] = splits[member] * amountPerInstallment;
+                        }
+
+                        batchTransactions.push({
+                            id: Date.now() + i, 
+                            date: txnDate,
+                            type: 'expense',
+                            paymentType,
+                            installments,
+                            desc: finalDesc,
+                            amount: amountPerInstallment,
+                            payer,
+                            icon, 
+                            splits: txnSplits
+                        });
+                    }
+
+                    if(ENABLE_FIREBASE && db) {
+                        const batch = writeBatch(db);
+                        for(const t of batchTransactions) {
+                            const newRef = doc(collection(db, "transactions")); 
+                            t.id = newRef.id;
+                            batch.set(newRef, t);
+                        }
+                        await batch.commit();
+                        this.data.transactions.push(...batchTransactions);
+                    } else {
+                        this.data.transactions.push(...batchTransactions);
+                        this.saveData();
+                    }
                 }
 
                 this.closeModal('transaction-modal');
-                
-                document.getElementById('t-amount').value = '';
-                document.getElementById('t-desc').value = '';
-                document.getElementById('t-payment-type').value = 'normal';
-                document.getElementById('t-installments').value = '';
-                this.toggleInstallment();
-                
                 this.refreshCurrentView();
             },
 
@@ -1202,8 +1282,12 @@
                             const div = document.createElement('div');
                             div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2 last:mb-0";
                             
+                            const editBtn = this.data.userRole === 'admin' 
+                                ? `<button onclick="window.app.editTransaction('${t.id}')" class="text-blue-400 hover:text-blue-600 p-2"><i class="fa-solid fa-pen"></i></button>` 
+                                : '';
+
                             const deleteBtn = this.data.userRole === 'admin' 
-                                ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-500 ml-3"><i class="fa-solid fa-trash"></i></button>` 
+                                ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>` 
                                 : '';
 
                             const typeLabel = t.paymentType === 'installment' 
@@ -1225,8 +1309,9 @@
                                         </p>
                                     </div>
                                 </div>
-                                <div class="flex items-center gap-3">
-                                    <span class="block font-bold text-slate-800 text-sm">${t.amount.toLocaleString()}</span>
+                                <div class="flex items-center gap-1">
+                                    <span class="block font-bold text-slate-800 text-sm mr-2">${t.amount.toLocaleString()}</span>
+                                    ${editBtn}
                                     ${deleteBtn}
                                 </div>
                             `;
