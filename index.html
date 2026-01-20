@@ -1,9 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker Design (V13 - Icons & Status Position)
+    Mobile-First Expense Tracker Design (V14 - Settlement UI & Layout Fixes)
     Changes:
-    1. UI (Mobile): Moved 'Connection Status' to top-right (under Logout button).
-    2. Content: Added icons for Game, Mobile, Travel.
-    3. Status: Firebase Configured (deptmoney-6682a).
+    1. Layout: Increased top padding (pt-20) to prevent header overlap on mobile.
+    2. Add Modal: Aligned Date/Payment inputs perfectly. Added 'Car' icon.
+    3. Settlement View: Redesigned to show ALL members with individual status cards (Pay/Receive/Clear).
+    4. Logic: Member addition confirmed safe for legacy data.
 -->
 
 <!DOCTYPE html>
@@ -11,7 +12,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V13)</title>
+    <title>ระบบหารค่าใช้จ่ายกลุ่ม (V14)</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -101,7 +102,7 @@
         </div>
     </div>
 
-    <!-- CONNECTION STATUS (Moved to Top-Right on Mobile) -->
+    <!-- CONNECTION STATUS (Top-Right on Mobile) -->
     <div id="connection-status-global" class="fixed top-14 right-2 md:top-auto md:right-auto md:bottom-4 md:left-4 z-[80] text-[10px] flex items-center gap-1 opacity-90 pointer-events-none transition-all duration-300 bg-slate-50/80 md:bg-transparent px-2 py-1 rounded-b-lg">
         <span class="text-slate-400">Checking...</span>
     </div>
@@ -154,7 +155,7 @@
     </div>
 
     <!-- MOBILE TOP BAR -->
-    <header class="md:hidden bg-white border-b border-slate-200 h-14 flex items-center justify-between px-4 fixed top-0 w-full z-40 shadow-sm">
+    <header class="md:hidden bg-white/95 backdrop-blur border-b border-slate-200 h-14 flex items-center justify-between px-4 fixed top-0 w-full z-40 shadow-sm">
         <div class="flex items-center gap-2">
             <i class="fa-solid fa-wallet text-slate-800"></i>
             <span class="font-bold text-slate-800 text-lg">Expense</span>
@@ -191,7 +192,8 @@
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto relative bg-slate-50 pt-14 pb-20 md:pt-0 md:pb-0" id="main-content">
+    <!-- FIX: Increased padding-top to pt-20 to prevent header from covering content -->
+    <main class="flex-1 overflow-y-auto relative bg-slate-50 pt-20 pb-24 md:pt-0 md:pb-0" id="main-content">
         
         <!-- DASHBOARD -->
         <section id="view-dashboard" class="p-4 md:p-8 max-w-5xl mx-auto space-y-4 md:space-y-6 fade-in">
@@ -268,11 +270,17 @@
                 </select>
             </div>
 
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-800 leading-relaxed">
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-800 leading-relaxed mb-4">
                 <i class="fa-solid fa-circle-info mr-1"></i> 
-                คำนวณจากยอดเดือนที่เลือก: ยอดจ่ายจริง - ยอดหารเฉลี่ย (ติดลบ = ต้องโอนคืน)
+                ข้อมูลเฉพาะเดือนที่เลือกเท่านั้น
             </div>
             
+            <!-- Member Status Grid -->
+            <div id="settlement-status-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+                <!-- Populated by JS -->
+            </div>
+
+            <h3 class="font-bold text-slate-700 text-sm mb-3 border-b border-slate-200 pb-2">ขั้นตอนการโอนเงิน (Transfer Plan)</h3>
             <div id="settlement-plan" class="space-y-3">
                 <!-- Plan items -->
             </div>
@@ -312,13 +320,13 @@
                 </div>
             </div>
 
-            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 13.0 (Icons & UI)</p>
+            <p class="text-center text-xs text-slate-400 mt-4">Version Mobile 14.0 (Design Fix)</p>
         </section>
 
     </main>
 
     <!-- MOBILE BOTTOM NAV -->
-    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 h-16 grid grid-cols-4 px-2 z-40 pb-safe">
+    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-slate-200 h-16 grid grid-cols-4 px-2 z-40 pb-safe shadow-[0_-1px_3px_rgba(0,0,0,0.05)]">
         <button onclick="window.app.navigate('dashboard')" id="mob-nav-dashboard" class="bottom-nav-item flex flex-col items-center justify-center gap-1 text-slate-400 active">
             <i class="fa-solid fa-chart-pie text-lg"></i>
             <span class="text-[10px] font-medium">ภาพรวม</span>
@@ -350,15 +358,15 @@
             
             <!-- Body -->
             <div class="flex-1 overflow-y-auto p-4 space-y-5">
-                <!-- Date & Payment Type -->
+                <!-- Date & Payment Type (Aligned Grid) -->
                 <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 block mb-1">วันที่</label>
-                        <input type="date" id="t-date" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm">
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-slate-500 mb-1">วันที่</label>
+                        <input type="date" id="t-date" class="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm h-10">
                     </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500 block mb-1">รูปแบบการชำระ</label>
-                        <select id="t-payment-type" onchange="window.app.toggleInstallment()" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm">
+                    <div class="flex flex-col">
+                        <label class="text-xs font-bold text-slate-500 mb-1">รูปแบบการชำระ</label>
+                        <select id="t-payment-type" onchange="window.app.toggleInstallment()" class="w-full bg-white border border-slate-200 rounded-lg p-2 text-sm h-10">
                             <option value="normal">ชำระเต็มจำนวน</option>
                             <option value="installment">ผ่อนชำระ</option>
                         </select>
@@ -376,20 +384,20 @@
                 <div>
                     <label class="text-xs font-bold text-slate-500 block mb-1">รายการ & ไอคอน</label>
                     <div class="flex gap-2">
-                        <select id="t-icon" class="w-16 bg-white border border-slate-200 rounded-lg p-2 text-xl text-center text-slate-600">
+                        <select id="t-icon" class="w-16 bg-white border border-slate-200 rounded-lg p-2 text-xl text-center text-slate-600 h-10">
                             <option value="fa-utensils">🍴</option>
                             <option value="fa-bus">🚌</option>
+                            <option value="fa-car">🚗</option> <!-- Added Car Icon -->
                             <option value="fa-cart-shopping">🛒</option>
                             <option value="fa-bolt">⚡</option>
                             <option value="fa-house">🏠</option>
                             <option value="fa-gift">🎁</option>
                             <option value="fa-comment-dollar">💸</option>
-                            <!-- New Icons -->
                             <option value="fa-gamepad">🎮</option>
                             <option value="fa-mobile-screen-button">📱</option>
                             <option value="fa-plane-departure">✈️</option>
                         </select>
-                        <input type="text" id="t-desc" placeholder="ชื่อรายการ (เช่น มื้อเย็น)" class="flex-1 border border-slate-200 rounded-lg p-2.5 text-sm">
+                        <input type="text" id="t-desc" placeholder="ชื่อรายการ (เช่น มื้อเย็น)" class="flex-1 border border-slate-200 rounded-lg p-2.5 text-sm h-10">
                     </div>
                 </div>
 
@@ -403,8 +411,8 @@
                 <div>
                     <label class="text-xs font-bold text-slate-500 block mb-1">ใครจ่าย?</label>
                     <div class="flex gap-2">
-                        <select id="t-payer" class="flex-1 border border-slate-200 rounded-lg p-2 text-sm bg-white font-medium text-slate-700"></select>
-                        <button onclick="window.app.quickAddMember()" class="bg-slate-100 px-3 rounded-lg text-slate-500 border border-slate-200"><i class="fa-solid fa-plus"></i></button>
+                        <select id="t-payer" class="flex-1 border border-slate-200 rounded-lg p-2 text-sm bg-white font-medium text-slate-700 h-10"></select>
+                        <button onclick="window.app.quickAddMember()" class="bg-slate-100 px-3 rounded-lg text-slate-500 border border-slate-200 h-10"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
 
@@ -920,7 +928,6 @@
                 document.getElementById('loading-overlay').classList.remove('hidden');
 
                 if(ENABLE_FIREBASE && db) {
-                    // Try delete if it has a string ID (Firebase)
                     if (typeof id === 'string') {
                         try {
                             await deleteDoc(doc(db, "transactions", id));
@@ -931,7 +938,6 @@
                             document.getElementById('error-popup').classList.remove('hidden');
                         }
                     } else {
-                        // Numeric ID = Local (Not synced yet)
                         this.data.transactions = this.data.transactions.filter(t => t.id !== id);
                     }
                 } else {
@@ -1066,6 +1072,40 @@
                     });
                 });
 
+                // NEW: Render ALL Member Status Cards
+                const statusGrid = document.getElementById('settlement-status-grid');
+                statusGrid.innerHTML = '';
+                
+                // Sort members by name for consistency
+                const sortedMembers = Object.keys(balances).sort();
+                
+                sortedMembers.forEach(member => {
+                    const balance = Math.round(balances[member] * 100) / 100;
+                    let colorClass = 'bg-gray-50 border-gray-200 text-gray-500';
+                    let statusText = 'ไม่มียอดค้าง';
+                    let amountText = '-';
+                    
+                    if (balance > 1) { // Positive: Wait to receive
+                        colorClass = 'bg-emerald-50 border-emerald-200 text-emerald-700';
+                        statusText = 'รอรับเงิน';
+                        amountText = `+${balance.toLocaleString()}`;
+                    } else if (balance < -1) { // Negative: Needs to pay
+                        colorClass = 'bg-red-50 border-red-200 text-red-700';
+                        statusText = 'ต้องจ่ายคืน';
+                        amountText = `${balance.toLocaleString()}`;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = `p-3 rounded-xl border flex flex-col items-center justify-center text-center ${colorClass}`;
+                    card.innerHTML = `
+                        <span class="font-bold text-sm mb-1">${member}</span>
+                        <span class="text-xs opacity-80 mb-1">${statusText}</span>
+                        <span class="font-bold text-lg">${amountText}</span>
+                    `;
+                    statusGrid.appendChild(card);
+                });
+
+                // Algorithm for Transfer Plan
                 let debtors = []; let creditors = [];
                 Object.keys(balances).forEach(person => {
                     const val = Math.round(balances[person] * 100) / 100;
@@ -1090,11 +1130,11 @@
                         instructions.push(`
                             <div class="flex items-center justify-between bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
                                 <div class="flex items-center gap-2">
-                                    <span class="font-bold text-slate-700">${d.person}</span>
+                                    <span class="font-bold text-slate-700 text-sm">${d.person}</span>
                                     <i class="fa-solid fa-arrow-right text-slate-300 text-xs"></i>
-                                    <span class="font-bold text-slate-700">${c.person}</span>
+                                    <span class="font-bold text-slate-700 text-sm">${c.person}</span>
                                 </div>
-                                <span class="font-bold text-red-500">${amount.toLocaleString()} ฿</span>
+                                <span class="font-bold text-red-500 text-sm">${amount.toLocaleString()} ฿</span>
                             </div>
                         `);
                     }
@@ -1104,7 +1144,7 @@
                 }
 
                 if (instructions.length === 0) {
-                    planDiv.innerHTML = '<div class="p-6 bg-white rounded-xl border border-dashed border-slate-300 text-center text-slate-400 text-sm">✅ เคลียร์ครบแล้ว</div>';
+                    planDiv.innerHTML = '<div class="p-6 bg-white rounded-xl border border-dashed border-slate-300 text-center text-slate-400 text-sm">✅ เคลียร์ยอดครบหมดแล้ว</div>';
                 } else {
                     planDiv.innerHTML = instructions.join('');
                 }
@@ -1171,26 +1211,14 @@
                     
                     if(ENABLE_FIREBASE && db) {
                         try {
-                            // Find docs to delete (must use query if possible, but filter is fine for small apps)
                             const toDelete = this.data.transactions.filter(t => t.date.startsWith(targetMonth));
-                            
                             if (toDelete.length > 0) {
                                 const batch = writeBatch(db);
-                                let count = 0;
-                                
                                 toDelete.forEach(t => {
-                                    // Verify ID is string and exists
-                                    if(typeof t.id === 'string') {
-                                        const docRef = doc(db, "transactions", t.id);
-                                        batch.delete(docRef);
-                                        count++;
-                                    }
+                                    if(t.id && typeof t.id === 'string') batch.delete(doc(db, "transactions", t.id));
                                 });
-                                
                                 await batch.commit();
-                                console.log(`Deleted ${count} docs`);
                             }
-                            
                             this.data.transactions = this.data.transactions.filter(t => !t.date.startsWith(targetMonth));
                             alert(`ลบข้อมูลเรียบร้อย`);
                         } catch(e) {
@@ -1199,7 +1227,6 @@
                             document.getElementById('error-popup').classList.remove('hidden');
                         }
                     } else {
-                        // Local Delete
                         this.data.transactions = this.data.transactions.filter(t => !t.date.startsWith(targetMonth));
                         this.saveData();
                         alert(`ลบข้อมูลเรียบร้อย`);
