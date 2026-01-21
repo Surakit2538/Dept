@@ -1,9 +1,11 @@
 <!-- 
-    Mobile-First Expense Tracker (V49 - Fix Render Error)
+    Mobile-First Expense Tracker (V52 - Custom Backend API Integration)
     Project: deptmoney-6682a
-    Fixes:
-    1. Added missing 'renderHistory' function to fix TypeError.
-    2. Improved transaction list UI in History view.
+    Updates:
+    1. Integration with custom backend API (/api/send-line).
+    2. Removed client-side Token storage (moved to server-side).
+    3. Added API Endpoint configuration in Settings.
+    4. Sends 'month' and 'debts' JSON payload to the backend.
 -->
 
 <!DOCTYPE html>
@@ -111,15 +113,42 @@
             color: white;
             border-color: #1e293b;
         }
+
+        /* Toast Notification */
+        #toast {
+            visibility: hidden;
+            min-width: 250px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 8px;
+            padding: 16px;
+            position: fixed;
+            z-index: 100;
+            left: 50%;
+            bottom: 30px;
+            transform: translateX(-50%);
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        #toast.show {
+            visibility: visible;
+            opacity: 1;
+            bottom: 50px;
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row">
+
+    <!-- TOAST -->
+    <div id="toast">แจ้งเตือน</div>
 
     <!-- LOADING OVERLAY -->
     <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center justify-center gap-2">
             <i class="fa-solid fa-circle-notch fa-spin text-slate-800 text-2xl"></i>
-            <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...</span>
+            <span class="text-xs text-slate-600 font-medium">กำลังส่งข้อมูล...</span>
         </div>
     </div>
 
@@ -162,7 +191,7 @@
             </div>
             
             <div class="text-center text-[10px] text-slate-400/60 mt-4">
-                v4.8 &copy; Dept Money Project
+                v5.2 &copy; Dept Money Project
             </div>
         </div>
     </div>
@@ -285,10 +314,10 @@
             <div id="settlement-plan" class="space-y-2"></div>
 
             <div id="settlement-admin-actions" class="hidden mt-8 pt-4 border-t border-slate-200">
-                <button onclick="window.app.sendLineNotify()" class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg hover:bg-[#05b34c] active:scale-[0.98] transition-all">
-                    <i class="fa-brands fa-line text-2xl"></i> ส่งสรุปยอดเข้า LINE
+                <button onclick="window.app.sendLineMessage()" class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg hover:bg-[#05b34c] active:scale-[0.98] transition-all">
+                    <i class="fa-brands fa-line text-2xl"></i> ยิง Flex Message เข้า LINE
                 </button>
-                <p class="text-center text-[10px] text-slate-400 mt-2">*เฉพาะ Admin เท่านั้น</p>
+                <p class="text-center text-[10px] text-slate-400 mt-2">* ใช้ Custom API (/api/send-line)</p>
             </div>
         </section>
 
@@ -308,17 +337,28 @@
                 <i class="fa-solid fa-file-csv text-green-600 mr-2"></i> Export ข้อมูลเป็น CSV
             </button>
 
-            <div id="admin-danger-zone" class="hidden bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
-                <h3 class="font-bold text-red-700 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-triangle-exclamation"></i> พื้นที่อันตราย (Admin Only)
+            <div id="admin-danger-zone" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-server"></i> การเชื่อมต่อ API
                 </h3>
-                <div class="flex gap-2">
-                    <select id="delete-month-selector" class="flex-1 bg-white border border-red-200 text-sm rounded-lg px-2 outline-none text-slate-600"></select>
-                    <button onclick="window.app.clearMonthData()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm">ลบเดือนนี้</button>
+                
+                <!-- API Config -->
+                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                    <label class="text-[10px] font-bold text-blue-600 uppercase mb-1 block">API Endpoint URL</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="api-endpoint-url" placeholder="/api/send-line" class="flex-1 px-3 py-2 border rounded-lg text-xs bg-slate-50 focus:ring-2 focus:ring-blue-100 outline-none">
+                        <button onclick="window.app.saveApiConfig()" class="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold">บันทึก</button>
+                    </div>
+                    <p class="text-[9px] text-slate-400 mt-1">ใส่ URL ของ Backend API (เช่น /api/send-line)</p>
                 </div>
-                <button onclick="window.app.cleanUpOldData()" class="w-full border border-red-200 text-red-500 hover:bg-red-100 py-2 rounded-lg text-xs font-medium mt-2">
-                    ล้างข้อมูลเก่ากว่า 2 ปี
-                </button>
+
+                <div class="bg-red-50 p-3 rounded-lg border border-red-100 mt-4">
+                    <h4 class="font-bold text-red-700 text-xs mb-2"><i class="fa-solid fa-triangle-exclamation"></i> ลบข้อมูล</h4>
+                    <div class="flex gap-2 mb-2">
+                        <select id="delete-month-selector" class="flex-1 bg-white border border-red-200 text-xs rounded-lg px-2 outline-none text-slate-600"></select>
+                        <button onclick="window.app.clearMonthData()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm">ลบเดือนนี้</button>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -481,7 +521,9 @@
                 currentMonth: new Date().toISOString().slice(0, 7),
                 editingId: null,
                 selectedGroupId: null,
-                settlementPlan: [] // Added for LINE sharing
+                settlementPlan: [], 
+                // ค่าเริ่มต้น API Endpoint หรือดึงจาก LocalStorage
+                apiEndpoint: localStorage.getItem('dept_money_api_endpoint') || '/api/send-line'
             },
             charts: { monthlyTrend: null, payer: null },
 
@@ -489,6 +531,7 @@
                 this.initBackground();
                 this.populateMonthSelectors();
                 this.selectIcon('fa-utensils');
+                if(this.data.apiEndpoint) document.getElementById('api-endpoint-url').value = this.data.apiEndpoint;
                 
                 onSnapshot(collection(db, "members"), (snap) => {
                     this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort();
@@ -540,7 +583,6 @@
                 if (this.data.currentView === 'settlement') this.calculateSettlement();
             },
 
-            // --- ADDED MISSING RENDERHISTORY FUNCTION ---
             renderHistory() {
                 const list = document.getElementById('transaction-list-mobile');
                 const empty = document.getElementById('empty-state');
@@ -627,7 +669,6 @@
             },
             
             triggerGameEmoji(e) {
-                // Fun Easter Egg
                 const el = e.target;
                 el.style.transform = "scale(1.2)";
                 setTimeout(() => el.style.transform = "scale(1)", 200);
@@ -701,7 +742,6 @@
                     grid.appendChild(card);
                 });
 
-                // Algorithm to settle debts
                 const debtors = [], creditors = [];
                 this.data.members.forEach(m => {
                     const b = Math.round(balances[m]);
@@ -709,7 +749,6 @@
                     if(b > 1) creditors.push({ name: m, amount: b });
                 });
 
-                // Clear previous plan
                 this.data.settlementPlan = [];
                 const planContainer = document.getElementById('settlement-plan');
                 planContainer.innerHTML = "";
@@ -718,8 +757,6 @@
                 while(i < debtors.length && j < creditors.length) {
                     const d = debtors[i];
                     const c = creditors[j];
-                    
-                    // Fixed: Explicitly declare variable to avoid ReferenceError
                     const pay = Math.min(d.amount, c.amount);
 
                     this.data.settlementPlan.push({ from: d.name, to: c.name, amount: pay });
@@ -734,7 +771,6 @@
                     d.amount -= pay;
                     c.amount -= pay;
 
-                    // Lower threshold to 0.01 for float precision
                     if(d.amount <= 0.01) i++;
                     if(c.amount <= 0.01) j++;
                 }
@@ -1023,22 +1059,67 @@
             
             logout() { location.reload(); },
             
-            sendLineNotify() {
+            saveApiConfig() {
+                const url = document.getElementById('api-endpoint-url').value.trim();
+                if(url) {
+                    localStorage.setItem('dept_money_api_endpoint', url);
+                    this.data.apiEndpoint = url;
+                    this.showToast('บันทึก URL เรียบร้อยแล้ว');
+                } else {
+                    localStorage.removeItem('dept_money_api_endpoint');
+                    this.data.apiEndpoint = '/api/send-line';
+                    this.showToast('รีเซ็ตเป็นค่าเริ่มต้นแล้ว');
+                }
+            },
+            
+            showToast(msg) {
+                const t = document.getElementById('toast');
+                t.textContent = msg;
+                t.className = "show";
+                setTimeout(() => t.className = t.className.replace("show", ""), 3000);
+            },
+
+            // --- FUNCTION TO CALL YOUR BACKEND API ---
+            async sendLineMessage() {
                 if(!this.data.settlementPlan || this.data.settlementPlan.length === 0) {
                     return alert("ไม่มีรายการที่ต้องเคลียร์ หรือยังไม่ได้คำนวณ");
                 }
                 
+                const apiUrl = this.data.apiEndpoint; // e.g. /api/send-line or full URL
                 const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: 'numeric' });
-                let msg = `🧾 สรุปยอด Dept Money (${monthName})\n\n`;
                 
-                this.data.settlementPlan.forEach(item => {
-                    msg += `${item.from} ➡️ ${item.to}: ${item.amount.toLocaleString()} ฿\n`;
-                });
+                // Show loading
+                document.getElementById('loading-overlay').classList.remove('hidden');
                 
-                msg += "\nตรวจสอบรายละเอียดเพิ่มเติมใน App";
-                
-                // Open LINE Share URL
-                window.open(`https://line.me/R/msg/text/?${encodeURIComponent(msg)}`, '_blank');
+                try {
+                    // Create payload matching your backend requirement
+                    const payload = {
+                        month: monthName,
+                        debts: this.data.settlementPlan // array of {from, to, amount}
+                    };
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if(response.ok) {
+                        this.showToast("ส่งแจ้งเตือนเข้า LINE แล้ว ✅");
+                    } else {
+                        throw new Error(result.message || "Server returned error");
+                    }
+                    
+                } catch(e) {
+                    console.error(e);
+                    alert("เกิดข้อผิดพลาดในการเรียก API:\n" + e.message + "\n\n(กรุณาตรวจสอบว่า API URL ถูกต้องหรือไม่)");
+                } finally {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                }
             }
         };
 
