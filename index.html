@@ -3,7 +3,7 @@
     Project: deptmoney-6682a
     Fixes & Features:
     1. Smart Delete (Fix): Correctly identifies and deletes future installments using local memory group mapping.
-    2. Group Edit: Updating one installment item automatically syncs description, payer, icon, and splits to the whole group.
+    2. Group Edit: Updating one installment item automatically syncs description, payer, icon, and splits to the whole group while preserving installment numbers.
     3. Icon Selection: Users can now pick icons for each transaction.
     4. Cloud Sync: Real-time updates with Firebase without local persistence.
 -->
@@ -56,7 +56,7 @@
             0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
             10% { opacity: 1; }
             90% { opacity: 1; }
-            100% { transform: translateY(-10vh) scale(1.2) rotate(360deg); opacity: 0; }
+            100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
         }
 
         .chart-container {
@@ -110,7 +110,7 @@
     <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center justify-center gap-2">
             <i class="fa-solid fa-circle-notch fa-spin text-slate-800 text-2xl"></i>
-            <span class="text-xs text-slate-600 font-medium">กำลังประมวลผล...</span>
+            <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...</span>
         </div>
     </div>
 
@@ -231,6 +231,12 @@
 
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2">สรุปการโอนเงิน</h3>
             <div id="settlement-plan" class="space-y-2"></div>
+
+            <div id="settlement-admin-actions" class="hidden mt-6">
+                <button onclick="window.app.sendLineNotify()" class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg">
+                    <i class="fa-brands fa-line text-2xl"></i> ส่งสรุปยอดเข้า LINE
+                </button>
+            </div>
         </section>
 
         <!-- SETTINGS -->
@@ -243,6 +249,18 @@
                     <button onclick="window.app.addMember()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-bold">เพิ่ม</button>
                 </div>
                 <div id="member-list" class="flex flex-wrap gap-2"></div>
+            </div>
+            
+            <button id="btn-export-csv" onclick="window.app.exportCSV()" class="hidden w-full bg-white border text-slate-700 py-3 rounded-xl font-bold text-sm shadow-sm">
+                Export ข้อมูลเป็น CSV
+            </button>
+
+            <div id="admin-danger-zone" class="hidden bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
+                <h3 class="font-bold text-red-700 text-sm">จัดการข้อมูล (Admin Only)</h3>
+                <div class="flex gap-2">
+                    <select id="delete-month-selector" class="flex-1 bg-white border text-sm rounded-lg px-2 outline-none"></select>
+                    <button onclick="window.app.clearMonthData()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold">ลบเดือนนี้</button>
+                </div>
             </div>
         </section>
 
@@ -391,6 +409,7 @@
             async init() {
                 this.initBackground();
                 this.populateMonthSelectors();
+                this.selectIcon('fa-utensils');
                 
                 onSnapshot(collection(db, "members"), (snap) => {
                     this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort();
@@ -451,6 +470,9 @@
                 badge.textContent = role.toUpperCase();
                 if(role === 'admin') {
                     badge.className = "text-[10px] bg-slate-800 px-2 py-1 rounded-full font-bold text-white";
+                    document.getElementById('admin-danger-zone').classList.remove('hidden');
+                    document.getElementById('settlement-admin-actions').classList.remove('hidden');
+                    document.getElementById('btn-export-csv').classList.remove('hidden');
                 }
                 this.navigate('dashboard');
             },
@@ -464,7 +486,7 @@
                     html += `<option value="${val}">${label}</option>`;
                     date.setMonth(date.getMonth() - 1);
                 }
-                document.querySelectorAll('.global-month-selector').forEach(s => s.innerHTML = html);
+                document.querySelectorAll('.global-month-selector, #delete-month-selector').forEach(s => s.innerHTML = html);
             },
 
             setMonth(val) {
@@ -573,17 +595,19 @@
                 const months = [], amounts = [], d = new Date();
                 for(let i=0; i<12; i++) {
                     const key = d.toISOString().slice(0, 7);
-                    months.unshift(d.toLocaleString('th-TH', {month:'short'}));
+                    const thaiYear = String(d.getFullYear() + 543).slice(-2);
+                    const label = `${String(d.getMonth() + 1).padStart(2, '0')}/${thaiYear}`;
+                    months.unshift(label);
                     amounts.unshift(this.data.transactions.filter(t => t.date.startsWith(key)).reduce((a, t) => a + Number(t.amount), 0));
                     d.setMonth(d.getMonth() - 1);
                 }
-                this.charts.monthlyTrend = new Chart(ctx, { type: 'bar', data: { labels: months, datasets: [{ data: amounts, backgroundColor: months.map((_,i) => i === 11 ? '#1e293b' : '#cbd5e1'), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } } });
+                this.charts.monthlyTrend = new Chart(ctx, { type: 'bar', data: { labels: months, datasets: [{ data: amounts, backgroundColor: months.map((_,i) => i === 11 ? '#1e293b' : '#cbd5e1'), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0 } } } } });
             },
 
             renderPayerChart(data) {
                 const ctx = document.getElementById('payerChart').getContext('2d');
                 if(this.charts.payer) this.charts.payer.destroy();
-                this.charts.payer = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v.toLocaleString() : "" } } } });
+                this.charts.payer = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v.toLocaleString() : "" } } } });
             },
 
             openModal(id) { 
@@ -679,8 +703,18 @@
                     if(this.data.selectedGroupId) {
                         // อัปเดตทั้งกลุ่ม
                         const groupItems = this.data.transactions.filter(item => item.groupId === this.data.selectedGroupId);
+                        // ถ้าแก้ไขชื่อรายการ เราต้องพยายามคงเลขงวดไว้
+                        const oldDescBase = desc; // ชื่อใหม่ที่ผู้ใช้พิมพ์
+                        
                         groupItems.forEach(item => {
-                            batch.update(doc(db, "transactions", item.id), { desc, payer, icon, splits });
+                            // พยายามหา (x/y) จากชื่อเดิมของแต่ละรายการในกลุ่ม
+                            let newFullDesc = oldDescBase;
+                            const suffixMatch = item.desc.match(/\(\d+\/\d+\)$/);
+                            if(suffixMatch) {
+                                newFullDesc = `${oldDescBase} ${suffixMatch[0]}`;
+                            }
+                            
+                            batch.update(doc(db, "transactions", item.id), { desc: newFullDesc, payer, icon, splits });
                         });
                     } else {
                         batch.update(doc(db, "transactions", this.data.editingId), { desc, payer, amount, splits, date, icon });
@@ -752,6 +786,34 @@
                         alert("ลบไม่สำเร็จ: " + e.message);
                     }
                     document.getElementById('loading-overlay').classList.add('hidden');
+                } else if (t.desc.match(/\(\d+\/\d+\)$/)) {
+                    // Fallback logic สำหรับรายการเก่าที่ไม่มี groupId แต่มีวงเล็บงวด (x/y)
+                    const confirmLegacy = confirm("ตรวจพบว่าเป็นรายการผ่อนเก่า (ไม่มี Group ID)\nระบบจะพยายามค้นหารายการที่ชื่อเหมือนกันเพื่อลบ\n\nOK: ลบงวดนี้และงวดอนาคต (โดยดูจากชื่อ)\nCancel: ลบเฉพาะงวดนี้");
+                    
+                    document.getElementById('loading-overlay').classList.remove('hidden');
+                    const batch = writeBatch(db);
+                    
+                    if(confirmLegacy) {
+                        const baseName = t.desc.split(' (')[0]; // ตัดชื่อ เช่น "Nintendo" จาก "Nintendo (4/10)"
+                        const itemsToDelete = this.data.transactions.filter(item => 
+                            item.desc.startsWith(baseName) && 
+                            item.desc.match(/\(\d+\/\d+\)$/) && // ต้องมีวงเล็บงวด
+                            item.date >= t.date
+                        );
+                        itemsToDelete.forEach(item => {
+                            batch.delete(doc(db, "transactions", item.id.trim()));
+                        });
+                    } else {
+                         batch.delete(doc(db, "transactions", id.trim()));
+                    }
+                    
+                    try {
+                        await batch.commit();
+                    } catch(e) {
+                         alert("ลบไม่สำเร็จ: " + e.message);
+                    }
+                    document.getElementById('loading-overlay').classList.add('hidden');
+
                 } else {
                     if(confirm('ยืนยันลบรายการนี้?')) {
                         document.getElementById('loading-overlay').classList.remove('hidden');
@@ -797,6 +859,17 @@
                         </div>
                     `;
                 });
+            },
+
+            async clearMonthData() {
+                if(this.data.userRole !== 'admin') return;
+                const m = document.getElementById('delete-month-selector').value;
+                if(confirm(`ยืนยันลบข้อมูลทั้งหมดของเดือน ${m}?`)) {
+                    const toDelete = this.data.transactions.filter(t => t.date.startsWith(m));
+                    const batch = writeBatch(db);
+                    toDelete.forEach(t => batch.delete(doc(db, "transactions", t.id)));
+                    await batch.commit();
+                }
             }
         };
 
