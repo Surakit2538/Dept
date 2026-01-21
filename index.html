@@ -1,11 +1,11 @@
 <!-- 
-    Mobile-First Expense Tracker (V40 - Advanced Edit & Smart Delete)
+    Mobile-First Expense Tracker (V42 - Robust Smart Delete & Group Edit)
     Project: deptmoney-6682a
     Fixes & Features:
-    1. Edit Function: Added pencil icon to history. Supports icon selection.
-    2. Global Installment Edit: Editing one installment updates all related installments in the group.
-    3. Smart Delete: Deleting an installment offers to delete all remaining future installments in the group.
-    4. Icon Support: Choose between various icons for each transaction.
+    1. Smart Delete (Fix): Correctly identifies and deletes future installments using local memory group mapping.
+    2. Group Edit: Updating one installment item automatically syncs description, payer, icon, and splits to the whole group.
+    3. Icon Selection: Users can now pick icons for each transaction.
+    4. Cloud Sync: Real-time updates with Firebase without local persistence.
 -->
 
 <!DOCTYPE html>
@@ -56,7 +56,7 @@
             0% { transform: translateY(100vh) scale(0.5); opacity: 0; }
             10% { opacity: 1; }
             90% { opacity: 1; }
-            100% { transform: translateY(-10vh) scale(1.2); opacity: 0; }
+            100% { transform: translateY(-10vh) scale(1.2) rotate(360deg); opacity: 0; }
         }
 
         .chart-container {
@@ -89,6 +89,17 @@
 
         .fade-in { animation: fadeIn 0.2s ease-out forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .icon-opt {
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .icon-opt:hover { background-color: #f1f5f9; }
+        .icon-opt.selected {
+            background-color: #1e293b;
+            color: white;
+            border-color: #1e293b;
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row">
@@ -99,7 +110,7 @@
     <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center justify-center gap-2">
             <i class="fa-solid fa-circle-notch fa-spin text-slate-800 text-2xl"></i>
-            <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...</span>
+            <span class="text-xs text-slate-600 font-medium">กำลังประมวลผล...</span>
         </div>
     </div>
 
@@ -134,7 +145,7 @@
         <div id="mobile-role-badge" class="text-[10px] bg-slate-100 px-2 py-1 rounded-full font-bold text-slate-500">GUEST</div>
     </header>
 
-    <!-- SIDEBAR (Desktop) -->
+    <!-- SIDEBAR -->
     <aside class="hidden md:flex w-64 bg-white border-r flex-col z-20 shadow-sm">
         <div class="p-6 border-b flex items-center gap-3">
             <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" class="w-8 h-8">
@@ -220,12 +231,6 @@
 
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2">สรุปการโอนเงิน</h3>
             <div id="settlement-plan" class="space-y-2"></div>
-
-            <div id="settlement-admin-actions" class="hidden mt-6">
-                <button onclick="window.app.sendLineNotify()" class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg">
-                    <i class="fa-brands fa-line text-2xl"></i> ส่งสรุปยอดเข้า LINE
-                </button>
-            </div>
         </section>
 
         <!-- SETTINGS -->
@@ -238,18 +243,6 @@
                     <button onclick="window.app.addMember()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-bold">เพิ่ม</button>
                 </div>
                 <div id="member-list" class="flex flex-wrap gap-2"></div>
-            </div>
-            
-            <button id="btn-export-csv" onclick="window.app.exportCSV()" class="hidden w-full bg-white border text-slate-700 py-3 rounded-xl font-bold text-sm shadow-sm">
-                Export ข้อมูลเป็น CSV
-            </button>
-
-            <div id="admin-danger-zone" class="hidden bg-red-50 p-4 rounded-xl border border-red-100 space-y-3">
-                <h3 class="font-bold text-red-700 text-sm">จัดการข้อมูล (Admin Only)</h3>
-                <div class="flex gap-2">
-                    <select id="delete-month-selector" class="flex-1 bg-white border text-sm rounded-lg px-2 outline-none"></select>
-                    <button onclick="window.app.clearMonthData()" class="bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold">ลบเดือนนี้</button>
-                </div>
             </div>
         </section>
 
@@ -321,20 +314,22 @@
                     <label class="text-[10px] font-bold text-slate-400 uppercase">ไอคอนรายการ</label>
                     <div class="flex gap-2 mt-1 overflow-x-auto pb-2 custom-scrollbar" id="icon-picker">
                         <button type="button" onclick="window.app.selectIcon('fa-utensils')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-utensils">🍴</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-shopping-cart')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-shopping-cart">🛒</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-cart-shopping')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-cart-shopping">🛒</button>
                         <button type="button" onclick="window.app.selectIcon('fa-car')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-car">🚗</button>
                         <button type="button" onclick="window.app.selectIcon('fa-bolt')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-bolt">⚡</button>
                         <button type="button" onclick="window.app.selectIcon('fa-gift')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-gift">🎁</button>
                         <button type="button" onclick="window.app.selectIcon('fa-house')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-house">🏠</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-coffee')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-coffee">☕</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-mug-hot')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-mug-hot">☕</button>
                         <button type="button" onclick="window.app.selectIcon('fa-gamepad')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-gamepad">🎮</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-mobile-screen')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-mobile-screen">📱</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-bus')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-bus">🚌</button>
                     </div>
                     <input type="hidden" id="t-icon" value="fa-utensils">
                 </div>
 
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase">รายการ</label>
-                    <input type="text" id="t-desc" placeholder="มื้อเที่ยง, ค่าไฟ..." class="w-full border rounded-lg p-2 text-sm outline-none">
+                    <input type="text" id="t-desc" placeholder="เช่น ข้าวกลางวัน" class="w-full border rounded-lg p-2 text-sm outline-none">
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase">ยอดเงินรวม</label>
@@ -356,7 +351,7 @@
                 </div>
             </div>
             <div class="p-4 border-t">
-                <button id="btn-save-transaction" onclick="window.app.saveTransaction()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg">บันทึก</button>
+                <button id="btn-save-transaction" onclick="window.app.saveTransaction()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg">บันทึกข้อมูล</button>
             </div>
         </div>
     </div>
@@ -396,7 +391,6 @@
             async init() {
                 this.initBackground();
                 this.populateMonthSelectors();
-                this.selectIcon('fa-utensils');
                 
                 onSnapshot(collection(db, "members"), (snap) => {
                     this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort();
@@ -457,9 +451,6 @@
                 badge.textContent = role.toUpperCase();
                 if(role === 'admin') {
                     badge.className = "text-[10px] bg-slate-800 px-2 py-1 rounded-full font-bold text-white";
-                    document.getElementById('admin-danger-zone').classList.remove('hidden');
-                    document.getElementById('settlement-admin-actions').classList.remove('hidden');
-                    document.getElementById('btn-export-csv').classList.remove('hidden');
                 }
                 this.navigate('dashboard');
             },
@@ -473,7 +464,7 @@
                     html += `<option value="${val}">${label}</option>`;
                     date.setMonth(date.getMonth() - 1);
                 }
-                document.querySelectorAll('.global-month-selector, #delete-month-selector').forEach(s => s.innerHTML = html);
+                document.querySelectorAll('.global-month-selector').forEach(s => s.innerHTML = html);
             },
 
             setMonth(val) {
@@ -595,13 +586,14 @@
                 this.charts.payer = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v.toLocaleString() : "" } } } });
             },
 
-            // --- UPDATED CRUD ---
             openModal(id) { 
                 this.data.editingId = null;
                 this.data.selectedGroupId = null;
                 document.getElementById('modal-title').textContent = "บันทึกรายการ";
                 document.getElementById('t-amount').value = "";
                 document.getElementById('t-desc').value = "";
+                document.getElementById('t-payment-type').value = "normal";
+                this.toggleInstallment();
                 this.selectIcon('fa-utensils');
                 document.getElementById(id).classList.remove('hidden'); 
                 this.renderSplitParticipants(); 
@@ -614,8 +606,8 @@
             selectIcon(iconName) {
                 document.getElementById('t-icon').value = iconName;
                 document.querySelectorAll('.icon-opt').forEach(btn => {
-                    btn.classList.toggle('border-slate-800', btn.dataset.icon === iconName);
-                    btn.classList.toggle('bg-slate-100', btn.dataset.icon === iconName);
+                    if(btn.dataset.icon === iconName) btn.classList.add('selected');
+                    else btn.classList.remove('selected');
                 });
             },
 
@@ -643,17 +635,16 @@
                 this.data.editingId = id;
                 this.data.selectedGroupId = t.groupId || null;
                 
-                document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการผ่อน (แก้ไขทั้งกลุ่ม)" : "แก้ไขรายการ";
+                document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการผ่อน (ทั้งกลุ่ม)" : "แก้ไขรายการ";
                 document.getElementById('t-date').value = t.date;
                 document.getElementById('t-payment-type').value = t.paymentType || 'normal';
-                document.getElementById('t-desc').value = t.desc.split(' (')[0]; // Remove installment no if any
+                document.getElementById('t-desc').value = t.desc.split(' (')[0];
                 document.getElementById('t-amount').value = t.amount;
                 document.getElementById('t-payer').value = t.payer;
                 this.selectIcon(t.icon || 'fa-utensils');
                 this.toggleInstallment();
                 
                 document.getElementById('transaction-modal').classList.remove('hidden');
-                // Re-render splits (simplified: default to equal for edit, or customize further)
                 this.renderSplitParticipants();
             },
 
@@ -665,7 +656,10 @@
                 const type = document.getElementById('t-payment-type').value;
                 const date = document.getElementById('t-date').value;
                 const icon = document.getElementById('t-icon').value;
-                if(!amount || !date) return alert('กรอกข้อมูลไม่ครบ');
+                if(!amount || !date) {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    return alert('กรอกข้อมูลไม่ครบ');
+                }
 
                 const splits = {};
                 const checked = Array.from(document.querySelectorAll('.participant-check:checked')).map(c => c.value);
@@ -681,20 +675,17 @@
 
                 const batch = writeBatch(db);
 
-                // EDITING LOGIC
                 if(this.data.editingId) {
                     if(this.data.selectedGroupId) {
-                        // Find all in group
-                        const groupQuery = query(collection(db, "transactions"), where("groupId", "==", this.data.selectedGroupId));
-                        const groupSnap = await getDocs(groupQuery);
-                        groupSnap.forEach(snap => {
-                            batch.update(snap.ref, { desc, payer, icon, splits }); // Note: Keep dates and amounts specific to installments
+                        // อัปเดตทั้งกลุ่ม
+                        const groupItems = this.data.transactions.filter(item => item.groupId === this.data.selectedGroupId);
+                        groupItems.forEach(item => {
+                            batch.update(doc(db, "transactions", item.id), { desc, payer, icon, splits });
                         });
                     } else {
                         batch.update(doc(db, "transactions", this.data.editingId), { desc, payer, amount, splits, date, icon });
                     }
                 } else {
-                    // ADDING LOGIC
                     const installments = type === 'installment' ? Number(document.getElementById('t-installments').value) || 1 : 1;
                     const groupId = type === 'installment' ? "grp_" + Date.now() : null;
                     const baseDate = new Date(date);
@@ -717,36 +708,60 @@
                     }
                 }
 
-                await batch.commit();
-                this.closeModal('transaction-modal');
+                try {
+                    await batch.commit();
+                    this.closeModal('transaction-modal');
+                } catch(e) {
+                    alert("บันทึกไม่สำเร็จ: " + e.message);
+                }
                 document.getElementById('loading-overlay').classList.add('hidden');
             },
 
+            // --- RE-OPTIMIZED SMART DELETE ---
             async deleteTransaction(id) {
                 if(this.data.userRole !== 'admin') return;
                 const t = this.data.transactions.find(x => x.id === id);
                 if(!t) return;
 
                 if(t.groupId) {
-                    const choice = confirm('รายการนี้เป็นแบบผ่อนชำระ\nตกลง: ลบเฉพาะงวดนี้\nยกเลิก: ยกเลิกการลบ');
-                    if(choice) {
-                        const cascade = confirm('ต้องการลบงวดที่เหลือทั้งหมดในอนาคตด้วยหรือไม่?');
-                        document.getElementById('loading-overlay').classList.remove('hidden');
-                        const batch = writeBatch(db);
-                        if(cascade) {
-                            const q = query(collection(db, "transactions"), where("groupId", "==", t.groupId));
-                            const snap = await getDocs(q);
-                            snap.forEach(d => {
-                                if(d.data().date >= t.date) batch.delete(d.ref);
-                            });
-                        } else {
-                            batch.delete(doc(db, "transactions", id));
-                        }
+                    const deleteChoice = confirm('รายการนี้เป็นแบบผ่อนชำระ\n\nOK: ต้องการลบรายการผ่อนในกลุ่มนี้\nCancel: ยกเลิก');
+                    if(!deleteChoice) return;
+
+                    const deleteFuture = confirm('ต้องการลบแบบไหน?\n\nOK: ลบงวดนี้และงวดที่เหลือในอนาคตทั้งหมด\nCancel: ลบเฉพาะงวดนี้งวดเดียว');
+                    
+                    document.getElementById('loading-overlay').classList.remove('hidden');
+                    const batch = writeBatch(db);
+
+                    if(deleteFuture) {
+                        // คัดกรองจาก Memory หาเพื่อนร่วมกลุ่มที่วันที่มากกว่าหรือเท่ากับงวดที่กด
+                        const itemsToDelete = this.data.transactions.filter(item => 
+                            item.groupId === t.groupId && item.date >= t.date
+                        );
+                        console.log("Deleting group items:", itemsToDelete.length);
+                        itemsToDelete.forEach(item => {
+                            batch.delete(doc(db, "transactions", item.id.trim()));
+                        });
+                    } else {
+                        batch.delete(doc(db, "transactions", id.trim()));
+                    }
+                    
+                    try {
                         await batch.commit();
+                        console.log("Delete Batch Committed Successfully");
+                    } catch(e) {
+                        alert("ลบไม่สำเร็จ: " + e.message);
+                    }
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                } else {
+                    if(confirm('ยืนยันลบรายการนี้?')) {
+                        document.getElementById('loading-overlay').classList.remove('hidden');
+                        try {
+                            await deleteDoc(doc(db, "transactions", id.trim()));
+                        } catch(e) {
+                            alert("ลบไม่สำเร็จ: " + e.message);
+                        }
                         document.getElementById('loading-overlay').classList.add('hidden');
                     }
-                } else {
-                    if(confirm('ยืนยันลบรายการนี้?')) await deleteDoc(doc(db, "transactions", id));
                 }
             },
 
@@ -782,17 +797,6 @@
                         </div>
                     `;
                 });
-            },
-
-            async clearMonthData() {
-                if(this.data.userRole !== 'admin') return;
-                const m = document.getElementById('delete-month-selector').value;
-                if(confirm(`ยืนยันลบข้อมูลทั้งหมดของเดือน ${m}?`)) {
-                    const toDelete = this.data.transactions.filter(t => t.date.startsWith(m));
-                    const batch = writeBatch(db);
-                    toDelete.forEach(t => batch.delete(doc(db, "transactions", t.id)));
-                    await batch.commit();
-                }
             }
         };
 
