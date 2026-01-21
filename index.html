@@ -1,9 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker (V34 - Removed LIFF SDK)
+    Mobile-First Expense Tracker (V37 - Fix Missing Functions)
     Project: deptmoney-6682a
-    Changes:
-    1. System: Removed LIFF SDK script and initialization logic (Cleanup).
-    2. UI: Maintained all V33 chart improvements and interactive features.
+    Fixes:
+    1. Restored 'renderHistory' function to fix navigation error.
+    2. Restored 'sendLineNotify' function for LINE button functionality.
+    3. Maintained V36 delete logic (wait for snapshot).
 -->
 
 <!DOCTYPE html>
@@ -63,7 +64,7 @@
         .chart-container {
             position: relative;
             width: 100%;
-            height: 220px; /* ลดความสูงลงตามที่ขอ (จาก 250px) */
+            height: 220px;
         }
 
         @media (min-width: 768px) {
@@ -555,7 +556,8 @@
         };
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        // UPDATE: Imported onSnapshot
+        import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc, writeBatch, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         let db = null;
         if (ENABLE_FIREBASE) {
@@ -685,30 +687,40 @@
                 setStatus('<span class="text-orange-400"><i class="fa-solid fa-circle-notch fa-spin"></i> Checking...</span>');
 
                 try {
-                    const memSnap = await getDocs(collection(db, "members"));
-                    if(!memSnap.empty) {
-                        // FIX: Deduplicate members from DB
-                        const rawMembers = memSnap.docs.map(d => d.data().name);
-                        this.data.members = [...new Set(rawMembers)];
-                    } else {
-                        await addDoc(collection(db, "members"), { name: 'GAME' });
-                        await addDoc(collection(db, "members"), { name: 'CARE' });
-                        this.data.members = ['GAME', 'CARE'];
-                    }
+                    // --- REALTIME LISTENER FOR MEMBERS ---
+                    onSnapshot(collection(db, "members"), (snapshot) => {
+                        if(!snapshot.empty) {
+                            const rawMembers = snapshot.docs.map(d => d.data().name);
+                            this.data.members = [...new Set(rawMembers)];
+                        } else {
+                            // Initial seed if empty
+                            addDoc(collection(db, "members"), { name: 'GAME' });
+                            addDoc(collection(db, "members"), { name: 'CARE' });
+                            this.data.members = ['GAME', 'CARE'];
+                        }
+                        this.renderMemberList();
+                        this.populateSelectors();
+                    });
 
-                    const transSnap = await getDocs(collection(db, "transactions"));
-                    this.data.transactions = transSnap.docs.map(d => ({...d.data(), id: d.id})); 
-                    
-                    setStatus('<span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[8px]"></i> Online</span>');
+                    // --- REALTIME LISTENER FOR TRANSACTIONS ---
+                    onSnapshot(collection(db, "transactions"), (snapshot) => {
+                        this.data.transactions = snapshot.docs.map(d => ({...d.data(), id: d.id})); 
+                        
+                        // Auto Refresh Views
+                        this.refreshCurrentView();
+                        
+                        setStatus('<span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[8px]"></i> Online</span>');
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                    }, (error) => {
+                        console.error("Snapshot Error", error);
+                        setStatus('<span class="text-red-500 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Error</span>');
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                    });
 
                 } catch (e) {
                     console.error("Load Error", e);
                     setStatus('<span class="text-red-500 font-bold"><i class="fa-solid fa-triangle-exclamation"></i> Offline</span>');
-                } finally {
                     document.getElementById('loading-overlay').classList.add('hidden');
-                    this.renderMemberList();
-                    this.renderDashboard();
-                    this.populateSelectors();
                 }
             },
 
@@ -1215,22 +1227,23 @@
                 document.getElementById('loading-overlay').classList.remove('hidden');
 
                 try {
-                    // 1. Delete from Firebase
-                    if(ENABLE_FIREBASE && db) {
-                        // Force convert ID to string to be safe
-                        await deleteDoc(doc(db, "transactions", String(id)));
-                    } else {
-                        this.saveData();
-                    }
+                    // Debug: Check ID
+                    console.log("Deleting transaction:", id);
 
-                    // 2. If successful, remove from UI (Memory)
-                    this.data.transactions = this.data.transactions.filter(t => String(t.id) !== String(id));
-                    
-                    // 3. Update CSV/UI Data immediately
-                    this.refreshCurrentView();
+                    if(ENABLE_FIREBASE && db) {
+                        // FIX: Trim spaces and force String type
+                        await deleteDoc(doc(db, "transactions", String(id).trim()));
+                        // Note: For Firebase, we rely on onSnapshot to update the UI
+                        // This confirms deletion from the server
+                    } else {
+                        // Local storage fallback
+                        this.data.transactions = this.data.transactions.filter(t => String(t.id) !== String(id));
+                        this.saveData();
+                        this.refreshCurrentView();
+                    }
                     
                 } catch(e) {
-                    console.error(e);
+                    console.error("Delete failed:", e);
                     alert(`ลบไม่สำเร็จ: ${e.message}`);
                 } finally {
                     document.getElementById('loading-overlay').classList.add('hidden');
@@ -1386,12 +1399,19 @@
                 this.data.members.forEach(m => balances[m] = 0);
 
                 transactions.forEach(t => {
+                    // Safe Check: Payer
+                    if (!t.payer) return;
                     if (!balances[t.payer]) balances[t.payer] = 0;
+                    
                     balances[t.payer] += t.amount;
-                    Object.keys(t.splits).forEach(member => {
-                        if (!balances[member]) balances[member] = 0;
-                        balances[member] -= t.splits[member];
-                    });
+                    
+                    // Safe Check: Splits
+                    if (t.splits) {
+                        Object.keys(t.splits).forEach(member => {
+                            if (!balances[member]) balances[member] = 0;
+                            balances[member] -= t.splits[member];
+                        });
+                    }
                 });
 
                 // Render ALL Member Status Cards
@@ -1479,6 +1499,173 @@
                     planDiv.innerHTML = '<div class="p-6 bg-white rounded-xl border border-dashed border-slate-300 text-center text-slate-400 text-sm">✅ เคลียร์ยอดครบหมดแล้ว</div>';
                 } else {
                     planDiv.innerHTML = instructions.join('');
+                }
+            },
+
+            showMemberDetails(member) {
+                const transactions = this.getFilteredTransactions();
+                // Filter: involved transactions (either payer or sharer)
+                const involved = transactions.filter(t => t.payer === member || (t.splits && t.splits[member]));
+                
+                // Sort by date desc
+                involved.sort((a,b) => b.date.localeCompare(a.date));
+
+                const list = document.getElementById('member-detail-list');
+                list.innerHTML = '';
+                
+                document.getElementById('member-detail-title').textContent = `รายการของ ${member}`;
+
+                let totalMyShare = 0;
+
+                if(involved.length === 0) {
+                    list.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs">ไม่มีรายการที่เกี่ยวข้องในเดือนนี้</div>';
+                }
+
+                involved.forEach(t => {
+                    const myShare = t.splits[member] || 0;
+                    totalMyShare += myShare;
+                    
+                    const isPayer = t.payer === member;
+                    const dateFormatted = new Date(t.date).toLocaleDateString('th-TH', {day: 'numeric', month: 'short'});
+
+                    const div = document.createElement('div');
+                    div.className = "bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex justify-between items-start";
+                    
+                    div.innerHTML = `
+                        <div class="flex gap-2">
+                            <div class="mt-0.5 text-slate-400 text-xs w-8">${dateFormatted}</div>
+                            <div>
+                                <div class="text-xs font-bold text-slate-700">${t.desc}</div>
+                                <div class="text-[10px] text-slate-500">
+                                    ${isPayer ? '<span class="text-green-600 font-bold">จ่ายเอง</span>' : `จ่ายโดย ${t.payer}`}
+                                    • ยอดเต็ม ${t.amount.toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs font-bold text-slate-800">-${myShare.toLocaleString()}</div>
+                            <div class="text-[10px] text-slate-400">ส่วนของฉัน</div>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+                
+                document.getElementById('member-detail-total').textContent = `${totalMyShare.toLocaleString()} ฿`;
+                
+                document.getElementById('member-detail-modal').classList.remove('hidden');
+            },
+
+            async sendLineNotify() {
+                const debts = this.data.settlementDebts;
+                if (!debts || debts.length === 0) {
+                    return alert("ไม่มีรายการต้องเคลียร์ครับ (ยอดเป็น 0)");
+                }
+
+                // Show loading spinner
+                document.getElementById('loading-overlay').classList.remove('hidden');
+
+                try {
+                    const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: '2-digit' });
+                    
+                    const response = await fetch('/api/send-line', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            month: monthName,
+                            debts: debts
+                        }),
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        alert("✅ ส่งแจ้งเตือนเข้า LINE เรียบร้อยแล้ว!");
+                    } else {
+                        throw new Error(result.message || 'ส่งไม่สำเร็จ');
+                    }
+                } catch (error) {
+                    console.error('Error sending line notify:', error);
+                    alert(`❌ เกิดข้อผิดพลาด: ${error.message}\n(เช็คว่าไฟล์ /api/send-line.js ทำงานถูกต้องหรือไม่)`);
+                } finally {
+                    // Hide loading spinner
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                }
+            },
+
+            renderHistory() {
+                const transactions = this.getFilteredTransactions().sort((a,b) => b.date.localeCompare(a.date));
+                const container = document.getElementById('transaction-list-mobile');
+                const empty = document.getElementById('empty-state');
+                
+                container.innerHTML = '';
+                if(transactions.length === 0) {
+                    empty.classList.remove('hidden');
+                } else {
+                    empty.classList.add('hidden');
+                    
+                    const groups = {};
+                    transactions.forEach(t => {
+                        if (!groups[t.date]) groups[t.date] = [];
+                        groups[t.date].push(t);
+                    });
+
+                    Object.keys(groups).forEach(date => {
+                        const dateObj = new Date(date);
+                        const today = new Date();
+                        const yesterday = new Date(today);
+                        yesterday.setDate(yesterday.getDate() - 1);
+                        
+                        let dateLabel = dateObj.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' });
+                        if (date === today.toISOString().slice(0,10)) dateLabel = "วันนี้";
+                        else if (date === yesterday.toISOString().slice(0,10)) dateLabel = "เมื่อวาน";
+
+                        const header = document.createElement('div');
+                        header.className = "text-xs font-bold text-slate-400 mt-4 mb-2 ml-1";
+                        header.innerText = dateLabel;
+                        container.appendChild(header);
+
+                        groups[date].forEach(t => {
+                            const div = document.createElement('div');
+                            div.className = "bg-white p-3 rounded-xl border border-slate-100 shadow-sm flex justify-between items-center mb-2 last:mb-0";
+                            
+                            const editBtn = this.data.userRole === 'admin' 
+                                ? `<button onclick="window.app.editTransaction('${t.id}')" class="text-blue-400 hover:text-blue-600 p-2"><i class="fa-solid fa-pen"></i></button>` 
+                                : '';
+
+                            const deleteBtn = this.data.userRole === 'admin' 
+                                ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-slate-300 hover:text-red-500 p-2"><i class="fa-solid fa-trash"></i></button>` 
+                                : '';
+
+                            const typeLabel = t.paymentType === 'installment' 
+                                ? `<span class="text-[10px] text-orange-600 bg-orange-50 px-1.5 rounded ml-1">ผ่อน</span>` 
+                                : `<span class="text-[10px] text-blue-600 bg-blue-50 px-1.5 rounded ml-1">เต็ม</span>`;
+
+                            const iconClass = t.icon || 'fa-utensils';
+
+                            div.innerHTML = `
+                                <div class="flex items-center gap-3 flex-1 overflow-hidden">
+                                    <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-500 text-lg border border-slate-100 flex-shrink-0">
+                                        <i class="fa-solid ${iconClass}"></i>
+                                    </div>
+                                    <div class="min-w-0">
+                                        <p class="font-bold text-slate-700 text-sm truncate">${t.desc}</p>
+                                        <p class="text-xs text-slate-400 flex items-center gap-1">
+                                            <span class="bg-slate-100 px-1 rounded truncate max-w-[80px]">${t.payer}</span> 
+                                            ${typeLabel}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <span class="block font-bold text-slate-800 text-sm mr-2">${t.amount.toLocaleString()}</span>
+                                    ${editBtn}
+                                    ${deleteBtn}
+                                </div>
+                            `;
+                            container.appendChild(div);
+                        });
+                    });
                 }
             },
 
