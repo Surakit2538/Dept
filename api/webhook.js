@@ -176,11 +176,22 @@ async function askParticipants(replyToken, userId, selectedList) {
         "size": "mega",
         "body": {
             "type": "box", "layout": "vertical",
+            "backgroundColor": "#ffffff", // Changed to white
             "contents": [
-                { "type": "text", "text": "👥 หารกับใครบ้าง?", "weight": "bold", "size": "md", "color": "#1e293b" },
-                { "type": "text", "text": selectedList.length > 0 ? `เลือกแล้ว: ${selectedList.join(', ')}` : "ยังไม่ได้เลือกใคร", "size": "xs", "color": "#64748b", "margin": "sm", "wrap": true },
-                { "type": "text", "text": "แตะที่ชื่อเพื่อเลือก/ออก แล้วกดปุ่มยืนยัน", "size": "xxs", "color": "#aaaaaa", "margin": "xs" }
-            ]
+                {
+                    "type": "box", "layout": "horizontal", "contents": [
+                        { "type": "text", "text": "👥", "size": "xxl", "flex": 0 },
+                        { "type": "text", "text": "หารกับใครบ้าง?", "weight": "bold", "size": "md", "color": "#1e293b", "margin": "md", "align": "start", "gravity": "center" }
+                    ],
+                    "alignItems": "center"
+                },
+                { "type": "text", "text": selectedList.length > 0 ? `เลือกแล้ว: ${selectedList.join(', ')}` : "ยังไม่ได้เลือกใคร", "size": "xs", "color": "#64748b", "margin": "md", "wrap": true },
+                { "type": "text", "text": "แตะที่ชื่อเพื่อเลือก/ออก แล้วกดปุ่มยืนยัน", "size": "xxs", "color": "#94a3b8", "margin": "xs" }
+            ],
+            "paddingAll": "lg",
+            "borderColor": "#e2e8f0",
+            "borderWidth": "normal",
+            "cornerRadius": "md"
         }
     };
     return replyQuickReply(replyToken, flex, actions);
@@ -248,17 +259,52 @@ async function saveTransaction(replyToken, userId, finalData) {
     }
 }
 
+// --- UPDATED UI FUNCTION: White Box with Icon ---
 function createQuestionFlex(title, sub, color) {
+    // Select Icon based on Title
+    let icon = "📝"; // Default
+    if (title.includes("ราคา")) icon = "💰";
+    else if (title.includes("คนจ่าย")) icon = "👤";
+    else if (title.includes("รูปแบบ")) icon = "💳";
+    else if (title.includes("งวด")) icon = "📅";
+    else if (title.includes("วิธีหาร")) icon = "➗";
+    else if (title.includes("ยอดรายคน")) icon = "✍️";
+
     return {
         "type": "bubble",
         "size": "mega",
         "body": {
-            "type": "box", "layout": "vertical", "backgroundColor": color,
+            "type": "box",
+            "layout": "vertical",
+            "backgroundColor": "#ffffff", // White background
             "contents": [
-                { "type": "text", "text": title, "color": "#ffffff", "weight": "bold", "size": "md" },
-                { "type": "text", "text": sub, "color": "#ffffffcc", "size": "xs", "margin": "xs", "wrap": true }
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "contents": [
+                        {
+                            "type": "text",
+                            "text": icon,
+                            "size": "xxl",
+                            "flex": 0
+                        },
+                        {
+                            "type": "box",
+                            "layout": "vertical",
+                            "contents": [
+                                { "type": "text", "text": title, "color": color, "weight": "bold", "size": "md" },
+                                { "type": "text", "text": sub, "color": "#64748b", "size": "xs", "margin": "xs", "wrap": true }
+                            ],
+                            "margin": "md"
+                        }
+                    ],
+                    "alignItems": "center"
+                }
             ],
-            "paddingAll": "lg"
+            "paddingAll": "lg",
+            "cornerRadius": "md",
+            "borderColor": "#e2e8f0", // Light border
+            "borderWidth": "normal"
         }
     };
 }
