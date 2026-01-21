@@ -3,6 +3,7 @@ import {
     getFirestore, doc, getDoc, setDoc, deleteDoc, 
     collection, getDocs, writeBatch, serverTimestamp 
 } from "firebase/firestore";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // --- 1. CONFIGURATION ---
 const firebaseConfig = {
@@ -23,33 +24,39 @@ export default async function handler(req, res) {
 
     const events = req.body.events || [];
     await Promise.all(events.map(async (event) => {
-        if (event.type === 'message' && event.message.type === 'text') {
-            try {
-                await handleMessage(event);
-            } catch (err) {
-                console.error("Handler Error:", err);
+        try {
+            if (event.type === 'message') {
+                if (event.message.type === 'text') {
+                    await handleTextMessage(event);
+                } else if (event.message.type === 'image') {
+                    await handleImageMessage(event);
+                }
             }
+        } catch (err) {
+            console.error("Handler Error:", err);
         }
     }));
     return res.status(200).send('OK');
 }
 
-// --- 3. LOGIC CORE (State Machine) ---
-async function handleMessage(event) {
+// --- 3. HANDLE TEXT MESSAGES (State Machine) ---
+async function handleTextMessage(event) {
     const userId = event.source.userId;
     const text = event.message.text.trim();
     const replyToken = event.replyToken;
 
+    // คำสั่งยกเลิก
     if (['ยกเลิก', 'cancel', 'เริ่มใหม่', 'reset'].includes(text.toLowerCase())) {
         await deleteDoc(doc(db, 'user_sessions', userId));
-        return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ เริ่มพิมพ์ชื่อรายการใหม่ได้เลย");
+        return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ ส่งสลิปหรือพิมพ์ชื่อรายการใหม่ได้เลย");
     }
 
     const sessionRef = doc(db, 'user_sessions', userId);
     const sessionSnap = await getDoc(sessionRef);
     let session = sessionSnap.exists() ? sessionSnap.data() : null;
 
-    // STEP 1: เริ่มต้น (รับชื่อรายการ)
+    // --- STEP 1: เริ่มต้น (รับชื่อรายการ) ---
+    // กรณีที่ 1: ไม่มี Session (เริ่มใหม่ด้วย Text)
     if (!session) {
         await setDoc(sessionRef, {
             step: 'ASK_AMOUNT',
@@ -63,36 +70,57 @@ async function handleMessage(event) {
     const currentStep = session.step;
     const data = session.data || {};
 
-    // STEP 2: รับราคา -> ถามคนจ่าย
+    // กรณีที่ 2: มาจาก Image (มี Amount แล้ว รอ Desc) -> รับ Desc แล้วไปถามคนจ่าย
+    if (currentStep === 'ASK_DESC_AFTER_IMAGE') {
+        const desc = text;
+        // ข้าม Step ASK_AMOUNT เพราะได้จากรูปแล้ว ไป ASK_PAYER เลย
+        await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, desc } }, { merge: true });
+        
+        const members = await getMemberNames();
+        // ถ้า AI เดาคนจ่ายมาได้ (data.suggestedPayer) ให้เอาไว้ปุ่มแรก
+        let sortedMembers = members;
+        if (data.suggestedPayer && members.includes(data.suggestedPayer)) {
+            sortedMembers = [data.suggestedPayer, ...members.filter(m => m !== data.suggestedPayer)];
+        }
+
+        const actions = sortedMembers.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
+        const flex = createQuestionFlex("ระบุคนจ่าย", `รายการ: ${desc}\n💰 ยอดเงิน: ${data.amount.toLocaleString()} ฿\nใครเป็นคนจ่ายครับ?`, "#1e293b");
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    // --- STEP 2: รับราคา -> ถามคนจ่าย ---
     if (currentStep === 'ASK_AMOUNT') {
         const amount = parseFloat(text.replace(/,/g, ''));
         if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ โปรดระบุราคาเป็นตัวเลขครับ");
 
         await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, amount } }, { merge: true });
+        
         const members = await getMemberNames();
         const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
         const flex = createQuestionFlex("ระบุคนจ่าย", `ยอดเงิน: ${amount.toLocaleString()} ฿\nใครเป็นคนจ่ายครับ?`, "#1e293b");
+        
         return replyQuickReply(replyToken, flex, actions);
     }
 
-    // STEP 3: รับคนจ่าย -> ถามรูปแบบการชำระ
+    // --- STEP 3: รับคนจ่าย -> ถามรูปแบบการชำระ ---
     if (currentStep === 'ASK_PAYER') {
         const payer = text.toUpperCase();
         await setDoc(sessionRef, { step: 'ASK_PAYMENT_TYPE', data: { ...data, payer } }, { merge: true });
+
         const actions = [
-            { type: "action", action: { type: "message", label: "จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
+            { type: "action", action: { type: "message", label: "ชำระเต็มจำนวน", text: "จ่ายเต็ม" } },
             { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } }
         ];
-        const flex = createQuestionFlex("รูปแบบการชำระ", `คนจ่าย: ${payer}\nเลือกรูปแบบการชำระครับ`, "#1e293b");
+        const flex = createQuestionFlex("รูปแบบการชำระ", `คนจ่าย: ${payer}\nต้องการชำระแบบไหนครับ?`, "#1e293b");
         return replyQuickReply(replyToken, flex, actions);
     }
 
-    // STEP 4: รูปแบบชำระ -> ถามงวด หรือ ข้ามไปถามคนหาร
+    // --- STEP 4: รับรูปแบบชำระ -> ถามงวด หรือ ข้ามไปถามคนหาร ---
     if (currentStep === 'ASK_PAYMENT_TYPE') {
         if (text.includes("ผ่อน")) {
             await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
-            const flex = createQuestionFlex("ระบุจำนวนงวด", "ต้องการผ่อนกี่เดือน? (2-24)", "#f97316");
-            return replyFlex(replyToken, "ระบุจำนวนงวด", flex);
+            const flex = createQuestionFlex("ระบุจำนวนงวด", "ต้องการผ่อนกี่เดือนครับ? (พิมพ์ตัวเลข 2-24)", "#f97316");
+            return replyFlex(replyToken, "พิมพ์จำนวนงวด", flex);
         } else {
             await setDoc(sessionRef, { 
                 step: 'ASK_PARTICIPANTS', 
@@ -102,7 +130,7 @@ async function handleMessage(event) {
         }
     }
 
-    // STEP 4.5: รับจำนวนงวด
+    // --- STEP 4.5: รับจำนวนงวด (เฉพาะกรณีผ่อน) -> ถามคนหาร ---
     if (currentStep === 'ASK_INSTALLMENTS') {
         let installments = parseInt(text);
         if (isNaN(installments) || installments < 2) installments = 2;
@@ -110,50 +138,136 @@ async function handleMessage(event) {
         return await askParticipants(replyToken, userId, []);
     }
 
-    // STEP 5: เลือกคนหาร (ระบบ Toggle)
+    // --- STEP 5: เลือกคนหาร (ระบบ Toggle) ---
     if (currentStep === 'ASK_PARTICIPANTS') {
         let currentList = data.participants || [];
+
+        // เมื่อกดปุ่มยืนยัน
         if (text === 'ยืนยัน' || text === '✅ ตกลง') {
-            if (currentList.length === 0) return replyText(replyToken, "⚠️ กรุณาเลือกอย่างน้อย 1 คนครับ");
+            if (currentList.length === 0) return replyText(replyToken, "⚠️ กรุณาเลือกคนหารอย่างน้อย 1 คนครับ");
+            
             await setDoc(sessionRef, { step: 'ASK_SPLIT_METHOD' }, { merge: true });
             const actions = [
                 { type: "action", action: { type: "message", label: "หารเท่ากัน", text: "หารเท่า" } },
                 { type: "action", action: { type: "message", label: "ระบุจำนวนเอง", text: "ระบุจำนวน" } }
             ];
-            const flex = createQuestionFlex("วิธีหารเงิน", `ผู้ร่วมหาร: ${currentList.join(', ')}`, "#1e293b");
+            const flex = createQuestionFlex("เลือกวิธีหารเงิน", `ผู้ร่วมหาร: ${currentList.join(', ')}\nจะหารเงินด้วยวิธีใดครับ?`, "#1e293b");
             return replyQuickReply(replyToken, flex, actions);
         }
 
         const members = await getMemberNames();
         const inputName = text.toUpperCase();
+
         if (text === 'ทุกคน') {
             currentList = [...members];
         } else if (members.includes(inputName)) {
-            currentList = currentList.includes(inputName) ? currentList.filter(m => m !== inputName) : [...currentList, inputName];
+            if (currentList.includes(inputName)) {
+                currentList = currentList.filter(m => m !== inputName);
+            } else {
+                currentList.push(inputName);
+            }
         }
+
         await setDoc(sessionRef, { data: { ...data, participants: currentList } }, { merge: true });
         return await askParticipants(replyToken, userId, currentList);
     }
 
-    // STEP 6: วิธีหาร
+    // --- STEP 6: รับวิธีหาร -> จบงาน หรือ ถามยอดแยกคน ---
     if (currentStep === 'ASK_SPLIT_METHOD') {
         if (text.includes("ระบุ")) {
             await setDoc(sessionRef, { step: 'ASK_CUSTOM_AMOUNTS', data: { ...data, splitMethod: 'custom' } }, { merge: true });
             const example = data.participants.map(p => `${p}=100`).join(', ');
-            const flex = createQuestionFlex("ระบุยอดรายคน", `ตัวอย่าง: ${example}`, "#1e293b");
-            return replyFlex(replyToken, "ระบุยอดแยก", flex);
+            const flex = createQuestionFlex("ระบุจำนวนเงินรายคน", `กรุณาพิมพ์ชื่อตามด้วยยอดเงิน\nตัวอย่าง: ${example}`, "#1e293b");
+            return replyFlex(replyToken, "ระบุยอดเงินแยกคน", flex);
         } else {
             return await saveTransaction(replyToken, userId, { ...data, splitMethod: 'equal' });
         }
     }
 
-    // STEP 7: ยอด Custom
+    // --- STEP 7: รับยอด Custom -> บันทึกข้อมูลจริง ---
     if (currentStep === 'ASK_CUSTOM_AMOUNTS') {
         return await saveTransaction(replyToken, userId, { ...data, customAmountStr: text });
     }
 }
 
-// --- 4. HELPERS ---
+// --- 4. HANDLE IMAGE MESSAGES (Gemini Vision) ---
+async function handleImageMessage(event) {
+    if (!process.env.GEMINI_API_KEY) return replyText(event.replyToken, "⚠️ ระบบ AI ยังไม่พร้อมใช้งาน (Missing API Key)");
+
+    const messageId = event.message.id;
+    const userId = event.source.userId;
+
+    // 1. แจ้ง User ว่ากำลังอ่านรูป
+    // (Optional: อาจจะส่ง Flex Loading แต่เพื่อความง่ายไม่ต้องส่งก็ได้ รอตอบทีเดียว)
+    
+    try {
+        // 2. ดึงรูปภาพจาก LINE
+        const imageBuffer = await getLineContent(messageId);
+        
+        // 3. เตรียมข้อมูลสมาชิกสำหรับ Prompt
+        const members = await getMemberNames();
+        
+        // 4. ส่งให้ Gemini วิเคราะห์
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+        Analyze this transfer slip/receipt image.
+        Target Members to match payer: [${members.join(', ')}] (Normalize names to UPPERCASE).
+        
+        Extract ONLY:
+        1. "amount": Total amount transferred (number).
+        2. "payer": Who paid? Match with Target Members list if possible. If uncertain or name not in list, return null.
+        
+        Output JSON only: { "amount": number, "payer": "string" or null }
+        `;
+
+        const imagePart = {
+            inlineData: {
+                data: Buffer.from(imageBuffer).toString("base64"),
+                mimeType: "image/jpeg"
+            }
+        };
+
+        const result = await model.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        const text = response.text().replace(/```json|```/g, '').trim();
+        const json = JSON.parse(text);
+
+        // 5. สร้าง Session ใหม่ด้วยข้อมูลจาก AI
+        if (json.amount > 0) {
+            await setDoc(doc(db, 'user_sessions', userId), {
+                step: 'ASK_DESC_AFTER_IMAGE', // Step พิเศษ: ข้ามถามราคา ไปถามชื่อรายการเลย
+                data: { 
+                    amount: json.amount,
+                    suggestedPayer: json.payer 
+                },
+                timestamp: serverTimestamp()
+            });
+
+            const payerText = json.payer ? `\n(เดาว่าจ่ายโดย: ${json.payer})` : "";
+            const flex = createQuestionFlex("ระบุชื่อรายการ", `📸 อ่านสลิปเรียบร้อย!\n💰 ยอดเงิน: ${json.amount.toLocaleString()} ฿${payerText}\n\nรายการนี้คือค่าอะไรครับ?`, "#0ea5e9"); // สีฟ้าให้รู้ว่าเป็น AI
+            return replyFlex(event.replyToken, "อ่านสลิปสำเร็จ", flex);
+        } else {
+            return replyText(event.replyToken, "⚠️ AI อ่านยอดเงินไม่ออกครับ รบกวนพิมพ์รายการเองนะ");
+        }
+
+    } catch (e) {
+        console.error("Image Process Error:", e);
+        return replyText(event.replyToken, "❌ เกิดข้อผิดพลาดในการอ่านรูปภาพครับ");
+    }
+}
+
+// --- 5. HELPERS & DB ---
+
+async function getLineContent(messageId) {
+    const url = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
+    const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}` }
+    });
+    if (!response.ok) throw new Error('Failed to download image');
+    return await response.arrayBuffer();
+}
 
 async function getMemberNames() {
     const snap = await getDocs(collection(db, 'members'));
@@ -202,14 +316,12 @@ async function saveTransaction(replyToken, userId, finalData) {
             finalData.participants.forEach(p => splits[p] = share);
         }
 
-        const icon = 'fa-utensils'; // Default Icon for LINE Entries
+        const icon = 'fa-utensils'; 
 
         if (finalData.paymentType === 'installment') {
             const amountPerMonth = finalData.amount / finalData.installments;
             const monthlySplits = {};
             for (let p in splits) monthlySplits[p] = (splits[p] / finalData.amount) * amountPerMonth;
-
-            // NEW: Generate Group ID for Installments
             const groupId = `grp_line_${Date.now()}`;
 
             for (let i = 0; i < finalData.installments; i++) {
@@ -217,37 +329,30 @@ async function saveTransaction(replyToken, userId, finalData) {
                 batch.set(doc(collection(db, "transactions")), {
                     date: nextDate.toISOString().slice(0, 10),
                     desc: `${finalData.desc} (${i+1}/${finalData.installments})`,
-                    amount: amountPerMonth, 
-                    payer: finalData.payer, 
-                    splits: monthlySplits,
-                    paymentType: 'installment', 
-                    installments: finalData.installments, 
-                    timestamp: Date.now() + i,
-                    groupId: groupId, // <-- Added Group ID
-                    icon: icon
+                    amount: amountPerMonth, payer: finalData.payer, splits: monthlySplits,
+                    paymentType: 'installment', installments: finalData.installments, 
+                    timestamp: Date.now() + i, groupId: groupId, icon: icon
                 });
             }
         } else {
             batch.set(doc(collection(db, "transactions")), {
                 date: today.toISOString().slice(0, 10),
-                desc: finalData.desc, 
-                amount: finalData.amount,
-                payer: finalData.payer, 
-                splits: splits, 
-                paymentType: 'normal', 
-                timestamp: Date.now(),
-                icon: icon
+                desc: finalData.desc, amount: finalData.amount,
+                payer: finalData.payer, splits: splits,
+                paymentType: 'normal', timestamp: Date.now(), icon: icon
             });
         }
 
         await batch.commit();
         await deleteDoc(doc(db, 'user_sessions', userId));
         return replyFlex(replyToken, "บันทึกสำเร็จ", createReceiptFlex(finalData));
+
     } catch (e) {
-        return replyText(replyToken, "❌ เกิดข้อผิดพลาด: " + e.message);
+        return replyText(replyToken, `❌ Error: ${e.message}`);
     }
 }
 
+// --- TEMPLATES ---
 function createQuestionFlex(title, sub, color) {
     return {
         "type": "bubble",
@@ -285,6 +390,7 @@ function createReceiptFlex(data) {
     };
 }
 
+// --- LINE API ---
 async function sendToLine(replyToken, payload) {
     const res = await fetch('https://api.line.me/v2/bot/message/reply', {
         method: 'POST',
@@ -296,7 +402,6 @@ async function sendToLine(replyToken, payload) {
         console.error("LINE API Error:", JSON.stringify(errData));
     }
 }
-
 async function replyText(replyToken, text) { await sendToLine(replyToken, { type: 'text', text }); }
 async function replyFlex(replyToken, altText, contents) { await sendToLine(replyToken, { type: 'flex', altText, contents }); }
 async function replyQuickReply(replyToken, flex, actions) { await sendToLine(replyToken, { type: 'flex', altText: "เลือกรายการ", contents: flex, quickReply: { items: actions } }); }
