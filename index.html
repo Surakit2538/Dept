@@ -1,9 +1,12 @@
 <!-- 
-    Mobile-First Expense Tracker (V53 - UI Improvements)
+    Mobile-First Expense Tracker (V54 - History Grouping & Delete Logic)
     Project: deptmoney-6682a
     Updates:
-    1. 'Current Month' in selector is now labeled as "เดือนนี้".
-    2. Default date in Add Transaction modal is set to today.
+    1. History: Group transactions by Date headers.
+    2. History: Added Edit icon next to Delete.
+    3. Edit: Pre-select participants based on saved transaction data.
+    4. Settings: Removed API Configuration UI.
+    5. Logic: Cascading delete for installments (Single & Month clear).
 -->
 
 <!DOCTYPE html>
@@ -135,6 +138,33 @@
             opacity: 1;
             bottom: 50px;
         }
+        
+        .date-header {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 1.5rem 0 1rem;
+        }
+        .date-header span {
+            background-color: #e2e8f0;
+            color: #64748b;
+            font-size: 0.75rem;
+            font-weight: bold;
+            padding: 0.25rem 1rem;
+            border-radius: 9999px;
+            z-index: 10;
+        }
+        .date-header::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 1px;
+            background-color: #e2e8f0;
+            z-index: 0;
+        }
     </style>
 </head>
 <body class="flex flex-col md:flex-row">
@@ -146,7 +176,7 @@
     <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center justify-center gap-2">
             <i class="fa-solid fa-circle-notch fa-spin text-slate-800 text-2xl"></i>
-            <span class="text-xs text-slate-600 font-medium">กำลังส่งข้อมูล...</span>
+            <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...</span>
         </div>
     </div>
 
@@ -189,7 +219,7 @@
             </div>
             
             <div class="text-center text-[10px] text-slate-400/60 mt-4">
-                v5.3 &copy; Dept Money Project
+                v5.4 &copy; Dept Money Project
             </div>
         </div>
     </div>
@@ -285,7 +315,7 @@
                 <h2 class="text-xl font-bold text-slate-800">ประวัติรายการ</h2>
                 <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
             </div>
-            <div id="transaction-list-mobile" class="space-y-3 pb-20 md:pb-0"></div>
+            <div id="transaction-list-mobile" class="space-y-1 pb-20 md:pb-0"></div>
             <div id="empty-state" class="hidden py-10 text-center text-slate-400">
                 <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <i class="fa-regular fa-folder-open text-2xl text-slate-300"></i>
@@ -337,25 +367,16 @@
 
             <div id="admin-danger-zone" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
                 <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-server"></i> การเชื่อมต่อ API
+                    <i class="fa-solid fa-gear"></i> การตั้งค่า
                 </h3>
                 
-                <!-- API Config -->
-                <div class="bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
-                    <label class="text-[10px] font-bold text-blue-600 uppercase mb-1 block">API Endpoint URL</label>
-                    <div class="flex gap-2">
-                        <input type="text" id="api-endpoint-url" placeholder="/api/send-line" class="flex-1 px-3 py-2 border rounded-lg text-xs bg-slate-50 focus:ring-2 focus:ring-blue-100 outline-none">
-                        <button onclick="window.app.saveApiConfig()" class="bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold">บันทึก</button>
-                    </div>
-                    <p class="text-[9px] text-slate-400 mt-1">ใส่ URL ของ Backend API (เช่น /api/send-line)</p>
-                </div>
-
                 <div class="bg-red-50 p-3 rounded-lg border border-red-100 mt-4">
                     <h4 class="font-bold text-red-700 text-xs mb-2"><i class="fa-solid fa-triangle-exclamation"></i> ลบข้อมูล</h4>
                     <div class="flex gap-2 mb-2">
                         <select id="delete-month-selector" class="flex-1 bg-white border border-red-200 text-xs rounded-lg px-2 outline-none text-slate-600"></select>
                         <button onclick="window.app.clearMonthData()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm">ลบเดือนนี้</button>
                     </div>
+                    <p class="text-[9px] text-red-400 mt-1">* หากเป็นรายการผ่อน จะลบทุกงวดที่เกี่ยวข้องออกทั้งหมด</p>
                 </div>
             </div>
         </section>
@@ -529,7 +550,6 @@
                 this.initBackground();
                 this.populateMonthSelectors();
                 this.selectIcon('fa-utensils');
-                if(this.data.apiEndpoint) document.getElementById('api-endpoint-url').value = this.data.apiEndpoint;
                 
                 onSnapshot(collection(db, "members"), (snap) => {
                     this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort();
@@ -596,17 +616,28 @@
                 }
                 empty.classList.add('hidden');
 
+                let lastDate = '';
+
                 filtered.forEach(t => {
                     const dateObj = new Date(t.date);
                     const day = dateObj.getDate();
                     const month = dateObj.toLocaleString('th-TH', { month: 'short' });
+                    const dateStr = dateObj.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
                     
                     const isInstallment = t.paymentType === 'installment';
                     const iconClass = t.icon || 'fa-utensils';
                     
+                    // Grouping by Date
+                    if (t.date !== lastDate) {
+                        const header = document.createElement('div');
+                        header.className = "date-header";
+                        header.innerHTML = `<span>${dateStr}</span>`;
+                        list.appendChild(header);
+                        lastDate = t.date;
+                    }
+
                     const div = document.createElement('div');
-                    div.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between active:scale-[0.99] transition-transform";
-                    div.onclick = () => this.editTransaction(t.id);
+                    div.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between";
                     
                     let html = `
                         <div class="flex items-center gap-4">
@@ -626,17 +657,26 @@
                         </div>
                         <div class="flex flex-col items-end gap-1">
                             <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()} ฿</span>
+                            <div class="flex gap-2 mt-1">
                     `;
                     
+                    // Edit Icon
+                    html += `
+                        <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                    `;
+
+                    // Delete Icon (Admin Only)
                     if(this.data.userRole === 'admin') {
                         html += `
-                            <button onclick="event.stopPropagation(); window.app.deleteTransaction('${t.id}')" class="text-xs text-red-300 hover:text-red-500 p-1">
+                            <button onclick="window.app.deleteTransaction('${t.id}')" class="text-xs text-red-300 hover:text-red-500 p-1">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         `;
                     }
                     
-                    html += `</div>`;
+                    html += `</div></div>`;
                     div.innerHTML = html;
                     list.appendChild(div);
                 });
@@ -871,17 +911,20 @@
                 this.renderSplitParticipants();
             },
 
-            renderSplitParticipants() {
+            renderSplitParticipants(involvedMembers = []) {
                 const container = document.getElementById('split-participants');
-                container.innerHTML = this.data.members.map(m => `
+                container.innerHTML = this.data.members.map(m => {
+                    // Check logic: if editing (involvedMembers passed), check if in list. If new, check all.
+                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : true;
+                    return `
                     <div class="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0">
                         <label class="flex items-center gap-3 cursor-pointer select-none">
-                            <input type="checkbox" checked value="${m}" class="participant-check rounded text-slate-800 w-4 h-4 focus:ring-slate-800">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} value="${m}" class="participant-check rounded text-slate-800 w-4 h-4 focus:ring-slate-800">
                             <span class="text-slate-700 font-bold">${m}</span>
                         </label>
                         ${this.data.splitMode === 'custom' ? `<input type="number" step="0.01" data-member="${m}" class="participant-amount w-20 p-1.5 border border-slate-200 rounded-lg text-right text-xs focus:ring-2 focus:ring-blue-100 outline-none" placeholder="0.00">` : ''}
                     </div>
-                `).join('');
+                `}).join('');
             },
 
             editTransaction(id) {
@@ -900,7 +943,10 @@
                 this.toggleInstallment();
                 
                 document.getElementById('transaction-modal').classList.remove('hidden');
-                this.renderSplitParticipants();
+                
+                // Pass existing participants to renderSplitParticipants
+                const existingParticipants = t.splits ? Object.keys(t.splits) : [];
+                this.renderSplitParticipants(existingParticipants);
             },
 
             async saveTransaction() {
@@ -980,17 +1026,19 @@
                 if(!t) return;
 
                 if(t.groupId) {
-                    const deleteChoice = confirm('รายการนี้เป็นแบบผ่อนชำระ\n\nOK: ต้องการลบรายการผ่อนในกลุ่มนี้\nCancel: ยกเลิก');
+                    const deleteChoice = confirm('รายการนี้เป็นแบบผ่อนชำระ\n\nOK: ลบรายการนี้และงวดอื่นๆ ทั้งหมด\nCancel: ยกเลิก');
                     if(!deleteChoice) return;
-                    const deleteFuture = confirm('ต้องการลบแบบไหน?\n\nOK: ลบงวดนี้และงวดที่เหลือในอนาคตทั้งหมด\nCancel: ลบเฉพาะงวดนี้งวดเดียว');
+                    
                     document.getElementById('loading-overlay').classList.remove('hidden');
                     const batch = writeBatch(db);
-                    if(deleteFuture) {
-                        const itemsToDelete = this.data.transactions.filter(item => item.groupId === t.groupId && item.date >= t.date);
-                        itemsToDelete.forEach(item => batch.delete(doc(db, "transactions", item.id.trim())));
-                    } else {
-                        batch.delete(doc(db, "transactions", id.trim()));
-                    }
+                    
+                    // Find all items with same groupId (across ALL time)
+                    // Note: We use this.data.transactions which contains ALL loaded transactions.
+                    // If your app loads all data at init, this works. If it limits query, this needs a backend query.
+                    // Assuming current logic loads all:
+                    const groupItems = this.data.transactions.filter(item => item.groupId === t.groupId);
+                    groupItems.forEach(item => batch.delete(doc(db, "transactions", item.id.trim())));
+                    
                     try { await batch.commit(); } catch(e) { alert("ลบไม่สำเร็จ: " + e.message); }
                     document.getElementById('loading-overlay').classList.add('hidden');
                 } else if (t.desc.match(/\(\d+\/\d+\)$/)) {
@@ -1018,10 +1066,28 @@
             async clearMonthData() {
                 if(this.data.userRole !== 'admin') return;
                 const m = document.getElementById('delete-month-selector').value;
-                if(confirm(`ยืนยันลบข้อมูลทั้งหมดของเดือน ${m}?`)) {
-                    const toDelete = this.data.transactions.filter(t => t.date.startsWith(m));
+                if(confirm(`ยืนยันลบข้อมูลทั้งหมดของเดือน ${m}?\n(หากมีรายการผ่อน จะลบงวดอื่นๆ ที่อยู่นอกเดือนนี้ด้วย)`)) {
+                    const itemsInMonth = this.data.transactions.filter(t => t.date.startsWith(m));
                     const batch = writeBatch(db);
-                    toDelete.forEach(t => batch.delete(doc(db, "transactions", t.id)));
+                    
+                    // Collect Group IDs to delete entirely
+                    const groupIdsToDelete = new Set();
+                    const individualIdsToDelete = new Set();
+
+                    itemsInMonth.forEach(t => {
+                        if(t.groupId) groupIdsToDelete.add(t.groupId);
+                        else individualIdsToDelete.add(t.id);
+                    });
+
+                    // Add individual items
+                    individualIdsToDelete.forEach(id => batch.delete(doc(db, "transactions", id)));
+
+                    // Add ALL items belonging to the found groups (even if outside this month)
+                    if(groupIdsToDelete.size > 0) {
+                        const allRelatedGroupItems = this.data.transactions.filter(t => t.groupId && groupIdsToDelete.has(t.groupId));
+                        allRelatedGroupItems.forEach(t => batch.delete(doc(db, "transactions", t.id)));
+                    }
+
                     await batch.commit();
                 }
             },
@@ -1064,16 +1130,7 @@
             logout() { location.reload(); },
             
             saveApiConfig() {
-                const url = document.getElementById('api-endpoint-url').value.trim();
-                if(url) {
-                    localStorage.setItem('dept_money_api_endpoint', url);
-                    this.data.apiEndpoint = url;
-                    this.showToast('บันทึก URL เรียบร้อยแล้ว');
-                } else {
-                    localStorage.removeItem('dept_money_api_endpoint');
-                    this.data.apiEndpoint = '/api/send-line';
-                    this.showToast('รีเซ็ตเป็นค่าเริ่มต้นแล้ว');
-                }
+                // Feature Removed
             },
             
             showToast(msg) {
