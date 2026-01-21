@@ -18,11 +18,14 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// แก้ไขชื่อโมเดลจาก "gemini-1.5-flash" เป็น "gemini-1.5-flash-latest" เพื่อแก้ปัญหา 404
-const GEMINI_MODEL_NAME = "gemini-pro";
+// ใช้ชื่อโมเดล "gemini-1.5-flash" (ตัวนี้รองรับทั้ง Text, Image และ JSON)
+const GEMINI_MODEL_NAME = "gemini-1.5-flash";
 
 // --- 2. MAIN HANDLER ---
 export default async function handler(req, res) {
+    // Log เพื่อเช็คว่าโค้ดใหม่ทำงานจริง
+    console.log("Webhook Running: V54 (Gemini 1.5 Flash)");
+
     if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
     const events = req.body.events || [];
@@ -61,18 +64,18 @@ async function handleTextMessage(event) {
     if (!session) {
         const members = await getMemberNames();
         
-        // 1. ลองใช้ AI Gemini ก่อน
+        // 1. ลองใช้ AI Gemini
         let result = await analyzeWithGemini(text, members);
 
-        // 2. (Backup) ถ้า AI พลาด/พัง ให้ใช้ Regex ง่ายๆ แกะเอง
+        // 2. (Backup) ถ้า AI พลาด ให้ใช้ Regex
         if (!result || !result.amount) {
-            console.log("AI Failed, using fallback regex");
+            console.log("AI Failed/Null, using regex fallback");
             result = analyzeWithRegex(text, members);
         }
 
         // --- ตัดสินใจจากผลลัพธ์ ---
         if (result && result.amount > 0) {
-            // Case A: ได้ครบ (รายการ + ราคา + คนจ่าย) -> บันทึกเลย
+            // Case A: ได้ครบ -> บันทึกเลย
             if (result.desc && result.payer) {
                 const finalData = {
                     desc: result.desc, amount: result.amount, payer: result.payer,
@@ -82,21 +85,20 @@ async function handleTextMessage(event) {
                 return await saveTransaction(replyToken, userId, finalData, true);
             }
             
-            // Case B: ได้แค่ (รายการ + ราคา) -> ข้ามไปถามคนจ่าย
+            // Case B: ได้แค่บางส่วน -> ถามต่อ
             await setDoc(sessionRef, {
                 step: 'ASK_PAYER',
                 data: { desc: result.desc, amount: result.amount },
                 timestamp: serverTimestamp()
             });
             
-            // Limit 13 items for Quick Reply Safety
             const safeMembers = members.slice(0, 13);
             const actions = safeMembers.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
             const flex = createQuestionFlex("👤 ระบุคนจ่าย", `ระบบอ่านค่า: ${result.desc} (${result.amount.toLocaleString()} ฿)\nใครเป็นคนจ่ายครับ?`, "#1e293b");
             return replyQuickReply(replyToken, flex, actions);
         }
 
-        // Case C: ไม่รู้อะไรเลย -> เข้าโหมดปกติ ถามราคา
+        // Case C: ไม่รู้อะไรเลย -> ถามราคา
         await setDoc(sessionRef, { step: 'ASK_AMOUNT', data: { desc: text }, timestamp: serverTimestamp() });
         const flex = createQuestionFlex("💰 ระบุราคา", `รายการ: ${text}\nราคาเท่าไหร่ครับ?`, "#1e293b");
         return replyFlex(replyToken, "ระบุราคา", flex);
@@ -106,7 +108,6 @@ async function handleTextMessage(event) {
     const currentStep = session.step;
     const data = session.data || {};
 
-    // กรณีพิเศษ: มาจาก Image (มี Amount แล้ว รอ Desc)
     if (currentStep === 'ASK_DESC_AFTER_IMAGE') {
         const desc = text;
         await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, desc } }, { merge: true });
@@ -126,7 +127,6 @@ async function handleTextMessage(event) {
         return replyQuickReply(replyToken, flex, actions);
     }
 
-    // STEP 2: รับราคา
     if (currentStep === 'ASK_AMOUNT') {
         const amount = parseFloat(text.replace(/,/g, ''));
         if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ โปรดระบุราคาเป็นตัวเลขครับ");
@@ -141,7 +141,6 @@ async function handleTextMessage(event) {
         return replyQuickReply(replyToken, flex, actions);
     }
 
-    // STEP 3: รับคนจ่าย
     if (currentStep === 'ASK_PAYER') {
         const payer = text.toUpperCase();
         await setDoc(sessionRef, { step: 'ASK_PAYMENT_TYPE', data: { ...data, payer } }, { merge: true });
@@ -153,7 +152,6 @@ async function handleTextMessage(event) {
         return replyQuickReply(replyToken, flex, actions);
     }
 
-    // STEP 4: รูปแบบ
     if (currentStep === 'ASK_PAYMENT_TYPE') {
         if (text.includes("ผ่อน")) {
             await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
@@ -165,7 +163,6 @@ async function handleTextMessage(event) {
         }
     }
 
-    // STEP 4.5: งวด
     if (currentStep === 'ASK_INSTALLMENTS') {
         let installments = parseInt(text);
         if (isNaN(installments) || installments < 2) installments = 2;
@@ -173,7 +170,6 @@ async function handleTextMessage(event) {
         return await askParticipants(replyToken, []);
     }
 
-    // STEP 5: เลือกคนหาร (Toggle)
     if (currentStep === 'ASK_PARTICIPANTS') {
         let currentList = data.participants || [];
         if (text === 'ยืนยัน' || text === '✅ ตกลง') {
@@ -194,7 +190,6 @@ async function handleTextMessage(event) {
         return await askParticipants(replyToken, currentList);
     }
 
-    // STEP 6: วิธีหาร
     if (currentStep === 'ASK_SPLIT_METHOD') {
         if (text.includes("ระบุ")) {
             await setDoc(sessionRef, { step: 'ASK_CUSTOM_AMOUNTS', data: { ...data, splitMethod: 'custom' } }, { merge: true });
@@ -206,7 +201,6 @@ async function handleTextMessage(event) {
         }
     }
 
-    // STEP 7: จบ
     if (currentStep === 'ASK_CUSTOM_AMOUNTS') {
         return await saveTransaction(replyToken, userId, { ...data, customAmountStr: text });
     }
@@ -221,8 +215,11 @@ async function handleImageMessage(event) {
         const members = await getMemberNames();
         
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // FIX: Use latest model
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME, generationConfig: { responseMimeType: "application/json" } });
+        // Explicitly using GEMINI_MODEL_NAME which is set to "gemini-1.5-flash"
+        const model = genAI.getGenerativeModel({ 
+            model: GEMINI_MODEL_NAME, 
+            generationConfig: { responseMimeType: "application/json" } 
+        });
         
         const prompt = `Analyze receipt. Members: [${members.join(', ')}]. Extract JSON: {"amount":number, "payer":string|null}`;
         const result = await model.generateContent([prompt, { inlineData: { data: Buffer.from(buffer).toString("base64"), mimeType: "image/jpeg" } }]);
@@ -242,7 +239,8 @@ async function handleImageMessage(event) {
         }
     } catch (e) {
         console.error("Image Error:", e);
-        return replyText(event.replyToken, "❌ อ่านรูปไม่ได้ครับ (AI Error)");
+        // Fallback or User Message
+        return replyText(event.replyToken, `❌ เกิดข้อผิดพลาดในการอ่านรูป (Model: ${GEMINI_MODEL_NAME})`);
     }
 }
 
@@ -251,12 +249,17 @@ async function analyzeWithGemini(text, members) {
     if (!process.env.GEMINI_API_KEY) return null;
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // FIX: Use latest model
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME, generationConfig: { responseMimeType: "application/json" } });
+        const model = genAI.getGenerativeModel({ 
+            model: GEMINI_MODEL_NAME, 
+            generationConfig: { responseMimeType: "application/json" } 
+        });
         const prompt = `Expense tracker. Members:[${members.join(',')}]. Text:"${text}". Extract JSON:{"desc":string,"amount":number,"payer":string|null,"participants":string[]}. "Pizza 200"->{"desc":"Pizza","amount":200,"payer":null}`;
         const result = await model.generateContent(prompt);
         return JSON.parse(result.response.text());
-    } catch (e) { return null; }
+    } catch (e) { 
+        console.error("Gemini Text Error:", e);
+        return null; 
+    }
 }
 
 // --- 6. REGEX FALLBACK (BACKUP) ---
@@ -416,6 +419,3 @@ async function sendToLine(replyToken, payload) {
 async function replyText(replyToken, text) { await sendToLine(replyToken, { type: 'text', text }); }
 async function replyFlex(replyToken, altText, contents) { await sendToLine(replyToken, { type: 'flex', altText, contents }); }
 async function replyQuickReply(replyToken, flex, actions) { await sendToLine(replyToken, { type: 'flex', altText: "เลือกรายการ", contents: flex, quickReply: { items: actions } }); }
-
-
-
