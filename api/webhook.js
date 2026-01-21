@@ -18,8 +18,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ใช้โมเดลตัวล่าสุดเพื่อป้องกัน Error 404
-const GEMINI_MODEL_NAME = "gemini-1.5-flash-latest";
+// ใช้โมเดล gemini-1.5-flash (ตัวมาตรฐาน) เพื่อแก้ปัญหา 404
+const GEMINI_MODEL_NAME = "gemini-1.5-flash";
 
 // --- 2. MAIN HANDLER ---
 export default async function handler(req, res) {
@@ -189,9 +189,7 @@ async function handleTextMessage(event) {
         const members = await getMemberNames();
         const inputName = text.toUpperCase();
         if (text === 'ทุกคน') currentList = [...members];
-        else if (members.includes(inputName)) {
-            currentList = currentList.includes(inputName) ? currentList.filter(m => m !== inputName) : [...currentList, inputName];
-        }
+        else if (members.includes(inputName)) currentList = currentList.includes(inputName) ? currentList.filter(m => m !== inputName) : [...currentList, inputName];
         await setDoc(sessionRef, { data: { ...data, participants: currentList } }, { merge: true });
         return await askParticipants(replyToken, currentList);
     }
@@ -369,13 +367,15 @@ async function saveTransaction(replyToken, userId, finalData, skipDeleteSession 
 
 function createQuestionFlex(title, sub, color) {
     return {
-        "type": "bubble", "size": "mega",
+        "type": "bubble",
+        "size": "mega",
         "body": {
             "type": "box", "layout": "vertical", "backgroundColor": color,
             "contents": [
                 { "type": "text", "text": title, "color": "#ffffff", "weight": "bold", "size": "md" },
                 { "type": "text", "text": sub, "color": "#ffffffcc", "size": "xs", "margin": "xs", "wrap": true }
-            ], "paddingAll": "lg"
+            ],
+            "paddingAll": "lg"
         }
     };
 }
