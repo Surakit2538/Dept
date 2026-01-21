@@ -1,11 +1,9 @@
 <!-- 
-    Mobile-First Expense Tracker (V52 - Custom Backend API Integration)
+    Mobile-First Expense Tracker (V53 - UI Improvements)
     Project: deptmoney-6682a
     Updates:
-    1. Integration with custom backend API (/api/send-line).
-    2. Removed client-side Token storage (moved to server-side).
-    3. Added API Endpoint configuration in Settings.
-    4. Sends 'month' and 'debts' JSON payload to the backend.
+    1. 'Current Month' in selector is now labeled as "เดือนนี้".
+    2. Default date in Add Transaction modal is set to today.
 -->
 
 <!DOCTYPE html>
@@ -191,7 +189,7 @@
             </div>
             
             <div class="text-center text-[10px] text-slate-400/60 mt-4">
-                v5.2 &copy; Dept Money Project
+                v5.3 &copy; Dept Money Project
             </div>
         </div>
     </div>
@@ -676,10 +674,14 @@
 
             populateMonthSelectors() {
                 const date = new Date();
+                const currentMonthVal = date.toISOString().slice(0, 7);
                 let html = "";
                 for(let i=0; i<12; i++) {
                     const val = date.toISOString().slice(0, 7);
-                    const label = date.toLocaleString('th-TH', { month: 'long', year: 'numeric' });
+                    let label = date.toLocaleString('th-TH', { month: 'long', year: 'numeric' });
+                    if (val === currentMonthVal) {
+                        label = "เดือนนี้";
+                    }
                     html += `<option value="${val}">${label}</option>`;
                     date.setMonth(date.getMonth() - 1);
                 }
@@ -837,6 +839,8 @@
                 document.getElementById('t-amount').value = "";
                 document.getElementById('t-desc').value = "";
                 document.getElementById('t-payment-type').value = "normal";
+                // Set default date to today
+                document.getElementById('t-date').value = new Date().toISOString().slice(0, 10);
                 this.toggleInstallment();
                 this.selectIcon('fa-utensils');
                 document.getElementById(id).classList.remove('hidden'); 
