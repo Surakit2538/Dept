@@ -1,10 +1,9 @@
 <!-- 
-    Mobile-First Expense Tracker (V43 - UI Polish & Login Particles)
+    Mobile-First Expense Tracker (V47 - Login UI Adjustments)
     Project: deptmoney-6682a
     Fixes & Features:
-    1. Mobile Logout: Restored logout button in mobile header.
-    2. Mobile Nav: Redesigned active state (background highlight + contrast) for better visibility.
-    3. Login BG: Moved particle animation to ONLY the login screen and increased visibility.
+    1. UI: Changed Login Screen background to match the Admin button color (Slate-800 theme).
+    2. Content: Changed "System Online" to "สถานะระบบ online".
 -->
 
 <!DOCTYPE html>
@@ -42,22 +41,29 @@
             position: relative;
         }
         
-        /* Animation: Login Particles Only */
-        .particle {
+        /* --- NEW LOGIN ANIMATION (Glowing Orbs) --- */
+        #login-screen {
+            /* Dark Gray Theme (Matching Slate-800) */
+            background-color: #1e293b; 
+            /* Subtle gradient to give depth but keep the slate-800 feel */
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #1e293b 60%, #334155 100%);
+            overflow: hidden;
+        }
+
+        .orb {
             position: absolute;
-            background-color: rgba(255, 255, 255, 0.9); /* เพิ่มความชัด (Opacity 0.9) */
             border-radius: 50%;
-            pointer-events: none;
-            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5); /* เพิ่ม Glow */
-            animation: floatUp linear infinite;
+            filter: blur(40px);
+            opacity: 0.3;
+            animation: floatOrb infinite ease-in-out;
             z-index: 0;
         }
 
-        @keyframes floatUp {
-            0% { transform: translateY(100vh) scale(0.5) rotate(0deg); opacity: 0; }
-            20% { opacity: 0.8; }
-            80% { opacity: 0.8; }
-            100% { transform: translateY(-10vh) scale(1.2) rotate(360deg); opacity: 0; }
+        @keyframes floatOrb {
+            0% { transform: translate(0, 0) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0, 0) scale(1); }
         }
 
         .chart-container {
@@ -74,7 +80,6 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-        /* Mobile Bottom Nav Styles */
         .bottom-nav-item {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 12px;
@@ -135,34 +140,48 @@
     </div>
 
     <!-- LOGIN OVERLAY -->
-    <div id="login-screen" class="fixed inset-0 z-[60] bg-slate-900 flex items-center justify-center p-4 overflow-hidden">
+    <div id="login-screen" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
         
-        <!-- BG Particles moved INSIDE login screen -->
-        <div id="bg-particles" class="absolute inset-0 pointer-events-none z-0"></div>
+        <!-- Glowing Orbs Animation Container (Inside Login Only) -->
+        <div id="login-particles" class="absolute inset-0 pointer-events-none z-0"></div>
 
-        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-6 relative z-10">
+        <div class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-sm p-8 space-y-6 relative z-10 border border-white/20">
             <div class="text-center">
-                <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-16 h-16 mx-auto mb-2">
-                <h1 class="interactive-title text-xl font-bold text-slate-800" onclick="window.app.triggerGameEmoji(event)">Dept Money</h1>
-                <p class="text-xs mt-1"><span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[8px]"></i> Online</span></p>
+                <!-- Removed Circle Container -->
+                <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-20 h-20 mx-auto mb-4 object-contain drop-shadow-md">
+                
+                <h1 class="interactive-title text-2xl font-extrabold text-slate-800 tracking-tight" onclick="window.app.triggerGameEmoji(event)">Dept Money</h1>
+                <p class="text-xs mt-2 flex justify-center items-center gap-1.5 text-slate-500 bg-slate-100 py-1 px-3 rounded-full inline-flex mx-auto">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> สถานะระบบ online
+                </p>
             </div>
             
             <div class="space-y-3" id="login-options">
-                <button onclick="window.app.completeLogin('member')" class="w-full py-3 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 shadow-sm active:scale-95 transition-all">เข้าสู่ระบบ (Member)</button>
-                <button onclick="window.app.showAdminLogin()" class="w-full py-3 bg-slate-800 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all">ผู้ดูแล (Admin)</button>
-                <a href="https://lin.ee/1FMnsom" target="_blank" class="w-full py-3 bg-[#06C755] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md hover:bg-[#05b34c] transition-colors">
+                <button onclick="window.app.completeLogin('member')" class="group w-full py-3.5 bg-white border border-slate-200 hover:border-gray-400 text-slate-700 rounded-xl font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-user text-gray-500 group-hover:scale-110 transition-transform"></i> สมาชิก (Member)
+                </button>
+
+                <button onclick="window.app.showAdminLogin()" class="group w-full py-3.5 bg-slate-800 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-shield-halved text-gray-300 group-hover:scale-110 transition-transform"></i> ผู้ดูแล (Admin)
+                </button>
+
+                <a href="https://lin.ee/1FMnsom" target="_blank" class="w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
                     <i class="fa-brands fa-line text-xl"></i> ติดต่อ LINE Official
                 </a>
             </div>
 
-            <div id="admin-login-form" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200">
-                <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700 text-sm">Admin Login</h3>
-                    <button onclick="window.app.toggleAdminForm()" class="text-slate-400 text-xs">ยกเลิก</button>
+            <div id="admin-login-form" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in">
+                <div class="flex justify-between items-center mb-1">
+                    <h3 class="font-bold text-slate-700 text-sm">Admin Access</h3>
+                    <button onclick="window.app.toggleAdminForm()" class="text-slate-400 text-xs hover:text-red-500">ยกเลิก</button>
                 </div>
-                <input type="text" id="admin-user" placeholder="Username" class="w-full px-3 py-2 border rounded-lg text-sm">
-                <input type="password" id="admin-pass" placeholder="Password" class="w-full px-3 py-2 border rounded-lg text-sm">
-                <button onclick="window.app.loginAsAdmin()" class="w-full py-2 bg-slate-800 text-white rounded-lg text-sm font-bold">ยืนยัน</button>
+                <input type="text" id="admin-user" placeholder="Username" class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none transition-all">
+                <input type="password" id="admin-pass" placeholder="Password" class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none transition-all">
+                <button onclick="window.app.loginAsAdmin()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-bold shadow-md transition-colors">ยืนยัน</button>
+            </div>
+            
+            <div class="text-center text-[10px] text-slate-400/60 mt-4">
+                v4.7 &copy; Dept Money Project
             </div>
         </div>
     </div>
@@ -189,7 +208,7 @@
     <aside class="hidden md:flex w-64 bg-white border-r flex-col z-20 shadow-sm">
         <div class="p-6 border-b flex items-center gap-3">
             <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" class="w-8 h-8 rounded-lg">
-            <span class="font-bold text-lg text-slate-800">Dept Money</span>
+            <span class="font-bold text-lg">Dept Money</span>
         </div>
         <nav class="flex-1 p-4 space-y-1">
             <button onclick="window.app.navigate('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50" id="nav-dashboard">
@@ -257,7 +276,7 @@
         <section id="view-history" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-slate-800">ประวัติรายการ</h2>
-                <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-white border border-slate-200 text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
+                <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
             </div>
             <div id="transaction-list-mobile" class="space-y-3"></div>
             <div id="empty-state" class="hidden py-10 text-center text-slate-400">
@@ -272,7 +291,7 @@
         <section id="view-settlement" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-slate-800">เคลียร์ยอดเงิน</h2>
-                <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-white border border-slate-200 text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
+                <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
             </div>
             
             <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg flex items-center gap-2 border border-blue-100">
@@ -438,8 +457,8 @@
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[10px] font-bold text-slate-400 uppercase">ตัวหาร</span>
                         <div class="flex bg-white rounded-lg p-1 border shadow-sm">
-                            <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal" class="px-3 py-1.5 rounded-md text-[10px] font-bold transition-all">หารเท่า</button>
-                            <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom" class="px-3 py-1.5 rounded-md text-[10px] font-bold transition-all">ระบุยอด</button>
+                            <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal" class="px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-800 text-white transition-all">หารเท่า</button>
+                            <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom" class="px-3 py-1.5 rounded-md text-[10px] font-bold text-slate-400 transition-all">ระบุยอด</button>
                         </div>
                     </div>
                     <div id="split-participants" class="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar"></div>
@@ -507,14 +526,18 @@
             },
 
             initBackground() {
-                const container = document.getElementById('bg-particles');
+                const container = document.getElementById('login-particles');
+                if(!container) return; 
+                
                 for(let i=0; i<15; i++) {
                     const p = document.createElement('div');
                     p.className = 'particle';
-                    p.style.width = p.style.height = (Math.random()*20 + 5) + 'px';
-                    p.style.left = Math.random()*100 + 'vw';
-                    p.style.animationDuration = (Math.random()*10 + 10) + 's';
-                    p.style.animationDelay = Math.random()*5 + 's';
+                    const size = Math.random() * 40 + 10 + 'px';
+                    p.style.width = size;
+                    p.style.height = size;
+                    p.style.left = Math.random() * 100 + '%';
+                    p.style.animationDuration = (Math.random() * 20 + 20) + 's';
+                    p.style.animationDelay = (Math.random() * 5) + 's';
                     container.appendChild(p);
                 }
             },
