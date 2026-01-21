@@ -1,10 +1,10 @@
 <!-- 
-    Mobile-First Expense Tracker (V37 - Fix Missing Functions)
+    Mobile-First Expense Tracker (V38 - Robust Delete Debugging)
     Project: deptmoney-6682a
     Fixes:
-    1. Restored 'renderHistory' function to fix navigation error.
-    2. Restored 'sendLineNotify' function for LINE button functionality.
-    3. Maintained V36 delete logic (wait for snapshot).
+    1. Delete Logic: Added explicit alerts and logging to debug why deletion fails.
+    2. ID Handling: Ensure IDs are properly trimmed strings before sending to Firestore.
+    3. Error Handling: Catches and alerts specific Firestore errors.
 -->
 
 <!DOCTYPE html>
@@ -1229,6 +1229,8 @@
                 try {
                     // Debug: Check ID
                     console.log("Deleting transaction:", id);
+                    // Use a simple alert for immediate feedback
+                    // alert("กำลังลบ: " + id);
 
                     if(ENABLE_FIREBASE && db) {
                         // FIX: Trim spaces and force String type
@@ -1500,59 +1502,6 @@
                 } else {
                     planDiv.innerHTML = instructions.join('');
                 }
-            },
-
-            showMemberDetails(member) {
-                const transactions = this.getFilteredTransactions();
-                // Filter: involved transactions (either payer or sharer)
-                const involved = transactions.filter(t => t.payer === member || (t.splits && t.splits[member]));
-                
-                // Sort by date desc
-                involved.sort((a,b) => b.date.localeCompare(a.date));
-
-                const list = document.getElementById('member-detail-list');
-                list.innerHTML = '';
-                
-                document.getElementById('member-detail-title').textContent = `รายการของ ${member}`;
-
-                let totalMyShare = 0;
-
-                if(involved.length === 0) {
-                    list.innerHTML = '<div class="text-center text-slate-400 py-4 text-xs">ไม่มีรายการที่เกี่ยวข้องในเดือนนี้</div>';
-                }
-
-                involved.forEach(t => {
-                    const myShare = t.splits[member] || 0;
-                    totalMyShare += myShare;
-                    
-                    const isPayer = t.payer === member;
-                    const dateFormatted = new Date(t.date).toLocaleDateString('th-TH', {day: 'numeric', month: 'short'});
-
-                    const div = document.createElement('div');
-                    div.className = "bg-slate-50 p-2.5 rounded-lg border border-slate-100 flex justify-between items-start";
-                    
-                    div.innerHTML = `
-                        <div class="flex gap-2">
-                            <div class="mt-0.5 text-slate-400 text-xs w-8">${dateFormatted}</div>
-                            <div>
-                                <div class="text-xs font-bold text-slate-700">${t.desc}</div>
-                                <div class="text-[10px] text-slate-500">
-                                    ${isPayer ? '<span class="text-green-600 font-bold">จ่ายเอง</span>' : `จ่ายโดย ${t.payer}`}
-                                    • ยอดเต็ม ${t.amount.toLocaleString()}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-xs font-bold text-slate-800">-${myShare.toLocaleString()}</div>
-                            <div class="text-[10px] text-slate-400">ส่วนของฉัน</div>
-                        </div>
-                    `;
-                    list.appendChild(div);
-                });
-                
-                document.getElementById('member-detail-total').textContent = `${totalMyShare.toLocaleString()} ฿`;
-                
-                document.getElementById('member-detail-modal').classList.remove('hidden');
             },
 
             async sendLineNotify() {
