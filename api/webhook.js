@@ -56,8 +56,41 @@ async function handleTextMessage(event) {
     let session = sessionSnap.exists() ? sessionSnap.data() : null;
 
     // --- STEP 1: เริ่มต้น (รับชื่อรายการ) ---
-    // กรณีที่ 1: ไม่มี Session (เริ่มใหม่ด้วย Text)
     if (!session) {
+        // 1. ลองให้ AI วิเคราะห์ข้อความก่อน
+        const members = await getMemberNames();
+        const aiResult = await analyzeWithGemini(text, members);
+
+        if (aiResult) {
+            // กรณี 1.1: AI ได้ข้อมูลครบจบเลย (รายการ + ราคา + คนจ่าย)
+            if (aiResult.desc && aiResult.amount > 0 && aiResult.payer) {
+                const finalData = {
+                    desc: aiResult.desc,
+                    amount: aiResult.amount,
+                    payer: aiResult.payer,
+                    participants: (aiResult.participants && aiResult.participants.length > 0) ? aiResult.participants : members,
+                    paymentType: 'normal',
+                    splitMethod: 'equal',
+                    installments: 1
+                };
+                return await saveTransaction(replyToken, userId, finalData, true); // true = skip session delete
+            }
+
+            // กรณี 1.2: AI ได้แค่ "รายการ" กับ "ราคา" (ขาดคนจ่าย) -> ลัดไป Step 3
+            if (aiResult.desc && aiResult.amount > 0) {
+                await setDoc(sessionRef, {
+                    step: 'ASK_PAYER',
+                    data: { desc: aiResult.desc, amount: aiResult.amount },
+                    timestamp: serverTimestamp()
+                });
+                
+                const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
+                const flex = createQuestionFlex("ระบุคนจ่าย", `AI บันทึก: ${aiResult.desc} (${aiResult.amount.toLocaleString()} ฿)\nใครจ่ายครับ?`, "#1e293b");
+                return replyQuickReply(replyToken, flex, actions);
+            }
+        }
+
+        // กรณี 1.3: AI งง หรือเป็นคำสั้นๆ -> เข้าสู่โหมด Manual Step 1
         await setDoc(sessionRef, {
             step: 'ASK_AMOUNT',
             data: { desc: text },
@@ -70,7 +103,7 @@ async function handleTextMessage(event) {
     const currentStep = session.step;
     const data = session.data || {};
 
-    // กรณีที่ 2: มาจาก Image (มี Amount แล้ว รอ Desc) -> รับ Desc แล้วไปถามคนจ่าย
+    // กรณีพิเศษ: มาจาก Image (มี Amount แล้ว รอ Desc) -> รับ Desc แล้วไปถามคนจ่าย
     if (currentStep === 'ASK_DESC_AFTER_IMAGE') {
         const desc = text;
         // ข้าม Step ASK_AMOUNT เพราะได้จากรูปแล้ว ไป ASK_PAYER เลย
@@ -197,28 +230,19 @@ async function handleImageMessage(event) {
     const messageId = event.message.id;
     const userId = event.source.userId;
 
-    // 1. แจ้ง User ว่ากำลังอ่านรูป
-    // (Optional: อาจจะส่ง Flex Loading แต่เพื่อความง่ายไม่ต้องส่งก็ได้ รอตอบทีเดียว)
-    
     try {
-        // 2. ดึงรูปภาพจาก LINE
         const imageBuffer = await getLineContent(messageId);
-        
-        // 3. เตรียมข้อมูลสมาชิกสำหรับ Prompt
         const members = await getMemberNames();
         
-        // 4. ส่งให้ Gemini วิเคราะห์
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
         const prompt = `
-        Analyze this transfer slip/receipt image.
-        Target Members to match payer: [${members.join(', ')}] (Normalize names to UPPERCASE).
-        
-        Extract ONLY:
-        1. "amount": Total amount transferred (number).
-        2. "payer": Who paid? Match with Target Members list if possible. If uncertain or name not in list, return null.
-        
+        Analyze this transfer slip/receipt.
+        Target Members: [${members.join(', ')}] (Normalize names to UPPERCASE).
+        Extract:
+        1. "amount": Total amount (number).
+        2. "payer": Who paid? Match with Target Members. If unknown, null.
         Output JSON only: { "amount": number, "payer": "string" or null }
         `;
 
@@ -230,35 +254,48 @@ async function handleImageMessage(event) {
         };
 
         const result = await model.generateContent([prompt, imagePart]);
-        const response = await result.response;
-        const text = response.text().replace(/```json|```/g, '').trim();
+        const text = result.response.text().replace(/```json|```/g, '').trim();
         const json = JSON.parse(text);
 
-        // 5. สร้าง Session ใหม่ด้วยข้อมูลจาก AI
         if (json.amount > 0) {
             await setDoc(doc(db, 'user_sessions', userId), {
-                step: 'ASK_DESC_AFTER_IMAGE', // Step พิเศษ: ข้ามถามราคา ไปถามชื่อรายการเลย
-                data: { 
-                    amount: json.amount,
-                    suggestedPayer: json.payer 
-                },
+                step: 'ASK_DESC_AFTER_IMAGE', 
+                data: { amount: json.amount, suggestedPayer: json.payer },
                 timestamp: serverTimestamp()
             });
 
             const payerText = json.payer ? `\n(เดาว่าจ่ายโดย: ${json.payer})` : "";
-            const flex = createQuestionFlex("ระบุชื่อรายการ", `📸 อ่านสลิปเรียบร้อย!\n💰 ยอดเงิน: ${json.amount.toLocaleString()} ฿${payerText}\n\nรายการนี้คือค่าอะไรครับ?`, "#0ea5e9"); // สีฟ้าให้รู้ว่าเป็น AI
+            const flex = createQuestionFlex("ระบุชื่อรายการ", `📸 อ่านสลิปเรียบร้อย!\n💰 ยอดเงิน: ${json.amount.toLocaleString()} ฿${payerText}\n\nรายการนี้คือค่าอะไรครับ?`, "#0ea5e9");
             return replyFlex(event.replyToken, "อ่านสลิปสำเร็จ", flex);
         } else {
             return replyText(event.replyToken, "⚠️ AI อ่านยอดเงินไม่ออกครับ รบกวนพิมพ์รายการเองนะ");
         }
 
     } catch (e) {
-        console.error("Image Process Error:", e);
-        return replyText(event.replyToken, "❌ เกิดข้อผิดพลาดในการอ่านรูปภาพครับ");
+        console.error("Image Error:", e);
+        return replyText(event.replyToken, "❌ เกิดข้อผิดพลาดในการอ่านรูปภาพ");
     }
 }
 
-// --- 5. HELPERS & DB ---
+// --- 5. AI TEXT ANALYSIS ---
+async function analyzeWithGemini(text, members) {
+    if (!process.env.GEMINI_API_KEY) return null;
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const prompt = `
+        You are an expense tracker assistant.
+        Members: [${members.join(', ')}] (UPPERCASE).
+        Text: "${text}"
+        Extract JSON: { "desc": string, "amount": number, "payer": string|null, "participants": string[] }
+        Rules: "Pizza 200 Game" -> {"desc":"Pizza","amount":200,"payer":"GAME"}. "Pizza" -> null.
+        `;
+        const result = await model.generateContent(prompt);
+        return JSON.parse(result.response.text().replace(/```json|```/g, '').trim());
+    } catch (e) { return null; }
+}
+
+// --- 6. HELPERS & DB ---
 
 async function getLineContent(messageId) {
     const url = `https://api-data.line.me/v2/bot/message/${messageId}/content`;
@@ -300,7 +337,7 @@ async function askParticipants(replyToken, userId, selectedList) {
     return replyQuickReply(replyToken, flex, actions);
 }
 
-async function saveTransaction(replyToken, userId, finalData) {
+async function saveTransaction(replyToken, userId, finalData, skipDeleteSession = false) {
     try {
         const batch = writeBatch(db);
         const today = new Date();
@@ -344,7 +381,7 @@ async function saveTransaction(replyToken, userId, finalData) {
         }
 
         await batch.commit();
-        await deleteDoc(doc(db, 'user_sessions', userId));
+        if (!skipDeleteSession) await deleteDoc(doc(db, 'user_sessions', userId));
         return replyFlex(replyToken, "บันทึกสำเร็จ", createReceiptFlex(finalData));
 
     } catch (e) {
