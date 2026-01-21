@@ -19,7 +19,7 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 // แก้ไขชื่อโมเดลจาก "gemini-1.5-flash" เป็น "gemini-1.5-flash-latest" เพื่อแก้ปัญหา 404
-const GEMINI_MODEL_NAME = "gemini-1.5-flash-latest";
+const GEMINI_MODEL_NAME = "gemini-1.5-flash-001";
 
 // --- 2. MAIN HANDLER ---
 export default async function handler(req, res) {
@@ -416,3 +416,4 @@ async function sendToLine(replyToken, payload) {
 async function replyText(replyToken, text) { await sendToLine(replyToken, { type: 'text', text }); }
 async function replyFlex(replyToken, altText, contents) { await sendToLine(replyToken, { type: 'flex', altText, contents }); }
 async function replyQuickReply(replyToken, flex, actions) { await sendToLine(replyToken, { type: 'flex', altText: "เลือกรายการ", contents: flex, quickReply: { items: actions } }); }
+
