@@ -1,12 +1,8 @@
 <!-- 
-    Mobile-First Expense Tracker (V54 - History Grouping & Delete Logic)
+    Mobile-First Expense Tracker (V57 - Fix Init Error)
     Project: deptmoney-6682a
     Updates:
-    1. History: Group transactions by Date headers.
-    2. History: Added Edit icon next to Delete.
-    3. Edit: Pre-select participants based on saved transaction data.
-    4. Settings: Removed API Configuration UI.
-    5. Logic: Cascading delete for installments (Single & Month clear).
+    1. Fixed: Removed JS reference to deleted 'api-endpoint-url' element in init() to prevent TypeError.
 -->
 
 <!DOCTYPE html>
@@ -138,20 +134,21 @@
             opacity: 1;
             bottom: 50px;
         }
-        
+
+        /* History Date Header */
         .date-header {
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 1.5rem 0 1rem;
+            margin: 1.5rem 0 0.5rem;
         }
         .date-header span {
             background-color: #e2e8f0;
             color: #64748b;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: bold;
-            padding: 0.25rem 1rem;
+            padding: 0.25rem 0.75rem;
             border-radius: 9999px;
             z-index: 10;
         }
@@ -219,7 +216,7 @@
             </div>
             
             <div class="text-center text-[10px] text-slate-400/60 mt-4">
-                v5.4 &copy; Dept Money Project
+                v5.7 &copy; Dept Money Project
             </div>
         </div>
     </div>
@@ -552,7 +549,12 @@
                 this.selectIcon('fa-utensils');
                 
                 onSnapshot(collection(db, "members"), (snap) => {
-                    this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort();
+                    // เรียง GAME ไว้ซ้ายสุด
+                    this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort((a, b) => {
+                        if (a === 'GAME') return -1;
+                        if (b === 'GAME') return 1;
+                        return a.localeCompare(b);
+                    });
                     this.renderMemberList();
                     this.populatePayerSelector();
                 });
@@ -915,7 +917,8 @@
                 const container = document.getElementById('split-participants');
                 container.innerHTML = this.data.members.map(m => {
                     // Check logic: if editing (involvedMembers passed), check if in list. If new, check all.
-                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : true;
+                    // Request: Default to unchecked for new transactions.
+                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : false; 
                     return `
                     <div class="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0">
                         <label class="flex items-center gap-3 cursor-pointer select-none">
