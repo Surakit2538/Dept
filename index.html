@@ -1,10 +1,11 @@
 <!-- 
-    Mobile-First Expense Tracker (V39 - Robust Case-Insensitive Matching)
+    Mobile-First Expense Tracker (V40 - Advanced Edit & Smart Delete)
     Project: deptmoney-6682a
-    Fixes:
-    1. Member Details: Fixed issue where data from LINE (uppercase) wouldn't show up due to case sensitivity.
-    2. Data Mapping: Normalizes names to Uppercase during filtering and calculation.
-    3. UI Sync: Ensures settlement cards and details modal work seamlessly with LINE data.
+    Fixes & Features:
+    1. Edit Function: Added pencil icon to history. Supports icon selection.
+    2. Global Installment Edit: Editing one installment updates all related installments in the group.
+    3. Smart Delete: Deleting an installment offers to delete all remaining future installments in the group.
+    4. Icon Support: Choose between various icons for each transaction.
 -->
 
 <!DOCTYPE html>
@@ -270,7 +271,7 @@
         </button>
     </nav>
 
-    <!-- MODAL: MEMBER DETAIL (CRITICAL FIX) -->
+    <!-- MODAL: MEMBER DETAIL -->
     <div id="member-detail-modal" class="hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md max-h-[80vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden">
             <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
@@ -287,7 +288,7 @@
         </div>
     </div>
 
-    <!-- MODAL: ADD TRANSACTION -->
+    <!-- MODAL: ADD/EDIT TRANSACTION -->
     <div id="transaction-modal" class="hidden fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md max-h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden">
             <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
@@ -314,6 +315,23 @@
                     <label class="text-[10px] font-bold text-orange-400 uppercase">จำนวนงวด</label>
                     <input type="number" id="t-installments" placeholder="เช่น 3" class="w-full border rounded p-2 text-sm">
                 </div>
+                
+                <!-- ICON SELECTION -->
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">ไอคอนรายการ</label>
+                    <div class="flex gap-2 mt-1 overflow-x-auto pb-2 custom-scrollbar" id="icon-picker">
+                        <button type="button" onclick="window.app.selectIcon('fa-utensils')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-utensils">🍴</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-shopping-cart')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-shopping-cart">🛒</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-car')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-car">🚗</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-bolt')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-bolt">⚡</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-gift')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-gift">🎁</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-house')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-house">🏠</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-coffee')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-coffee">☕</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-gamepad')" class="icon-opt p-2 border rounded-lg bg-white" data-icon="fa-gamepad">🎮</button>
+                    </div>
+                    <input type="hidden" id="t-icon" value="fa-utensils">
+                </div>
+
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase">รายการ</label>
                     <input type="text" id="t-desc" placeholder="มื้อเที่ยง, ค่าไฟ..." class="w-full border rounded-lg p-2 text-sm outline-none">
@@ -357,7 +375,7 @@
         };
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, doc, getDocs, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const fApp = initializeApp(firebaseConfig);
         const db = getFirestore(fApp);
@@ -370,15 +388,16 @@
                 splitMode: 'equal',
                 currentView: 'dashboard',
                 currentMonth: new Date().toISOString().slice(0, 7),
-                editingId: null
+                editingId: null,
+                selectedGroupId: null
             },
             charts: { monthlyTrend: null, payer: null },
 
             async init() {
                 this.initBackground();
                 this.populateMonthSelectors();
+                this.selectIcon('fa-utensils');
                 
-                // Realtime Listeners
                 onSnapshot(collection(db, "members"), (snap) => {
                     this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort();
                     this.renderMemberList();
@@ -409,15 +428,12 @@
                 this.data.currentView = viewId;
                 document.querySelectorAll('section[id^="view-"]').forEach(el => el.classList.add('hidden'));
                 document.getElementById(`view-${viewId}`).classList.remove('hidden');
-                
-                // Desktop UI
                 document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('bg-slate-100', 'text-slate-900'));
-                document.getElementById(`nav-${viewId}`).classList.add('bg-slate-100', 'text-slate-900');
-                
-                // Mobile UI
+                const nav = document.getElementById(`nav-${viewId}`);
+                if(nav) nav.classList.add('bg-slate-100', 'text-slate-900');
                 document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
-                document.getElementById(`mob-nav-${viewId}`).classList.add('active');
-
+                const mobNav = document.getElementById(`mob-nav-${viewId}`);
+                if(mobNav) mobNav.classList.add('active');
                 this.refreshCurrentView();
             },
 
@@ -427,10 +443,7 @@
                 if (this.data.currentView === 'settlement') this.calculateSettlement();
             },
 
-            // --- LOGIN LOGIC ---
-            showAdminLogin() {
-                document.getElementById('admin-login-form').classList.toggle('hidden');
-            },
+            showAdminLogin() { document.getElementById('admin-login-form').classList.toggle('hidden'); },
             loginAsAdmin() {
                 const u = document.getElementById('admin-user').value;
                 const p = document.getElementById('admin-pass').value;
@@ -451,7 +464,6 @@
                 this.navigate('dashboard');
             },
 
-            // --- DATA HELPERS ---
             populateMonthSelectors() {
                 const date = new Date();
                 let html = "";
@@ -488,70 +500,46 @@
                 input.value = "";
             },
 
-            // --- SETTLEMENT (THE CRITICAL FIX) ---
             calculateSettlement() {
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
                 const balances = {};
                 this.data.members.forEach(m => balances[m] = 0);
-
                 filtered.forEach(t => {
                     const payer = (t.payer || "").toUpperCase();
                     if(balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
-                    
                     if(t.splits) {
                         Object.keys(t.splits).forEach(k => {
                             const memberKey = k.toUpperCase();
-                            if(balances.hasOwnProperty(memberKey)) {
-                                balances[memberKey] -= Number(t.splits[k]);
-                            }
+                            if(balances.hasOwnProperty(memberKey)) balances[memberKey] -= Number(t.splits[k]);
                         });
                     }
                 });
-
                 const grid = document.getElementById('settlement-status-grid');
                 grid.innerHTML = "";
                 this.data.members.forEach(m => {
                     const bal = Math.round(balances[m]);
                     let color = "bg-slate-50 text-slate-400";
-                    let icon = "fa-circle-check";
-                    let status = "เคลียร์แล้ว";
-
+                    let icon = "fa-circle-check", status = "เคลียร์แล้ว";
                     if(bal > 1) { color = "bg-emerald-50 text-emerald-700 border-emerald-100"; icon = "fa-hand-holding-dollar"; status = "รอรับเงิน"; }
                     else if(bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "ต้องจ่ายคืน"; }
-
                     const card = document.createElement('div');
                     card.className = `p-4 rounded-2xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${color}`;
                     card.onclick = () => this.showMemberDetails(m);
-                    card.innerHTML = `
-                        <i class="fa-solid ${icon} mb-1 opacity-70"></i>
-                        <span class="text-xs font-bold">${m}</span>
-                        <span class="text-[9px] uppercase tracking-tighter opacity-60 mb-1">${status}</span>
-                        <span class="text-base font-bold">${bal === 0 ? '-' : Math.abs(bal).toLocaleString() + ' ฿'}</span>
-                    `;
+                    card.innerHTML = `<i class="fa-solid ${icon} mb-1 opacity-70"></i><span class="text-xs font-bold">${m}</span><span class="text-[9px] uppercase tracking-tighter opacity-60 mb-1">${status}</span><span class="text-base font-bold">${bal === 0 ? '-' : Math.abs(bal).toLocaleString() + ' ฿'}</span>`;
                     grid.appendChild(card);
                 });
-
-                // Simple Debt Plan
                 const debtors = [], creditors = [];
                 this.data.members.forEach(m => {
                     const b = Math.round(balances[m]);
                     if(b < -1) debtors.push({ name: m, amount: Math.abs(b) });
                     if(b > 1) creditors.push({ name: m, amount: b });
                 });
-
                 const plan = document.getElementById('settlement-plan');
                 plan.innerHTML = "";
-                
                 let i=0, j=0;
                 while(i < debtors.length && j < creditors.length) {
-                    const d = debtors[i], c = creditors[j];
-                    const pay = Math.min(d.amount, c.amount);
-                    plan.innerHTML += `
-                        <div class="flex items-center justify-between bg-white p-3 rounded-xl border text-sm">
-                            <div class="font-bold text-slate-700">${d.name} <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> ${c.name}</div>
-                            <div class="font-bold text-red-500">${pay.toLocaleString()} ฿</div>
-                        </div>
-                    `;
+                    const d = debtors[i], c = creditors[j], pay = Math.min(d.amount, c.amount);
+                    plan.innerHTML += `<div class="flex items-center justify-between bg-white p-3 rounded-xl border text-sm"><div class="font-bold text-slate-700">${d.name} <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> ${c.name}</div><div class="font-bold text-red-500">${pay.toLocaleString()} ฿</div></div>`;
                     d.amount -= pay; c.amount -= pay;
                     if(d.amount <= 1) i++;
                     if(c.amount <= 1) j++;
@@ -562,120 +550,80 @@
             showMemberDetails(member) {
                 const target = member.toUpperCase();
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth))
-                                 .filter(t => {
-                                    const isPayer = (t.payer || "").toUpperCase() === target;
-                                    const isSharer = Object.keys(t.splits || {}).some(k => k.toUpperCase() === target);
-                                    return isPayer || isSharer;
-                                 });
-
+                                 .filter(t => (t.payer || "").toUpperCase() === target || Object.keys(t.splits || {}).some(k => k.toUpperCase() === target));
                 const list = document.getElementById('member-detail-list');
-                list.innerHTML = "";
-                let totalSpent = 0;
-
+                list.innerHTML = ""; let totalSpent = 0;
                 filtered.forEach(t => {
-                    // Find split amount for this member (Case-Insensitive)
                     let myShare = 0;
-                    const splitKeys = Object.keys(t.splits || {});
-                    const matchKey = splitKeys.find(k => k.toUpperCase() === target);
+                    const matchKey = Object.keys(t.splits || {}).find(k => k.toUpperCase() === target);
                     if(matchKey) myShare = Number(t.splits[matchKey]);
-
                     totalSpent += myShare;
                     const isPayer = (t.payer || "").toUpperCase() === target;
-                    const dateShort = new Date(t.date).toLocaleDateString('th-TH', {day:'numeric', month:'short'});
-
-                    list.innerHTML += `
-                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center">
-                            <div class="flex flex-col">
-                                <span class="text-[10px] font-bold text-slate-400 uppercase">${dateShort}</span>
-                                <span class="text-xs font-bold text-slate-700">${t.desc}</span>
-                                <span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเงิน' : 'จ่ายโดย ' + t.payer} • ยอดเต็ม ${t.amount}</span>
-                            </div>
-                            <div class="text-right">
-                                <div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()}</div>
-                                <div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ยอดสุทธิ</div>
-                            </div>
-                        </div>
-                    `;
+                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเงิน' : 'จ่ายโดย ' + t.payer} • ยอดเต็ม ${t.amount}</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()}</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ยอดสุทธิ</div></div></div>`;
                 });
-
                 document.getElementById('member-detail-title').textContent = `ประวัติของ ${target}`;
                 document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} ฿`;
                 document.getElementById('member-detail-modal').classList.remove('hidden');
             },
 
-            // --- DASHBOARD CHARTS ---
             renderDashboard() {
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
                 const total = filtered.reduce((acc, t) => acc + Number(t.amount), 0);
                 document.getElementById('total-expense').textContent = total.toLocaleString() + ' ฿';
-                
                 this.renderMonthlyTrendChart();
-                
                 const payers = {};
-                filtered.forEach(t => {
-                    const p = (t.payer || "N/A").toUpperCase();
-                    payers[p] = (payers[p] || 0) + Number(t.amount);
-                });
+                filtered.forEach(t => { const p = (t.payer || "N/A").toUpperCase(); payers[p] = (payers[p] || 0) + Number(t.amount); });
                 this.renderPayerChart(payers);
             },
 
             renderMonthlyTrendChart() {
                 const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
                 if(this.charts.monthlyTrend) this.charts.monthlyTrend.destroy();
-                
-                const months = [], amounts = [];
-                const d = new Date();
+                const months = [], amounts = [], d = new Date();
                 for(let i=0; i<12; i++) {
                     const key = d.toISOString().slice(0, 7);
                     months.unshift(d.toLocaleString('th-TH', {month:'short'}));
-                    const monthTotal = this.data.transactions.filter(t => t.date.startsWith(key)).reduce((a, t) => a + Number(t.amount), 0);
-                    amounts.unshift(monthTotal);
+                    amounts.unshift(this.data.transactions.filter(t => t.date.startsWith(key)).reduce((a, t) => a + Number(t.amount), 0));
                     d.setMonth(d.getMonth() - 1);
                 }
-
-                this.charts.monthlyTrend = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: months,
-                        datasets: [{ data: amounts, backgroundColor: months.map((_,i) => i === 11 ? '#1e293b' : '#cbd5e1'), borderRadius: 5 }]
-                    },
-                    options: { 
-                        responsive: true, maintainAspectRatio: false, 
-                        plugins: { legend: { display: false } },
-                        scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } }
-                    }
-                });
+                this.charts.monthlyTrend = new Chart(ctx, { type: 'bar', data: { labels: months, datasets: [{ data: amounts, backgroundColor: months.map((_,i) => i === 11 ? '#1e293b' : '#cbd5e1'), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } } } });
             },
 
             renderPayerChart(data) {
                 const ctx = document.getElementById('payerChart').getContext('2d');
                 if(this.charts.payer) this.charts.payer.destroy();
-                this.charts.payer = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(data),
-                        datasets: [{ data: Object.values(data), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'], borderWidth: 0 }]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: false, cutout: '65%',
-                        plugins: { 
-                            legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
-                            datalabels: { color: '#fff', font: { weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v.toLocaleString() : "" }
-                        }
-                    }
+                this.charts.payer = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v.toLocaleString() : "" } } } });
+            },
+
+            // --- UPDATED CRUD ---
+            openModal(id) { 
+                this.data.editingId = null;
+                this.data.selectedGroupId = null;
+                document.getElementById('modal-title').textContent = "บันทึกรายการ";
+                document.getElementById('t-amount').value = "";
+                document.getElementById('t-desc').value = "";
+                this.selectIcon('fa-utensils');
+                document.getElementById(id).classList.remove('hidden'); 
+                this.renderSplitParticipants(); 
+            },
+
+            closeModal(id) { document.getElementById(id).classList.add('hidden'); },
+            
+            toggleInstallment() { document.getElementById('t-installment-wrapper').classList.toggle('hidden', document.getElementById('t-payment-type').value !== 'installment'); },
+            
+            selectIcon(iconName) {
+                document.getElementById('t-icon').value = iconName;
+                document.querySelectorAll('.icon-opt').forEach(btn => {
+                    btn.classList.toggle('border-slate-800', btn.dataset.icon === iconName);
+                    btn.classList.toggle('bg-slate-100', btn.dataset.icon === iconName);
                 });
             },
 
-            // --- CRUD ---
-            openModal(id) { document.getElementById(id).classList.remove('hidden'); this.renderSplitParticipants(); },
-            closeModal(id) { document.getElementById(id).classList.add('hidden'); },
-            toggleInstallment() { document.getElementById('t-installment-wrapper').classList.toggle('hidden', document.getElementById('t-payment-type').value !== 'installment'); },
             setSplitMode(m) {
                 this.data.splitMode = m;
-                document.getElementById('btn-split-equal').className = m === 'equal' ? 'px-3 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-white' : 'px-3 py-1 rounded-md text-[10px] font-bold text-slate-400';
-                document.getElementById('btn-split-custom').className = m === 'custom' ? 'px-3 py-1 rounded-md text-[10px] font-bold bg-slate-800 text-white' : 'px-3 py-1 rounded-md text-[10px] font-bold text-slate-400';
                 this.renderSplitParticipants();
             },
+
             renderSplitParticipants() {
                 const container = document.getElementById('split-participants');
                 container.innerHTML = this.data.members.map(m => `
@@ -689,17 +637,39 @@
                 `).join('');
             },
 
+            editTransaction(id) {
+                const t = this.data.transactions.find(x => x.id === id);
+                if(!t) return;
+                this.data.editingId = id;
+                this.data.selectedGroupId = t.groupId || null;
+                
+                document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการผ่อน (แก้ไขทั้งกลุ่ม)" : "แก้ไขรายการ";
+                document.getElementById('t-date').value = t.date;
+                document.getElementById('t-payment-type').value = t.paymentType || 'normal';
+                document.getElementById('t-desc').value = t.desc.split(' (')[0]; // Remove installment no if any
+                document.getElementById('t-amount').value = t.amount;
+                document.getElementById('t-payer').value = t.payer;
+                this.selectIcon(t.icon || 'fa-utensils');
+                this.toggleInstallment();
+                
+                document.getElementById('transaction-modal').classList.remove('hidden');
+                // Re-render splits (simplified: default to equal for edit, or customize further)
+                this.renderSplitParticipants();
+            },
+
             async saveTransaction() {
+                document.getElementById('loading-overlay').classList.remove('hidden');
                 const amount = Number(document.getElementById('t-amount').value);
                 const desc = document.getElementById('t-desc').value || "ทั่วไป";
                 const payer = document.getElementById('t-payer').value;
                 const type = document.getElementById('t-payment-type').value;
                 const date = document.getElementById('t-date').value;
+                const icon = document.getElementById('t-icon').value;
                 if(!amount || !date) return alert('กรอกข้อมูลไม่ครบ');
 
                 const splits = {};
+                const checked = Array.from(document.querySelectorAll('.participant-check:checked')).map(c => c.value);
                 if(this.data.splitMode === 'equal') {
-                    const checked = Array.from(document.querySelectorAll('.participant-check:checked')).map(c => c.value);
                     const share = amount / checked.length;
                     checked.forEach(m => splits[m] = share);
                 } else {
@@ -710,31 +680,73 @@
                 }
 
                 const batch = writeBatch(db);
-                const installments = type === 'installment' ? Number(document.getElementById('t-installments').value) || 1 : 1;
-                const baseDate = new Date(date);
 
-                for(let i=0; i<installments; i++) {
-                    const currentInstallmentDate = new Date(baseDate);
-                    currentInstallmentDate.setMonth(baseDate.getMonth() + i);
-                    const txn = {
-                        date: currentInstallmentDate.toISOString().slice(0, 10),
-                        desc: installments > 1 ? `${desc} (${i+1}/${installments})` : desc,
-                        amount: amount / installments,
-                        payer,
-                        splits: Object.fromEntries(Object.entries(splits).map(([k,v]) => [k, v/installments])),
-                        paymentType: type,
-                        timestamp: Date.now() + i
-                    };
-                    batch.set(doc(collection(db, "transactions")), txn);
+                // EDITING LOGIC
+                if(this.data.editingId) {
+                    if(this.data.selectedGroupId) {
+                        // Find all in group
+                        const groupQuery = query(collection(db, "transactions"), where("groupId", "==", this.data.selectedGroupId));
+                        const groupSnap = await getDocs(groupQuery);
+                        groupSnap.forEach(snap => {
+                            batch.update(snap.ref, { desc, payer, icon, splits }); // Note: Keep dates and amounts specific to installments
+                        });
+                    } else {
+                        batch.update(doc(db, "transactions", this.data.editingId), { desc, payer, amount, splits, date, icon });
+                    }
+                } else {
+                    // ADDING LOGIC
+                    const installments = type === 'installment' ? Number(document.getElementById('t-installments').value) || 1 : 1;
+                    const groupId = type === 'installment' ? "grp_" + Date.now() : null;
+                    const baseDate = new Date(date);
+
+                    for(let i=0; i<installments; i++) {
+                        const currentInstallmentDate = new Date(baseDate);
+                        currentInstallmentDate.setMonth(baseDate.getMonth() + i);
+                        const txn = {
+                            date: currentInstallmentDate.toISOString().slice(0, 10),
+                            desc: installments > 1 ? `${desc} (${i+1}/${installments})` : desc,
+                            amount: amount / installments,
+                            payer,
+                            splits: Object.fromEntries(Object.entries(splits).map(([k,v]) => [k, v/installments])),
+                            paymentType: type,
+                            icon,
+                            groupId,
+                            timestamp: Date.now() + i
+                        };
+                        batch.set(doc(collection(db, "transactions")), txn);
+                    }
                 }
+
                 await batch.commit();
                 this.closeModal('transaction-modal');
+                document.getElementById('loading-overlay').classList.add('hidden');
             },
 
             async deleteTransaction(id) {
                 if(this.data.userRole !== 'admin') return;
-                if(confirm('ยืนยันลบรายการนี้?')) {
-                    await deleteDoc(doc(db, "transactions", id.trim()));
+                const t = this.data.transactions.find(x => x.id === id);
+                if(!t) return;
+
+                if(t.groupId) {
+                    const choice = confirm('รายการนี้เป็นแบบผ่อนชำระ\nตกลง: ลบเฉพาะงวดนี้\nยกเลิก: ยกเลิกการลบ');
+                    if(choice) {
+                        const cascade = confirm('ต้องการลบงวดที่เหลือทั้งหมดในอนาคตด้วยหรือไม่?');
+                        document.getElementById('loading-overlay').classList.remove('hidden');
+                        const batch = writeBatch(db);
+                        if(cascade) {
+                            const q = query(collection(db, "transactions"), where("groupId", "==", t.groupId));
+                            const snap = await getDocs(q);
+                            snap.forEach(d => {
+                                if(d.data().date >= t.date) batch.delete(d.ref);
+                            });
+                        } else {
+                            batch.delete(doc(db, "transactions", id));
+                        }
+                        await batch.commit();
+                        document.getElementById('loading-overlay').classList.add('hidden');
+                    }
+                } else {
+                    if(confirm('ยืนยันลบรายการนี้?')) await deleteDoc(doc(db, "transactions", id));
                 }
             },
 
@@ -743,17 +755,17 @@
                 const container = document.getElementById('transaction-list-mobile');
                 const empty = document.getElementById('empty-state');
                 container.innerHTML = "";
-                
                 if(filtered.length === 0) return empty.classList.remove('hidden');
                 empty.classList.add('hidden');
 
                 filtered.forEach(t => {
                     const isAdmin = this.data.userRole === 'admin';
+                    const iconClass = t.icon || 'fa-utensils';
                     container.innerHTML += `
                         <div class="bg-white p-4 rounded-xl border shadow-sm flex justify-between items-center">
                             <div class="flex items-center gap-3">
                                 <div class="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center text-slate-400 border">
-                                    <i class="fa-solid fa-utensils"></i>
+                                    <i class="fa-solid ${iconClass}"></i>
                                 </div>
                                 <div>
                                     <p class="font-bold text-slate-700 text-sm">${t.desc}</p>
@@ -762,7 +774,10 @@
                             </div>
                             <div class="flex items-center gap-3">
                                 <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()}</span>
-                                ${isAdmin ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-red-300 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                                <div class="flex gap-1">
+                                    ${isAdmin ? `<button onclick="window.app.editTransaction('${t.id}')" class="text-blue-300 hover:text-blue-500 p-1"><i class="fa-solid fa-pen"></i></button>` : ''}
+                                    ${isAdmin ? `<button onclick="window.app.deleteTransaction('${t.id}')" class="text-red-300 hover:text-red-500 p-1"><i class="fa-solid fa-trash-can"></i></button>` : ''}
+                                </div>
                             </div>
                         </div>
                     `;
@@ -777,7 +792,6 @@
                     const batch = writeBatch(db);
                     toDelete.forEach(t => batch.delete(doc(db, "transactions", t.id)));
                     await batch.commit();
-                    alert('ลบข้อมูลเรียบร้อย');
                 }
             }
         };
