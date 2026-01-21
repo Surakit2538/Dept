@@ -18,8 +18,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ใช้โมเดล gemini-1.5-flash (ตัวมาตรฐาน) เพื่อแก้ปัญหา 404
-const GEMINI_MODEL_NAME = "gemini-1.5-flash";
+// แก้ไขชื่อโมเดลจาก "gemini-1.5-flash" เป็น "gemini-1.5-flash-latest" เพื่อแก้ปัญหา 404
+const GEMINI_MODEL_NAME = "gemini-1.5-flash-latest";
 
 // --- 2. MAIN HANDLER ---
 export default async function handler(req, res) {
