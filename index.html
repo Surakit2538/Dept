@@ -7,27 +7,32 @@
 
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
+
     <title>Dept Money</title>
-    
-    <link rel="icon" type="image/png" href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"> 
+
+    <link rel="icon" type="image/png"
+        href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png">
     <link rel="apple-touch-icon" href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png">
+    <link rel="manifest" href="manifest.json">
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
+
     <!-- Chart.js & DataLabels Plugin -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Google Fonts: Noto Sans Thai -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
 
     <style>
         body {
@@ -39,10 +44,10 @@
             overflow: hidden;
             position: relative;
         }
-        
+
         /* --- Login Animation --- */
         #login-screen {
-            background-color: #1e293b; 
+            background-color: #1e293b;
             background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #1e293b 60%, #334155 100%);
             overflow: hidden;
         }
@@ -57,10 +62,21 @@
         }
 
         @keyframes floatOrb {
-            0% { transform: translate(0, 0) scale(1); }
-            33% { transform: translate(30px, -50px) scale(1.1); }
-            66% { transform: translate(-20px, 20px) scale(0.9); }
-            100% { transform: translate(0, 0) scale(1); }
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+
+            33% {
+                transform: translate(30px, -50px) scale(1.1);
+            }
+
+            66% {
+                transform: translate(-20px, 20px) scale(0.9);
+            }
+
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
         }
 
         .chart-container {
@@ -70,23 +86,37 @@
         }
 
         @media (min-width: 768px) {
-            .chart-container { height: 350px; }
+            .chart-container {
+                height: 350px;
+            }
         }
 
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
 
         .bottom-nav-item {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 12px;
             margin: 4px;
-            color: #94a3b8; /* Slate-400 */
+            color: #94a3b8;
+            /* Slate-400 */
         }
-        
+
         .bottom-nav-item.active {
-            background-color: #e0e7ff; /* Indigo-100 */
-            color: #4338ca; /* Indigo-700 */
+            background-color: #e0e7ff;
+            /* Indigo-100 */
+            color: #4338ca;
+            /* Indigo-700 */
             font-weight: bold;
             transform: translateY(-2px);
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -97,14 +127,31 @@
             transition: transform 0.2s;
         }
 
-        .fade-in { animation: fadeIn 0.2s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
+        .fade-in {
+            animation: fadeIn 0.2s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         .icon-opt {
             transition: all 0.2s;
             cursor: pointer;
         }
-        .icon-opt:hover { background-color: #f1f5f9; }
+
+        .icon-opt:hover {
+            background-color: #f1f5f9;
+        }
+
         .icon-opt.selected {
             background-color: #1e293b;
             color: white;
@@ -129,6 +176,7 @@
             opacity: 0;
             transition: opacity 0.3s, bottom 0.3s;
         }
+
         #toast.show {
             visibility: visible;
             opacity: 1;
@@ -143,6 +191,7 @@
             justify-content: center;
             margin: 1.5rem 0 0.5rem;
         }
+
         .date-header span {
             background-color: #e2e8f0;
             color: #64748b;
@@ -152,6 +201,7 @@
             border-radius: 9999px;
             z-index: 10;
         }
+
         .date-header::before {
             content: '';
             position: absolute;
@@ -164,13 +214,15 @@
         }
     </style>
 </head>
+
 <body class="flex flex-col md:flex-row">
 
     <!-- TOAST -->
     <div id="toast">แจ้งเตือน</div>
 
     <!-- LOADING OVERLAY -->
-    <div id="loading-overlay" class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
+    <div id="loading-overlay"
+        class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
         <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center justify-center gap-2">
             <i class="fa-solid fa-circle-notch fa-spin text-slate-800 text-2xl"></i>
             <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...</span>
@@ -181,40 +233,53 @@
     <div id="login-screen" class="fixed inset-0 z-[60] flex items-center justify-center p-4">
         <div id="login-particles" class="absolute inset-0 pointer-events-none z-0"></div>
 
-        <div class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-sm p-8 space-y-6 relative z-10 border border-white/20">
+        <div
+            class="bg-white/95 backdrop-blur-sm rounded-3xl shadow-2xl w-full max-w-sm p-8 space-y-6 relative z-10 border border-white/20">
             <div class="text-center">
-                <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo" class="w-20 h-20 mx-auto mb-4 object-contain drop-shadow-md">
-                
-                <h1 class="interactive-title text-2xl font-extrabold text-slate-800 tracking-tight" onclick="window.app.triggerGameEmoji(event)">Dept Money</h1>
-                <p class="text-xs mt-2 flex justify-center items-center gap-1.5 text-slate-500 bg-slate-100 py-1 px-3 rounded-full inline-flex mx-auto">
+                <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" alt="Logo"
+                    class="w-20 h-20 mx-auto mb-4 object-contain drop-shadow-md">
+
+                <h1 class="interactive-title text-2xl font-extrabold text-slate-800 tracking-tight"
+                    onclick="window.app.triggerGameEmoji(event)">Dept Money</h1>
+                <p
+                    class="text-xs mt-2 flex justify-center items-center gap-1.5 text-slate-500 bg-slate-100 py-1 px-3 rounded-full inline-flex mx-auto">
                     <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> สถานะระบบ online
                 </p>
             </div>
-            
+
             <div class="space-y-3" id="login-options">
-                <button onclick="window.app.completeLogin('member')" class="group w-full py-3.5 bg-white border border-slate-200 hover:border-gray-400 text-slate-700 rounded-xl font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-user text-gray-500 group-hover:scale-110 transition-transform"></i> สมาชิก (Member)
+                <button onclick="window.app.loginWithLine()"
+                    class="group w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3">
+                    <i class="fa-brands fa-line text-2xl"></i> เข้าสู่ระบบด้วย LINE
                 </button>
 
-                <button onclick="window.app.showAdminLogin()" class="group w-full py-3.5 bg-slate-800 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3">
-                    <i class="fa-solid fa-shield-halved text-gray-300 group-hover:scale-110 transition-transform"></i> ผู้ดูแล (Admin)
+                <button onclick="window.app.showAdminLogin()"
+                    class="group w-full py-3.5 bg-slate-800 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3">
+                    <i class="fa-solid fa-shield-halved text-gray-300 group-hover:scale-110 transition-transform"></i>
+                    ผู้ดูแล (Admin)
                 </button>
 
-                <a href="https://lin.ee/1FMnsom" target="_blank" class="w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
+                <a href="https://lin.ee/1FMnsom" target="_blank"
+                    class="w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all">
                     <i class="fa-brands fa-line text-xl"></i> ติดต่อ LINE Official
                 </a>
             </div>
 
-            <div id="admin-login-form" class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in">
+            <div id="admin-login-form"
+                class="hidden space-y-3 bg-slate-50 p-4 rounded-xl border border-slate-200 animate-fade-in">
                 <div class="flex justify-between items-center mb-1">
                     <h3 class="font-bold text-slate-700 text-sm">Admin Access</h3>
-                    <button onclick="window.app.toggleAdminForm()" class="text-slate-400 text-xs hover:text-red-500">ยกเลิก</button>
+                    <button onclick="window.app.toggleAdminForm()"
+                        class="text-slate-400 text-xs hover:text-red-500">ยกเลิก</button>
                 </div>
-                <input type="text" id="admin-user" placeholder="Username" class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none transition-all">
-                <input type="password" id="admin-pass" placeholder="Password" class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none transition-all">
-                <button onclick="window.app.loginAsAdmin()" class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-bold shadow-md transition-colors">ยืนยัน</button>
+                <input type="text" id="admin-user" placeholder="Username"
+                    class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none transition-all">
+                <input type="password" id="admin-pass" placeholder="Password"
+                    class="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-500 outline-none transition-all">
+                <button onclick="window.app.loginAsAdmin()"
+                    class="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-sm font-bold shadow-md transition-colors">ยืนยัน</button>
             </div>
-            
+
             <div class="text-center text-[10px] text-slate-400/60 mt-4">
                 v5.7 &copy; Dept Money Project
             </div>
@@ -222,60 +287,78 @@
     </div>
 
     <!-- MOBILE TOP BAR -->
-    <header class="md:hidden fixed top-0 left-0 w-full h-16 bg-white/90 backdrop-blur-md border-b px-4 flex items-center justify-between z-50 shadow-sm">
+    <header
+        class="md:hidden fixed top-0 left-0 w-full h-16 bg-white/90 backdrop-blur-md border-b px-4 flex items-center justify-between z-50 shadow-sm">
         <div class="flex items-center gap-2">
-            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" class="w-8 h-8 rounded-lg">
+            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"
+                class="w-8 h-8 rounded-lg">
             <span class="font-bold text-slate-800">Dept Money</span>
         </div>
         <div class="flex flex-col items-end justify-center">
             <div class="flex items-center gap-2">
-                <span id="mobile-role-badge" class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold text-slate-500 border border-slate-200">GUEST</span>
-                <button onclick="window.app.logout()" class="text-red-400 hover:text-red-600 ml-1 p-1 active:scale-90 transition-transform">
+                <span id="mobile-role-badge"
+                    class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold text-slate-500 border border-slate-200">GUEST</span>
+                <button onclick="window.app.logout()"
+                    class="text-red-400 hover:text-red-600 ml-1 p-1 active:scale-90 transition-transform">
                     <i class="fa-solid fa-right-from-bracket text-sm"></i>
                 </button>
             </div>
-            <span id="connection-status-mobile" class="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1">Checking...</span>
+            <span id="connection-status-mobile"
+                class="text-[9px] text-slate-400 mt-0.5 flex items-center gap-1">Checking...</span>
         </div>
     </header>
 
     <!-- SIDEBAR (Desktop) -->
     <aside class="hidden md:flex w-64 bg-white border-r flex-col z-20 shadow-sm">
         <div class="p-6 border-b flex items-center gap-3">
-            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png" class="w-8 h-8 rounded-lg">
+            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"
+                class="w-8 h-8 rounded-lg">
             <span class="font-bold text-lg">Dept Money</span>
         </div>
         <nav class="flex-1 p-4 space-y-1">
-            <button onclick="window.app.navigate('dashboard')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50" id="nav-dashboard">
+            <button onclick="window.app.navigate('dashboard')"
+                class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50"
+                id="nav-dashboard">
                 <i class="fa-solid fa-chart-pie w-5"></i> ภาพรวม
             </button>
-            <button onclick="window.app.navigate('history')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50" id="nav-history">
+            <button onclick="window.app.navigate('history')"
+                class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50"
+                id="nav-history">
                 <i class="fa-solid fa-list-ul w-5"></i> รายการ
             </button>
-            <button onclick="window.app.navigate('settlement')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50" id="nav-settlement">
+            <button onclick="window.app.navigate('settlement')"
+                class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50"
+                id="nav-settlement">
                 <i class="fa-solid fa-hand-holding-dollar w-5"></i> เคลียร์หนี้
             </button>
-            <button onclick="window.app.navigate('settings')" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50" id="nav-settings">
+            <button onclick="window.app.navigate('settings')"
+                class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50"
+                id="nav-settings">
                 <i class="fa-solid fa-users-gear w-5"></i> จัดการ
             </button>
         </nav>
         <div class="p-4 border-t">
-            <button onclick="location.reload()" class="w-full text-xs text-red-500 hover:text-red-600 flex items-center justify-center gap-2 py-2">
+            <button onclick="location.reload()"
+                class="w-full text-xs text-red-500 hover:text-red-600 flex items-center justify-center gap-2 py-2">
                 <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
             </button>
         </div>
     </aside>
 
     <!-- MAIN CONTENT -->
-    <main class="flex-1 overflow-y-auto pt-16 pb-24 md:pt-0 md:pb-0 h-full relative z-10 bg-[#f8fafc]" id="main-content">
-        
+    <main class="flex-1 overflow-y-auto pt-16 pb-24 md:pt-0 md:pb-0 h-full relative z-10 bg-[#f8fafc]"
+        id="main-content">
+
         <!-- DASHBOARD -->
         <section id="view-dashboard" class="p-4 md:p-8 max-w-5xl mx-auto space-y-6 fade-in">
             <div class="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-100">
                 <h2 class="font-bold text-slate-700 text-sm">ตัวเลือกเดือน</h2>
-                <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-slate-50 border border-slate-200 text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600"></select>
+                <select onchange="window.app.setMonth(this.value)"
+                    class="global-month-selector bg-slate-50 border border-slate-200 text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600"></select>
             </div>
 
-            <div class="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg text-white relative overflow-hidden">
+            <div
+                class="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg text-white relative overflow-hidden">
                 <div class="absolute right-0 top-0 p-4 opacity-10">
                     <i class="fa-solid fa-wallet text-8xl"></i>
                 </div>
@@ -283,7 +366,8 @@
                 <h3 class="text-4xl font-bold mt-1 tracking-tight" id="total-expense">0 ฿</h3>
             </div>
 
-            <button onclick="window.app.openModal('transaction-modal')" class="w-full bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center justify-center gap-2 text-slate-700 font-bold active:scale-[0.98] transition-all hover:bg-slate-50">
+            <button onclick="window.app.openModal('transaction-modal')"
+                class="w-full bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center justify-center gap-2 text-slate-700 font-bold active:scale-[0.98] transition-all hover:bg-slate-50">
                 <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
                     <i class="fa-solid fa-plus"></i>
                 </div>
@@ -310,7 +394,8 @@
         <section id="view-history" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-slate-800">ประวัติรายการ</h2>
-                <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
+                <select onchange="window.app.setMonth(this.value)"
+                    class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
             </div>
             <div id="transaction-list-mobile" class="space-y-1 pb-20 md:pb-0"></div>
             <div id="empty-state" class="hidden py-10 text-center text-slate-400">
@@ -325,21 +410,23 @@
         <section id="view-settlement" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
             <div class="flex justify-between items-center mb-2">
                 <h2 class="text-xl font-bold text-slate-800">เคลียร์ยอดเงิน</h2>
-                <select onchange="window.app.setMonth(this.value)" class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
+                <select onchange="window.app.setMonth(this.value)"
+                    class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
             </div>
-            
+
             <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg flex items-center gap-2 border border-blue-100">
-                <i class="fa-solid fa-circle-info"></i> 
+                <i class="fa-solid fa-circle-info"></i>
                 <span>แตะที่ชื่อเพื่อดูรายละเอียดรายการ</span>
             </div>
-            
+
             <div id="settlement-status-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4"></div>
 
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2 mt-6">สรุปการโอนเงิน</h3>
             <div id="settlement-plan" class="space-y-2"></div>
 
             <div id="settlement-admin-actions" class="hidden mt-8 pt-4 border-t border-slate-200">
-                <button onclick="window.app.sendLineMessage()" class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg hover:bg-[#05b34c] active:scale-[0.98] transition-all">
+                <button onclick="window.app.sendLineMessage()"
+                    class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg hover:bg-[#05b34c] active:scale-[0.98] transition-all">
                     <i class="fa-brands fa-line text-2xl"></i> ยิง Flex Message เข้า LINE
                 </button>
                 <p class="text-center text-[10px] text-slate-400 mt-2">* ใช้ Custom API (/api/send-line)</p>
@@ -352,13 +439,16 @@
             <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-4">
                 <h3 class="font-bold text-slate-700 text-sm">จัดการรายชื่อสมาชิก</h3>
                 <div class="flex gap-2">
-                    <input type="text" id="new-member-name" placeholder="ชื่อภาษาอังกฤษ..." class="flex-1 px-3 py-2 border rounded-lg text-sm bg-slate-50">
-                    <button onclick="window.app.addMember()" class="bg-slate-800 text-white px-4 rounded-lg text-sm font-bold shadow-sm">เพิ่ม</button>
+                    <input type="text" id="new-member-name" placeholder="ชื่อภาษาอังกฤษ..."
+                        class="flex-1 px-3 py-2 border rounded-lg text-sm bg-slate-50">
+                    <button onclick="window.app.addMember()"
+                        class="bg-slate-800 text-white px-4 rounded-lg text-sm font-bold shadow-sm">เพิ่ม</button>
                 </div>
                 <div id="member-list" class="flex flex-wrap gap-2"></div>
             </div>
-            
-            <button id="btn-export-csv" onclick="window.app.exportCSV()" class="hidden w-full bg-white border border-slate-300 text-slate-700 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-[0.98] transition-all">
+
+            <button id="btn-export-csv" onclick="window.app.exportCSV()"
+                class="hidden w-full bg-white border border-slate-300 text-slate-700 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-[0.98] transition-all">
                 <i class="fa-solid fa-file-csv text-green-600 mr-2"></i> Export ข้อมูลเป็น CSV
             </button>
 
@@ -366,12 +456,15 @@
                 <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
                     <i class="fa-solid fa-gear"></i> การตั้งค่า
                 </h3>
-                
+
                 <div class="bg-red-50 p-3 rounded-lg border border-red-100 mt-4">
-                    <h4 class="font-bold text-red-700 text-xs mb-2"><i class="fa-solid fa-triangle-exclamation"></i> ลบข้อมูล</h4>
+                    <h4 class="font-bold text-red-700 text-xs mb-2"><i class="fa-solid fa-triangle-exclamation"></i>
+                        ลบข้อมูล</h4>
                     <div class="flex gap-2 mb-2">
-                        <select id="delete-month-selector" class="flex-1 bg-white border border-red-200 text-xs rounded-lg px-2 outline-none text-slate-600"></select>
-                        <button onclick="window.app.clearMonthData()" class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm">ลบเดือนนี้</button>
+                        <select id="delete-month-selector"
+                            class="flex-1 bg-white border border-red-200 text-xs rounded-lg px-2 outline-none text-slate-600"></select>
+                        <button onclick="window.app.clearMonthData()"
+                            class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm">ลบเดือนนี้</button>
                     </div>
                     <p class="text-[9px] text-red-400 mt-1">* หากเป็นรายการผ่อน จะลบทุกงวดที่เกี่ยวข้องออกทั้งหมด</p>
                 </div>
@@ -381,110 +474,151 @@
     </main>
 
     <!-- MOBILE NAV -->
-    <nav class="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur border-t border-slate-200 h-20 grid grid-cols-4 px-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
-        <button onclick="window.app.navigate('dashboard')" class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-dashboard">
+    <nav
+        class="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur border-t border-slate-200 h-20 grid grid-cols-4 px-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
+        <button onclick="window.app.navigate('dashboard')"
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-dashboard">
             <i class="fa-solid fa-chart-pie text-lg"></i>
             <span class="text-[10px]">ภาพรวม</span>
         </button>
-        <button onclick="window.app.navigate('history')" class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-history">
+        <button onclick="window.app.navigate('history')"
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-history">
             <i class="fa-solid fa-list-ul text-lg"></i>
             <span class="text-[10px]">รายการ</span>
         </button>
-        <button onclick="window.app.navigate('settlement')" class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-settlement">
+        <button onclick="window.app.navigate('settlement')"
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-settlement">
             <i class="fa-solid fa-money-bill-transfer text-lg"></i>
             <span class="text-[10px]">เคลียร์</span>
         </button>
-        <button onclick="window.app.navigate('settings')" class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-settings">
+        <button onclick="window.app.navigate('settings')"
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-settings">
             <i class="fa-solid fa-users-gear text-lg"></i>
             <span class="text-[10px]">ตั้งค่า</span>
         </button>
     </nav>
 
     <!-- MODAL: MEMBER DETAIL -->
-    <div id="member-detail-modal" class="hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-        <div class="bg-white w-full max-w-md max-h-[80vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden m-4 transform transition-all">
+    <div id="member-detail-modal"
+        class="hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div
+            class="bg-white w-full max-w-md max-h-[80vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden m-4 transform transition-all">
             <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
                 <span id="member-detail-title" class="font-bold text-slate-800 text-lg">รายละเอียด</span>
-                <button onclick="window.app.closeModal('member-detail-modal')" class="w-8 h-8 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-slate-500 transition-colors">
+                <button onclick="window.app.closeModal('member-detail-modal')"
+                    class="w-8 h-8 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-slate-500 transition-colors">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" id="member-detail-list"></div>
             <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
                 <span class="text-xs text-slate-500 font-bold uppercase tracking-widest">ยอดรวมทั้งหมด</span>
-                <span id="member-detail-total" class="text-lg font-bold text-slate-800 underline decoration-slate-300 decoration-2 underline-offset-4">0 ฿</span>
+                <span id="member-detail-total"
+                    class="text-lg font-bold text-slate-800 underline decoration-slate-300 decoration-2 underline-offset-4">0
+                    ฿</span>
             </div>
         </div>
     </div>
 
     <!-- MODAL: ADD/EDIT TRANSACTION -->
-    <div id="transaction-modal" class="hidden fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
-        <div class="bg-white w-full max-w-md max-h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden m-4 transform transition-all">
+    <div id="transaction-modal"
+        class="hidden fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        <div
+            class="bg-white w-full max-w-md max-h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden m-4 transform transition-all">
             <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
                 <span id="modal-title" class="font-bold text-slate-800 text-lg">บันทึกรายการ</span>
-                <button onclick="window.app.closeModal('transaction-modal')" class="w-8 h-8 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-slate-500 transition-colors">
+                <button onclick="window.app.closeModal('transaction-modal')"
+                    class="w-8 h-8 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-slate-500 transition-colors">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
-                
+
                 <!-- Date & Type -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
-                        <input type="date" id="t-date" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                        <input type="date" id="t-date"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                     </div>
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รูปแบบ</label>
                         <div class="relative">
-                            <select id="t-payment-type" onchange="window.app.toggleInstallment()" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all">
+                            <select id="t-payment-type" onchange="window.app.toggleInstallment()"
+                                class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all">
                                 <option value="normal">จ่ายเต็ม</option>
                                 <option value="installment">ผ่อนชำระ</option>
                             </select>
-                            <i class="fa-solid fa-chevron-down absolute right-3 top-3.5 text-xs text-slate-400 pointer-events-none"></i>
+                            <i
+                                class="fa-solid fa-chevron-down absolute right-3 top-3.5 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
                 </div>
 
                 <div id="t-installment-wrapper" class="hidden bg-orange-50 p-4 rounded-xl border border-orange-100">
                     <label class="text-[10px] font-bold text-orange-600 uppercase mb-1 block">จำนวนงวด</label>
-                    <input type="number" id="t-installments" placeholder="เช่น 3" class="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm focus:border-orange-400 outline-none">
+                    <input type="number" id="t-installments" placeholder="เช่น 3"
+                        class="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm focus:border-orange-400 outline-none">
                     <p class="text-[10px] text-orange-400 mt-1">* ระบบจะสร้างรายการล่วงหน้าให้โดยอัตโนมัติ</p>
                 </div>
-                
+
                 <!-- ICON SELECTION -->
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block">เลือกไอคอน</label>
                     <div class="flex gap-3 overflow-x-auto pb-2 custom-scrollbar" id="icon-picker">
-                        <button type="button" onclick="window.app.selectIcon('fa-utensils')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-utensils">🍴</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-cart-shopping')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-cart-shopping">🛒</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-car')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-car">🚗</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-bolt')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-bolt">⚡</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-gift')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-gift">🎁</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-house')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-house">🏠</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-mug-hot')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-mug-hot">☕</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-gamepad')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-gamepad">🎮</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-mobile-screen')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-mobile-screen">📱</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-bus')" class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm" data-icon="fa-bus">🚌</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-utensils')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-utensils">🍴</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-cart-shopping')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-cart-shopping">🛒</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-car')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-car">🚗</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-bolt')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-bolt">⚡</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-gift')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-gift">🎁</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-house')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-house">🏠</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-mug-hot')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-mug-hot">☕</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-gamepad')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-gamepad">🎮</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-mobile-screen')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-mobile-screen">📱</button>
+                        <button type="button" onclick="window.app.selectIcon('fa-bus')"
+                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
+                            data-icon="fa-bus">🚌</button>
                     </div>
                     <input type="hidden" id="t-icon" value="fa-utensils">
                 </div>
 
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">ชื่อรายการ</label>
-                    <input type="text" id="t-desc" placeholder="เช่น ข้าวกลางวัน" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                    <input type="text" id="t-desc" placeholder="เช่น ข้าวกลางวัน"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                 </div>
-                
+
                 <div class="flex gap-4">
                     <div class="flex-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">ยอดเงินรวม</label>
-                        <input type="number" id="t-amount" placeholder="0.00" class="w-full border border-slate-200 rounded-xl p-3 text-xl font-bold bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                        <input type="number" id="t-amount" placeholder="0.00"
+                            class="w-full border border-slate-200 rounded-xl p-3 text-xl font-bold bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                     </div>
                     <div class="flex-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">คนจ่าย</label>
                         <div class="relative">
-                            <select id="t-payer" class="w-full border border-slate-200 rounded-xl p-3 text-sm bg-white outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all font-bold text-slate-700"></select>
-                            <i class="fa-solid fa-chevron-down absolute right-3 top-4 text-xs text-slate-400 pointer-events-none"></i>
+                            <select id="t-payer"
+                                class="w-full border border-slate-200 rounded-xl p-3 text-sm bg-white outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all font-bold text-slate-700"></select>
+                            <i
+                                class="fa-solid fa-chevron-down absolute right-3 top-4 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
                 </div>
@@ -493,15 +627,18 @@
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[10px] font-bold text-slate-400 uppercase">ตัวหาร</span>
                         <div class="flex bg-white rounded-lg p-1 border shadow-sm">
-                            <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal" class="px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-800 text-white transition-all">หารเท่า</button>
-                            <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom" class="px-3 py-1.5 rounded-md text-[10px] font-bold text-slate-400 transition-all">ระบุยอด</button>
+                            <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal"
+                                class="px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-800 text-white transition-all">หารเท่า</button>
+                            <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom"
+                                class="px-3 py-1.5 rounded-md text-[10px] font-bold text-slate-400 transition-all">ระบุยอด</button>
                         </div>
                     </div>
                     <div id="split-participants" class="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar"></div>
                 </div>
             </div>
             <div class="p-4 border-t bg-white">
-                <button id="btn-save-transaction" onclick="window.app.saveTransaction()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-all text-sm">
+                <button id="btn-save-transaction" onclick="window.app.saveTransaction()"
+                    class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-all text-sm">
                     <i class="fa-solid fa-check-circle mr-2"></i> บันทึกข้อมูล
                 </button>
             </div>
@@ -537,17 +674,21 @@
                 currentMonth: new Date().toISOString().slice(0, 7),
                 editingId: null,
                 selectedGroupId: null,
-                settlementPlan: [], 
+                settlementPlan: [],
                 // ค่าเริ่มต้น API Endpoint หรือดึงจาก LocalStorage
                 apiEndpoint: localStorage.getItem('dept_money_api_endpoint') || '/api/send-line'
             },
             charts: { monthlyTrend: null, payer: null },
 
+            // LIFF Config
+            liffId: "2008948645-KXHMVFXB",
+
             async init() {
                 this.initBackground();
                 this.populateMonthSelectors();
                 this.selectIcon('fa-utensils');
-                
+                this.initLiff();
+
                 onSnapshot(collection(db, "members"), (snap) => {
                     // เรียง GAME ไว้ซ้ายสุด
                     this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort((a, b) => {
@@ -564,14 +705,66 @@
                     this.refreshCurrentView();
                     document.getElementById('loading-overlay').classList.add('hidden');
                     const statusEl = document.getElementById('connection-status-mobile');
-                    if(statusEl) statusEl.innerHTML = `<span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[6px]"></i> Online</span>`;
+                    if (statusEl) statusEl.innerHTML = `<span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[6px]"></i> Online</span>`;
                 });
+            },
+
+            async initLiff() {
+                try {
+                    await liff.init({ liffId: this.liffId });
+                    if (liff.isLoggedIn()) {
+                        const profile = await liff.getProfile();
+                        this.handleLineLoginSuccess(profile);
+                    }
+                } catch (err) {
+                    console.log("LIFF Init ignored (running locally or invalid ID)");
+                }
+            },
+
+            async loginWithLine() {
+                if (!liff.isLoggedIn()) {
+                    try { await liff.login(); } catch (e) { alert("Login Error: " + e.message); }
+                } else {
+                    const profile = await liff.getProfile();
+                    this.handleLineLoginSuccess(profile);
+                }
+            },
+
+            async handleLineLoginSuccess(profile) {
+                const userId = profile.userId;
+                const displayName = profile.displayName.toUpperCase();
+
+                // 1. Check mapping
+                const q = query(collection(db, "members"), where("lineUserId", "==", userId));
+                const snap = await getDocs(q);
+
+                if (!snap.empty) {
+                    const memberData = snap.docs[0].data();
+                    const role = (memberData.role === 'admin') ? 'admin' : 'member';
+                    this.completeLogin(role, memberData.name);
+                } else {
+                    // 2. Check by Name
+                    const existingMember = this.data.members.find(m => m === displayName);
+
+                    if (existingMember) {
+                        const qName = query(collection(db, "members"), where("name", "==", displayName));
+                        const snapName = await getDocs(qName);
+                        if (!snapName.empty) {
+                            await updateDoc(doc(db, "members", snapName.docs[0].id), { lineUserId: userId });
+                        }
+                        this.completeLogin('member', displayName);
+                    } else {
+                        // 3. Create New
+                        await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId });
+                        this.completeLogin('member', displayName);
+                    }
+                }
             },
 
             initBackground() {
                 const container = document.getElementById('login-particles');
-                if(!container) return; 
-                for(let i=0; i<15; i++) {
+                if (!container) return;
+                for (let i = 0; i < 15; i++) {
                     const p = document.createElement('div');
                     p.className = 'particle';
                     const size = Math.random() * 40 + 10 + 'px';
@@ -590,10 +783,10 @@
                 document.getElementById(`view-${viewId}`).classList.remove('hidden');
                 document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('bg-slate-100', 'text-slate-900'));
                 const nav = document.getElementById(`nav-${viewId}`);
-                if(nav) nav.classList.add('bg-slate-100', 'text-slate-900');
+                if (nav) nav.classList.add('bg-slate-100', 'text-slate-900');
                 document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
                 const mobNav = document.getElementById(`mob-nav-${viewId}`);
-                if(mobNav) mobNav.classList.add('active');
+                if (mobNav) mobNav.classList.add('active');
                 this.refreshCurrentView();
             },
 
@@ -612,7 +805,7 @@
                     .filter(t => t.date.startsWith(this.data.currentMonth))
                     .sort((a, b) => new Date(b.date) - new Date(a.date) || (b.timestamp || 0) - (a.timestamp || 0));
 
-                if(filtered.length === 0) {
+                if (filtered.length === 0) {
                     empty.classList.remove('hidden');
                     return;
                 }
@@ -625,10 +818,10 @@
                     const day = dateObj.getDate();
                     const month = dateObj.toLocaleString('th-TH', { month: 'short' });
                     const dateStr = dateObj.toLocaleDateString('th-TH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-                    
+
                     const isInstallment = t.paymentType === 'installment';
                     const iconClass = t.icon || 'fa-utensils';
-                    
+
                     // Grouping by Date
                     if (t.date !== lastDate) {
                         const header = document.createElement('div');
@@ -640,7 +833,7 @@
 
                     const div = document.createElement('div');
                     div.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between";
-                    
+
                     let html = `
                         <div class="flex items-center gap-4">
                             <div class="flex flex-col items-center justify-center bg-slate-50 rounded-lg w-12 h-12 text-slate-500 border border-slate-200">
@@ -661,7 +854,7 @@
                             <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()} ฿</span>
                             <div class="flex gap-2 mt-1">
                     `;
-                    
+
                     // Edit Icon
                     html += `
                         <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
@@ -670,14 +863,14 @@
                     `;
 
                     // Delete Icon (Admin Only)
-                    if(this.data.userRole === 'admin') {
+                    if (this.data.userRole === 'admin') {
                         html += `
                             <button onclick="window.app.deleteTransaction('${t.id}')" class="text-xs text-red-300 hover:text-red-500 p-1">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         `;
                     }
-                    
+
                     html += `</div></div>`;
                     div.innerHTML = html;
                     list.appendChild(div);
@@ -686,20 +879,27 @@
 
             showAdminLogin() { document.getElementById('admin-login-form').classList.toggle('hidden'); },
             toggleAdminForm() { document.getElementById('admin-login-form').classList.toggle('hidden'); },
-            
+
             loginAsAdmin() {
                 const u = document.getElementById('admin-user').value;
                 const p = document.getElementById('admin-pass').value;
-                if(u.toLowerCase() === 'admin' && p === '0000') this.completeLogin('admin');
+                if (u.toLowerCase() === 'admin' && p === '0000') this.completeLogin('admin');
                 else alert('รหัสผ่านไม่ถูกต้อง');
             },
 
-            completeLogin(role) {
+            completeLogin(role, name = null) {
                 this.data.userRole = role;
                 document.getElementById('login-screen').classList.add('hidden');
+
                 const badge = document.getElementById('mobile-role-badge');
-                badge.textContent = role.toUpperCase();
-                if(role === 'admin') {
+                if (name) {
+                    badge.textContent = name;
+                    // Auto-sync name to member list if needed?
+                    // For now just display it.
+                } else {
+                    badge.textContent = role.toUpperCase();
+                }
+                if (role === 'admin') {
                     badge.className = "text-[10px] bg-slate-800 px-2 py-1 rounded-full font-bold text-white";
                     document.getElementById('admin-danger-zone').classList.remove('hidden');
                     document.getElementById('settlement-admin-actions').classList.remove('hidden');
@@ -707,7 +907,7 @@
                 }
                 this.navigate('dashboard');
             },
-            
+
             triggerGameEmoji(e) {
                 const el = e.target;
                 el.style.transform = "scale(1.2)";
@@ -718,7 +918,7 @@
                 const date = new Date();
                 const currentMonthVal = date.toISOString().slice(0, 7);
                 let html = "";
-                for(let i=0; i<12; i++) {
+                for (let i = 0; i < 12; i++) {
                     const val = date.toISOString().slice(0, 7);
                     let label = date.toLocaleString('th-TH', { month: 'long', year: 'numeric' });
                     if (val === currentMonthVal) {
@@ -749,7 +949,7 @@
             async addMember() {
                 const input = document.getElementById('new-member-name');
                 const name = input.value.trim().toUpperCase();
-                if(!name || this.data.members.includes(name)) return;
+                if (!name || this.data.members.includes(name)) return;
                 await addDoc(collection(db, "members"), { name });
                 input.value = "";
             },
@@ -758,14 +958,14 @@
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
                 const balances = {};
                 this.data.members.forEach(m => balances[m] = 0);
-                
+
                 filtered.forEach(t => {
                     const payer = (t.payer || "").toUpperCase();
-                    if(balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
-                    if(t.splits) {
+                    if (balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
+                    if (t.splits) {
                         Object.keys(t.splits).forEach(k => {
                             const memberKey = k.toUpperCase();
-                            if(balances.hasOwnProperty(memberKey)) balances[memberKey] -= Number(t.splits[k]);
+                            if (balances.hasOwnProperty(memberKey)) balances[memberKey] -= Number(t.splits[k]);
                         });
                     }
                 });
@@ -776,9 +976,9 @@
                     const bal = Math.round(balances[m]);
                     let color = "bg-slate-50 text-slate-400";
                     let icon = "fa-circle-check", status = "เคลียร์แล้ว";
-                    if(bal > 1) { color = "bg-emerald-50 text-emerald-700 border-emerald-100"; icon = "fa-hand-holding-dollar"; status = "รอรับเงิน"; }
-                    else if(bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "ต้องจ่ายคืน"; }
-                    
+                    if (bal > 1) { color = "bg-emerald-50 text-emerald-700 border-emerald-100"; icon = "fa-hand-holding-dollar"; status = "รอรับเงิน"; }
+                    else if (bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "ต้องจ่ายคืน"; }
+
                     const card = document.createElement('div');
                     card.className = `p-4 rounded-2xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${color}`;
                     card.onclick = () => this.showMemberDetails(m);
@@ -789,8 +989,8 @@
                 const debtors = [], creditors = [];
                 this.data.members.forEach(m => {
                     const b = Math.round(balances[m]);
-                    if(b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-                    if(b > 1) creditors.push({ name: m, amount: b });
+                    if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
+                    if (b > 1) creditors.push({ name: m, amount: b });
                 });
 
                 this.data.settlementPlan = [];
@@ -798,7 +998,7 @@
                 planContainer.innerHTML = "";
 
                 let i = 0, j = 0;
-                while(i < debtors.length && j < creditors.length) {
+                while (i < debtors.length && j < creditors.length) {
                     const d = debtors[i];
                     const c = creditors[j];
                     const pay = Math.min(d.amount, c.amount);
@@ -815,11 +1015,11 @@
                     d.amount -= pay;
                     c.amount -= pay;
 
-                    if(d.amount <= 0.01) i++;
-                    if(c.amount <= 0.01) j++;
+                    if (d.amount <= 0.01) i++;
+                    if (c.amount <= 0.01) j++;
                 }
 
-                if(!planContainer.innerHTML) {
+                if (!planContainer.innerHTML) {
                     planContainer.innerHTML = `<div class="text-center py-4 text-slate-300 text-xs italic">ไม่มีรายการค้างชำระ</div>`;
                 }
             },
@@ -827,16 +1027,16 @@
             showMemberDetails(member) {
                 const target = member.toUpperCase();
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth))
-                                 .filter(t => (t.payer || "").toUpperCase() === target || Object.keys(t.splits || {}).some(k => k.toUpperCase() === target));
+                    .filter(t => (t.payer || "").toUpperCase() === target || Object.keys(t.splits || {}).some(k => k.toUpperCase() === target));
                 const list = document.getElementById('member-detail-list');
                 list.innerHTML = ""; let totalSpent = 0;
                 filtered.forEach(t => {
                     let myShare = 0;
                     const matchKey = Object.keys(t.splits || {}).find(k => k.toUpperCase() === target);
-                    if(matchKey) myShare = Number(t.splits[matchKey]);
+                    if (matchKey) myShare = Number(t.splits[matchKey]);
                     totalSpent += myShare;
                     const isPayer = (t.payer || "").toUpperCase() === target;
-                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH',{day:'numeric',month:'short'})}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเงิน' : 'จ่ายโดย ' + t.payer} • ยอดเต็ม ${t.amount}</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()}</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ยอดสุทธิ</div></div></div>`;
+                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเงิน' : 'จ่ายโดย ' + t.payer} • ยอดเต็ม ${t.amount}</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()}</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ยอดสุทธิ</div></div></div>`;
                 });
                 document.getElementById('member-detail-title').textContent = `ประวัติของ ${target}`;
                 document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} ฿`;
@@ -855,9 +1055,9 @@
 
             renderMonthlyTrendChart() {
                 const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
-                if(this.charts.monthlyTrend) this.charts.monthlyTrend.destroy();
+                if (this.charts.monthlyTrend) this.charts.monthlyTrend.destroy();
                 const months = [], amounts = [], d = new Date();
-                for(let i=0; i<12; i++) {
+                for (let i = 0; i < 12; i++) {
                     const key = d.toISOString().slice(0, 7);
                     const thaiYear = String(d.getFullYear() + 543).slice(-2);
                     const label = `${String(d.getMonth() + 1).padStart(2, '0')}/${thaiYear}`;
@@ -865,16 +1065,16 @@
                     amounts.unshift(this.data.transactions.filter(t => t.date.startsWith(key)).reduce((a, t) => a + Number(t.amount), 0));
                     d.setMonth(d.getMonth() - 1);
                 }
-                this.charts.monthlyTrend = new Chart(ctx, { type: 'bar', data: { labels: months, datasets: [{ data: amounts, backgroundColor: months.map((_,i) => i === 11 ? '#1e293b' : '#cbd5e1'), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0 } } } } });
+                this.charts.monthlyTrend = new Chart(ctx, { type: 'bar', data: { labels: months, datasets: [{ data: amounts, backgroundColor: months.map((_, i) => i === 11 ? '#1e293b' : '#cbd5e1'), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0 } } } } });
             },
 
             renderPayerChart(data) {
                 const ctx = document.getElementById('payerChart').getContext('2d');
-                if(this.charts.payer) this.charts.payer.destroy();
+                if (this.charts.payer) this.charts.payer.destroy();
                 this.charts.payer = new Chart(ctx, { type: 'doughnut', data: { labels: Object.keys(data), datasets: [{ data: Object.values(data), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'], borderWidth: 0 }] }, options: { responsive: true, maintainAspectRatio: false, cutout: '60%', plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, datalabels: { color: '#fff', font: { weight: 'bold', size: 10 }, formatter: (v) => v > 0 ? v.toLocaleString() : "" } } } });
             },
 
-            openModal(id) { 
+            openModal(id) {
                 this.data.editingId = null;
                 this.data.selectedGroupId = null;
                 document.getElementById('modal-title').textContent = "บันทึกรายการ";
@@ -885,18 +1085,18 @@
                 document.getElementById('t-date').value = new Date().toISOString().slice(0, 10);
                 this.toggleInstallment();
                 this.selectIcon('fa-utensils');
-                document.getElementById(id).classList.remove('hidden'); 
-                this.renderSplitParticipants(); 
+                document.getElementById(id).classList.remove('hidden');
+                this.renderSplitParticipants();
             },
 
             closeModal(id) { document.getElementById(id).classList.add('hidden'); },
-            
+
             toggleInstallment() { document.getElementById('t-installment-wrapper').classList.toggle('hidden', document.getElementById('t-payment-type').value !== 'installment'); },
-            
+
             selectIcon(iconName) {
                 document.getElementById('t-icon').value = iconName;
                 document.querySelectorAll('.icon-opt').forEach(btn => {
-                    if(btn.dataset.icon === iconName) {
+                    if (btn.dataset.icon === iconName) {
                         btn.classList.add('selected');
                         btn.classList.remove('bg-white');
                     } else {
@@ -918,7 +1118,7 @@
                 container.innerHTML = this.data.members.map(m => {
                     // Check logic: if editing (involvedMembers passed), check if in list. If new, check all.
                     // Request: Default to unchecked for new transactions.
-                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : false; 
+                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : false;
                     return `
                     <div class="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0">
                         <label class="flex items-center gap-3 cursor-pointer select-none">
@@ -932,10 +1132,10 @@
 
             editTransaction(id) {
                 const t = this.data.transactions.find(x => x.id === id);
-                if(!t) return;
+                if (!t) return;
                 this.data.editingId = id;
                 this.data.selectedGroupId = t.groupId || null;
-                
+
                 document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการผ่อน (ทั้งกลุ่ม)" : "แก้ไขรายการ";
                 document.getElementById('t-date').value = t.date;
                 document.getElementById('t-payment-type').value = t.paymentType || 'normal';
@@ -944,9 +1144,9 @@
                 document.getElementById('t-payer').value = t.payer;
                 this.selectIcon(t.icon || 'fa-utensils');
                 this.toggleInstallment();
-                
+
                 document.getElementById('transaction-modal').classList.remove('hidden');
-                
+
                 // Pass existing participants to renderSplitParticipants
                 const existingParticipants = t.splits ? Object.keys(t.splits) : [];
                 this.renderSplitParticipants(existingParticipants);
@@ -960,32 +1160,32 @@
                 const type = document.getElementById('t-payment-type').value;
                 const date = document.getElementById('t-date').value;
                 const icon = document.getElementById('t-icon').value;
-                if(!amount || !date) {
+                if (!amount || !date) {
                     document.getElementById('loading-overlay').classList.add('hidden');
                     return alert('กรอกข้อมูลไม่ครบ');
                 }
 
                 const splits = {};
                 const checked = Array.from(document.querySelectorAll('.participant-check:checked')).map(c => c.value);
-                if(this.data.splitMode === 'equal') {
+                if (this.data.splitMode === 'equal') {
                     const share = amount / checked.length;
                     checked.forEach(m => splits[m] = share);
                 } else {
                     document.querySelectorAll('.participant-amount').forEach(i => {
                         const val = Number(i.value);
-                        if(val > 0) splits[i.dataset.member] = val;
+                        if (val > 0) splits[i.dataset.member] = val;
                     });
                 }
 
                 const batch = writeBatch(db);
 
-                if(this.data.editingId) {
-                    if(this.data.selectedGroupId) {
+                if (this.data.editingId) {
+                    if (this.data.selectedGroupId) {
                         const groupItems = this.data.transactions.filter(item => item.groupId === this.data.selectedGroupId);
                         groupItems.forEach(item => {
                             let newDesc = desc;
                             const suffixMatch = item.desc.match(/\(\d+\/\d+\)$/);
-                            if(suffixMatch) newDesc += ` ${suffixMatch[0]}`;
+                            if (suffixMatch) newDesc += ` ${suffixMatch[0]}`;
                             batch.update(doc(db, "transactions", item.id), { desc: newDesc, payer, icon, splits });
                         });
                     } else {
@@ -996,15 +1196,15 @@
                     const groupId = type === 'installment' ? "grp_" + Date.now() : null;
                     const baseDate = new Date(date);
 
-                    for(let i=0; i<installments; i++) {
+                    for (let i = 0; i < installments; i++) {
                         const currentInstallmentDate = new Date(baseDate);
                         currentInstallmentDate.setMonth(baseDate.getMonth() + i);
                         const txn = {
                             date: currentInstallmentDate.toISOString().slice(0, 10),
-                            desc: installments > 1 ? `${desc} (${i+1}/${installments})` : desc,
+                            desc: installments > 1 ? `${desc} (${i + 1}/${installments})` : desc,
                             amount: amount / installments,
                             payer,
-                            splits: Object.fromEntries(Object.entries(splits).map(([k,v]) => [k, v/installments])),
+                            splits: Object.fromEntries(Object.entries(splits).map(([k, v]) => [k, v / installments])),
                             paymentType: type,
                             icon,
                             groupId,
@@ -1017,68 +1217,68 @@
                 try {
                     await batch.commit();
                     this.closeModal('transaction-modal');
-                } catch(e) {
+                } catch (e) {
                     alert("บันทึกไม่สำเร็จ: " + e.message);
                 }
                 document.getElementById('loading-overlay').classList.add('hidden');
             },
 
             async deleteTransaction(id) {
-                if(this.data.userRole !== 'admin') return;
+                if (this.data.userRole !== 'admin') return;
                 const t = this.data.transactions.find(x => x.id === id);
-                if(!t) return;
+                if (!t) return;
 
-                if(t.groupId) {
+                if (t.groupId) {
                     const deleteChoice = confirm('รายการนี้เป็นแบบผ่อนชำระ\n\nOK: ลบรายการนี้และงวดอื่นๆ ทั้งหมด\nCancel: ยกเลิก');
-                    if(!deleteChoice) return;
-                    
+                    if (!deleteChoice) return;
+
                     document.getElementById('loading-overlay').classList.remove('hidden');
                     const batch = writeBatch(db);
-                    
+
                     // Find all items with same groupId (across ALL time)
                     // Note: We use this.data.transactions which contains ALL loaded transactions.
                     // If your app loads all data at init, this works. If it limits query, this needs a backend query.
                     // Assuming current logic loads all:
                     const groupItems = this.data.transactions.filter(item => item.groupId === t.groupId);
                     groupItems.forEach(item => batch.delete(doc(db, "transactions", item.id.trim())));
-                    
-                    try { await batch.commit(); } catch(e) { alert("ลบไม่สำเร็จ: " + e.message); }
+
+                    try { await batch.commit(); } catch (e) { alert("ลบไม่สำเร็จ: " + e.message); }
                     document.getElementById('loading-overlay').classList.add('hidden');
                 } else if (t.desc.match(/\(\d+\/\d+\)$/)) {
                     const confirmLegacy = confirm("ตรวจพบว่าเป็นรายการผ่อนเก่า\n\nOK: ลบงวดนี้และงวดอนาคต (โดยดูจากชื่อ)\nCancel: ลบเฉพาะงวดนี้");
                     document.getElementById('loading-overlay').classList.remove('hidden');
                     const batch = writeBatch(db);
-                    if(confirmLegacy) {
+                    if (confirmLegacy) {
                         const baseName = t.desc.split(' (')[0];
                         const itemsToDelete = this.data.transactions.filter(item => item.desc.startsWith(baseName) && item.desc.match(/\(\d+\/\d+\)$/) && item.date >= t.date);
                         itemsToDelete.forEach(item => batch.delete(doc(db, "transactions", item.id.trim())));
                     } else {
-                         batch.delete(doc(db, "transactions", id.trim()));
+                        batch.delete(doc(db, "transactions", id.trim()));
                     }
-                    try { await batch.commit(); } catch(e) { alert("ลบไม่สำเร็จ: " + e.message); }
+                    try { await batch.commit(); } catch (e) { alert("ลบไม่สำเร็จ: " + e.message); }
                     document.getElementById('loading-overlay').classList.add('hidden');
                 } else {
-                    if(confirm('ยืนยันลบรายการนี้?')) {
+                    if (confirm('ยืนยันลบรายการนี้?')) {
                         document.getElementById('loading-overlay').classList.remove('hidden');
-                        try { await deleteDoc(doc(db, "transactions", id.trim())); } catch(e) { alert("ลบไม่สำเร็จ: " + e.message); }
+                        try { await deleteDoc(doc(db, "transactions", id.trim())); } catch (e) { alert("ลบไม่สำเร็จ: " + e.message); }
                         document.getElementById('loading-overlay').classList.add('hidden');
                     }
                 }
             },
 
             async clearMonthData() {
-                if(this.data.userRole !== 'admin') return;
+                if (this.data.userRole !== 'admin') return;
                 const m = document.getElementById('delete-month-selector').value;
-                if(confirm(`ยืนยันลบข้อมูลทั้งหมดของเดือน ${m}?\n(หากมีรายการผ่อน จะลบงวดอื่นๆ ที่อยู่นอกเดือนนี้ด้วย)`)) {
+                if (confirm(`ยืนยันลบข้อมูลทั้งหมดของเดือน ${m}?\n(หากมีรายการผ่อน จะลบงวดอื่นๆ ที่อยู่นอกเดือนนี้ด้วย)`)) {
                     const itemsInMonth = this.data.transactions.filter(t => t.date.startsWith(m));
                     const batch = writeBatch(db);
-                    
+
                     // Collect Group IDs to delete entirely
                     const groupIdsToDelete = new Set();
                     const individualIdsToDelete = new Set();
 
                     itemsInMonth.forEach(t => {
-                        if(t.groupId) groupIdsToDelete.add(t.groupId);
+                        if (t.groupId) groupIdsToDelete.add(t.groupId);
                         else individualIdsToDelete.add(t.id);
                     });
 
@@ -1086,7 +1286,7 @@
                     individualIdsToDelete.forEach(id => batch.delete(doc(db, "transactions", id)));
 
                     // Add ALL items belonging to the found groups (even if outside this month)
-                    if(groupIdsToDelete.size > 0) {
+                    if (groupIdsToDelete.size > 0) {
                         const allRelatedGroupItems = this.data.transactions.filter(t => t.groupId && groupIdsToDelete.has(t.groupId));
                         allRelatedGroupItems.forEach(t => batch.delete(doc(db, "transactions", t.id)));
                     }
@@ -1094,48 +1294,48 @@
                     await batch.commit();
                 }
             },
-            
+
             cleanUpOldData() {
-                if(confirm("ต้องการลบข้อมูลเก่ากว่า 2 ปีใช่ไหม?")) {
+                if (confirm("ต้องการลบข้อมูลเก่ากว่า 2 ปีใช่ไหม?")) {
                     alert("ฟีเจอร์นี้ยังไม่เปิดใช้งานเพื่อความปลอดภัยของข้อมูล");
                 }
             },
 
             exportCSV() {
-                if(this.data.transactions.length === 0) return alert("ไม่มีข้อมูลให้ Export");
-                
+                if (this.data.transactions.length === 0) return alert("ไม่มีข้อมูลให้ Export");
+
                 const rows = [
                     ["Date", "Description", "Payer", "Amount", "Type", "Splits"]
                 ];
-                
+
                 this.data.transactions.forEach(t => {
                     const splitDetails = t.splits ? JSON.stringify(t.splits).replace(/"/g, "'") : "";
                     rows.push([
-                        t.date, 
-                        `"${t.desc}"`, 
-                        t.payer, 
-                        t.amount, 
+                        t.date,
+                        `"${t.desc}"`,
+                        t.payer,
+                        t.amount,
                         t.paymentType || 'normal',
                         `"${splitDetails}"`
                     ]);
                 });
-                
+
                 let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `dept_money_export_${new Date().toISOString().slice(0,10)}.csv`);
+                link.setAttribute("download", `dept_money_export_${new Date().toISOString().slice(0, 10)}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
             },
-            
+
             logout() { location.reload(); },
-            
+
             saveApiConfig() {
                 // Feature Removed
             },
-            
+
             showToast(msg) {
                 const t = document.getElementById('toast');
                 t.textContent = msg;
@@ -1145,23 +1345,23 @@
 
             // --- FUNCTION TO CALL YOUR BACKEND API ---
             async sendLineMessage() {
-                if(!this.data.settlementPlan || this.data.settlementPlan.length === 0) {
+                if (!this.data.settlementPlan || this.data.settlementPlan.length === 0) {
                     return alert("ไม่มีรายการที่ต้องเคลียร์ หรือยังไม่ได้คำนวณ");
                 }
-                
+
                 const apiUrl = this.data.apiEndpoint; // e.g. /api/send-line or full URL
                 const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: 'numeric' });
-                
+
                 // Show loading
                 document.getElementById('loading-overlay').classList.remove('hidden');
-                
+
                 try {
                     // Create payload matching your backend requirement
                     const payload = {
                         month: monthName,
                         debts: this.data.settlementPlan // array of {from, to, amount}
                     };
-                    
+
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: {
@@ -1169,16 +1369,16 @@
                         },
                         body: JSON.stringify(payload)
                     });
-                    
+
                     const result = await response.json();
-                    
-                    if(response.ok) {
+
+                    if (response.ok) {
                         this.showToast("ส่งแจ้งเตือนเข้า LINE แล้ว ✅");
                     } else {
                         throw new Error(result.message || "Server returned error");
                     }
-                    
-                } catch(e) {
+
+                } catch (e) {
                     console.error(e);
                     alert("เกิดข้อผิดพลาดในการเรียก API:\n" + e.message + "\n\n(กรุณาตรวจสอบว่า API URL ถูกต้องหรือไม่)");
                 } finally {
@@ -1189,6 +1389,14 @@
 
         window.app = app;
         window.addEventListener('DOMContentLoaded', () => app.init());
+
+        // PWA Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW fail', err));
+            });
+        }
     </script>
 </body>
+
 </html>

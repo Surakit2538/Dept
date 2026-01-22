@@ -1,9 +1,8 @@
 {
-  "name": "dept-money",
-  "version": "1.0.0",
-  "type": "module",
-  "dependencies": {
-    "firebase": "^10.7.1",
-    "@google/generative-ai": "latest"
-  }
+    "name": "dept-money-api",
+    "version": "1.0.0",
+    "dependencies": {
+        "@google/generative-ai": "^0.1.3",
+        "firebase": "^10.7.1"
+    }
 }
