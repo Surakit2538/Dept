@@ -710,20 +710,30 @@
                 });
             },
 
+            updateDebug(msg) {
+                const el = document.getElementById('login-debug-status');
+                if (el) el.textContent = msg;
+                console.log(msg);
+            },
+
             async initLiff() {
+                this.updateDebug("LIFF initializing...");
                 try {
                     await liff.init({ liffId: this.liffId });
                     if (liff.isLoggedIn()) {
+                        this.updateDebug("LIFF Logged In. Fetching Profile...");
                         const profile = await liff.getProfile();
                         this.handleLineLoginSuccess(profile);
+                    } else {
+                        this.updateDebug("LIFF Ready. Waiting for login.");
                     }
                 } catch (err) {
-                    console.log("LIFF Init ignored (running locally or invalid ID)");
+                    this.updateDebug("LIFF Error: " + err.message);
                 }
             },
 
             async loginWithLine() {
-                // alert("Button Clicked!"); // Debug trigger
+                this.updateDebug("Click Login...");
                 if (typeof liff === 'undefined') {
                     alert("LIFF SDK not loaded. Check internet connection.");
                     return;
@@ -731,8 +741,10 @@
 
                 if (!liff.isLoggedIn()) {
                     try {
+                        this.updateDebug("Redirecting to LINE...");
                         await liff.login();
                     } catch (e) {
+                        this.updateDebug("Login Exception: " + e.message);
                         alert("Login Error: " + e.message);
                     }
                 } else {
@@ -743,34 +755,37 @@
 
             async handleLineLoginSuccess(profile) {
                 try {
+                    this.updateDebug("Got Profile: " + profile.displayName);
                     document.getElementById('loading-overlay').classList.remove('hidden');
                     const userId = profile.userId;
                     const displayName = profile.displayName.toUpperCase();
 
                     // 1. Check mapping
+                    this.updateDebug("Checking Database...");
                     const q = query(collection(db, "members"), where("lineUserId", "==", userId));
                     const snap = await getDocs(q);
 
                     if (!snap.empty) {
+                        this.updateDebug("Member Found. Logging in...");
                         const memberData = snap.docs[0].data();
                         const role = (memberData.role === 'admin') ? 'admin' : 'member';
                         this.completeLogin(role, memberData.name);
                     } else {
                         // 2. Check by Name
+                        this.updateDebug("Member Not Found by ID. Checking Name...");
+
                         // Ensure members are loaded
-                        if (!this.data.members || this.data.members.length === 0) {
-                            // Fallback: Query DB directly if local list is empty
+                        let existingMember = this.data.members.find(m => m === displayName);
+
+                        if (!existingMember && (!this.data.members || this.data.members.length === 0)) {
+                            // Fallback fetch
+                            this.updateDebug("Fetching member list...");
                             const checkNameSnap = await getDocs(query(collection(db, "members"), where("name", "==", displayName)));
-                            if (!checkNameSnap.empty) {
-                                await updateDoc(doc(db, "members", checkNameSnap.docs[0].id), { lineUserId: userId });
-                                this.completeLogin('member', displayName);
-                                return;
-                            }
+                            if (!checkNameSnap.empty) existingMember = displayName;
                         }
 
-                        const existingMember = this.data.members.find(m => m === displayName);
-
                         if (existingMember) {
+                            this.updateDebug("Found by Name. Linking...");
                             const qName = query(collection(db, "members"), where("name", "==", displayName));
                             const snapName = await getDocs(qName);
                             if (!snapName.empty) {
@@ -779,12 +794,14 @@
                             this.completeLogin('member', displayName);
                         } else {
                             // 3. Create New
+                            this.updateDebug("New Member. Creating...");
                             await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId, role: 'member' });
                             this.completeLogin('member', displayName);
                         }
                     }
                 } catch (e) {
                     console.error(e);
+                    this.updateDebug("DB Error: " + e.message);
                     alert("Login failed: " + e.message);
                     document.getElementById('loading-overlay').classList.add('hidden');
                 }
