@@ -733,23 +733,37 @@
             },
 
             async loginWithLine() {
-                this.updateDebug("Click Login...");
-                if (typeof liff === 'undefined') {
-                    alert("LIFF SDK not loaded. Check internet connection.");
-                    return;
-                }
+                try {
+                    this.updateDebug("Click Login...");
 
-                if (!liff.isLoggedIn()) {
-                    try {
-                        this.updateDebug("Redirecting to LINE...");
-                        await liff.login();
-                    } catch (e) {
-                        this.updateDebug("Login Exception: " + e.message);
-                        alert("Login Error: " + e.message);
+                    if (typeof liff === 'undefined') {
+                        throw new Error("LIFF SDK not loaded");
                     }
-                } else {
-                    const profile = await liff.getProfile();
-                    this.handleLineLoginSuccess(profile);
+
+                    // Wait for init to finish (success or fail)
+                    if (!liff.id) {
+                        this.updateDebug("Waiting for LIFF Ready...");
+                        await liff.ready;
+                    }
+
+                    this.updateDebug("Checking Login Status...");
+                    if (!liff.isLoggedIn()) {
+                        try {
+                            this.updateDebug("Redirecting to LINE...");
+                            // Enable auto login redirect
+                            liff.login({ redirectUri: window.location.href });
+                        } catch (e) {
+                            throw new Error("liff.login failed: " + e.message);
+                        }
+                    } else {
+                        this.updateDebug("Already Logged In. Fetching...");
+                        const profile = await liff.getProfile();
+                        this.handleLineLoginSuccess(profile);
+                    }
+                } catch (e) {
+                    console.error(e);
+                    this.updateDebug("Critical Error: " + e.message);
+                    alert("Login Error: " + e.message);
                 }
             },
 
