@@ -354,7 +354,7 @@
                     <i class="fa-solid fa-wallet text-8xl"></i>
                 </div>
                 <p class="text-slate-400 text-xs font-medium uppercase tracking-wider">ยอดรวมเดือนนี้</p>
-                <h3 class="text-4xl font-bold mt-1 tracking-tight" id="total-expense">0 ?</h3>
+                <h3 class="text-4xl font-bold mt-1 tracking-tight" id="total-expense">0 บาท</h3>
             </div>
 
             <button onclick="window.app.openModal('transaction-modal')"
@@ -373,7 +373,7 @@
                     </div>
                 </div>
                 <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-700 text-sm mb-4">เพิ่มรายการ?</h3>
+                    <h3 class="font-bold text-slate-700 text-sm mb-4">เดือนนี้ใครจ่ายไปเท่าไหร่?</h3>
                     <div class="chart-container">
                         <canvas id="payerChart"></canvas>
                     </div>
@@ -407,7 +407,7 @@
 
             <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg flex items-center gap-2 border border-blue-100">
                 <i class="fa-solid fa-circle-info"></i>
-                <span>เพิ่มรายการเพิ่มรายการ?</span>
+                <span>สามารถกดดูรายละเอียดเพิ่มเติมได้</span>
             </div>
 
             <div id="settlement-status-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4"></div>
@@ -457,7 +457,7 @@
                         <button onclick="window.app.clearMonthData()"
                             class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm">ลบเดือนนี้</button>
                     </div>
-                    <p class="text-[9px] text-red-400 mt-1">* เพิ่มรายการ? เพิ่มรายการเพิ่มรายการ?</p>
+                    <p class="text-[9px] text-red-400 mt-1">* ระวังข้อมูลนี้จะถูกลบถาวร</p>
                 </div>
             </div>
         </section>
@@ -506,7 +506,7 @@
                 <span class="text-xs text-slate-500 font-bold uppercase tracking-widest">ยอดรวมทั้งหมด</span>
                 <span id="member-detail-total"
                     class="text-lg font-bold text-slate-800 underline decoration-slate-300 decoration-2 underline-offset-4">0
-                    ?</span>
+                    บาท</span>
             </div>
         </div>
     </div>
@@ -530,10 +530,10 @@
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
                         <input type="date" id="t-date"
-                            class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                            class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                     </div>
                     <div>
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รูปแบบการจ่าย</label>
                         <div class="relative w-full"><select id="t-payment-type"
                                 onchange="window.app.toggleInstallment()"
                                 class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all">
@@ -592,20 +592,19 @@
                 </div>
 
                 <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">เลือกคนจ่าย</label>
-                    <input type="text" id="t-desc" placeholder="เช่น ค่าน้ำ...">
-                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2
-                    focus:ring-blue-100 transition-all">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รายละเอียด</label>
+                    <input type="text" id="t-desc" placeholder="เช่น ค่าน้ำ..."
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                 </div>
 
                 <div class="flex gap-4">
                     <div class="flex-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">เลือกคนจ่าย</label>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">ยอดเงิน</label>
                         <input type="number" id="t-amount" placeholder="0.00"
                             class="w-full border border-slate-200 rounded-xl p-3 text-xl font-bold bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                     </div>
                     <div class="flex-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">คนจ่าย</label>
                         <div class="relative">
                             <select id="t-payer"
                                 class="w-full border border-slate-200 rounded-xl p-3 text-sm bg-white outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all font-bold text-slate-700"></select>
@@ -947,7 +946,7 @@
                             </div>
                         </div >
             <div class="flex flex-col items-end gap-1">
-                <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()} ?</span>
+                <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()} บาท</span>
                 <div class="flex gap-2 mt-1">
                     `;
 
@@ -1109,7 +1108,7 @@
                     const card = document.createElement('div');
                     card.className = `p-4 rounded-2xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${color}`;
                     card.onclick = () => this.showMemberDetails(m);
-                    card.innerHTML = `<i class="fa-solid ${icon} mb-1 opacity-70"></i><span class="text-xs font-bold">${m}</span><span class="text-[9px] uppercase tracking-tighter opacity-60 mb-1">${status}</span><span class="text-base font-bold">${bal === 0 ? '-' : Math.abs(bal).toLocaleString() + ' ?'}</span>`;
+                    card.innerHTML = `<i class="fa-solid ${icon} mb-1 opacity-70"></i><span class="text-xs font-bold">${m}</span><span class="text-[9px] uppercase tracking-tighter opacity-60 mb-1">${status}</span><span class="text-base font-bold">${bal === 0 ? '-' : Math.abs(bal).toLocaleString() + ' บาท'}</span>`;
                     grid.appendChild(card);
                 });
 
@@ -1135,7 +1134,7 @@
                     planContainer.innerHTML += `
                         <div class="flex items-center justify-between bg-white p-3 rounded-xl border text-sm">
                             <div class="font-bold text-slate-700">${d.name} <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> ${c.name}</div>
-                            <div class="font-bold text-red-500">${pay.toLocaleString()} ?</div>
+                            <div class="font-bold text-red-500">${pay.toLocaleString()} บาท</div>
                         </div>
                     `;
 
@@ -1163,17 +1162,17 @@
                     if (matchKey) myShare = Number(t.splits[matchKey]);
                     totalSpent += myShare;
                     const isPayer = (t.payer || "").toUpperCase() === target;
-                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${t.amount}</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()}</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ส่วนของคุณ</div></div></div>`;
+                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${t.amount} บาท</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()} บาท</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ส่วนของคุณ</div></div></div>`;
                 });
                 document.getElementById('member-detail-title').textContent = `รายละเอียด ${target} `;
-                document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} ?`;
+                document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} บาท`;
                 document.getElementById('member-detail-modal').classList.remove('hidden');
             },
 
             renderDashboard() {
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
                 const total = filtered.reduce((acc, t) => acc + Number(t.amount), 0);
-                document.getElementById('total-expense').textContent = total.toLocaleString() + ' ?';
+                document.getElementById('total-expense').textContent = total.toLocaleString() + ' บาท';
                 this.renderMonthlyTrendChart();
                 const payers = {};
                 filtered.forEach(t => { const p = (t.payer || "N/A").toUpperCase(); payers[p] = (payers[p] || 0) + Number(t.amount); });
