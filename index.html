@@ -220,12 +220,13 @@
     <!-- TOAST -->
     <div id="toast">แจ้งเตือน</div>
 
-    <!-- LOADING OVERLAY -->
-    <div id="loading-overlay"
-        class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center">
+    <!-- LOADING OVERLAY (Click to dismiss failsafe) -->
+    <div id="loading-overlay" onclick="this.classList.add('hidden')"
+        class="hidden fixed inset-0 z-[200] bg-black/30 backdrop-blur-sm flex items-center justify-center cursor-pointer">
         <div class="bg-white p-4 rounded-full shadow-lg flex flex-col items-center justify-center gap-2">
             <i class="fa-solid fa-circle-notch fa-spin text-slate-800 text-2xl"></i>
-            <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...</span>
+            <span class="text-xs text-slate-600 font-medium">กำลังดำเนินการ...<br><span
+                    class="text-[8px] text-slate-400 font-normal">(แตะเพื่อปิด)</span></span>
         </div>
     </div>
 
@@ -708,6 +709,15 @@
                     const statusEl = document.getElementById('connection-status-mobile');
                     if (statusEl) statusEl.innerHTML = `<span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[6px]"></i> Online</span>`;
                 });
+
+                // Safety Timeout: Force hide overlay after 5 seconds
+                setTimeout(() => {
+                    const ov = document.getElementById('loading-overlay');
+                    if (!ov.classList.contains('hidden')) {
+                        console.warn("Loading timeout - force hiding overlay");
+                        ov.classList.add('hidden');
+                    }
+                }, 5000); // 5 seconds max
             },
 
             updateDebug(msg) {
@@ -779,16 +789,16 @@
 
                     // --- INSTANT LOGIN CHECK (Memory First) ---
                     this.updateDebug("Checking Cache...");
-                    
+
                     let existingById = (this.data.rawMembers || []).find(m => m.lineUserId === userId);
                     let usedCache = true;
 
                     if (!this.data.rawMembers || this.data.rawMembers.length === 0) {
-                         this.updateDebug("Cache empty. Fallback to DB...");
-                         usedCache = false;
-                         const q = query(collection(db, "members"), where("lineUserId", "==", userId));
-                         const snap = await getDocs(q);
-                         if (!snap.empty) existingById = { ...snap.docs[0].data(), id: snap.docs[0].id, ref: snap.docs[0].ref };
+                        this.updateDebug("Cache empty. Fallback to DB...");
+                        usedCache = false;
+                        const q = query(collection(db, "members"), where("lineUserId", "==", userId));
+                        const snap = await getDocs(q);
+                        if (!snap.empty) existingById = { ...snap.docs[0].data(), id: snap.docs[0].id, ref: snap.docs[0].ref };
                     }
 
                     if (existingById) {
@@ -804,9 +814,9 @@
                         this.updateDebug("ID Not Found. Checking Name...");
                         let existingByName = (this.data.rawMembers || []).find(m => m.name === displayName);
                         if (!usedCache && !existingByName) {
-                             const qName = query(collection(db, "members"), where("name", "==", displayName));
-                             const snapName = await getDocs(qName);
-                             if (!snapName.empty) existingByName = { ...snapName.docs[0].data(), id: snapName.docs[0].id, ref: snapName.docs[0].ref };
+                            const qName = query(collection(db, "members"), where("name", "==", displayName));
+                            const snapName = await getDocs(qName);
+                            if (!snapName.empty) existingByName = { ...snapName.docs[0].data(), id: snapName.docs[0].id, ref: snapName.docs[0].ref };
                         }
                         if (existingByName) {
                             this.updateDebug("Found Legacy Name. Linking ID...");
