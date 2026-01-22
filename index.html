@@ -681,7 +681,7 @@
             charts: { monthlyTrend: null, payer: null },
 
             // LIFF Config
-            liffId: "2008948704-db2goT00",
+            liffId: "2008948645-KXHMVFXB",
 
             async init() {
                 this.initBackground();
@@ -731,33 +731,51 @@
             },
 
             async handleLineLoginSuccess(profile) {
-                const userId = profile.userId;
-                const displayName = profile.displayName.toUpperCase();
+                try {
+                    document.getElementById('loading-overlay').classList.remove('hidden');
+                    const userId = profile.userId;
+                    const displayName = profile.displayName.toUpperCase();
 
-                // 1. Check mapping
-                const q = query(collection(db, "members"), where("lineUserId", "==", userId));
-                const snap = await getDocs(q);
+                    // 1. Check mapping
+                    const q = query(collection(db, "members"), where("lineUserId", "==", userId));
+                    const snap = await getDocs(q);
 
-                if (!snap.empty) {
-                    const memberData = snap.docs[0].data();
-                    const role = (memberData.role === 'admin') ? 'admin' : 'member';
-                    this.completeLogin(role, memberData.name);
-                } else {
-                    // 2. Check by Name
-                    const existingMember = this.data.members.find(m => m === displayName);
-
-                    if (existingMember) {
-                        const qName = query(collection(db, "members"), where("name", "==", displayName));
-                        const snapName = await getDocs(qName);
-                        if (!snapName.empty) {
-                            await updateDoc(doc(db, "members", snapName.docs[0].id), { lineUserId: userId });
-                        }
-                        this.completeLogin('member', displayName);
+                    if (!snap.empty) {
+                        const memberData = snap.docs[0].data();
+                        const role = (memberData.role === 'admin') ? 'admin' : 'member';
+                        this.completeLogin(role, memberData.name);
                     } else {
-                        // 3. Create New
-                        await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId });
-                        this.completeLogin('member', displayName);
+                        // 2. Check by Name
+                        // Ensure members are loaded
+                        if (!this.data.members || this.data.members.length === 0) {
+                            // Fallback: Query DB directly if local list is empty
+                            const checkNameSnap = await getDocs(query(collection(db, "members"), where("name", "==", displayName)));
+                            if (!checkNameSnap.empty) {
+                                await updateDoc(doc(db, "members", checkNameSnap.docs[0].id), { lineUserId: userId });
+                                this.completeLogin('member', displayName);
+                                return;
+                            }
+                        }
+
+                        const existingMember = this.data.members.find(m => m === displayName);
+
+                        if (existingMember) {
+                            const qName = query(collection(db, "members"), where("name", "==", displayName));
+                            const snapName = await getDocs(qName);
+                            if (!snapName.empty) {
+                                await updateDoc(doc(db, "members", snapName.docs[0].id), { lineUserId: userId });
+                            }
+                            this.completeLogin('member', displayName);
+                        } else {
+                            // 3. Create New
+                            await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId, role: 'member' });
+                            this.completeLogin('member', displayName);
+                        }
                     }
+                } catch (e) {
+                    console.error(e);
+                    alert("Login failed: " + e.message);
+                    document.getElementById('loading-overlay').classList.add('hidden');
                 }
             },
 
@@ -1398,6 +1416,5 @@
         }
     </script>
 </body>
-
 
 </html>
