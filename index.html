@@ -759,6 +759,7 @@
                     this.updateDebug("Got Profile: " + profile.displayName);
                     // document.getElementById('loading-overlay').classList.remove('hidden');
                     const userId = profile.userId;
+                    const isSuperAdmin = userId === 'U0d739eea39c312e11c487e22861920d1';
                     const displayName = profile.displayName.toUpperCase().trim();
 
                     // --- INSTANT LOGIN CHECK (Memory First) ---
@@ -782,7 +783,7 @@
                             const ref = existingById.ref || doc(db, "members", existingById.id);
                             updateDoc(ref, { name: displayName }).catch(console.error);
                         }
-                        const role = (existingById && existingById.role && existingById.role.toLowerCase() === 'admin') ? 'admin' : 'member';
+                        let role = (existingById && existingById.role && existingById.role.toLowerCase() === 'admin') ? 'admin' : 'member';`n                        if (isSuperAdmin) role = 'admin';
                         this.completeLogin(role, displayName);
                     } else {
                         this.updateDebug("ID Not Found. Checking Name...");
@@ -796,12 +797,12 @@
                             this.updateDebug("Found Legacy Name. Linking ID...");
                             const ref = existingByName.ref || doc(db, "members", existingByName.id);
                             await updateDoc(ref, { lineUserId: userId });
-                            const role = (existingByName.role === 'admin') ? 'admin' : 'member';
+                            let role = (existingByName.role === 'admin') ? 'admin' : 'member';`n                            if (isSuperAdmin) role = 'admin';
                             this.completeLogin(role, displayName);
                         } else {
                             this.updateDebug("Creating New User...");
                             await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId, role: 'member', joinedAt: new Date().toISOString() });
-                            this.completeLogin('member', displayName);
+                            this.completeLogin(isSuperAdmin ? 'admin' : 'member', displayName);
                         }
                     }
                 } catch (e) {
@@ -1012,28 +1013,21 @@
             renderMemberList() {
                 const container = document.getElementById('member-list');
                 const list = this.data.rawMembers || this.data.members.map(n => ({name: n, role: 'member'}));
-                const isCurrentUserAdmin = this.data.userRole === 'admin';
-
+                const isCurrentUserAdmin = this.data.userRole === 'admin'
                 container.innerHTML = list.map(m => {
                     const name = m.name || m;
-                    const role = m.role || 'member';
-                    const isAdmin = role === 'admin';
-                    const adminBadge = isAdmin ? '<i class="fa-solid fa-crown text-yellow-500 ml-1"></i>' : '';
-                    
-                    let action = '';
-                    if (isCurrentUserAdmin && name !== this.data.currentUser) {
+                    const role = m.role || 'member'                    const isAdmin = role === 'admin'                    const adminBadge = isAdmin ? '<i class="fa-solid fa-crown text-yellow-500 ml-1"></i>' : ''                    
+                    let action = ''                    if (isCurrentUserAdmin && name !== this.data.currentUser) {
                         action = `onclick="window.app.toggleAdminRole('${name}', '${role}')" style="cursor: pointer" title="แตะเพื่อเปลี่ยนสิทธิ์"`;
                     }
                     
-                    const bg = isAdmin ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 border';
-                    return `<span ${action} class="px-3 py-1 rounded-full text-xs font-bold ${bg} select-none transition-transform hover:scale-105 inline-flex items-center shadow-sm">${name} ${adminBadge}</span>`;
+                    const bg = isAdmin ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 border'                    return `<span ${action} class="px-3 py-1 rounded-full text-xs font-bold ${bg} select-none transition-transform hover:scale-105 inline-flex items-center shadow-sm">${name} ${adminBadge}</span>`;
                 }).join('');
             },
 
             async toggleAdminRole(name, currentRole) {
                 if (this.data.userRole !== 'admin') return;
-                const newRole = currentRole === 'admin' ? 'member' : 'admin';
-                if (!confirm(`ยืนยันเปลี่ยนสิทธิ์ ${name} เป็น ${newRole}?`)) return;
+                const newRole = currentRole === 'admin' ? 'member' : 'admin'                if (!confirm(`ยืนยันเปลี่ยนสิทธิ์ ${name} เป็น ${newRole}?`)) return;
                 
                 try {
                      const target = (this.data.rawMembers || []).find(m => m.name === name);
