@@ -701,14 +701,7 @@
                     if (statusEl) statusEl.innerHTML = `<span class="text-green-500 font-bold"><i class="fa-solid fa-circle text-[6px]"></i> Online</span>`;
                 });
 
-                // Safety Timeout: Force hide overlay after 5 seconds
-                setTimeout(() => {
-                    const ov = // document.getElementById('loading-overlay');
-                    if (!ov.classList.contains('hidden')) {
-                        console.warn("Loading timeout - force hiding overlay");
-                        ov.classList.add('hidden');
-                    }
-                }, 5000); // 5 seconds max
+                // Safety Timeout Removed
             },
 
             updateDebug(msg) {
@@ -1519,6 +1512,7 @@
 </body>
 
 </html>
+
 
 
 
