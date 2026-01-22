@@ -51,7 +51,7 @@ export default async function handler(req, res) {
                     type: "text",
                     text: `${d.amount.toLocaleString()} ฿`,
                     size: "sm",
-                    color: "#111111",
+                    color: "#1e293b", // Dark text for amount
                     weight: "bold",
                     align: "end",
                     flex: 3
@@ -59,39 +59,40 @@ export default async function handler(req, res) {
             ]
         }));
 
-        // 3. ประกอบร่าง Flex Message (JSON Template)
+        // 3. ประกอบร่าง Flex Message (JSON Template) - Dark Theme
         const flexMessage = {
             type: "flex",
-            altText: `สรุปยอดเคลียร์เงินเดือน ${month}`, // ข้อความที่ขึ้นแจ้งเตือนก่อนกดเข้ามาดู
+            altText: `สรุปยอดเคลียร์เงินเดือน ${month}`,
             contents: {
                 type: "bubble",
                 size: "giga",
                 header: {
                     type: "box",
                     layout: "vertical",
-                    backgroundColor: "#f0fdf4",
+                    backgroundColor: "#334155", // <-- พื้นหลังสีเทาเข้ม (Slate 700)
                     paddingAll: "xl",
                     contents: [
                         {
                             type: "text",
-                            text: "ADMIN REPORT",
-                            color: "#166534",
+                            text: "DEPT REPORT", // <-- เปลี่ยนเป็น DEPT REPORT
+                            color: "#94a3b8", // สีเทาอ่อน
                             size: "xxs",
-                            weight: "bold"
+                            weight: "bold",
+                            letterSpacing: "md"
                         },
                         {
                             type: "text",
                             text: "สรุปยอดเคลียร์เงิน 💸",
                             weight: "bold",
                             size: "xl",
-                            color: "#15803d",
+                            color: "#ffffff", // สีขาว
                             margin: "xs"
                         },
                         {
                             type: "text",
                             text: `ประจำเดือน: ${month}`,
                             size: "xs",
-                            color: "#86efac",
+                            color: "#cbd5e1", // สีเทาขาว
                             margin: "xs"
                         }
                     ]
@@ -99,26 +100,27 @@ export default async function handler(req, res) {
                 body: {
                     type: "box",
                     layout: "vertical",
+                    backgroundColor: "#ffffff",
                     contents: [
                         {
                             type: "text",
                             text: "รายการที่ต้องโอน",
                             weight: "bold",
                             size: "sm",
-                            color: "#333333",
+                            color: "#334155",
                             margin: "md"
                         },
                         {
                             type: "separator",
                             margin: "md",
-                            color: "#f0f0f0"
+                            color: "#f1f5f9"
                         },
                         // ใส่รายการหนี้ที่สร้างไว้ข้างบน
                         ...debtRows,
                         {
                             type: "separator",
                             margin: "xl",
-                            color: "#f0f0f0"
+                            color: "#f1f5f9"
                         }
                     ]
                 },
@@ -130,7 +132,7 @@ export default async function handler(req, res) {
                             type: "text",
                             text: "กรุณาตรวจสอบและโอนเงินให้เรียบร้อย",
                             size: "xxs",
-                            color: "#aaaaaa",
+                            color: "#94a3b8",
                             align: "center"
                         },
                         {
@@ -138,11 +140,12 @@ export default async function handler(req, res) {
                             action: {
                                 type: "uri",
                                 label: "เปิดแอป Dept Money",
-                                uri: "https://dept-game.vercel.app/" // เปลี่ยนเป็น URL เว็บของคุณ
+                                uri: "https://dept-three.vercel.app/" // อย่าลืมเปลี่ยนเป็น URL จริงของคุณ
                             },
                             style: "primary",
-                            color: "#15803d",
-                            margin: "md"
+                            color: "#334155", // ปุ่มสีเทาเข้ม เข้าธีม
+                            margin: "md",
+                            height: "sm"
                         }
                     ]
                 }
@@ -185,5 +188,3 @@ export default async function handler(req, res) {
         return res.status(500).json({ message: 'Internal Server Error', error: error.message });
     }
 }
-
-
