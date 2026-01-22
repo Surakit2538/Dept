@@ -750,8 +750,11 @@
                     if (!liff.isLoggedIn()) {
                         try {
                             this.updateDebug("Redirecting to LINE...");
-                            // Enable auto login redirect
-                            liff.login({ redirectUri: window.location.href });
+                            // Enable auto login redirect with explicit scopes
+                            liff.login({
+                                redirectUri: window.location.href,
+                                scope: 'profile openid'
+                            });
                         } catch (e) {
                             throw new Error("liff.login failed: " + e.message);
                         }
