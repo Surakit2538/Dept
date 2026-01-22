@@ -777,60 +777,52 @@
                     const userId = profile.userId;
                     const displayName = profile.displayName.toUpperCase().trim();
 
-                    // 1. Check mapping
-                    this.updateDebug("Checking Database...");
-                    const q = query(collection(db, "members"), where("lineUserId", "==", userId));
-                    const snap = await getDocs(q);
+                    // --- INSTANT LOGIN CHECK (Memory First) ---
+                    this.updateDebug("Checking Cache...");
+                    
+                    let existingById = (this.data.rawMembers || []).find(m => m.lineUserId === userId);
+                    let usedCache = true;
 
-                    if (!snap.empty) {
-                        // --- EXISTING USER ---
-                        this.updateDebug("User Found. Updating info...");
-                        const docRef = snap.docs[0].ref;
-                        const memberData = snap.docs[0].data();
-                        
-                        // Check if name changed
-                        if (memberData.name !== displayName) {
-                             this.updateDebug(`Name changed: ${memberData.name} -> ${displayName}`);
-                             await updateDoc(docRef, { name: displayName });
+                    if (!this.data.rawMembers || this.data.rawMembers.length === 0) {
+                         this.updateDebug("Cache empty. Fallback to DB...");
+                         usedCache = false;
+                         const q = query(collection(db, "members"), where("lineUserId", "==", userId));
+                         const snap = await getDocs(q);
+                         if (!snap.empty) existingById = { ...snap.docs[0].data(), id: snap.docs[0].id, ref: snap.docs[0].ref };
+                    }
+
+                    if (existingById) {
+                        this.updateDebug("User Found (" + (usedCache ? "Cache" : "DB") + ")");
+                        if (existingById.name !== displayName) {
+                            this.updateDebug(`Name update queued: ${existingById.name} -> ${displayName}`);
+                            const ref = existingById.ref || doc(db, "members", existingById.id);
+                            updateDoc(ref, { name: displayName }).catch(console.error);
                         }
-                        
-                        const role = (memberData.role === 'admin') ? 'admin' : 'member';
+                        const role = (existingById.role === 'admin') ? 'admin' : 'member';
                         this.completeLogin(role, displayName);
                     } else {
-                        // 2. Check by Name (Legacy check removed)
-                        this.updateDebug("Member Not Found by ID. Checking Name... (DB Only)");
-
-                        // --- NEW USER (No ID match) ---
-                        this.updateDebug("New ID. Checking legacy name match...");
-                        
-                        // Try to find a member with this name w/o ID (Legacy migration)
-                        const qName = query(collection(db, "members"), where("name", "==", displayName));
-                        const snapName = await getDocs(qName);
-
-                        if(!snapName.empty) {
-                             // Found Legacy Name -> Link ID
-                             this.updateDebug("Found Legacy Name. Linking ID...");
-                             const docRef = snapName.docs[0].ref;
-                             await updateDoc(docRef, { lineUserId: userId });
-                             
-                             const memberData = snapName.docs[0].data();
-                             const role = (memberData.role === 'admin') ? 'admin' : 'member';
-                             this.completeLogin(role, displayName);
+                        this.updateDebug("ID Not Found. Checking Name...");
+                        let existingByName = (this.data.rawMembers || []).find(m => m.name === displayName);
+                        if (!usedCache && !existingByName) {
+                             const qName = query(collection(db, "members"), where("name", "==", displayName));
+                             const snapName = await getDocs(qName);
+                             if (!snapName.empty) existingByName = { ...snapName.docs[0].data(), id: snapName.docs[0].id, ref: snapName.docs[0].ref };
+                        }
+                        if (existingByName) {
+                            this.updateDebug("Found Legacy Name. Linking ID...");
+                            const ref = existingByName.ref || doc(db, "members", existingByName.id);
+                            await updateDoc(ref, { lineUserId: userId });
+                            const role = (existingByName.role === 'admin') ? 'admin' : 'member';
+                            this.completeLogin(role, displayName);
                         } else {
-                            // Truly New User -> Create
                             this.updateDebug("Creating New User...");
-                            await addDoc(collection(db, "members"), { 
-                                name: displayName, 
-                                lineUserId: userId, 
-                                role: 'member',
-                                joinedAt: new Date().toISOString()
-                            });
+                            await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId, role: 'member', joinedAt: new Date().toISOString() });
                             this.completeLogin('member', displayName);
                         }
                     }
                 } catch (e) {
                     console.error(e);
-                    this.updateDebug("DB Error: " + e.message);
+                    this.updateDebug("Login Error: " + e.message);
                     alert("Login failed: " + e.message);
                     document.getElementById('loading-overlay').classList.add('hidden');
                 }
