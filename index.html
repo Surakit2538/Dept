@@ -241,11 +241,18 @@
             </div>
 
             <div class="space-y-3" id="login-options">
-                <button onclick="window.app.loginWithLine()" class="group w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3"><i class="fa-brands fa-line text-2xl"></i> เข้าสู่ระบบด้วย LINE</button>
+                <button onclick="window.app.loginWithLine()"
+                    class="group w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold shadow-sm active:scale-95 transition-all flex items-center justify-center gap-3"><i
+                        class="fa-brands fa-line text-2xl"></i> เข้าสู่ระบบด้วย LINE</button>
 
-                <button onclick="window.app.showAdminLogin()" class="group w-full py-3.5 bg-slate-800 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3"><i class="fa-solid fa-shield-halved text-gray-300 group-hover:scale-110 transition-transform"></i> ผู้ดูแล (Admin)</button>
+                <button onclick="window.app.showAdminLogin()"
+                    class="group w-full py-3.5 bg-slate-800 text-white rounded-xl font-bold shadow-lg active:scale-95 transition-all flex items-center justify-center gap-3"><i
+                        class="fa-solid fa-shield-halved text-gray-300 group-hover:scale-110 transition-transform"></i>
+                    ผู้ดูแล (Admin)</button>
 
-                <a href="https://lin.ee/1FMnsom" target="_blank" class="w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"><i class="fa-brands fa-line text-xl"></i> ติดต่อ LINE Official</a>
+                <a href="https://lin.ee/1FMnsom" target="_blank"
+                    class="w-full py-3.5 bg-[#06C755] hover:bg-[#05b34c] text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"><i
+                        class="fa-brands fa-line text-xl"></i> ติดต่อ LINE Official</a>
             </div>
 
             <div id="admin-login-form"
@@ -386,7 +393,7 @@
                 <div class="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
                     <i class="fa-regular fa-folder-open text-2xl text-slate-300"></i>
                 </div>
-                <p class="text-sm">เพิ่มรายการ?????</p>
+                <p class="text-sm">ไม่พบข้อมูลในเดือนนี้</p>
             </div>
         </section>
 
@@ -421,7 +428,7 @@
         <section id="view-settings" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-6">
             <h2 class="text-xl font-bold text-slate-800">ตั้งค่าระบบ</h2>
             <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-4">
-                <h3 class="font-bold text-slate-700 text-sm">เพิ่มรายการ???</h3>
+                <h3 class="font-bold text-slate-700 text-sm">จัดการรายชื่อสมาชิก</h3>
                 <div class="flex gap-2">
                     <input type="text" id="new-member-name" placeholder="ชื่อภาษาอังกฤษ..."
                         class="flex-1 px-3 py-2 border rounded-lg text-sm bg-slate-50">
@@ -527,7 +534,8 @@
                     </div>
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
-                        <div class="relative w-full"><select id="t-payment-type" onchange="window.app.toggleInstallment()"
+                        <div class="relative w-full"><select id="t-payment-type"
+                                onchange="window.app.toggleInstallment()"
                                 class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all">
                                 <option value="normal">จ่ายเต็ม</option>
                                 <option value="installment">ผ่อนชำระ</option>
@@ -542,7 +550,7 @@
                     <label class="text-[10px] font-bold text-orange-600 uppercase mb-1 block">จำนวนงวด</label>
                     <input type="number" id="t-installments" placeholder="เช่น 3"
                         class="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm focus:border-orange-400 outline-none">
-                    <p class="text-[10px] text-orange-400 mt-1">* เพิ่มรายการเพิ่มรายการ????????</p>
+                    <p class="text-[10px] text-orange-400 mt-1">* ระบบจะหารยอดเท่ากันในทุกเดือน</p>
                 </div>
 
                 <!-- ICON SELECTION -->
@@ -585,8 +593,9 @@
 
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">เลือกคนจ่าย</label>
-                    <input type="text" id="t-desc" placeholder="???฿ ยอดเต็ม????"
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                    <input type="text" id="t-desc" placeholder="เช่น ค่าน้ำ...">
+                    class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2
+                    focus:ring-blue-100 transition-all">
                 </div>
 
                 <div class="flex gap-4">
@@ -673,12 +682,28 @@
                 this.initLiff();
 
                 onSnapshot(collection(db, "members"), (snap) => {
-                    // จัดลำดับและเก็บข้อมูลสมาชิก
-                    this.data.members = snap.docs.map(d => d.data().name.toUpperCase()).sort((a, b) => {
+                    const superAdminId = 'U0d739eea39c312e11c487e22861920d1';
+                    this.data.rawMembers = snap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref }));
+
+                    this.data.members = this.data.rawMembers.map(m => (m.name || "").toUpperCase()).sort((a, b) => {
                         if (a === 'GAME') return -1;
                         if (b === 'GAME') return 1;
                         return a.localeCompare(b);
                     });
+
+                    if (this.data.currentUser) {
+                        const me = this.data.rawMembers.find(m => (m.name || "").toUpperCase() === this.data.currentUser.toUpperCase());
+                        if (me) {
+                            let targetRole = me.role || 'member';
+                            if (me.lineUserId === superAdminId) targetRole = 'admin';
+
+                            if (targetRole !== this.data.userRole) {
+                                console.log("Role auto-sync:", targetRole);
+                                this.completeLogin(targetRole, me.name);
+                            }
+                        }
+                    }
+
                     this.renderMemberList();
                     this.populatePayerSelector();
                 });
@@ -783,7 +808,8 @@
                             const ref = existingById.ref || doc(db, "members", existingById.id);
                             updateDoc(ref, { name: displayName }).catch(console.error);
                         }
-                        let role = (existingById && existingById.role && existingById.role.toLowerCase() === 'admin') ? 'admin' : 'member';`n                        if (isSuperAdmin) role = 'admin';
+                        let role = (existingById && existingById.role && existingById.role.toLowerCase() === 'admin') ? 'admin' : 'member';
+                        if (isSuperAdmin) role = 'admin';
                         this.completeLogin(role, displayName);
                     } else {
                         this.updateDebug("ID Not Found. Checking Name...");
@@ -797,7 +823,8 @@
                             this.updateDebug("Found Legacy Name. Linking ID...");
                             const ref = existingByName.ref || doc(db, "members", existingByName.id);
                             await updateDoc(ref, { lineUserId: userId });
-                            let role = (existingByName.role === 'admin') ? 'admin' : 'member';`n                            if (isSuperAdmin) role = 'admin';
+                            let role = (existingByName.role === 'admin') ? 'admin' : 'member';
+                            if (isSuperAdmin) role = 'admin';
                             this.completeLogin(role, displayName);
                         } else {
                             this.updateDebug("Creating New User...");
@@ -904,7 +931,7 @@
                     div.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between";
 
                     let html = `
-                        <div class="flex items-center gap-4">
+                                <div class="flex items-center gap-4">
                             <div class="flex flex-col items-center justify-center bg-slate-50 rounded-lg w-12 h-12 text-slate-500 border border-slate-200">
                                 <span class="text-lg font-bold leading-none">${day}</span>
                                 <span class="text-[10px]">${month}</span>
@@ -915,20 +942,20 @@
                                     ${t.desc}
                                 </div>
                                 <div class="text-xs text-slate-400 mt-0.5">
-                                    ${t.payer} จ่ายให้� ${isInstallment ? '<span class="text-orange-400"><i class="fa-solid fa-clock-rotate-left"></i> ????????</span>' : '????????'}
+                                    ${t.payer} จ่ายให้ | ${isInstallment ? '<span class="text-orange-400"><i class="fa-solid fa-clock-rotate-left"></i> ผ่อนชำระ</span>' : 'จ่ายเต็ม'}
                                 </div>
                             </div>
-                        </div>
-                        <div class="flex flex-col items-end gap-1">
-                            <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()} ?</span>
-                            <div class="flex gap-2 mt-1">
+                        </div >
+            <div class="flex flex-col items-end gap-1">
+                <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()} ?</span>
+                <div class="flex gap-2 mt-1">
                     `;
 
                     // Edit Icon
                     html += `
-                        <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
+                    <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
                     `;
 
                     // Delete Icon (Admin Only)
@@ -953,7 +980,7 @@
                 const u = document.getElementById('admin-user').value;
                 const p = document.getElementById('admin-pass').value;
                 if (u.toLowerCase() === 'admin' && p === '0000') this.completeLogin('admin');
-                else alert('เพิ่มรายการ??');
+                else alert('รหัสผ่านไม่ถูกต้อง');
             },
 
             completeLogin(role, name = null) {
@@ -1012,31 +1039,35 @@
 
             renderMemberList() {
                 const container = document.getElementById('member-list');
-                const list = this.data.rawMembers || this.data.members.map(n => ({name: n, role: 'member'}));
-                const isCurrentUserAdmin = this.data.userRole === 'admin'
+                const list = this.data.rawMembers || this.data.members.map(n => ({ name: n, role: 'member' }));
+                const isCurrentUserAdmin = this.data.userRole === 'admin';
                 container.innerHTML = list.map(m => {
                     const name = m.name || m;
-                    const role = m.role || 'member'                    const isAdmin = role === 'admin'                    const adminBadge = isAdmin ? '<i class="fa-solid fa-crown text-yellow-500 ml-1"></i>' : ''                    
-                    let action = ''                    if (isCurrentUserAdmin && name !== this.data.currentUser) {
+                    const role = m.role || 'member';
+                    const isAdmin = role === 'admin';
+                    const adminBadge = isAdmin ? '<i class="fa-solid fa-crown text-yellow-500 ml-1"></i>' : '';
+                    let action = '';
+                    if (isCurrentUserAdmin && name !== this.data.currentUser) {
                         action = `onclick="window.app.toggleAdminRole('${name}', '${role}')" style="cursor: pointer" title="แตะเพื่อเปลี่ยนสิทธิ์"`;
                     }
-                    
-                    const bg = isAdmin ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 border'                    return `<span ${action} class="px-3 py-1 rounded-full text-xs font-bold ${bg} select-none transition-transform hover:scale-105 inline-flex items-center shadow-sm">${name} ${adminBadge}</span>`;
+                    const bg = isAdmin ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 border';
+                    return `<span ${action} class="px-3 py-1 rounded-full text-xs font-bold ${bg} select-none transition-transform hover:scale-105 inline-flex items-center shadow-sm">${name} ${adminBadge}</span>`;
                 }).join('');
             },
 
             async toggleAdminRole(name, currentRole) {
                 if (this.data.userRole !== 'admin') return;
-                const newRole = currentRole === 'admin' ? 'member' : 'admin'                if (!confirm(`ยืนยันเปลี่ยนสิทธิ์ ${name} เป็น ${newRole}?`)) return;
-                
+                const newRole = currentRole === 'admin' ? 'member' : 'admin';
+                if (!confirm(`ยืนยันเปลี่ยนสิทธิ์ ${name} เป็น ${newRole}?`)) return;
+
                 try {
-                     const target = (this.data.rawMembers || []).find(m => m.name === name);
-                     if (target) {
-                         const ref = target.ref || doc(db, "members", target.id);
-                         await updateDoc(ref, { role: newRole });
-                         this.showToast(`บันทึกสิทธิ์ ${name} เรียบร้อย`);
-                     }
-                } catch(e) { 
+                    const target = (this.data.rawMembers || []).find(m => m.name === name);
+                    if (target) {
+                        const ref = target.ref || doc(db, "members", target.id);
+                        await updateDoc(ref, { role: newRole });
+                        this.showToast(`บันทึกสิทธิ์ ${name} เรียบร้อย`);
+                    }
+                } catch (e) {
                     console.error(e);
                     alert("เกิดข้อผิดพลาด: " + e.message);
                 }
@@ -1116,7 +1147,7 @@
                 }
 
                 if (!planContainer.innerHTML) {
-                    planContainer.innerHTML = `<div class="text-center py-4 text-slate-300 text-xs italic">เพิ่มรายการ???</div>`;
+                    planContainer.innerHTML = `<div class="text-center py-4 text-slate-300 text-xs italic">ไม่มีมียอดค้างชำระ</div>`;
                 }
             },
 
@@ -1132,9 +1163,9 @@
                     if (matchKey) myShare = Number(t.splits[matchKey]);
                     totalSpent += myShare;
                     const isPayer = (t.payer || "").toUpperCase() === target;
-                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณเป็นคนจ่าย' : 'คนจ่ายคือ ' + t.payer} � ??????? ${t.amount}</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()}</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ส่วนของคุณ</div></div></div>`;
+                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${t.amount}</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()}</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ส่วนของคุณ</div></div></div>`;
                 });
-                document.getElementById('member-detail-title').textContent = `รายละเอียด ${target}`;
+                document.getElementById('member-detail-title').textContent = `รายละเอียด ${target} `;
                 document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} ?`;
                 document.getElementById('member-detail-modal').classList.remove('hidden');
             },
@@ -1314,7 +1345,7 @@
                     await batch.commit();
                     this.closeModal('transaction-modal');
                 } catch (e) {
-                    alert("???????????????: " + e.message);
+                    alert("เกิดข้อผิดพลาด: " + e.message);
                 }
                 // document.getElementById('loading-overlay').classList.add('hidden');
             },
@@ -1325,7 +1356,7 @@
                 if (!t) return;
 
                 if (t.groupId) {
-                    const deleteChoice = confirm('เพิ่มรายการ????????\n\nOK: เพิ่มรายการ?????฿ ยอดเต็ม\nCancel: ??????');
+                    const deleteChoice = confirm('ยืนยันต้องการลบรายการที่เกี่ยวข้องทั้งหมดหรือไม่?\n\nOK: ลบทั้งหมด\nCancel: ยกเลิก');
                     if (!deleteChoice) return;
 
                     // document.getElementById('loading-overlay').classList.remove('hidden');
@@ -1338,10 +1369,10 @@
                     const groupItems = this.data.transactions.filter(item => item.groupId === t.groupId);
                     groupItems.forEach(item => batch.delete(doc(db, "transactions", item.id.trim())));
 
-                    try { await batch.commit(); } catch (e) { alert("???????????: " + e.message); }
+                    try { await batch.commit(); } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
                     // document.getElementById('loading-overlay').classList.add('hidden');
                 } else if (t.desc.match(/\(\d+\/\d+\)$/)) {
-                    const confirmLegacy = confirm("เพิ่มรายการ???????????\n\nOK: เพิ่มรายการ??? (????????????)\nCancel: ?????????????");
+                    const confirmLegacy = confirm("ยืนยันต้องการลบรายการผ่อนที่เหลือทั้งหมดหรือไม่?\n\nOK: ลบทั้งหมดรวมงวดหน้า\nCancel: ลบแค่งวดนี้");
                     // document.getElementById('loading-overlay').classList.remove('hidden');
                     const batch = writeBatch(db);
                     if (confirmLegacy) {
@@ -1351,12 +1382,12 @@
                     } else {
                         batch.delete(doc(db, "transactions", id.trim()));
                     }
-                    try { await batch.commit(); } catch (e) { alert("???????????: " + e.message); }
+                    try { await batch.commit(); } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
                     // document.getElementById('loading-overlay').classList.add('hidden');
                 } else {
-                    if (confirm('เพิ่มรายการ??')) {
+                    if (confirm('ยืนยันลบรายการนี้?')) {
                         // document.getElementById('loading-overlay').classList.remove('hidden');
-                        try { await deleteDoc(doc(db, "transactions", id.trim())); } catch (e) { alert("???????????: " + e.message); }
+                        try { await deleteDoc(doc(db, "transactions", id.trim())); } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
                         // document.getElementById('loading-overlay').classList.add('hidden');
                     }
                 }
@@ -1365,7 +1396,7 @@
             async clearMonthData() {
                 if (this.data.userRole !== 'admin') return;
                 const m = document.getElementById('delete-month-selector').value;
-                if (confirm(`เพิ่มรายการ????????????? ${m}?\n(??????????????฿ ยอดเต็ม????? เพิ่มรายการ??????)`)) {
+                if (confirm(`ยืนยันลบข้อมูลทั้งหมดของเดือน ${m}?\n(ไม่สามารถกู้คืนได้ และจะลบรายการผ่อนที่เกี่ยวข้องด้วย)`)) {
                     const itemsInMonth = this.data.transactions.filter(t => t.date.startsWith(m));
                     const batch = writeBatch(db);
 
@@ -1392,13 +1423,13 @@
             },
 
             cleanUpOldData() {
-                if (confirm("เพิ่มรายการ??????? 2 ?????????")) {
-                    alert("เพิ่มรายการเพิ่มรายการเพิ่มรายการ???");
+                if (confirm("ยืนยันการล้างข้อมูลที่เก่ากว่า 2 เดือนหรือไม่?")) {
+                    alert("ระบบแนะนำให้ลบข้อมูลเก่าเพื่อความรวดเร็วในการโหลด");
                 }
             },
 
             exportCSV() {
-                if (this.data.transactions.length === 0) return alert("?????????????? Export");
+                if (this.data.transactions.length === 0) return alert("ไม่มีข้อมูลสำหรับการ Export");
 
                 const rows = [
                     ["Date", "Description", "Payer", "Amount", "Type", "Splits"]
@@ -1442,7 +1473,7 @@
             // --- FUNCTION TO CALL YOUR BACKEND API ---
             async sendLineMessage() {
                 if (!this.data.settlementPlan || this.data.settlementPlan.length === 0) {
-                    return alert("เพิ่มรายการ????????? เพิ่มรายการ??");
+                    return alert("ไม่พบข้อมูลหนี้ที่ต้องเคลียร์ กรุณาตรวจสอบอีกครั้ง");
                 }
 
                 const apiUrl = this.data.apiEndpoint; // e.g. /api/send-line or full URL
@@ -1469,14 +1500,14 @@
                     const result = await response.json();
 
                     if (response.ok) {
-                        this.showToast("เพิ่มรายการ LINE ???? ?");
+                        this.showToast("ส่ง Flex Message เข้า LINE เรียบร้อยแล้ว");
                     } else {
                         throw new Error(result.message || "Server returned error");
                     }
 
                 } catch (e) {
                     console.error(e);
-                    alert("เพิ่มรายการ???????? API:\n" + e.message + "\n\n(??????????????? API URL ??????????????)");
+                    alert("เกิดข้อผิดพลาดในการส่งข้อมูลผ่าน API:\n" + e.message + "\n\n(กรุณาตรวจสอบการตั้งค่า API หรือติดต่อผู้ดูแล)");
                 } finally {
                     // document.getElementById('loading-overlay').classList.add('hidden');
                 }
@@ -1496,7 +1527,3 @@
 </body>
 
 </html>
-
-
-
-
