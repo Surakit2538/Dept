@@ -1,4 +1,4 @@
-<!-- 
+﻿<!-- 
     Mobile-First Expense Tracker (V57 - Fix Init Error)
     Project: deptmoney-6682a
     Updates:
@@ -775,7 +775,7 @@
                     this.updateDebug("Got Profile: " + profile.displayName);
                     document.getElementById('loading-overlay').classList.remove('hidden');
                     const userId = profile.userId;
-                    const displayName = profile.displayName.toUpperCase();
+                    const displayName = profile.displayName.toUpperCase().trim();
 
                     // 1. Check mapping
                     this.updateDebug("Checking Database...");
@@ -783,36 +783,48 @@
                     const snap = await getDocs(q);
 
                     if (!snap.empty) {
-                        this.updateDebug("Member Found. Logging in...");
+                        // --- EXISTING USER ---
+                        this.updateDebug("User Found. Updating info...");
+                        const docRef = snap.docs[0].ref;
                         const memberData = snap.docs[0].data();
-                        const role = (memberData.role === 'admin') ? 'admin' : 'member';
-                        this.completeLogin(role, memberData.name);
-                    } else {
-                        // 2. Check by Name
-                        this.updateDebug("Member Not Found by ID. Checking Name...");
-
-                        // Ensure members are loaded
-                        let existingMember = this.data.members.find(m => m === displayName);
-
-                        if (!existingMember && (!this.data.members || this.data.members.length === 0)) {
-                            // Fallback fetch
-                            this.updateDebug("Fetching member list...");
-                            const checkNameSnap = await getDocs(query(collection(db, "members"), where("name", "==", displayName)));
-                            if (!checkNameSnap.empty) existingMember = displayName;
+                        
+                        // Check if name changed
+                        if (memberData.name !== displayName) {
+                             this.updateDebug(`Name changed: ${memberData.name} -> ${displayName}`);
+                             await updateDoc(docRef, { name: displayName });
                         }
+                        
+                        const role = (memberData.role === 'admin') ? 'admin' : 'member';
+                        this.completeLogin(role, displayName);
+                    } else {
+                        // 2. Check by Name (Legacy check removed)
+                        this.updateDebug("Member Not Found by ID. Checking Name... (DB Only)");
 
-                        if (existingMember) {
-                            this.updateDebug("Found by Name. Linking...");
-                            const qName = query(collection(db, "members"), where("name", "==", displayName));
-                            const snapName = await getDocs(qName);
-                            if (!snapName.empty) {
-                                await updateDoc(doc(db, "members", snapName.docs[0].id), { lineUserId: userId });
-                            }
-                            this.completeLogin('member', displayName);
+                        // --- NEW USER (No ID match) ---
+                        this.updateDebug("New ID. Checking legacy name match...");
+                        
+                        // Try to find a member with this name w/o ID (Legacy migration)
+                        const qName = query(collection(db, "members"), where("name", "==", displayName));
+                        const snapName = await getDocs(qName);
+
+                        if(!snapName.empty) {
+                             // Found Legacy Name -> Link ID
+                             this.updateDebug("Found Legacy Name. Linking ID...");
+                             const docRef = snapName.docs[0].ref;
+                             await updateDoc(docRef, { lineUserId: userId });
+                             
+                             const memberData = snapName.docs[0].data();
+                             const role = (memberData.role === 'admin') ? 'admin' : 'member';
+                             this.completeLogin(role, displayName);
                         } else {
-                            // 3. Create New
-                            this.updateDebug("New Member. Creating...");
-                            await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId, role: 'member' });
+                            // Truly New User -> Create
+                            this.updateDebug("Creating New User...");
+                            await addDoc(collection(db, "members"), { 
+                                name: displayName, 
+                                lineUserId: userId, 
+                                role: 'member',
+                                joinedAt: new Date().toISOString()
+                            });
                             this.completeLogin('member', displayName);
                         }
                     }
