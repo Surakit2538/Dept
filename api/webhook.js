@@ -238,7 +238,7 @@ async function handleImageMessage(event) {
 
 async function checkExpense(userId, replyToken) {
     const name = await getMemberNameByLineId(userId);
-    if (!name) return replyText(replyToken, "⚠️ ไม่พบชื่อสมาชิกของคุณ\nกรุณา Login เข้าเว็บตามลิงค์นี้เพื่อผูกบัญชีก่อนครับ: https://dept-three.vercel.app/"); // Replace URL
+    if (!name) return replyText(replyToken, "⚠️ ไม่พบชื่อสมาชิกของคุณ\nกรุณา Login เข้าเว็บตามลิงค์นี้เพื่อผูกบัญชีก่อนครับ: https://dept-game.vercel.app/");
 
     // Calculate Debt (Simplified version of Frontend Logic)
     // Needs to query ALL transactions for this month.
