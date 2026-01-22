@@ -779,6 +779,23 @@
                 }
             },
 
+            completeLogin(role, name) {
+                this.data.userRole = role;
+                this.data.currentUser = name; // Store current user
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+
+                // Update UI with user info if needed
+                const nameDisplay = document.getElementById('user-name-display');
+                if (nameDisplay) nameDisplay.textContent = name;
+
+                if (role === 'admin') document.body.classList.add('is-admin');
+
+                this.navigate('dashboard');
+                this.showToast(`ยินดีต้อนรับ ${name}`);
+                document.getElementById('loading-overlay').classList.add('hidden');
+            },
+
             initBackground() {
                 const container = document.getElementById('login-particles');
                 if (!container) return;
