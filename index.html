@@ -681,7 +681,7 @@
             charts: { monthlyTrend: null, payer: null },
 
             // LIFF Config
-            liffId: "2008948645-KXHMVFXB",
+            liffId: "2008948704-db2goT00",
 
             async init() {
                 this.initBackground();
@@ -722,8 +722,18 @@
             },
 
             async loginWithLine() {
+                // alert("Button Clicked!"); // Debug trigger
+                if (typeof liff === 'undefined') {
+                    alert("LIFF SDK not loaded. Check internet connection.");
+                    return;
+                }
+
                 if (!liff.isLoggedIn()) {
-                    try { await liff.login(); } catch (e) { alert("Login Error: " + e.message); }
+                    try {
+                        await liff.login();
+                    } catch (e) {
+                        alert("Login Error: " + e.message);
+                    }
                 } else {
                     const profile = await liff.getProfile();
                     this.handleLineLoginSuccess(profile);
