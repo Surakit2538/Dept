@@ -58,7 +58,10 @@ async function handleTextMessage(event) {
             data: {},
             lastUpdated: serverTimestamp()
         });
-        return replyText(replyToken, "📝 เริ่มจดบันทึกนะครับ\nรายการค่าอะไรครับ?");
+
+        // UPDATE: ใช้ Flex Message + Icon
+        const flex = createBubbleWithIcon("จดรายการใหม่ 📝", "พิมพ์ชื่อรายการมาได้เลยครับ", "https://img.icons8.com/color/96/create-new.png");
+        return replyFlex(replyToken, "เริ่มจดบันทึก", flex);
     }
 
     // --- COMMAND 3: ยกเลิก ---
@@ -72,7 +75,6 @@ async function handleTextMessage(event) {
     const sessionSnap = await getDoc(sessionRef);
 
     if (!sessionSnap.exists()) {
-        // If not in session and not a command, ignore or give hint
         if (text.includes("หวัดดี") || text.includes("hi")) return replyText(replyToken, "สวัสดีครับ พิมพ์ 'เริ่มต้นจดบันทึก' เพื่อเริ่มใช้งานได้เลย");
         return;
     }
@@ -81,58 +83,108 @@ async function handleTextMessage(event) {
     const step = session.step;
     const data = session.data || {};
 
-    // FLOW: DESC -> AMOUNT -> PAYER -> SPLIT
+    // FLOW: DESC -> AMOUNT -> PAYMENT_TYPE -> [INSTALLMENTS] -> PAYER -> SPLIT
     if (step === 'ASK_DESC') {
         const desc = text;
         await setDoc(sessionRef, { step: 'ASK_AMOUNT', data: { ...data, desc } }, { merge: true });
-        return replyText(replyToken, `ค่า "${desc}" นะครับ\nแล้วราคาเท่าไหร่ครับ?`);
+
+        const flex = createBubbleWithIcon("ราคาเท่าไหร่?", `รายการ: ${desc}`, "https://img.icons8.com/color/96/money-bag-baht.png");
+        return replyFlex(replyToken, "ระบุราคา", flex);
     }
 
     if (step === 'ASK_AMOUNT') {
         const amount = parseFloat(text.replace(/,/g, ''));
         if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ ขอเป็นตัวเลขนะครับ\nราคาเท่าไหร่ครับ?");
 
-        await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, amount } }, { merge: true });
+        await setDoc(sessionRef, { step: 'ASK_PAYMENT_TYPE', data: { ...data, amount } }, { merge: true });
+
+        const actions = [
+            { type: "action", action: { type: "message", label: "ชำระเต็มจำนวน", text: "ชำระเต็ม" } },
+            { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } }
+        ];
+        const flex = createBubbleWithIcon("รูปแบบการจ่าย?", `ยอดเงิน ${amount.toLocaleString()} บาท`, "https://img.icons8.com/color/96/card-exchange.png");
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    if (step === 'ASK_PAYMENT_TYPE') {
+        if (text.includes("ผ่อน")) {
+            await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
+            const flex = createBubbleWithIcon("ผ่อนกี่เดือน?", "ระบุจำนวนงวด (2-24)", "https://img.icons8.com/color/96/calendar--v1.png");
+            return replyFlex(replyToken, "ระบุจำนวนงวด", flex);
+        } else {
+            await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, paymentType: 'normal', installments: 1 } }, { merge: true });
+            const members = await getMemberNames();
+            const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
+            const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ยอดเงิน ${data.amount.toLocaleString()} บาท (จ่ายเต็ม)`, "https://img.icons8.com/color/96/user-male-circle--v1.png");
+            return replyQuickReply(replyToken, flex, actions);
+        }
+    }
+
+    if (step === 'ASK_INSTALLMENTS') {
+        let installments = parseInt(text);
+        if (isNaN(installments) || installments < 2) installments = 2;
+        await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, installments } }, { merge: true });
 
         const members = await getMemberNames();
-        const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-        const flex = createBubble("ใครเป็นคนจ่ายครับ?", `ยอดเงิน ${amount.toLocaleString()} บาท`);
+        const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
+        const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ผ่อน ${installments} เดือน (${(data.amount / installments).toLocaleString()} ฿/ด)`, "https://img.icons8.com/color/96/user-male-circle--v1.png");
         return replyQuickReply(replyToken, flex, actions);
     }
 
     if (step === 'ASK_PAYER') {
         const payer = text.toUpperCase();
-        // Validate Member
         const members = await getMemberNames();
         if (!members.includes(payer)) return replyText(replyToken, `⚠️ ไม่รู้จักชื่อ "${payer}" ครับ\nลองเลือกจากรายการด้านล่างครับ`);
 
-        await setDoc(sessionRef, { step: 'ASK_SPLIT', data: { ...data, payer } }, { merge: true });
+        await setDoc(sessionRef, { step: 'ASK_SPLIT', data: { ...data, payer, participants: [] } }, { merge: true });
 
         const actions = [
-            { type: "action", action: { type: "message", label: "ทุกคน (หารเท่า)", text: "ทุกคน" } },
-            ...members.map(m => ({ type: "action", action: { type: "message", label: `หารแค่ ${m}`, text: m } }))
+            { type: "action", action: { type: "message", label: "✅ ยืนยัน", text: "ตกลง" } },
+            { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
+            ...members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }))
         ];
-        const flex = createBubble("ใครหารบ้างครับ?", "เลือก 'ทุกคน' หรือพิมพ์ชื่อเว้นวรรค");
+        const flex = createBubbleWithIcon("ใครหารบ้าง?", "กดเลือกรายชื่อ (กดซ้ำเพื่อยกเลิก)\nแล้วกด 'ยืนยัน'", "https://img.icons8.com/color/96/conference-call.png");
         return replyQuickReply(replyToken, flex, actions);
     }
 
     if (step === 'ASK_SPLIT') {
         const members = await getMemberNames();
-        let participants = [];
+        let currentParticipants = data.participants || [];
 
         if (text === 'ทุกคน') {
-            participants = [...members];
-        } else {
-            // Split by space
-            const names = text.split(/[\s,]+/).map(n => n.trim().toUpperCase()).filter(n => n);
-            participants = names.filter(n => members.includes(n));
+            currentParticipants = [...members];
+            return await saveTransaction(replyToken, userId, { ...data, participants: currentParticipants, splitMethod: 'equal' });
         }
 
-        if (participants.length === 0) return replyText(replyToken, "⚠️ ไม่พบรายชื่อสมาชิกที่ระบุครับ\nใครหารบ้างครับ? (พิมพ์ใหม่)");
+        if (text === 'ตกลง' || text === 'ยืนยัน' || text === '✅ ตกลง') {
+            if (currentParticipants.length === 0) return replyText(replyToken, "⚠️ กรุณาเลือกอย่างน้อย 1 คนครับ");
+            return await saveTransaction(replyToken, userId, { ...data, participants: currentParticipants, splitMethod: 'equal' });
+        }
 
-        // Save Transaction
-        const finalData = { ...data, participants, splitMethod: 'equal' }; // Default to equal split for Chatbot simplicity
-        return await saveTransaction(replyToken, userId, finalData);
+        // Toggle Logic
+        const inputName = text.toUpperCase();
+        if (members.includes(inputName)) {
+            if (currentParticipants.includes(inputName)) {
+                currentParticipants = currentParticipants.filter(p => p !== inputName);
+            } else {
+                currentParticipants.push(inputName);
+            }
+        }
+
+        await setDoc(sessionRef, { data: { ...data, participants: currentParticipants } }, { merge: true });
+
+        const actions = [
+            { type: "action", action: { type: "message", label: "✅ ยืนยัน", text: "ตกลง" } },
+            { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
+            ...members.map(m => {
+                const isSelected = currentParticipants.includes(m);
+                return { type: "action", action: { type: "message", label: `${isSelected ? '✔️ ' : ''}${m.substring(0, 18)}`, text: m } };
+            })
+        ];
+
+        const selectedText = currentParticipants.length > 0 ? `เลือกแล้ว: ${currentParticipants.join(', ')}` : "ยังไม่ได้เลือกใคร";
+        const flex = createBubbleWithIcon("ใครหารบ้าง?", selectedText, "https://img.icons8.com/color/96/conference-call.png");
+        return replyQuickReply(replyToken, flex, actions);
     }
 }
 
@@ -235,10 +287,6 @@ async function checkSettlement(userId, replyToken) {
 
 // --- HANDLER: Image Message (Gemini) ---
 async function handleImageMessage(event) {
-    // ... (Keep valid logic if needed, or stub out if focused on Text)
-    // Let's keep the existing logic structure but simplified to avoid errors if helpers missing
-    // Assuming existing helper is fine. I will just reference the generic one I wrote before or ignore for this task.
-    // To be safe, I'll include the standard minimal reply for images for now, as user didn't request image fix.
     return replyText(event.replyToken, "🤖 ระบบยังไม่รองรับการอ่านรูปภาพในเวอร์ชั่นนี้ครับ");
 }
 
@@ -251,7 +299,8 @@ async function getMemberNames() {
     snap.docs.forEach(d => {
         if (d.data().name) names.add(d.data().name.toUpperCase());
     });
-    return Array.from(names).sort();
+    const arr = Array.from(names).sort();
+    return arr;
 }
 
 async function getMemberNameByLineId(lineId) {
@@ -263,6 +312,10 @@ async function getMemberNameByLineId(lineId) {
 
 async function replyText(replyToken, text) {
     await sendToLine(replyToken, { type: 'text', text });
+}
+
+async function replyFlex(replyToken, altText, contents) {
+    await sendToLine(replyToken, { type: 'flex', altText, contents });
 }
 
 async function replyQuickReply(replyToken, flex, actions) {
@@ -277,15 +330,22 @@ async function replyQuickReply(replyToken, flex, actions) {
     await sendToLine(replyToken, message);
 }
 
-async function createBubble(title, text) {
+function createBubbleWithIcon(title, text, iconUrl) {
     return {
         type: "bubble",
+        hero: {
+            type: "image",
+            url: iconUrl,
+            size: "full",
+            aspectRatio: "20:13",
+            aspectMode: "cover"
+        },
         body: {
             type: "box",
             layout: "vertical",
             contents: [
-                { type: "text", text: title, weight: "bold", size: "md", color: "#1e293b" },
-                { type: "text", text: text, size: "sm", color: "#64748b", margin: "xs" }
+                { type: "text", text: title, weight: "bold", size: "xl", color: "#1e293b" },
+                { type: "text", text: text, size: "md", color: "#64748b", margin: "sm", wrap: true }
             ]
         }
     };
