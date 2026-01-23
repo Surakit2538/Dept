@@ -177,6 +177,8 @@
             width: 100% !important;
             max-width: 100% !important;
             height: 3rem !important;
+            line-height: 3rem !important;
+            /* Center text vertically */
             box-sizing: border-box !important;
             margin: 0 !important;
             padding: 0 1rem !important;
@@ -184,10 +186,17 @@
             border-radius: 0.75rem !important;
             border: 1px solid #e2e8f0 !important;
             background-color: #f8fafc !important;
+            color: #1e293b !important;
             -webkit-appearance: none !important;
             -moz-appearance: none !important;
             appearance: none !important;
             outline: none !important;
+        }
+
+        /* Specific fix for Date input alignment in some browsers */
+        input[type="date"].modal-input {
+            display: inline-flex !important;
+            align-items: center !important;
         }
 
         .icon-opt {
