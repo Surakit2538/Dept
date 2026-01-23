@@ -1,0 +1,292 @@
+/**
+ * 3D Login Enhancement Styles
+ * Project: Dept Money - 3D Animated Login
+ * Features: Glassmorphism, Scale Effects, Particles, Exit Animation
+ * Mobile: Optimized for iOS & Android
+ */
+
+/* ============================================
+   1. LOGIN SCREEN - 3D CONTAINER
+   ============================================ */
+
+#login-screen {
+    perspective: 1200px;
+    perspective-origin: center center;
+    transform-style: preserve-3d;
+    
+    /* Animated Gradient Background */
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #334155 100%);
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    
+    position: relative;
+    overflow: hidden;
+}
+
+@keyframes gradientShift {
+    0%, 100% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+}
+
+/* ============================================
+   2. PARTICLES CANVAS
+   ============================================ */
+
+#login-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* ============================================
+   3. LOGIN CARD - 3D GLASSMORPHISM
+   ============================================ */
+
+.login-card-3d-wrapper {
+    transform-style: preserve-3d;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+    position: relative;
+    z-index: 10;
+}
+
+#login-screen > div:nth-child(2) {
+    /* Target the login card container */
+    position: relative;
+    transform-style: preserve-3d;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform, opacity;
+}
+
+/* Glow Effect Behind Card */
+#login-screen > div:nth-child(2)::before {
+    content: '';
+    position: absolute;
+    inset: -80px;
+    background: radial-gradient(
+        circle at center,
+        rgba(99, 102, 241, 0.2) 0%,
+        rgba(139, 92, 246, 0.1) 40%,
+        transparent 70%
+    );
+    filter: blur(60px);
+    z-index: -1;
+    animation: pulseGlow 4s ease-in-out infinite;
+    pointer-events: none;
+}
+
+@keyframes pulseGlow {
+    0%, 100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.05);
+    }
+}
+
+/* Enhanced Card Glassmorphism */
+#login-screen > div:nth-child(2) {
+    background: rgba(255, 255, 255, 0.98) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 10px 30px rgba(0, 0, 0, 0.2),
+        0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+/* ============================================
+   4. HOVER/TOUCH SCALE EFFECTS
+   ============================================ */
+
+/* Desktop: Scale on Mouse Enter */
+@media (hover: hover) and (pointer: fine) {
+    #login-screen > div:nth-child(2):hover {
+        transform: scale(1.03) translateZ(20px) !important;
+        box-shadow: 
+            0 30px 80px rgba(0, 0, 0, 0.35),
+            0 15px 40px rgba(0, 0, 0, 0.25),
+            0 0 0 1px rgba(255, 255, 255, 0.2) inset;
+    }
+}
+
+/* Mobile: Touch Scale (will be controlled by JS) */
+.login-card-touching {
+    transform: scale(1.02) translateZ(15px) !important;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* ============================================
+   5. BUTTON 3D DEPTH EFFECTS
+   ============================================ */
+
+#login-screen button,
+#login-screen a {
+    position: relative;
+    transform-style: preserve-3d;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: transform;
+}
+
+@media (hover: hover) {
+    #login-screen button:hover,
+    #login-screen a:hover {
+        transform: translateY(-3px) translateZ(10px);
+        box-shadow: 
+            0 10px 25px rgba(0, 0, 0, 0.2),
+            0 5px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    #login-screen button:active,
+    #login-screen a:active {
+        transform: translateY(0) translateZ(0);
+        box-shadow: 
+            0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+}
+
+/* Mobile Touch Depth */
+#login-screen button:active,
+#login-screen a:active {
+    transform: scale(0.97) translateZ(-5px);
+}
+
+/* ============================================
+   6. LOGIN SUCCESS EXIT ANIMATION
+   ============================================ */
+
+@keyframes loginSuccess {
+    0% {
+        transform: scale(1) translateZ(0);
+        opacity: 1;
+        filter: blur(0);
+    }
+    30% {
+        transform: scale(1.08) translateZ(40px);
+        opacity: 1;
+        box-shadow: 
+            0 0 80px rgba(99, 102, 241, 0.6),
+            0 0 40px rgba(139, 92, 246, 0.4),
+            0 20px 60px rgba(0, 0, 0, 0.3);
+        filter: blur(0) brightness(1.1);
+    }
+    100% {
+        transform: scale(0) translateZ(-200px) rotateX(20deg);
+        opacity: 0;
+        filter: blur(10px);
+    }
+}
+
+.login-success-animation {
+    animation: loginSuccess 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards !important;
+}
+
+/* Background Fade Out */
+@keyframes backgroundFadeOut {
+    0% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+#login-screen.login-success-bg {
+    animation: backgroundFadeOut 0.6s ease-out forwards;
+}
+
+/* ============================================
+   7. MOBILE OPTIMIZATIONS
+   ============================================ */
+
+@media (max-width: 768px) {
+    #login-screen {
+        perspective: 800px;
+    }
+    
+    /* Reduce glow on mobile for performance */
+    #login-screen > div:nth-child(2)::before {
+        filter: blur(40px);
+        inset: -50px;
+    }
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+    #login-screen,
+    #login-screen > div:nth-child(2),
+    #login-screen button,
+    #login-screen a {
+        animation: none !important;
+        transition: none !important;
+        transform: none !important;
+    }
+    
+    .login-success-animation {
+        opacity: 0 !important;
+    }
+}
+
+/* Performance hints */
+#login-screen > div:nth-child(2) {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Touch optimization */
+@media (hover: none) and (pointer: coarse) {
+    #login-screen button,
+    #login-screen a {
+        -webkit-tap-highlight-color: transparent;
+        touch-action: manipulation;
+    }
+}
+
+/* ============================================
+   8. LOGO FLOAT ANIMATION
+   ============================================ */
+
+#login-screen img[alt="Logo"] {
+    animation: logoFloat 3s ease-in-out infinite;
+}
+
+@keyframes logoFloat {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        transform: translateY(-8px) scale(1.02);
+    }
+}
+
+/* ============================================
+   9. STATUS BADGE PULSE
+   ============================================ */
+
+#login-screen .animate-pulse {
+    animation: statusPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes statusPulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.7;
+        transform: scale(1.1);
+    }
+}
