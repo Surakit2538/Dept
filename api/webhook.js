@@ -45,49 +45,58 @@ async function handleTextMessage(event) {
     const userId = event.source.userId;
     const replyToken = event.replyToken;
 
-    // 1. Check Expense Command
-    if (['ดูยอด', 'ยอด', 'ยอดเดือนนี้', 'summary', 'check'].includes(text.toLowerCase())) {
-        return await checkExpense(userId, replyToken);
+    // --- COMMAND 1: ดูค่าใช้จ่าย ---
+    if (text.includes("ต้องการดูค่าใช้จ่ายของเดือนนี้") || text.includes("ดูยอด")) {
+        return await checkSettlement(userId, replyToken);
     }
 
-    // Existing Logic (Reset)
-    if (['ยกเลิก', 'cancel', 'เริ่มใหม่', 'reset'].includes(text.toLowerCase())) {
+    // --- COMMAND 2: เริ่มต้นจดบันทึก ---
+    if (text === "เริ่มต้นจดบันทึก" || text === "จด") {
         await deleteDoc(doc(db, 'user_sessions', userId));
-        return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ เริ่มพิมพ์ชื่อรายการใหม่ได้เลย");
+        await setDoc(doc(db, 'user_sessions', userId), {
+            step: 'ASK_DESC',
+            data: {},
+            lastUpdated: serverTimestamp()
+        });
+        return replyText(replyToken, "📝 เริ่มจดบันทึกนะครับ\nรายการค่าอะไรครับ?");
     }
 
-    // ... (Existing Transaction Logic if needed, omitted for brevity, focusing on new features first)
-    // In a real scenario, we would merge the old logic here.
-    // For now, let's keep the old logic active? 
-    // Wait, the user wants the OLD logic + NEW logic.
-    // I need to Paste the OLD Logic back but add the new Check Expense command at the top.
+    // --- COMMAND 3: ยกเลิก ---
+    if (['ยกเลิก', 'cancel', 'พอ'].includes(text.toLowerCase())) {
+        await deleteDoc(doc(db, 'user_sessions', userId));
+        return replyText(replyToken, "รับทราบ ยกเลิกรายการให้แล้วครับ");
+    }
 
-    // --- MERGED OLD LOGIC ---
+    // --- SESSION HANDLING ---
     const sessionRef = doc(db, 'user_sessions', userId);
     const sessionSnap = await getDoc(sessionRef);
-    let session = sessionSnap.exists() ? sessionSnap.data() : null;
 
-    if (!session) {
-        // Start New Transaction
-        await setDoc(sessionRef, {
-            step: 'ASK_AMOUNT',
-            data: { desc: text },
-            timestamp: serverTimestamp()
-        });
-        const flex = createQuestionFlex("ระบุราคา", `รายการ: ${text}\nราคาเท่าไหร่ครับ?`, "#1e293b");
-        return replyFlex(replyToken, "ระบุราคา", flex);
+    if (!sessionSnap.exists()) {
+        // If not in session and not a command, ignore or give hint
+        if (text.includes("หวัดดี") || text.includes("hi")) return replyText(replyToken, "สวัสดีครับ พิมพ์ 'เริ่มต้นจดบันทึก' เพื่อเริ่มใช้งานได้เลย");
+        return;
     }
 
-    const currentStep = session.step;
+    const session = sessionSnap.data();
+    const step = session.step;
     const data = session.data || {};
 
-    if (currentStep === 'ASK_AMOUNT') {
+    // FLOW: DESC -> AMOUNT -> PAYER -> SPLIT
+    if (step === 'ASK_DESC') {
+        const desc = text;
+        await setDoc(sessionRef, { step: 'ASK_AMOUNT', data: { ...data, desc } }, { merge: true });
+        return replyText(replyToken, `ค่า "${desc}" นะครับ\nแล้วราคาเท่าไหร่ครับ?`);
+    }
+
+    if (step === 'ASK_AMOUNT') {
         const amount = parseFloat(text.replace(/,/g, ''));
-        if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ โปรดระบุราคาเป็นตัวเลขครับ");
+        if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ ขอเป็นตัวเลขนะครับ\nราคาเท่าไหร่ครับ?");
+
         await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, amount } }, { merge: true });
+
         const members = await getMemberNames();
         const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-        const flex = createQuestionFlex("ระบุคนจ่าย", `ยอดเงิน: ${amount.toLocaleString()} ฿\nใครเป็นคนจ่ายครับ?`, "#1e293b");
+        const flex = createBubble("ใครเป็นคนจ่ายครับ?", `ยอดเงิน ${amount.toLocaleString()} บาท`);
         return replyQuickReply(replyToken, flex, actions);
     }
 
