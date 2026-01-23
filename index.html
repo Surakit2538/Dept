@@ -92,23 +92,32 @@
         }
 
         .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
+            width: 8px;
+            /* Thicker scrollbar */
+            height: 8px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: #f1f5f9;
+            background: #f8fafc;
+            border-radius: 10px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 4px;
+            background: #94a3b8;
+            /* Darker thumb */
+            border-radius: 10px;
+            border: 2px solid #f8fafc;
+            /* Padding effect */
         }
 
-        /* Make scrollbars visible on mobile overflow containers */
-        * {
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+
+        /* Force scrollbar visibility on some browsers */
+        .custom-scrollbar {
             scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f1f5f9;
+            scrollbar-color: #94a3b8 #f8fafc;
         }
 
         /* Ensure date input width matches others on mobile */
@@ -538,23 +547,23 @@
             </div>
             <div class="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
 
-                <!-- Date & Type -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Date & Type (Stacked for consistency) -->
+                <div class="space-y-4">
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
                         <input type="date" id="t-date"
-                            class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                            class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                     </div>
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รูปแบบการจ่าย</label>
-                        <div class="relative w-full"><select id="t-payment-type"
-                                onchange="window.app.toggleInstallment()"
-                                class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-3 text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all">
+                        <div class="relative w-full">
+                            <select id="t-payment-type" onchange="window.app.toggleInstallment()"
+                                class="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all">
                                 <option value="normal">จ่ายเต็ม</option>
                                 <option value="installment">ผ่อนชำระ</option>
                             </select>
                             <i
-                                class="fa-solid fa-chevron-down absolute right-3 top-3.5 text-xs text-slate-400 pointer-events-none"></i>
+                                class="fa-solid fa-chevron-down absolute right-4 top-4 text-xs text-slate-400 pointer-events-none"></i>
                         </div>
                     </div>
                 </div>
