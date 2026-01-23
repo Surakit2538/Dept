@@ -1,0 +1,6 @@
+        const members = await getMemberNames();
+        const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
+        const monthlyAmt = (data.amount / installments).toLocaleString();
+        const flexMsg = "ผ่อน " + installments + " เดือน (" + monthlyAmt + " บาท/เดือน)";
+        const flex = createInteractiveCard("ใครเป็นคนจ่าย?", flexMsg);
+        return replyQuickReply(replyToken, flex, actions);

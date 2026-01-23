@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+﻿import { initializeApp } from "firebase/app";
 import {
     getFirestore, doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
@@ -59,7 +59,7 @@ async function handleTextMessage(event) {
             lastUpdated: serverTimestamp()
         });
 
-        const flex = createBubbleWithIcon("จดรายการใหม่ 📝", "พิมพ์ชื่อรายการมาได้เลยครับ", "https://img.icons8.com/color/96/create-new.png");
+        const flex = createInteractiveCard("จดรายการใหม่", "พิมพ์ชื่อรายการมาได้เลยครับ", "ตัวอย่าง: ค่าน้ำ, ค่าไฟ, ค่าอินเทอร์เน็ต");
         return replyFlex(replyToken, "เริ่มจดบันทึก", flex);
     }
 
@@ -87,7 +87,7 @@ async function handleTextMessage(event) {
         const desc = text;
         await setDoc(sessionRef, { step: 'ASK_AMOUNT', data: { ...data, desc } }, { merge: true });
 
-        const flex = createBubbleWithIcon("ราคาเท่าไหร่?", `รายการ: ${desc}`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
+        const flex = createInteractiveCard("ราคาเท่าไหร่?", `รายการ: ${desc}`, "ระบุจำนวนเงินเป็นตัวเลข");
         return replyFlex(replyToken, "ระบุราคา", flex);
     }
 
@@ -101,20 +101,20 @@ async function handleTextMessage(event) {
             { type: "action", action: { type: "message", label: "ชำระเต็มจำนวน", text: "ชำระเต็ม" } },
             { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } }
         ];
-        const flex = createBubbleWithIcon("รูปแบบการจ่าย?", `ยอดเงิน ${amount.toLocaleString()} บาท`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
+        const flex = createInteractiveCard("รูปแบบการจ่าย?", `ยอดเงิน ${amount.toLocaleString()} บาท`);
         return replyQuickReply(replyToken, flex, actions);
     }
 
     if (step === 'ASK_PAYMENT_TYPE') {
         if (text.includes("ผ่อน")) {
             await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
-            const flex = createBubbleWithIcon("ผ่อนกี่เดือน?", "ระบุจำนวนงวด (2-24)", "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
+            const flex = createInteractiveCard("ผ่อนกี่เดือน?", "ระบุจำนวนงวด (2-24)", "ระบบจะแบ่งยอดเท่าๆ กันทุกเดือน");
             return replyFlex(replyToken, "ระบุจำนวนงวด", flex);
         } else {
             await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, paymentType: 'normal', installments: 1 } }, { merge: true });
             const members = await getMemberNames();
             const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
-            const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ยอดเงิน ${data.amount.toLocaleString()} บาท (จ่ายเต็ม)`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
+            const flex = createInteractiveCard("ใครเป็นคนจ่าย?", `ยอดเงิน ${data.amount.toLocaleString()} บาท (จ่ายเต็ม)");
             return replyQuickReply(replyToken, flex, actions);
         }
     }
@@ -126,7 +126,9 @@ async function handleTextMessage(event) {
 
         const members = await getMemberNames();
         const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
-        const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ผ่อน ${installments} เดือน (${(data.amount / installments).toLocaleString()} ฿/ด)`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
+        const monthlyAmt = (data.amount / installments).toLocaleString();
+        const flexMsg = "ผ่อน " + installments + " เดือน (" + monthlyAmt + " บาท/เดือน)";
+        const flex = createInteractiveCard("ใครเป็นคนจ่าย?", flexMsg);
         return replyQuickReply(replyToken, flex, actions);
     }
 
@@ -142,7 +144,7 @@ async function handleTextMessage(event) {
             { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
             ...members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }))
         ];
-        const flex = createBubbleWithIcon("ใครหารบ้าง?", "กดเลือกรายชื่อ (กดซ้ำเพื่อยกเลิก)\nแล้วกด 'ยืนยัน'", "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
+        const flex = createInteractiveCard("ใครหารบ้าง?", "กดเลือกรายชื่อ (กดซ้ำเพื่อยกเลิก)", "เลือกเสร็จแล้วกด 'ยืนยัน'");
         return replyQuickReply(replyToken, flex, actions);
     }
 
@@ -180,7 +182,7 @@ async function handleTextMessage(event) {
         ];
 
         const selectedText = currentParticipants.length > 0 ? `เลือกแล้ว: ${currentParticipants.join(', ')}` : "ยังไม่ได้เลือกใคร";
-        const flex = createBubbleWithIcon("ใครหารบ้าง?", selectedText, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
+        const flex = createInteractiveCard("ใครหารบ้าง?", selectedText, "เลือกเสร็จแล้วกด 'ยืนยัน'");
         return replyQuickReply(replyToken, flex, actions);
     }
 }
@@ -275,82 +277,325 @@ async function replyQuickReply(replyToken, flex, actions) {
     await sendToLine(replyToken, message);
 }
 
-function createBubbleWithIcon(title, text, iconUrl) {
+function createInteractiveCard(title, description, hintText = null) {
+    const contents = [
+        // Header with icon + title
+        {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+                { type: "text", text: "📝", size: "xxl", flex: 0 },
+                {
+                    type: "text",
+                    text: title,
+                    weight: "bold",
+                    size: "xl",
+                    color: "#1e293b",
+                    margin: "md",
+                    flex: 1,
+                    wrap: true
+                }
+            ]
+        },
+        // Separator
+        { type: "separator", margin: "md", color: "#e2e8f0" },
+        // Description
+        {
+            type: "text",
+            text: "💬 " + description,
+            size: "sm",
+            color: "#64748b",
+            margin: "md",
+            wrap: true
+        }
+    ];
+
+    // Optional hint text box
+    if (hintText) {
+        contents.push({
+            type: "box",
+            layout: "vertical",
+            contents: [
+                {
+                    type: "text",
+                    text: hintText,
+                    size: "xs",
+                    color: "#94a3b8",
+                    style: "italic",
+                    wrap: true
+                }
+            ],
+            backgroundColor: "#f1f5f9",
+            cornerRadius: "md",
+            paddingAll: "sm",
+            margin: "md"
+        });
+    }
+
     return {
         type: "bubble",
-        hero: { type: "image", url: iconUrl, size: "full", aspectRatio: "20:13", aspectMode: "cover" },
+        size: "kilo",
         body: {
-            type: "box", layout: "vertical", contents: [
-                { type: "text", text: title, weight: "bold", size: "xl", color: "#1e293b" },
-                { type: "text", text: text, size: "md", color: "#64748b", margin: "sm", wrap: true }
-            ]
+            type: "box",
+            layout: "vertical",
+            contents: contents
+        },
+        styles: {
+            body: { backgroundColor: "#ffffff" }
         }
     };
 }
 
 function createSuccessBubble(data, totalAmount, installments) {
-    const rows = [
-        { label: "รายการ", value: data.desc },
-        { label: "ยอดเงิน", value: totalAmount.toLocaleString() + " ฿" },
-        { label: "คนจ่าย", value: data.payer },
-        { label: "คนหาร", value: data.participants.join(", ") }
+    // Build detail rows with icons
+    const details = [
+        {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+                { type: "text", text: "📝", size: "md", flex: 0 },
+                { type: "text", text: data.desc, size: "lg", weight: "bold", color: "#1e293b", margin: "sm", flex: 1, wrap: true }
+            ],
+            margin: "md"
+        },
+        {
+            type: "box",
+            layout: "vertical",
+            contents: [
+                {
+                    type: "text",
+                    text: totalAmount.toLocaleString() + " บาท",
+                    size: "xxl",
+                    weight: "bold",
+                    color: "#4338ca",
+                    align: "center"
+                }
+            ],
+            backgroundColor: "#e0e7ff",
+            cornerRadius: "lg",
+            paddingAll: "md",
+            margin: "md"
+        },
+        { type: "separator", margin: "md", color: "#e2e8f0" }
     ];
-    if (installments > 1) rows.splice(2, 0, { label: "รูปแบบ", value: `ผ่อน ${installments} เดือน` });
+
+    // Add installment info if applicable
+    if (installments > 1) {
+        details.push({
+            type: "box",
+            layout: "horizontal",
+            contents: [
+                { type: "text", text: "📅", size: "md", flex: 0 },
+                { type: "text", text: "รูปแบบ:", size: "sm", color: "#64748b", margin: "sm", flex: 2 },
+                { type: "text", text: "ผ่อน " + installments + " เดือน", size: "sm", weight: "bold", color: "#1e293b", flex: 3, wrap: true }
+            ],
+            margin: "sm"
+        });
+    }
+
+    // Payer
+    details.push({
+        type: "box",
+        layout: "horizontal",
+        contents: [
+            { type: "text", text: "💳", size: "md", flex: 0 },
+            { type: "text", text: "คนจ่าย:", size: "sm", color: "#64748b", margin: "sm", flex: 2 },
+            { type: "text", text: data.payer, size: "sm", weight: "bold", color: "#1e293b", flex: 3 }
+        ],
+        margin: "sm"
+    });
+
+    // Participants
+    details.push({
+        type: "box",
+        layout: "horizontal",
+        contents: [
+            { type: "text", text: "👥", size: "md", flex: 0 },
+            { type: "text", text: "คนหาร:", size: "sm", color: "#64748b", margin: "sm", flex: 2 },
+            { type: "text", text: data.participants.join(", "), size: "sm", weight: "bold", color: "#1e293b", flex: 3, wrap: true }
+        ],
+        margin: "sm"
+    });
 
     return {
         type: "bubble",
+        size: "kilo",
         header: {
-            type: "box", layout: "vertical", backgroundColor: "#f0fdf4", contents: [
-                { type: "text", text: "SUCCESS", color: "#16a34a", size: "xxs", weight: "bold" },
-                { type: "text", text: "บันทึกเรียบร้อย ✅", weight: "bold", size: "xl", color: "#15803d", margin: "xs" }
-            ]
+            type: "box",
+            layout: "vertical",
+            contents: [
+                {
+                    type: "text",
+                    text: "✅ บันทึกสำเร็จ!",
+                    size: "xl",
+                    weight: "bold",
+                    color: "#ffffff",
+                    align: "center"
+                }
+            ],
+            backgroundColor: "#4338ca",
+            paddingAll: "md"
         },
         body: {
-            type: "box", layout: "vertical", contents: rows.map(r => ({
-                type: "box", layout: "horizontal", margin: "md", contents: [
-                    { type: "text", text: r.label, size: "sm", color: "#94a3b8", flex: 2 },
-                    { type: "text", text: r.value, size: "sm", color: "#334155", weight: "bold", flex: 5, wrap: true }
-                ]
-            }))
+            type: "box",
+            layout: "vertical",
+            contents: details
         },
         footer: {
-            type: "box", layout: "vertical", contents: [
-                { type: "button", action: { type: "uri", label: "ดูประวัติในเว็บ", uri: "https://dept-three.vercel.app/" }, style: "primary", color: "#15803d" }
+            type: "box",
+            layout: "vertical",
+            contents: [
+                {
+                    type: "button",
+                    action: { type: "uri", label: "ดูประวัติในเว็บ →", uri: "https://dept-three.vercel.app/" },
+                    style: "primary",
+                    color: "#4338ca",
+                    height: "sm"
+                }
             ]
+        },
+        styles: {
+            body: { backgroundColor: "#ffffff" },
+            footer: { backgroundColor: "#f8fafc" }
         }
     };
 }
 
 function createSettlementBubble(name, month, transfers, receivables) {
     const contents = [
-        { type: "text", text: "SUMMARY", color: "#6366f1", size: "xxs", weight: "bold" },
-        { type: "text", text: `ยอดเดือน${month} 📊`, weight: "bold", size: "xl", color: "#4338ca", margin: "xs" },
-        { type: "text", text: `สำหรับคุณ ${name}`, size: "xs", color: "#818cf8" },
-        { type: "separator", margin: "lg" }
+        {
+            type: "box",
+            layout: "horizontal",
+            contents: [
+                { type: "text", text: "📊", size: "xxl", flex: 0 },
+                {
+                    type: "box",
+                    layout: "vertical",
+                    contents: [
+                        { type: "text", text: "ยอดเดือน" + month, weight: "bold", size: "xl", color: "#1e293b" },
+                        { type: "text", text: "สำหรับคุณ " + name, size: "xs", color: "#64748b", margin: "xs" }
+                    ],
+                    margin: "md",
+                    flex: 1
+                }
+            ]
+        },
+        { type: "separator", margin: "lg", color: "#e2e8f0" }
     ];
 
+    // Check if cleared all debts
     if (transfers.length === 0 && receivables.length === 0) {
-        contents.push({ type: "text", text: "🎉 เคลียร์ครบหมดแล้วครับ", size: "sm", color: "#15803d", margin: "lg", align: "center", weight: "bold" });
+        contents.push({
+            type: "box",
+            layout: "vertical",
+            contents: [
+                {
+                    type: "text",
+                    text: "🎉",
+                    size: "xxl",
+                    align: "center"
+                },
+                {
+                    type: "text",
+                    text: "เคลียร์ครบหมดแล้ว!",
+                    size: "lg",
+                    weight: "bold",
+                    color: "#4338ca",
+                    align: "center",
+                    margin: "md"
+                },
+                {
+                    type: "text",
+                    text: "ไม่มีรายการค้างชำระ",
+                    size: "sm",
+                    color: "#64748b",
+                    align: "center",
+                    margin: "sm"
+                }
+            ],
+            backgroundColor: "#e0e7ff",
+            cornerRadius: "lg",
+            paddingAll: "lg",
+            margin: "lg"
+        });
     } else {
+        // Has debts or receivables
         if (transfers.length > 0) {
-            contents.push({ type: "text", text: "🔴 รายการที่ต้องโอนจ่าย", size: "xs", weight: "bold", color: "#ef4444", margin: "lg" });
+            contents.push({ 
+                type: "text", 
+                text: "💸 ต้องโอนจ่าย", 
+                size: "sm", 
+                weight: "bold", 
+                color: "#8b5cf6", 
+                margin: "lg" 
+            });
+            
             transfers.forEach(t => {
                 contents.push({
-                    type: "box", layout: "horizontal", margin: "sm", contents: [
-                        { type: "text", text: `โอนให้ ${t.to}`, size: "sm", color: "#64748b", flex: 3 },
-                        { type: "text", text: `${t.amount.toLocaleString()} ฿`, size: "sm", weight: "bold", color: "#ef4444", align: "end", flex: 2 }
-                    ]
+                    type: "box",
+                    layout: "horizontal",
+                    contents: [
+                        { 
+                            type: "text", 
+                            text: "➡️ " + t.to, 
+                            size: "sm", 
+                            color: "#1e293b", 
+                            flex: 3 
+                        },
+                        { 
+                            type: "text", 
+                            text: t.amount.toLocaleString() + " ฿", 
+                            size: "sm", 
+                            weight: "bold", 
+                            color: "#8b5cf6", 
+                            align: "end", 
+                            flex: 2 
+                        }
+                    ],
+                    backgroundColor: "#f3e8ff",
+                    cornerRadius: "md",
+                    paddingAll: "sm",
+                    margin: "sm"
                 });
             });
         }
+
         if (receivables.length > 0) {
-            contents.push({ type: "text", text: "🟢 รายการที่รอรับเงิน", size: "xs", weight: "bold", color: "#10b981", margin: "lg" });
+            contents.push({ 
+                type: "text", 
+                text: "💰 รอรับเงิน", 
+                size: "sm", 
+                weight: "bold", 
+                color: "#6366f1", 
+                margin: "lg" 
+            });
+            
             receivables.forEach(t => {
                 contents.push({
-                    type: "box", layout: "horizontal", margin: "sm", contents: [
-                        { type: "text", text: `รับจาก ${t.from}`, size: "sm", color: "#64748b", flex: 3 },
-                        { type: "text", text: `${t.amount.toLocaleString()} ฿`, size: "sm", weight: "bold", color: "#10b981", align: "end", flex: 2 }
-                    ]
+                    type: "box",
+                    layout: "horizontal",
+                    contents: [
+                        { 
+                            type: "text", 
+                            text: "⬅️ " + t.from, 
+                            size: "sm", 
+                            color: "#1e293b", 
+                            flex: 3 
+                        },
+                        { 
+                            type: "text", 
+                            text: t.amount.toLocaleString() + " ฿", 
+                            size: "sm", 
+                            weight: "bold", 
+                            color: "#6366f1", 
+                            align: "end", 
+                            flex: 2 
+                        }
+                    ],
+                    backgroundColor: "#eef2ff",
+                    cornerRadius: "md",
+                    paddingAll: "sm",
+                    margin: "sm"
                 });
             });
         }
@@ -358,11 +603,28 @@ function createSettlementBubble(name, month, transfers, receivables) {
 
     return {
         type: "bubble",
-        body: { type: "box", layout: "vertical", contents: contents },
+        size: "kilo",
+        body: { 
+            type: "box", 
+            layout: "vertical", 
+            contents: contents 
+        },
         footer: {
-            type: "box", layout: "vertical", contents: [
-                { type: "button", action: { type: "uri", label: "เปิดแอป Dept Money", uri: "https://dept-three.vercel.app/" }, style: "secondary", color: "#4338ca" }
+            type: "box",
+            layout: "vertical",
+            contents: [
+                { 
+                    type: "button", 
+                    action: { type: "uri", label: "เปิดแอป Dept Money →", uri: "https://dept-three.vercel.app/" }, 
+                    style: "primary", 
+                    color: "#4338ca",
+                    height: "sm"
+                }
             ]
+        },
+        styles: {
+            body: { backgroundColor: "#ffffff" },
+            footer: { backgroundColor: "#f8fafc" }
         }
     };
 }
