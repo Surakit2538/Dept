@@ -93,6 +93,7 @@
 
         .custom-scrollbar::-webkit-scrollbar {
             width: 4px;
+            height: 4px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
@@ -102,6 +103,18 @@
         .custom-scrollbar::-webkit-scrollbar-thumb {
             background: #cbd5e1;
             border-radius: 4px;
+        }
+
+        /* Make scrollbars visible on mobile overflow containers */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 #f1f5f9;
+        }
+
+        /* Ensure date input width matches others on mobile */
+        input[type="date"] {
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .bottom-nav-item {
@@ -842,8 +855,11 @@
             completeLogin(role, name) {
                 this.data.userRole = role;
                 this.data.currentUser = name; // Store current user
-                document.getElementById('login-screen').classList.add('hidden');
-                document.getElementById('app-screen').classList.remove('hidden');
+                const loginScreen = document.getElementById('login-screen');
+                if (loginScreen) loginScreen.classList.add('hidden');
+
+                const appScreen = document.getElementById('app-screen');
+                if (appScreen) appScreen.classList.remove('hidden');
 
                 // Update UI with user info
                 const nameDisplay = document.getElementById('user-name-display');

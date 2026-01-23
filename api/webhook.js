@@ -59,7 +59,6 @@ async function handleTextMessage(event) {
             lastUpdated: serverTimestamp()
         });
 
-        // UPDATE: ใช้ Flex Message + Icon
         const flex = createBubbleWithIcon("จดรายการใหม่ 📝", "พิมพ์ชื่อรายการมาได้เลยครับ", "https://img.icons8.com/color/96/create-new.png");
         return replyFlex(replyToken, "เริ่มจดบันทึก", flex);
     }
@@ -161,7 +160,6 @@ async function handleTextMessage(event) {
             return await saveTransaction(replyToken, userId, { ...data, participants: currentParticipants, splitMethod: 'equal' });
         }
 
-        // Toggle Logic
         const inputName = text.toUpperCase();
         if (members.includes(inputName)) {
             if (currentParticipants.includes(inputName)) {
@@ -175,7 +173,6 @@ async function handleTextMessage(event) {
 
         const actions = [
             { type: "action", action: { type: "message", label: "✅ ยืนยัน", text: "ตกลง" } },
-            { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
             ...members.map(m => {
                 const isSelected = currentParticipants.includes(m);
                 return { type: "action", action: { type: "message", label: `${isSelected ? '✔️ ' : ''}${m.substring(0, 18)}`, text: m } };
@@ -194,18 +191,15 @@ async function checkSettlement(userId, replyToken) {
     if (!name) return replyText(replyToken, "⚠️ ไม่พบข้อมูลบัญชีของคุณ\nกรุณา Login หน้าเว็บเพื่อผูกบัญชี LINE ก่อนครับ");
 
     const today = new Date();
-    const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM
+    const currentMonth = today.toISOString().slice(0, 7);
     const thaiMonth = today.toLocaleString('th-TH', { month: 'long' });
 
-    // 1. Get All Transactions for Month
     const q = query(collection(db, "transactions"), where("date", ">=", currentMonth + "-01"));
-    // Note: Simple query, client-side filtering for strict prefix match is safer for strings YYYY-MM
     const snap = await getDocs(q);
     const transactions = snap.docs.map(d => d.data()).filter(t => t.date && t.date.startsWith(currentMonth));
 
     if (transactions.length === 0) return replyText(replyToken, `เดือน ${thaiMonth} ยังไม่มีรายการค่าใช้จ่ายครับ`);
 
-    // 2. Calculate Balances
     const members = await getMemberNames();
     const balances = {};
     members.forEach(m => balances[m] = 0);
@@ -213,9 +207,7 @@ async function checkSettlement(userId, replyToken) {
     transactions.forEach(t => {
         const payer = (t.payer || "").toUpperCase();
         const amount = Number(t.amount);
-
         if (balances.hasOwnProperty(payer)) balances[payer] += amount;
-
         if (t.splits) {
             Object.keys(t.splits).forEach(k => {
                 const member = k.toUpperCase();
@@ -224,65 +216,29 @@ async function checkSettlement(userId, replyToken) {
         }
     });
 
-    // 3. Solve Settlement (Who pays Whom)
-    const debtors = []; // People with Negative Balance (Owe money)
-    const creditors = []; // People with Positive Balance (Paid extra)
-
+    const debtors = [];
+    const creditors = [];
     members.forEach(m => {
         const bal = Math.round(balances[m]);
         if (bal < -1) debtors.push({ name: m, amount: Math.abs(bal) });
         if (bal > 1) creditors.push({ name: m, amount: bal });
     });
 
-    // Match them up
-    // We only care about transactions involving "name" (The Requesting User)
-    const myTransfers = []; // I need to pay X
-    const myReceivables = []; // X needs to pay Me
-
+    const myTransfers = [];
+    const myReceivables = [];
     let i = 0, j = 0;
     while (i < debtors.length && j < creditors.length) {
-        const d = debtors[i];
-        const c = creditors[j];
+        const d = debtors[i]; const c = creditors[j];
         const pay = Math.min(d.amount, c.amount);
-
-        if (d.name === name) {
-            myTransfers.push({ to: c.name, amount: pay });
-        }
-        if (c.name === name) {
-            myReceivables.push({ from: d.name, amount: pay });
-        }
-
-        d.amount -= pay;
-        c.amount -= pay;
-
+        if (d.name === name) myTransfers.push({ to: c.name, amount: pay });
+        if (c.name === name) myReceivables.push({ from: d.name, amount: pay });
+        d.amount -= pay; c.amount -= pay;
         if (d.amount <= 0.1) i++;
         if (c.amount <= 0.1) j++;
     }
 
-    // 4. Construct Reply
-    // Case 1: Cleared
-    if (myTransfers.length === 0 && myReceivables.length === 0) {
-        return replyText(replyToken, `🎉 ยอดเดือน ${thaiMonth} ของคุณ ${name} เคลียร์หมดแล้วครับ (0 บาท)`);
-    }
-
-    let msg = `📊 **สรุปยอดเดือน ${thaiMonth} ของ ${name}**\n`;
-
-    if (myTransfers.length > 0) {
-        msg += `\n🔴 **ต้องโอนจ่าย:**\n`;
-        myTransfers.forEach(t => {
-            msg += `- โอนให้ ${t.to}: ${t.amount.toLocaleString()} บาท\n`;
-        });
-    }
-
-    if (myReceivables.length > 0) {
-        msg += `\n🟢 **รอรับเงิน:**\n`;
-        myReceivables.forEach(t => {
-            msg += `- จาก ${t.from}: ${t.amount.toLocaleString()} บาท\n`;
-        });
-    }
-
-    msg += `\n(ข้อมูล ณ ${today.toLocaleTimeString('th-TH')})`;
-    return replyText(replyToken, msg);
+    const flex = createSettlementBubble(name, thaiMonth, myTransfers, myReceivables);
+    return replyFlex(replyToken, "สรุปยอดค่าใช้จ่าย", flex);
 }
 
 // --- HANDLER: Image Message (Gemini) ---
@@ -294,13 +250,9 @@ async function handleImageMessage(event) {
 
 async function getMemberNames() {
     const snap = await getDocs(collection(db, "members"));
-    // Filter duplicates and invalid
     const names = new Set();
-    snap.docs.forEach(d => {
-        if (d.data().name) names.add(d.data().name.toUpperCase());
-    });
-    const arr = Array.from(names).sort();
-    return arr;
+    snap.docs.forEach(d => { if (d.data().name) names.add(d.data().name.toUpperCase()); });
+    return Array.from(names).sort();
 }
 
 async function getMemberNameByLineId(lineId) {
@@ -319,31 +271,16 @@ async function replyFlex(replyToken, altText, contents) {
 }
 
 async function replyQuickReply(replyToken, flex, actions) {
-    // Note: QuickReply is a property of the message object, not Flex Container itself
-    // Structure: { type: 'flex', altText: '...', contents: flex, quickReply: { items: [...] } }
-    const message = {
-        type: 'flex',
-        altText: 'เลือกรายการ',
-        contents: flex,
-        quickReply: { items: actions }
-    };
+    const message = { type: 'flex', altText: 'เลือกรายการ', contents: flex, quickReply: { items: actions } };
     await sendToLine(replyToken, message);
 }
 
 function createBubbleWithIcon(title, text, iconUrl) {
     return {
         type: "bubble",
-        hero: {
-            type: "image",
-            url: iconUrl,
-            size: "full",
-            aspectRatio: "20:13",
-            aspectMode: "cover"
-        },
+        hero: { type: "image", url: iconUrl, size: "full", aspectRatio: "20:13", aspectMode: "cover" },
         body: {
-            type: "box",
-            layout: "vertical",
-            contents: [
+            type: "box", layout: "vertical", contents: [
                 { type: "text", text: title, weight: "bold", size: "xl", color: "#1e293b" },
                 { type: "text", text: text, size: "md", color: "#64748b", margin: "sm", wrap: true }
             ]
@@ -351,23 +288,92 @@ function createBubbleWithIcon(title, text, iconUrl) {
     };
 }
 
-async function sendToLine(replyToken, payload) {
-    // If replyToken is null (push message), logic is different. But here we always have replyToken.
-    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-    if (!token) {
-        console.error("Missing LINE_CHANNEL_ACCESS_TOKEN");
-        return;
+function createSuccessBubble(data, totalAmount, installments) {
+    const rows = [
+        { label: "รายการ", value: data.desc },
+        { label: "ยอดเงิน", value: totalAmount.toLocaleString() + " ฿" },
+        { label: "คนจ่าย", value: data.payer },
+        { label: "คนหาร", value: data.participants.join(", ") }
+    ];
+    if (installments > 1) rows.splice(2, 0, { label: "รูปแบบ", value: `ผ่อน ${installments} เดือน` });
+
+    return {
+        type: "bubble",
+        header: {
+            type: "box", layout: "vertical", backgroundColor: "#f0fdf4", contents: [
+                { type: "text", text: "SUCCESS", color: "#16a34a", size: "xxs", weight: "bold" },
+                { type: "text", text: "บันทึกเรียบร้อย ✅", weight: "bold", size: "xl", color: "#15803d", margin: "xs" }
+            ]
+        },
+        body: {
+            type: "box", layout: "vertical", contents: rows.map(r => ({
+                type: "box", layout: "horizontal", margin: "md", contents: [
+                    { type: "text", text: r.label, size: "sm", color: "#94a3b8", flex: 2 },
+                    { type: "text", text: r.value, size: "sm", color: "#334155", weight: "bold", flex: 5, wrap: true }
+                ]
+            }))
+        },
+        footer: {
+            type: "box", layout: "vertical", contents: [
+                { type: "button", action: { type: "uri", label: "ดูประวัติในเว็บ", uri: "https://dept-three.vercel.app/" }, style: "primary", color: "#15803d" }
+            ]
+        }
+    };
+}
+
+function createSettlementBubble(name, month, transfers, receivables) {
+    const contents = [
+        { type: "text", text: "SUMMARY", color: "#6366f1", size: "xxs", weight: "bold" },
+        { type: "text", text: `ยอดเดือน${month} 📊`, weight: "bold", size: "xl", color: "#4338ca", margin: "xs" },
+        { type: "text", text: `สำหรับคุณ ${name}`, size: "xs", color: "#818cf8" },
+        { type: "separator", margin: "lg" }
+    ];
+
+    if (transfers.length === 0 && receivables.length === 0) {
+        contents.push({ type: "text", text: "🎉 เคลียร์ครบหมดแล้วครับ", size: "sm", color: "#15803d", margin: "lg", align: "center", weight: "bold" });
+    } else {
+        if (transfers.length > 0) {
+            contents.push({ type: "text", text: "🔴 รายการที่ต้องโอนจ่าย", size: "xs", weight: "bold", color: "#ef4444", margin: "lg" });
+            transfers.forEach(t => {
+                contents.push({
+                    type: "box", layout: "horizontal", margin: "sm", contents: [
+                        { type: "text", text: `โอนให้ ${t.to}`, size: "sm", color: "#64748b", flex: 3 },
+                        { type: "text", text: `${t.amount.toLocaleString()} ฿`, size: "sm", weight: "bold", color: "#ef4444", align: "end", flex: 2 }
+                    ]
+                });
+            });
+        }
+        if (receivables.length > 0) {
+            contents.push({ type: "text", text: "🟢 รายการที่รอรับเงิน", size: "xs", weight: "bold", color: "#10b981", margin: "lg" });
+            receivables.forEach(t => {
+                contents.push({
+                    type: "box", layout: "horizontal", margin: "sm", contents: [
+                        { type: "text", text: `รับจาก ${t.from}`, size: "sm", color: "#64748b", flex: 3 },
+                        { type: "text", text: `${t.amount.toLocaleString()} ฿`, size: "sm", weight: "bold", color: "#10b981", align: "end", flex: 2 }
+                    ]
+                });
+            });
+        }
     }
 
-    // Check if payload is array or single
-    const messages = Array.isArray(payload) ? payload : [payload];
+    return {
+        type: "bubble",
+        body: { type: "box", layout: "vertical", contents: contents },
+        footer: {
+            type: "box", layout: "vertical", contents: [
+                { type: "button", action: { type: "uri", label: "เปิดแอป Dept Money", uri: "https://dept-three.vercel.app/" }, style: "secondary", color: "#4338ca" }
+            ]
+        }
+    };
+}
 
+async function sendToLine(replyToken, payload) {
+    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+    if (!token) return;
+    const messages = Array.isArray(payload) ? payload : [payload];
     await fetch('https://api.line.me/v2/bot/message/reply', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({ replyToken, messages })
     });
 }
@@ -377,8 +383,7 @@ async function saveTransaction(replyToken, userId, data) {
         const batch = writeBatch(db);
         const installments = data.paymentType === 'installment' ? Number(data.installments) || 1 : 1;
         const groupId = data.paymentType === 'installment' ? "grp_" + Date.now() : null;
-        const baseDate = new Date(); // Using server-side "today" for webhook
-
+        const baseDate = new Date();
         const splits = {};
         const totalAmount = Number(data.amount);
         const share = totalAmount / data.participants.length;
@@ -387,7 +392,6 @@ async function saveTransaction(replyToken, userId, data) {
         for (let i = 0; i < installments; i++) {
             const currentInstallmentDate = new Date(baseDate);
             currentInstallmentDate.setMonth(baseDate.getMonth() + i);
-
             const txn = {
                 date: currentInstallmentDate.toISOString().slice(0, 10),
                 desc: installments > 1 ? `${data.desc} (${i + 1}/${installments})` : data.desc,
@@ -401,15 +405,11 @@ async function saveTransaction(replyToken, userId, data) {
             };
             batch.set(doc(collection(db, "transactions")), txn);
         }
-
-        // Delete Session
         batch.delete(doc(db, 'user_sessions', userId));
-
         await batch.commit();
 
-        // Confirmation Message
-        const msg = `✅ บันทึกเรียบร้อย! ${installments > 1 ? `(ผ่อน ${installments} เดือน)` : ''}\nรายการ: ${data.desc}\nยอดรวม: ${totalAmount.toLocaleString()} บาท\nคนจ่าย: ${data.payer}\nหาร: ${data.participants.join(', ')}`;
-        return replyText(replyToken, msg);
+        const flex = createSuccessBubble(data, totalAmount, installments);
+        return replyFlex(replyToken, "บันทึกเรียบร้อย", flex);
     } catch (e) {
         return replyText(replyToken, "❌ Error saving: " + e.message);
     }
