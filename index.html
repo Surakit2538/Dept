@@ -526,7 +526,7 @@
             <div class="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
 
                 <!-- Date & Type -->
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
                         <input type="date" id="t-date"
@@ -649,7 +649,6 @@
             appId: "1:6714403201:web:a98a2cefcebef5c63b6080"
         };
 
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, doc, getDocs, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const fApp = initializeApp(firebaseConfig);
