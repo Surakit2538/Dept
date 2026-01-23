@@ -165,57 +165,10 @@
             }
         }
 
-        @keyframes slideUp {
-            from {
-                transform: translateY(100%);
-            }
-
-            to {
-                transform: translateY(0);
-            }
-        }
-
-        .animate-slide-up {
-            animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-
-        /* --- Input Smoothing & Consistency --- */
-        input[type="date"],
-        input[type="number"],
-        input[type="text"],
-        select {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            width: 100% !important;
-            height: 3rem !important;
-            /* 48px */
-            padding: 0 1rem !important;
-            box-sizing: border-box !important;
-            font-size: 0.875rem !important;
-        }
-
-        /* Modal Mobile Specific (Bottom Sheet) */
-        @media (max-width: 767px) {
-
-            #transaction-modal .bg-white,
-            #member-detail-modal .bg-white {
-                width: 100% !important;
-                max-width: 100% !important;
-                margin: 0 !important;
-                border-radius: 1.5rem 1.5rem 0 0 !important;
-                /* rounded-t-3xl */
-                position: fixed !important;
-                bottom: 0 !important;
-                left: 0 !important;
-                max-height: 90dvh !important;
-                animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards !important;
-            }
-
-            #transaction-modal,
-            #member-detail-modal {
-                align-items: flex-end !important;
-            }
+        /* Ensure date input width matches others */
+        input[type="date"] {
+            width: 100%;
+            box-sizing: border-box;
         }
 
         .icon-opt {
@@ -600,8 +553,8 @@
             </div>
             <div class="flex-1 overflow-y-auto p-5 space-y-5 custom-scrollbar">
 
-                <!-- Date & Type (Stacked for consistency) -->
-                <div class="space-y-4">
+                <!-- Date & Type -->
+                <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
                         <input type="date" id="t-date"
@@ -672,7 +625,7 @@
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                 </div>
 
-                <div class="flex flex-col md:flex-row gap-4">
+                <div class="grid grid-cols-2 gap-4">
                     <div class="flex-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">ยอดเงิน</label>
                         <input type="number" id="t-amount" placeholder="0.00"
