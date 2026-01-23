@@ -388,7 +388,7 @@
             </button>
         </nav>
         <div class="p-4 border-t">
-            <button onclick="location.reload()"
+            <button onclick="window.app.logout()"
                 class="w-full text-xs text-red-500 hover:text-red-600 flex items-center justify-center gap-2 py-2">
                 <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
             </button>
@@ -934,6 +934,30 @@
 
                 this.navigate('dashboard');
                 this.showToast(`ยินดีต้อนรับ ${name}`);
+            },
+
+            logout() {
+                console.log('🚪 Logging out...');
+
+                // Check if LIFF is available and logged in
+                if (typeof liff !== 'undefined' && liff.isLoggedIn()) {
+                    try {
+                        // Logout from LINE LIFF
+                        liff.logout();
+                        console.log('✅ LIFF logout successful');
+                    } catch (e) {
+                        console.error('❌ LIFF logout error:', e);
+                    }
+                }
+
+                // Clear local data
+                this.data.userRole = 'guest';
+                this.data.currentUser = null;
+
+                // Reload to show login screen
+                setTimeout(() => {
+                    window.location.reload();
+                }, 300); // Small delay to ensure logout completes
             },
 
             initBackground() {
