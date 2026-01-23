@@ -114,7 +114,7 @@ async function handleTextMessage(event) {
             await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, paymentType: 'normal', installments: 1 } }, { merge: true });
             const members = await getMemberNames();
             const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
-            const flex = createInteractiveCard("ใครเป็นคนจ่าย?", `ยอดเงิน ${data.amount.toLocaleString()} บาท (จ่ายเต็ม)");
+            const flex = createInteractiveCard("ใครเป็นคนจ่าย?", `ยอดเงิน ${data.amount.toLocaleString()} บาท (จ่ายเต็ม)` );
             return replyQuickReply(replyToken, flex, actions);
         }
     }
