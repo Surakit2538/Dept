@@ -171,20 +171,23 @@
             box-sizing: border-box;
         }
 
-        /* Consistent input styling helper */
+        /* Consistent input styling helper - STRICT RESET */
         .modal-input {
+            display: block !important;
             width: 100% !important;
             max-width: 100% !important;
-            /* Lock width within popup */
             height: 3rem !important;
-            /* h-12 (48px) */
             box-sizing: border-box !important;
+            margin: 0 !important;
             padding: 0 1rem !important;
             font-size: 0.875rem !important;
             border-radius: 0.75rem !important;
-            /* rounded-xl */
-            display: block !important;
-            margin: 0 !important;
+            border: 1px solid #e2e8f0 !important;
+            background-color: #f8fafc !important;
+            -webkit-appearance: none !important;
+            -moz-appearance: none !important;
+            appearance: none !important;
+            outline: none !important;
         }
 
         .icon-opt {
@@ -571,16 +574,17 @@
 
                 <!-- Date & Type -->
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+                    <div class="w-full">
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
-                        <input type="date" id="t-date"
-                            class="modal-input bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
+                        <div class="relative w-full">
+                            <input type="date" id="t-date" class="modal-input transition-all">
+                        </div>
                     </div>
-                    <div>
+                    <div class="w-full">
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รูปแบบการจ่าย</label>
                         <div class="relative w-full">
                             <select id="t-payment-type" onchange="window.app.toggleInstallment()"
-                                class="modal-input bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all">
+                                class="modal-input transition-all">
                                 <option value="normal">จ่ายเต็ม</option>
                                 <option value="installment">ผ่อนชำระ</option>
                             </select>
