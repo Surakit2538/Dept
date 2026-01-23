@@ -375,26 +375,32 @@ async function sendToLine(replyToken, payload) {
 async function saveTransaction(replyToken, userId, data) {
     try {
         const batch = writeBatch(db);
-        const today = new Date();
-        const splits = {};
+        const installments = data.paymentType === 'installment' ? Number(data.installments) || 1 : 1;
+        const groupId = data.paymentType === 'installment' ? "grp_" + Date.now() : null;
+        const baseDate = new Date(); // Using server-side "today" for webhook
 
-        // Equal Split Logic
-        const share = data.amount / data.participants.length;
+        const splits = {};
+        const totalAmount = Number(data.amount);
+        const share = totalAmount / data.participants.length;
         data.participants.forEach(p => splits[p] = share);
 
-        const txn = {
-            date: today.toISOString().slice(0, 10),
-            desc: data.desc,
-            amount: data.amount,
-            payer: data.payer,
-            splits: splits,
-            paymentType: 'normal',
-            icon: 'fa-utensils', // Default icon
-            timestamp: Date.now()
-        };
+        for (let i = 0; i < installments; i++) {
+            const currentInstallmentDate = new Date(baseDate);
+            currentInstallmentDate.setMonth(baseDate.getMonth() + i);
 
-        const newDocRef = doc(collection(db, "transactions"));
-        batch.set(newDocRef, txn);
+            const txn = {
+                date: currentInstallmentDate.toISOString().slice(0, 10),
+                desc: installments > 1 ? `${data.desc} (${i + 1}/${installments})` : data.desc,
+                amount: totalAmount / installments,
+                payer: data.payer,
+                splits: Object.fromEntries(Object.entries(splits).map(([k, v]) => [k, v / installments])),
+                paymentType: data.paymentType || 'normal',
+                icon: 'fa-utensils',
+                groupId: groupId,
+                timestamp: Date.now() + i
+            };
+            batch.set(doc(collection(db, "transactions")), txn);
+        }
 
         // Delete Session
         batch.delete(doc(db, 'user_sessions', userId));
@@ -402,7 +408,7 @@ async function saveTransaction(replyToken, userId, data) {
         await batch.commit();
 
         // Confirmation Message
-        const msg = `✅ บันทึกเรียบร้อย!\nรายการ: ${data.desc}\nราคา: ${data.amount}\nคนจ่าย: ${data.payer}\nหาร: ${data.participants.join(', ')}`;
+        const msg = `✅ บันทึกเรียบร้อย! ${installments > 1 ? `(ผ่อน ${installments} เดือน)` : ''}\nรายการ: ${data.desc}\nยอดรวม: ${totalAmount.toLocaleString()} บาท\nคนจ่าย: ${data.payer}\nหาร: ${data.participants.join(', ')}`;
         return replyText(replyToken, msg);
     } catch (e) {
         return replyText(replyToken, "❌ Error saving: " + e.message);

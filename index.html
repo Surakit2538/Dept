@@ -845,15 +845,30 @@
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
 
-                // Update UI with user info if needed
+                // Update UI with user info
                 const nameDisplay = document.getElementById('user-name-display');
                 if (nameDisplay) nameDisplay.textContent = name;
 
-                if (role === 'admin') document.body.classList.add('is-admin');
+                const badge = document.getElementById('mobile-role-badge');
+                if (badge) {
+                    badge.textContent = name || role.toUpperCase();
+                    if (role === 'admin') {
+                        badge.className = "text-[10px] bg-slate-800 px-2 py-1 rounded-full font-bold text-white";
+                    }
+                }
+
+                if (role === 'admin') {
+                    document.body.classList.add('is-admin');
+                    const dz = document.getElementById('admin-danger-zone');
+                    if (dz) dz.classList.remove('hidden');
+                    const sa = document.getElementById('settlement-admin-actions');
+                    if (sa) sa.classList.remove('hidden');
+                    const ec = document.getElementById('btn-export-csv');
+                    if (ec) ec.classList.remove('hidden');
+                }
 
                 this.navigate('dashboard');
                 this.showToast(`ยินดีต้อนรับ ${name}`);
-                // document.getElementById('loading-overlay').classList.add('hidden');
             },
 
             initBackground() {
@@ -982,26 +997,7 @@
                 else alert('รหัสผ่านไม่ถูกต้อง');
             },
 
-            completeLogin(role, name = null) {
-                this.data.userRole = role;
-                document.getElementById('login-screen').classList.add('hidden');
 
-                const badge = document.getElementById('mobile-role-badge');
-                if (name) {
-                    badge.textContent = name;
-                    // Auto-sync name to member list if needed?
-                    // For now just display it.
-                } else {
-                    badge.textContent = role.toUpperCase();
-                }
-                if (role === 'admin') {
-                    badge.className = "text-[10px] bg-slate-800 px-2 py-1 rounded-full font-bold text-white";
-                    document.getElementById('admin-danger-zone').classList.remove('hidden');
-                    document.getElementById('settlement-admin-actions').classList.remove('hidden');
-                    document.getElementById('btn-export-csv').classList.remove('hidden');
-                }
-                this.navigate('dashboard');
-            },
 
             triggerGameEmoji(e) {
                 const el = e.target;
@@ -1103,7 +1099,7 @@
                     let color = "bg-slate-50 text-slate-400";
                     let icon = "fa-circle-check", status = "เคลียร์แล้ว";
                     if (bal > 1) { color = "bg-emerald-50 text-emerald-700 border-emerald-100"; icon = "fa-hand-holding-dollar"; status = "รอรับเงิน"; }
-                    else if (bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "เคลียร์แล้ว"; }
+                    else if (bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "ต้องจ่าย"; }
 
                     const card = document.createElement('div');
                     card.className = `p-4 rounded-2xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${color}`;
