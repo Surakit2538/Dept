@@ -87,7 +87,7 @@ async function handleTextMessage(event) {
         const desc = text;
         await setDoc(sessionRef, { step: 'ASK_AMOUNT', data: { ...data, desc } }, { merge: true });
 
-        const flex = createBubbleWithIcon("ราคาเท่าไหร่?", `รายการ: ${desc}`, "https://img.icons8.com/color/96/money-bag-baht.png");
+        const flex = createBubbleWithIcon("ราคาเท่าไหร่?", `รายการ: ${desc}`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
         return replyFlex(replyToken, "ระบุราคา", flex);
     }
 
@@ -101,20 +101,20 @@ async function handleTextMessage(event) {
             { type: "action", action: { type: "message", label: "ชำระเต็มจำนวน", text: "ชำระเต็ม" } },
             { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } }
         ];
-        const flex = createBubbleWithIcon("รูปแบบการจ่าย?", `ยอดเงิน ${amount.toLocaleString()} บาท`, "https://img.icons8.com/color/96/card-exchange.png");
+        const flex = createBubbleWithIcon("รูปแบบการจ่าย?", `ยอดเงิน ${amount.toLocaleString()} บาท`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
         return replyQuickReply(replyToken, flex, actions);
     }
 
     if (step === 'ASK_PAYMENT_TYPE') {
         if (text.includes("ผ่อน")) {
             await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
-            const flex = createBubbleWithIcon("ผ่อนกี่เดือน?", "ระบุจำนวนงวด (2-24)", "https://img.icons8.com/color/96/calendar--v1.png");
+            const flex = createBubbleWithIcon("ผ่อนกี่เดือน?", "ระบุจำนวนงวด (2-24)", "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
             return replyFlex(replyToken, "ระบุจำนวนงวด", flex);
         } else {
             await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, paymentType: 'normal', installments: 1 } }, { merge: true });
             const members = await getMemberNames();
             const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
-            const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ยอดเงิน ${data.amount.toLocaleString()} บาท (จ่ายเต็ม)`, "https://img.icons8.com/color/96/user-male-circle--v1.png");
+            const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ยอดเงิน ${data.amount.toLocaleString()} บาท (จ่ายเต็ม)`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
             return replyQuickReply(replyToken, flex, actions);
         }
     }
@@ -126,7 +126,7 @@ async function handleTextMessage(event) {
 
         const members = await getMemberNames();
         const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
-        const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ผ่อน ${installments} เดือน (${(data.amount / installments).toLocaleString()} ฿/ด)`, "https://img.icons8.com/color/96/user-male-circle--v1.png");
+        const flex = createBubbleWithIcon("ใครเป็นคนจ่าย?", `ผ่อน ${installments} เดือน (${(data.amount / installments).toLocaleString()} ฿/ด)`, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
         return replyQuickReply(replyToken, flex, actions);
     }
 
@@ -142,7 +142,7 @@ async function handleTextMessage(event) {
             { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
             ...members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }))
         ];
-        const flex = createBubbleWithIcon("ใครหารบ้าง?", "กดเลือกรายชื่อ (กดซ้ำเพื่อยกเลิก)\nแล้วกด 'ยืนยัน'", "https://img.icons8.com/color/96/conference-call.png");
+        const flex = createBubbleWithIcon("ใครหารบ้าง?", "กดเลือกรายชื่อ (กดซ้ำเพื่อยกเลิก)\nแล้วกด 'ยืนยัน'", "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
         return replyQuickReply(replyToken, flex, actions);
     }
 
@@ -180,7 +180,7 @@ async function handleTextMessage(event) {
         ];
 
         const selectedText = currentParticipants.length > 0 ? `เลือกแล้ว: ${currentParticipants.join(', ')}` : "ยังไม่ได้เลือกใคร";
-        const flex = createBubbleWithIcon("ใครหารบ้าง?", selectedText, "https://img.icons8.com/color/96/conference-call.png");
+        const flex = createBubbleWithIcon("ใครหารบ้าง?", selectedText, "https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769188259/8_yfxwfx.png");
         return replyQuickReply(replyToken, flex, actions);
     }
 }
