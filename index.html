@@ -1195,7 +1195,7 @@
                 const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
                 if (this.charts.monthlyTrend) this.charts.monthlyTrend.destroy();
                 const months = [], amounts = [], d = new Date();
-                for (let i = 0; i < 12; i++) {
+                for (let i = 0; i < 6; i++) {
                     const key = d.toISOString().slice(0, 7);
                     const thaiYear = String(d.getFullYear() + 543).slice(-2);
                     const label = `${String(d.getMonth() + 1).padStart(2, '0')}/${thaiYear}`;
@@ -1203,7 +1203,23 @@
                     amounts.unshift(this.data.transactions.filter(t => t.date.startsWith(key)).reduce((a, t) => a + Number(t.amount), 0));
                     d.setMonth(d.getMonth() - 1);
                 }
-                this.charts.monthlyTrend = new Chart(ctx, { type: 'bar', data: { labels: months, datasets: [{ data: amounts, backgroundColor: months.map((_, i) => i === 11 ? '#1e293b' : '#cbd5e1'), borderRadius: 5 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0 } } } } });
+                this.charts.monthlyTrend = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: months,
+                        datasets: [{
+                            data: amounts,
+                            backgroundColor: months.map((_, i) => i === 5 ? '#1e293b' : '#cbd5e1'),
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0 } } }
+                    }
+                });
             },
 
             renderPayerChart(data) {
