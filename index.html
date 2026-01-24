@@ -607,6 +607,57 @@
                             ตัวอย่าง: "สมชาย" แทนที่จะเป็น "นาย สมชาย ใจดี"
                         </p>
                     </div>
+
+                    <!-- ชื่อภาษาอังกฤษ -->
+                    <div>
+                        <label class="text-xs text-slate-500 flex items-center gap-1">
+                            <i class="fa-solid fa-globe text-indigo-500"></i>
+                            ชื่อภาษาอังกฤษ
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="text" id="english-name-display" placeholder="ตัวอย่าง: Kong Surakit"
+                                class="flex-1 p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-100 outline-none">
+                            <button onclick="window.app.updateEnglishName()"
+                                class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors">
+                                <i class="fa-solid fa-save"></i>
+                                บันทึก
+                            </button>
+                        </div>
+                        <p class="text-xs text-slate-400 mt-2">
+                            ไม่บังคับ - ใช้สำหรับการแสดงผลหรือรายงาน
+                        </p>
+                    </div>
+
+                    <!-- พร้อมเพย์ -->
+                    <div>
+                        <label class="text-xs text-slate-500 flex items-center gap-1">
+                            <i class="fa-solid fa-mobile-screen-button text-green-500"></i>
+                            หมายเลขพร้อมเพย์
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="text" id="promptpay-display"
+                                placeholder="เบอร์มือถือ 10 หลัก หรือบัตรประชาชน 13 หลัก"
+                                class="flex-1 p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-100 outline-none">
+                            <button onclick="window.app.updatePromptpay()"
+                                class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-green-700 transition-colors">
+                                <i class="fa-solid fa-save"></i>
+                                บันทึก
+                            </button>
+                        </div>
+
+                        <!-- คำอธิบาย -->
+                        <div class="mt-2 bg-green-50 border border-green-200 rounded-lg p-3">
+                            <p class="text-xs text-green-800 leading-relaxed">
+                                <i class="fa-solid fa-circle-info mr-1"></i>
+                                <strong>เก็บไว้ทำอะไร?</strong><br>
+                                เพื่อความสะดวกในการโอนเงิน สมาชิกคนอื่นจะสามารถคัดลอกหมายเลขพร้อมเพย์ของคุณได้
+                            </p>
+                        </div>
+
+                        <p class="text-xs text-slate-400 mt-2">
+                            🔒 ข้อมูลนี้จะแสดงเฉพาะตัวเลข 4 ตัวท้ายเท่านั้น
+                        </p>
+                    </div>
                 </div>
             </div>
 
@@ -1301,6 +1352,19 @@
                 if (realNameDisplay) {
                     const member = this.data.rawMembers.find(m => m.name === this.data.currentUser);
                     realNameDisplay.value = member?.realName || '';
+
+                    // โหลด English Name
+                    const englishNameDisplay = document.getElementById('english-name-display');
+                    if (englishNameDisplay) {
+                        englishNameDisplay.value = member?.englishName || '';
+                    }
+
+                    // โหลด Promptpay แบบ masked
+                    const promptpayDisplay = document.getElementById('promptpay-display');
+                    if (promptpayDisplay) {
+                        const promptpay = member?.promptpay || '';
+                        promptpayDisplay.value = promptpay ? this.maskPromptpay(promptpay) : '';
+                    }
                 }
             },
 
@@ -1337,6 +1401,111 @@
                     console.error('Error updating real name:', error);
                     alert('เกิดข้อผิดพลาด: ' + error.message);
                 }
+            },
+
+            async updateEnglishName() {
+                const englishName = document.getElementById('english-name-display').value.trim();
+
+                // อนุญาตให้เป็นค่าว่างได้ (ไม่บังคับ)
+                if (englishName && !/^[a-zA-Z\s]+$/.test(englishName)) {
+                    alert('กรุณากรอกเฉพาะตัวอักษรภาษาอังกฤษเท่านั้น');
+                    return;
+                }
+
+                try {
+                    const member = this.data.rawMembers.find(m => m.name === this.data.currentUser);
+                    if (member && member.ref) {
+                        await updateDoc(member.ref, {
+                            englishName: englishName || '',
+                            englishNameUpdatedAt: new Date()
+                        });
+
+                        // อัปเดต local data
+                        member.englishName = englishName;
+
+                        this.showToast('✅ อัปเดตชื่อภาษาอังกฤษเรียบร้อย');
+                    } else {
+                        alert('ไม่พบข้อมูลสมาชิก');
+                    }
+                } catch (error) {
+                    console.error('Error updating English name:', error);
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
+                }
+            },
+
+            async updatePromptpay() {
+                const promptpayInput = document.getElementById('promptpay-display').value.trim();
+
+                // ถ้ากรอกมา ให้ validate
+                if (promptpayInput) {
+                    // ลบ mask ออก (ถ้ามี)
+                    let promptpay = promptpayInput.replace(/[^0-9]/g, '');
+
+                    // Validation: ตรวจสอบว่าเป็นตัวเลขเท่านั้น
+                    if (!/^\d+$/.test(promptpay)) {
+                        alert('กรุณากรอกเฉพาะตัวเลขเท่านั้น');
+                        return;
+                    }
+
+                    // Validation: ความยาว (เบอร์มือถือ 10 หลัก หรือ บัตรประชาชน 13 หลัก)
+                    if (promptpay.length !== 10 && promptpay.length !== 13) {
+                        alert('กรุณากรอกเบอร์มือถือ 10 หลัก หรือเลขบัตรประชาชน 13 หลัก');
+                        return;
+                    }
+
+                    try {
+                        const member = this.data.rawMembers.find(m => m.name === this.data.currentUser);
+                        if (member && member.ref) {
+                            await updateDoc(member.ref, {
+                                promptpay: promptpay,
+                                promptpayUpdatedAt: new Date()
+                            });
+
+                            // อัปเดต local data
+                            member.promptpay = promptpay;
+
+                            // แสดงผลแบบ mask
+                            document.getElementById('promptpay-display').value = this.maskPromptpay(promptpay);
+
+                            this.showToast('✅ อัปเดตหมายเลขพร้อมเพย์เรียบร้อย');
+                        } else {
+                            alert('ไม่พบข้อมูลสมาชิก');
+                        }
+                    } catch (error) {
+                        console.error('Error updating promptpay:', error);
+                        alert('เกิดข้อผิดพลาด: ' + error.message);
+                    }
+                } else {
+                    // ถ้าเป็นค่าว่าง = ต้องการลบข้อมูล
+                    try {
+                        const member = this.data.rawMembers.find(m => m.name === this.data.currentUser);
+                        if (member && member.ref) {
+                            await updateDoc(member.ref, {
+                                promptpay: '',
+                                promptpayUpdatedAt: new Date()
+                            });
+
+                            member.promptpay = '';
+                            this.showToast('✅ ลบหมายเลขพร้อมเพย์เรียบร้อย');
+                        }
+                    } catch (error) {
+                        console.error('Error deleting promptpay:', error);
+                        alert('เกิดข้อผิดพลาด: ' + error.message);
+                    }
+                }
+            },
+
+            maskPromptpay(number) {
+                if (!number) return '';
+
+                if (number.length === 10) {
+                    // เบอร์มือถือ: 081-234-XXXX
+                    return number.substring(0, 6) + 'XXXX';
+                } else if (number.length === 13) {
+                    // บัตรประชาชน: X-XXXX-XXXXX-XX-X
+                    return 'X-XXXX-XXXXX-' + number.substring(11, 13) + '-X';
+                }
+                return number;
             },
 
             // Slip Upload Functions
@@ -2110,7 +2279,37 @@
                     const groupItems = this.data.transactions.filter(item => item.groupId === t.groupId);
                     groupItems.forEach(item => batch.delete(doc(db, "transactions", item.id.trim())));
 
-                    try { await batch.commit(); } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
+                    try {
+                        await batch.commit();
+
+                        // ลบ settlements ที่เกี่ยวข้องกับ group นี้
+                        const groupTransactionIds = groupItems.map(item => item.id);
+                        const settlementsQuery = query(
+                            collection(db, 'settlements'),
+                            where('status', '==', 'verified')
+                        );
+
+                        const settlementsSnapshot = await getDocs(settlementsQuery);
+                        const settlementBatch = writeBatch(db);
+                        let deletedCount = 0;
+
+                        settlementsSnapshot.forEach(doc => {
+                            const settlement = doc.data();
+                            // เช็คว่ามี transaction ID ใดใน group หรือไม่
+                            const hasGroupTransaction = settlement.transactionIds?.some(
+                                tId => groupTransactionIds.includes(tId)
+                            );
+                            if (hasGroupTransaction) {
+                                settlementBatch.delete(doc.ref);
+                                deletedCount++;
+                            }
+                        });
+
+                        if (deletedCount > 0) {
+                            await settlementBatch.commit();
+                            console.log(`Deleted ${deletedCount} related settlements`);
+                        }
+                    } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
                     // document.getElementById('loading-overlay').classList.add('hidden');
                 } else if (t.desc.match(/\(\d+\/\d+\)$/)) {
                     const confirmLegacy = confirm("ยืนยันต้องการลบรายการผ่อนที่เหลือทั้งหมดหรือไม่?\n\nOK: ลบทั้งหมดรวมงวดหน้า\nCancel: ลบแค่งวดนี้");
@@ -2131,11 +2330,10 @@
                         try {
                             await deleteDoc(doc(db, "transactions", id.trim()));
 
-                            // ลบ verified settlements ที่เกี่ยวข้องด้วย (ถ้ามี)
-                            const month = t.date.substring(0, 7);
+                            // ลบ verified settlements ที่เกี่ยวข้องกับ transaction นี้เท่านั้น
                             const settlementsQuery = query(
                                 collection(db, 'settlements'),
-                                where('month', '==', month),
+                                where('transactionIds', 'array-contains', id),
                                 where('status', '==', 'verified')
                             );
 
@@ -2147,7 +2345,7 @@
 
                             if (!settlementsSnapshot.empty) {
                                 await batch.commit();
-                                console.log('Deleted related settlements');
+                                console.log(`Deleted ${settlementsSnapshot.size} related settlements`);
                             }
                         } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
                         // document.getElementById('loading-overlay').classList.add('hidden');
@@ -2180,13 +2378,93 @@
                         allRelatedGroupItems.forEach(t => batch.delete(doc(db, "transactions", t.id)));
                     }
 
+                    // ลบ settlements ของเดือนนี้ด้วย
+                    const settlementsQuery = query(
+                        collection(db, 'settlements'),
+                        where('month', '==', m)
+                    );
+
+                    const settlementsSnapshot = await getDocs(settlementsQuery);
+                    settlementsSnapshot.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+
+                    console.log(`Will delete ${settlementsSnapshot.size} settlements from ${m}`);
+
                     await batch.commit();
+                    alert(`ลบข้อมูลเดือน ${m} เรียบร้อย\n- Transactions: ${itemsInMonth.length} รายการ\n- Settlements: ${settlementsSnapshot.size} รายการ`);
+                    await this.loadTransactions();
                 }
             },
 
-            cleanUpOldData() {
-                if (confirm("ยืนยันการล้างข้อมูลที่เก่ากว่า 2 เดือนหรือไม่?")) {
-                    alert("ระบบแนะนำให้ลบข้อมูลเก่าเพื่อความรวดเร็วในการโหลด");
+            async cleanUpOldData() {
+                if (this.data.userRole !== 'admin') {
+                    alert('เฉพาะ Admin เท่านั้นที่สามารถล้างข้อมูลได้');
+                    return;
+                }
+
+                // คำนวณวันที่ cutoff (2 เดือนที่แล้ว)
+                const today = new Date();
+                const twoMonthsAgo = new Date(today);
+                twoMonthsAgo.setMonth(today.getMonth() - 2);
+                const cutoffMonth = twoMonthsAgo.toISOString().slice(0, 7); // "2025-11"
+
+                // นับจำนวนข้อมูลที่จะลบ
+                const oldTransactions = this.data.transactions.filter(t => t.date < `${cutoffMonth}-01`);
+
+                if (oldTransactions.length === 0) {
+                    alert('ไม่มีข้อมูลเก่าที่ต้องล้าง');
+                    return;
+                }
+
+                // ขอยืนยัน
+                const confirmMsg = `พบข้อมูลเก่ากว่า ${cutoffMonth} จำนวน ${oldTransactions.length} รายการ\n\n` +
+                    `ยืนยันต้องการลบข้อมูลเหล่านี้หรือไม่?\n` +
+                    `(ไม่สามารถกู้คืนได้)`;
+
+                if (!confirm(confirmMsg)) return;
+
+                try {
+                    // แสดง loading
+                    const loadingEl = document.getElementById('loading-overlay');
+                    if (loadingEl) loadingEl.classList.remove('hidden');
+
+                    const batch = writeBatch(db);
+
+                    // ลบ transactions เก่า
+                    oldTransactions.forEach(t => {
+                        batch.delete(doc(db, 'transactions', t.id));
+                    });
+
+                    // หา settlements เก่าและลบด้วย
+                    const settlementsQuery = query(
+                        collection(db, 'settlements'),
+                        where('month', '<', cutoffMonth)
+                    );
+
+                    const settlementsSnapshot = await getDocs(settlementsQuery);
+                    settlementsSnapshot.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+
+                    // Commit
+                    await batch.commit();
+
+                    // ซ่อน loading
+                    if (loadingEl) loadingEl.classList.add('hidden');
+
+                    // แจ้งผลลัพธ์
+                    alert(`ล้างข้อมูลเสร็จสิ้น!\n\n` +
+                        `- ลบ transactions: ${oldTransactions.length} รายการ\n` +
+                        `- ลบ settlements: ${settlementsSnapshot.size} รายการ`);
+
+                    // โหลดข้อมูลใหม่
+                    await this.loadTransactions();
+
+                } catch (e) {
+                    alert('เกิดข้อผิดพลาด: ' + e.message);
+                    const loadingEl = document.getElementById('loading-overlay');
+                    if (loadingEl) loadingEl.classList.add('hidden');
                 }
             },
 

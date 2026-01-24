@@ -84,7 +84,8 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
                 from: d.name,
                 to: c.name,
                 amount: pay,
-                month: month
+                month: month,
+                transactionIds: transactions.map(t => t.id) // เก็บ transaction IDs ที่เกี่ยวข้อง
             };
         }
 
@@ -113,6 +114,7 @@ export async function saveVerifiedSettlement(db, settlement, slip, uploadedBy, m
 
     await setDoc(doc(db, 'settlements', settlementId), {
         id: settlementId,
+        transactionIds: settlement.transactionIds || [], // เก็บ transaction IDs
         month: settlement.month,
         from: settlement.from,
         to: settlement.to,
