@@ -20,6 +20,7 @@ import {
     saveVerifiedSettlement,
     sendSlipVerifiedNotification
 } from './firestore-helpers.js';
+
 // --- CONFIGURATION ---
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -33,9 +34,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// Initialize Gemini
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
+// --- MAIN HANDLER ---
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
@@ -48,269 +47,221 @@ export default async function handler(req, res) {
             }
         } catch (err) {
             console.error("Handler Error:", err);
-            await replyText(event.replyToken, "? ??????????????: " + err.message);
         }
     }));
     return res.status(200).send('OK');
 }
 
-// --- HANDLER: Text Message ---
+// --- TEXT MESSAGE HANDLER ---
 async function handleTextMessage(event) {
-    const text = event.message.text.trim();
     const userId = event.source.userId;
+    const text = event.message.text.trim();
     const replyToken = event.replyToken;
 
-    // --- COMMAND 1: ???????????? ---
-    if (text.includes("??????????????????????????????") || text.includes("?????")) {
-        return await checkSettlement(userId, replyToken);
-    }
-
-    // --- COMMAND 2: ???????????????? ---
-    if (text === "????????????????" || text === "??") {
+    // คำสั่งยกเลิก
+    if (['ยกเลิก', 'cancel', 'เริ่มใหม่', 'reset', 'พอ'].includes(text.toLowerCase())) {
         await deleteDoc(doc(db, 'user_sessions', userId));
-        await setDoc(doc(db, 'user_sessions', userId), {
-            step: 'ASK_DESC',
-            data: {},
-            lastUpdated: serverTimestamp()
-        });
-
-        const flex = createInteractiveCard("????????????", "???????????????????????????", "????????: ??????, ?????, ???????????????");
-        return replyFlex(replyToken, "?????????????", flex);
+        return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
     }
 
-    // --- COMMAND 3: ?????? ---
-    if (['??????', 'cancel', '??'].includes(text.toLowerCase())) {
-        await deleteDoc(doc(db, 'user_sessions', userId));
-        return replyText(replyToken, "??????? ???????????????????????");
-    }
-
-    // --- SESSION HANDLING ---
     const sessionRef = doc(db, 'user_sessions', userId);
     const sessionSnap = await getDoc(sessionRef);
+    let session = sessionSnap.exists() ? sessionSnap.data() : null;
 
-    if (!sessionSnap.exists()) {
-        if (text.includes("??????") || text.includes("hi")) return replyText(replyToken, "?????????? ????? '????????????????' ??????????????????????");
+    // --- STEP 0: จุดเริ่มต้น (ไม่มี Session ค้าง) ---
+    if (!session) {
+        // 1. คำสั่งเริ่มจดบันทึก
+        if (text === "เริ่มต้นจดบันทึก") {
+            await setDoc(sessionRef, {
+                step: 'ASK_DESC_START',
+                timestamp: serverTimestamp()
+            });
+            return replyText(replyToken, "📝 เริ่มบันทึกรายการ\nกรุณาพิมพ์ชื่อรายการครับ");
+        }
+
+        // 2. คำสั่งดูค่าใช้จ่าย
+        if (text === "ต้องการดูค่าใช้จ่ายของเดือนนี้") {
+            const members = await getMemberNames();
+            await setDoc(sessionRef, {
+                step: 'SELECT_MEMBER_TO_VIEW',
+                timestamp: serverTimestamp()
+            });
+
+            const actions = members.map(m => ({
+                type: "action", action: { type: "message", label: m, text: m }
+            }));
+
+            const flex = createInteractiveCard("เลือกสมาชิก", "ต้องการดูยอดของใครครับ?", "กดเลือก: ก้อง, แคร์, กอล์ฟ");
+            return replyQuickReply(replyToken, flex, actions);
+        }
+
+        // ถ้าพิมพ์อย่างอื่นมา ให้ปล่อยผ่าน (Ignore)
         return;
     }
 
-    const session = sessionSnap.data();
-    const step = session.step;
+    // --- มี Session ค้างอยู่ ---
+    const currentStep = session.step;
     const data = session.data || {};
 
-    // FLOW: DESC -> AMOUNT -> PAYMENT_TYPE -> [INSTALLMENTS] -> PAYER -> SPLIT
-    if (step === 'ASK_DESC') {
-        const desc = text;
-        await setDoc(sessionRef, { step: 'ASK_AMOUNT', data: { ...data, desc } }, { merge: true });
-
-        const flex = createInteractiveCard("?????????????", `??????: ${desc}`, "???????????????????????");
-        return replyFlex(replyToken, "????????", flex);
+    // STEP 0.5: รับชื่อรายการ
+    if (currentStep === 'ASK_DESC_START') {
+        await setDoc(sessionRef, {
+            step: 'ASK_AMOUNT',
+            data: { desc: text },
+            timestamp: serverTimestamp()
+        });
+        const flex = createInteractiveCard("ระบุราคา", `รายการ: ${text}`, "ระบบจะถามหารกับใครบ้าง");
+        return replyFlex(replyToken, "ระบุราคา", flex);
     }
 
-    if (step === 'ASK_AMOUNT') {
+    // STEP 0.5: รับชื่อสมาชิก (เพื่อดูรายงาน)
+    if (currentStep === 'SELECT_MEMBER_TO_VIEW') {
+        const memberName = text.toUpperCase();
+        await generateMemberReport(replyToken, memberName);
+        await deleteDoc(sessionRef);
+        return;
+    }
+
+    // STEP 2: รับราคา -> ถามคนจ่าย
+    if (currentStep === 'ASK_AMOUNT') {
         const amount = parseFloat(text.replace(/,/g, ''));
-        if (isNaN(amount) || amount <= 0) return replyText(replyToken, "?? ??????????????????\n?????????????????");
+        if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ โปรดระบุราคาเป็นตัวเลขครับ");
 
-        await setDoc(sessionRef, { step: 'ASK_PAYMENT_TYPE', data: { ...data, amount } }, { merge: true });
-
-        const actions = [
-            { type: "action", action: { type: "message", label: "?????????????", text: "????????" } },
-            { type: "action", action: { type: "message", label: "????????", text: "????????" } }
-        ];
-        const flex = createInteractiveCard("??????????????", `??????? ${amount.toLocaleString()} ???`);
+        await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, amount } }, { merge: true });
+        const members = await getMemberNames();
+        const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
+        const flex = createInteractiveCard("ระบุคนจ่าย", `ยอดเงิน: ${amount.toLocaleString()} บาท`);
         return replyQuickReply(replyToken, flex, actions);
     }
 
-    if (step === 'ASK_PAYMENT_TYPE') {
-        if (text.includes("????")) {
+    // STEP 3: รับคนจ่าย -> ถามรูปแบบการชำระ
+    if (currentStep === 'ASK_PAYER') {
+        const payer = text.toUpperCase();
+        await setDoc(sessionRef, { step: 'ASK_PAYMENT_TYPE', data: { ...data, payer } }, { merge: true });
+        const actions = [
+            { type: "action", action: { type: "message", label: "จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
+            { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } }
+        ];
+        const flex = createInteractiveCard("รูปแบบการชำระ", `คนจ่าย: ${payer}\nเลือกรูปแบบการชำระครับ`);
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    // STEP 4: รูปแบบชำระ
+    if (currentStep === 'ASK_PAYMENT_TYPE') {
+        if (text.includes("ผ่อน")) {
             await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
-            const flex = createInteractiveCard("?????????????", "???????????? (2-24)", "?????????????????? ???????????");
-            return replyFlex(replyToken, "????????????", flex);
+            const flex = createInteractiveCard("ระบุจำนวนงวด", "ต้องการผ่อนกี่เดือน? (2-24)", "ตัวอย่าง: 3, 6, 12");
+            return replyFlex(replyToken, "ระบุจำนวนงวด", flex);
         } else {
-            await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, paymentType: 'normal', installments: 1 } }, { merge: true });
-            const members = await getMemberNames();
-            const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
-            const flex = createInteractiveCard("??????????????", `??????? ${data.amount.toLocaleString()} ??? (????????)` );
-            return replyQuickReply(replyToken, flex, actions);
+            await setDoc(sessionRef, {
+                step: 'ASK_PARTICIPANTS',
+                data: { ...data, paymentType: 'normal', installments: 1, participants: [] }
+            }, { merge: true });
+            return await askParticipants(replyToken, userId, []);
         }
     }
 
-    if (step === 'ASK_INSTALLMENTS') {
+    // STEP 4.5: รับจำนวนงวด
+    if (currentStep === 'ASK_INSTALLMENTS') {
         let installments = parseInt(text);
         if (isNaN(installments) || installments < 2) installments = 2;
-        await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, installments } }, { merge: true });
-
-        const members = await getMemberNames();
-        const actions = members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }));
-        const monthlyAmt = (data.amount / installments).toLocaleString();
-        const flexMsg = "???? " + installments + " ????? (" + monthlyAmt + " ???/?????)";
-        const flex = createInteractiveCard("??????????????", flexMsg);
-        return replyQuickReply(replyToken, flex, actions);
+        await setDoc(sessionRef, { step: 'ASK_PARTICIPANTS', data: { ...data, installments, participants: [] } }, { merge: true });
+        return await askParticipants(replyToken, userId, []);
     }
 
-    if (step === 'ASK_PAYER') {
-        const payer = text.toUpperCase();
-        const members = await getMemberNames();
-        if (!members.includes(payer)) return replyText(replyToken, `?? ????????????? "${payer}" ????\n?????????????????????????????`);
-
-        await setDoc(sessionRef, { step: 'ASK_SPLIT', data: { ...data, payer, participants: [] } }, { merge: true });
-
-        const actions = [
-            { type: "action", action: { type: "message", label: "? ??????", text: "????" } },
-            { type: "action", action: { type: "message", label: "?? ?????", text: "?????" } },
-            ...members.map(m => ({ type: "action", action: { type: "message", label: m.substring(0, 20), text: m } }))
-        ];
-        const flex = createInteractiveCard("???????????", "?????????????? (????????????????)", "???????????????? '??????'");
-        return replyQuickReply(replyToken, flex, actions);
-    }
-
-    if (step === 'ASK_SPLIT') {
-        const members = await getMemberNames();
-        let currentParticipants = data.participants || [];
-
-        if (text === '?????') {
-            currentParticipants = [...members];
-            return await saveTransaction(replyToken, userId, { ...data, participants: currentParticipants, splitMethod: 'equal' });
+    // STEP 5: เลือกคนหาร
+    if (currentStep === 'ASK_PARTICIPANTS') {
+        let currentList = data.participants || [];
+        if (text === 'ยืนยัน' || text === '✅ ตกลง') {
+            if (currentList.length === 0) return replyText(replyToken, "⚠️ กรุณาเลือกอย่างน้อย 1 คนครับ");
+            await setDoc(sessionRef, { step: 'ASK_SPLIT_METHOD' }, { merge: true });
+            const actions = [
+                { type: "action", action: { type: "message", label: "หารเท่ากัน", text: "หารเท่า" } },
+                { type: "action", action: { type: "message", label: "ระบุจำนวนเอง", text: "ระบุจำนวน" } }
+            ];
+            const flex = createInteractiveCard("วิธีหารเงิน", `ผู้ร่วมหาร: ${currentList.join(', ')}`);
+            return replyQuickReply(replyToken, flex, actions);
         }
 
-        if (text === '????' || text === '??????' || text === '? ????') {
-            if (currentParticipants.length === 0) return replyText(replyToken, "?? ??????????????????? 1 ??????");
-            return await saveTransaction(replyToken, userId, { ...data, participants: currentParticipants, splitMethod: 'equal' });
-        }
-
+        const members = await getMemberNames();
         const inputName = text.toUpperCase();
-        if (members.includes(inputName)) {
-            if (currentParticipants.includes(inputName)) {
-                currentParticipants = currentParticipants.filter(p => p !== inputName);
-            } else {
-                currentParticipants.push(inputName);
-            }
+        if (text === 'ทุกคน') {
+            currentList = [...members];
+        } else if (members.includes(inputName)) {
+            currentList = currentList.includes(inputName) ? currentList.filter(m => m !== inputName) : [...currentList, inputName];
         }
+        await setDoc(sessionRef, { data: { ...data, participants: currentList } }, { merge: true });
+        return await askParticipants(replyToken, userId, currentList);
+    }
 
-        await setDoc(sessionRef, { data: { ...data, participants: currentParticipants } }, { merge: true });
+    // STEP 6: วิธีหาร
+    if (currentStep === 'ASK_SPLIT_METHOD') {
+        if (text.includes("ระบุ")) {
+            await setDoc(sessionRef, { step: 'ASK_CUSTOM_AMOUNTS', data: { ...data, splitMethod: 'custom' } }, { merge: true });
+            const example = data.participants.map(p => `${p}=100`).join(', ');
+            const flex = createInteractiveCard("ระบุยอดรายคน", `ตัวอย่าง: ${example}`, "พิมพ์ตามรูปแบบ 'ชื่อ=จำนวน'");
+            return replyFlex(replyToken, "ระบุยอดแยก", flex);
+        } else {
+            return await saveTransaction(replyToken, userId, { ...data, splitMethod: 'equal' });
+        }
+    }
 
-        const actions = [
-            { type: "action", action: { type: "message", label: "? ??????", text: "????" } },
-            ...members.map(m => {
-                const isSelected = currentParticipants.includes(m);
-                return { type: "action", action: { type: "message", label: `${isSelected ? '?? ' : ''}${m.substring(0, 18)}`, text: m } };
-            })
-        ];
-
-        const selectedText = currentParticipants.length > 0 ? `?????????: ${currentParticipants.join(', ')}` : "?????????????????";
-        const flex = createInteractiveCard("???????????", selectedText, "???????????????? '??????'");
-        return replyQuickReply(replyToken, flex, actions);
+    // STEP 7: ยอด Custom
+    if (currentStep === 'ASK_CUSTOM_AMOUNTS') {
+        return await saveTransaction(replyToken, userId, { ...data, customAmountStr: text });
     }
 }
 
-// --- LOGIC: Checking Settlement ---
-async function checkSettlement(userId, replyToken) {
-    const name = await getMemberNameByLineId(userId);
-    if (!name) return replyText(replyToken, "?? ??????????????????????\n????? Login ????????????????????? LINE ????????");
-
-    const today = new Date();
-    const currentMonth = today.toISOString().slice(0, 7);
-    const thaiMonth = today.toLocaleString('th-TH', { month: 'long' });
-
-    const q = query(collection(db, "transactions"), where("date", ">=", currentMonth + "-01"));
-    const snap = await getDocs(q);
-    const transactions = snap.docs.map(d => d.data()).filter(t => t.date && t.date.startsWith(currentMonth));
-
-    if (transactions.length === 0) return replyText(replyToken, `????? ${thaiMonth} ????????????????????????????`);
-
-    const members = await getMemberNames();
-    const balances = {};
-    members.forEach(m => balances[m] = 0);
-
-    transactions.forEach(t => {
-        const payer = (t.payer || "").toUpperCase();
-        const amount = Number(t.amount);
-        if (balances.hasOwnProperty(payer)) balances[payer] += amount;
-        if (t.splits) {
-            Object.keys(t.splits).forEach(k => {
-                const member = k.toUpperCase();
-                if (balances.hasOwnProperty(member)) balances[member] -= Number(t.splits[k]);
-            });
-        }
-    });
-
-    const debtors = [];
-    const creditors = [];
-    members.forEach(m => {
-        const bal = Math.round(balances[m]);
-        if (bal < -1) debtors.push({ name: m, amount: Math.abs(bal) });
-        if (bal > 1) creditors.push({ name: m, amount: bal });
-    });
-
-    const myTransfers = [];
-    const myReceivables = [];
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-        const d = debtors[i]; const c = creditors[j];
-        const pay = Math.min(d.amount, c.amount);
-        if (d.name === name) myTransfers.push({ to: c.name, amount: pay });
-        if (c.name === name) myReceivables.push({ from: d.name, amount: pay });
-        d.amount -= pay; c.amount -= pay;
-        if (d.amount <= 0.1) i++;
-        if (c.amount <= 0.1) j++;
-    }
-
-    const flex = createSettlementBubble(name, thaiMonth, myTransfers, myReceivables);
-    return replyFlex(replyToken, "?????????????????", flex);
-}
-
-// Updated handleImageMessage for webhook.js
-// Copy this function to replace the existing handleImageMessage in webhook.js
-
+// --- IMAGE MESSAGE HANDLER (SLIP VERIFICATION) ---
 async function handleImageMessage(event) {
     const userId = event.source.userId;
     const replyToken = event.replyToken;
     const messageId = event.message.id;
 
     try {
-        // 1. ???????????? LINE
+        // 1. ดึงรูปภาพจาก LINE
         const imageBuffer = await getImageContent(messageId);
 
         if (!imageBuffer) {
-            return replyText(replyToken, "? ????????????????????? ????????????????????");
+            return replyText(replyToken, "❌ ไม่สามารถดึงรูปภาพได้ กรุณาลองใหม่อีกครั้ง");
         }
 
-        // 2. ?????????? user ?????????????????????
+        // 2. ตรวจสอบว่า user มีข้อมูลสมาชิกหรือไม่
         const userMember = await getMemberByLineIdHelper(db, userId);
 
         if (!userMember) {
-            return replyText(replyToken, "? ????????????????? ????????????????????????");
+            return replyText(replyToken, "❌ ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
         }
 
-        // 3. ?????????????????? SlipOK API
-        await replyText(replyToken, "?? ????????????????...");
+        // 3. ส่งรูปไปตรวจสอบกับ SlipOK API
+        await replyText(replyToken, "🔍 กำลังตรวจสอบสลิป...");
 
         const slipData = await verifySlipWithSlipOK(imageBuffer);
 
         if (!slipData.success) {
             const errorMsg = getSlipErrorMessage(slipData.code);
-            return pushMessage(userId, `? ${errorMsg}\n\n??????????????: ${slipData.code || 'Unknown'}`);
+            return pushMessage(userId, `❌ ${errorMsg}`);
         }
 
         const slip = slipData.data;
 
-        // 4. ?? Settlement ????????????????????????
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slip.amount, currentMonth);
+        // 4. หา Settlement ที่ตรงกับยอดเงินในสลิป
+        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slip.amount.amount);
 
         if (!matchingSettlement) {
             return pushMessage(userId,
-                `?? ??????????? Settlement ?????????????????? ${slip.amount.toLocaleString()} ???\n\n` +
-                `????????????????????????????????????????????????????`
+                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slip.amount.amount.toLocaleString()} บาท\n\n` +
+                `กรุณาตรวจสอบยอดในหน้า Settlement แล้วลองใหม่อีกครั้ง`
             );
         }
 
-        // 5. ?????????????????
+        // 5. ตรวจสอบชื่อผู้รับ
         const receiver = await getMemberByNameHelper(db, matchingSettlement.to);
 
         if (!receiver || !receiver.realName) {
             return pushMessage(userId,
-                `?? ?????? (${matchingSettlement.to}) ????????????????????????\n` +
-                `????????????????????????? Settings ????`
+                `⚠️ ผู้รับ (${matchingSettlement.to}) ยังไม่ได้ตั้งค่าชื่อจริง\n` +
+                `กรุณาแจ้งให้ผู้รับไปตั้งค่าในหน้า Settings`
             );
         }
 
@@ -318,41 +269,41 @@ async function handleImageMessage(event) {
 
         if (!matchResult.matched) {
             return pushMessage(userId,
-                `? ???????????????????\n\n` +
-                `?? ???????: ${receiver.realName}\n` +
-                `?? ??????: ${slip.receiver.displayName}\n\n` +
-                `?????????????????????????????????`
+                `❌ ชื่อผู้รับไม่ตรงกัน!\n\n` +
+                `ในสลิป: ${slip.receiver.displayName || slip.receiver.name}\n` +
+                `ในระบบ: ${receiver.realName}\n\n` +
+                `กรุณาตรวจสอบว่าโอนถูกบัญชีหรือไม่`
             );
         }
 
-        // 6. ???????????
+        // 6. เช็คว่าสลิปนี้เคยถูกใช้แล้วหรือยัง
         const isDuplicate = await checkDuplicateSlip(db, slip.transRef);
 
         if (isDuplicate) {
-            return pushMessage(userId, "?? ?????????????????????????????????");
+            return pushMessage(userId, `⚠️ สลิปนี้เคยถูกใช้ยืนยันการโอนเงินแล้ว`);
         }
 
-        // 7. ?????????????? Firestore
+        // 7. บันทึกข้อมูลการ Verify
         await saveVerifiedSettlement(db, matchingSettlement, slip, userMember.name, matchResult);
 
-        // 8. ??? LINE notification ?????????
+        // 8. ส่ง Notification ไปหาผู้รับ
         if (receiver.lineUserId) {
             await sendSlipVerifiedNotification(
                 receiver.lineUserId,
                 userMember.name,
-                matchingSettlement.to,
-                slip.amount,
+                receiver.name,
+                slip.amount.amount,
                 slip
             );
         }
 
-        // 9. ??? Success Message
+        // 9. ส่งข้อความยืนยันกลับไปหาผู้ส่ง
         const successFlex = createSlipSuccessMessage(slip, matchingSettlement);
-        return pushFlex(userId, "? ??????????????????????", successFlex);
+        return pushFlex(userId, "✅ ยืนยันการโอนเงินสำเร็จ", successFlex);
 
     } catch (error) {
         console.error("Error in handleImageMessage:", error);
-        return pushMessage(userId, "? ??????????????: " + error.message);
+        return pushMessage(userId, "❌ เกิดข้อผิดพลาด: " + error.message);
     }
 }
 
@@ -377,9 +328,7 @@ async function getImageContent(messageId) {
     }
 }
 
-
 // --- HELPERS ---
-
 async function getMemberNames() {
     const snap = await getDocs(collection(db, "members"));
     const names = new Set();
@@ -403,11 +352,9 @@ async function replyFlex(replyToken, altText, contents) {
 }
 
 async function replyQuickReply(replyToken, flex, actions) {
-    const message = { type: 'flex', altText: '???????????', contents: flex, quickReply: { items: actions } };
+    const message = { type: 'flex', altText: 'กรุณาเลือก', contents: flex, quickReply: { items: actions } };
     await sendToLine(replyToken, message);
 }
-
-
 
 async function pushMessage(userId, text) {
     try {
@@ -444,40 +391,51 @@ async function pushFlex(userId, altText, contents) {
         console.error('Error pushing flex:', error);
     }
 }
+
 function createInteractiveCard(title, description, hintText = null) {
     const contents = [
         // Header with icon + title
         {
             type: "box",
             layout: "horizontal",
+            spacing: "md",
             contents: [
-                { type: "text", text: "??", size: "xxl", flex: 0 },
                 {
-                    type: "text",
-                    text: title,
-                    weight: "bold",
-                    size: "xl",
-                    color: "#1e293b",
-                    margin: "md",
-                    flex: 1,
-                    wrap: true
+                    type: "box",
+                    layout: "vertical",
+                    contents: [
+                        {
+                            type: "text",
+                            text: "💰",
+                            size: "xxl"
+                        }
+                    ],
+                    flex: 0
+                },
+                {
+                    type: "box",
+                    layout: "vertical",
+                    contents: [
+                        {
+                            type: "text",
+                            text: title,
+                            weight: "bold",
+                            size: "xl",
+                            color: "#1e293b"
+                        },
+                        {
+                            type: "text",
+                            text: description,
+                            size: "sm",
+                            color: "#64748b",
+                            wrap: true
+                        }
+                    ]
                 }
             ]
-        },
-        // Separator
-        { type: "separator", margin: "md", color: "#e2e8f0" },
-        // Description
-        {
-            type: "text",
-            text: "?? " + description,
-            size: "sm",
-            color: "#64748b",
-            margin: "md",
-            wrap: true
         }
     ];
 
-    // Optional hint text box
     if (hintText) {
         contents.push({
             type: "box",
@@ -488,13 +446,12 @@ function createInteractiveCard(title, description, hintText = null) {
                     text: hintText,
                     size: "xs",
                     color: "#94a3b8",
-                    style: "italic",
                     wrap: true
                 }
             ],
-            backgroundColor: "#f1f5f9",
-            cornerRadius: "md",
             paddingAll: "sm",
+            backgroundColor: "#f8fafc",
+            cornerRadius: "md",
             margin: "md"
         });
     }
@@ -505,341 +462,232 @@ function createInteractiveCard(title, description, hintText = null) {
         body: {
             type: "box",
             layout: "vertical",
-            contents: contents
-        },
-        styles: {
-            body: { backgroundColor: "#ffffff" }
+            contents: contents,
+            paddingAll: "lg"
         }
     };
 }
 
-function createSuccessBubble(data, totalAmount, installments) {
-    // Build detail rows with icons
-    const details = [
-        {
-            type: "box",
-            layout: "horizontal",
-            contents: [
-                { type: "text", text: "??", size: "md", flex: 0 },
-                { type: "text", text: data.desc, size: "lg", weight: "bold", color: "#1e293b", margin: "sm", flex: 1, wrap: true }
-            ],
-            margin: "md"
-        },
-        {
-            type: "box",
-            layout: "vertical",
-            contents: [
-                {
-                    type: "text",
-                    text: totalAmount.toLocaleString() + " ???",
-                    size: "xxl",
-                    weight: "bold",
-                    color: "#4338ca",
-                    align: "center"
-                }
-            ],
-            backgroundColor: "#e0e7ff",
-            cornerRadius: "lg",
-            paddingAll: "md",
-            margin: "md"
-        },
-        { type: "separator", margin: "md", color: "#e2e8f0" }
+async function askParticipants(replyToken, userId, selectedList) {
+    const members = await getMemberNames();
+    const actions = [
+        { type: "action", action: { type: "message", label: "✅ ยืนยันรายชื่อ", text: "ยืนยัน" } },
+        { type: "action", action: { type: "message", label: "เลือกทุกคน", text: "ทุกคน" } },
+        ...members.slice(0, 11).map(m => ({
+            type: "action",
+            action: { type: "message", label: (selectedList.includes(m) ? `✅ ${m}` : m), text: m }
+        }))
     ];
 
-    // Add installment info if applicable
-    if (installments > 1) {
-        details.push({
-            type: "box",
-            layout: "horizontal",
-            contents: [
-                { type: "text", text: "??", size: "md", flex: 0 },
-                { type: "text", text: "??????:", size: "sm", color: "#64748b", margin: "sm", flex: 2 },
-                { type: "text", text: "???? " + installments + " ?????", size: "sm", weight: "bold", color: "#1e293b", flex: 3, wrap: true }
-            ],
-            margin: "sm"
-        });
-    }
-
-    // Payer
-    details.push({
-        type: "box",
-        layout: "horizontal",
-        contents: [
-            { type: "text", text: "??", size: "md", flex: 0 },
-            { type: "text", text: "??????:", size: "sm", color: "#64748b", margin: "sm", flex: 2 },
-            { type: "text", text: data.payer, size: "sm", weight: "bold", color: "#1e293b", flex: 3 }
-        ],
-        margin: "sm"
-    });
-
-    // Participants
-    details.push({
-        type: "box",
-        layout: "horizontal",
-        contents: [
-            { type: "text", text: "??", size: "md", flex: 0 },
-            { type: "text", text: "?????:", size: "sm", color: "#64748b", margin: "sm", flex: 2 },
-            { type: "text", text: data.participants.join(", "), size: "sm", weight: "bold", color: "#1e293b", flex: 3, wrap: true }
-        ],
-        margin: "sm"
-    });
-
-    return {
-        type: "bubble",
-        size: "kilo",
-        header: {
-            type: "box",
-            layout: "vertical",
-            contents: [
+    const flex = {
+        "type": "bubble", "size": "mega",
+        "body": {
+            "type": "box", "layout": "vertical", "backgroundColor": "#ffffff",
+            "contents": [
                 {
-                    type: "text",
-                    text: "? ????????????!",
-                    size: "xl",
-                    weight: "bold",
-                    color: "#ffffff",
-                    align: "center"
-                }
+                    "type": "box", "layout": "horizontal", "alignItems": "center",
+                    "contents": [
+                        { "type": "text", "text": "👥", "size": "xxl", "flex": 0 },
+                        { "type": "text", "text": "หารกับใครบ้าง?", "weight": "bold", "size": "md", "color": "#1e293b", "margin": "md" }
+                    ]
+                },
+                { "type": "text", "text": selectedList.length > 0 ? `เลือกแล้ว: ${selectedList.join(', ')}` : "ยังไม่ได้เลือกใคร", "size": "xs", "color": "#64748b", "margin": "md", "wrap": true },
+                { "type": "text", "text": "แตะที่ชื่อเพื่อเลือก/ออก แล้วกดปุ่มยืนยัน", "size": "xxs", "color": "#94a3b8", "margin": "xs" }
             ],
-            backgroundColor: "#4338ca",
-            paddingAll: "md"
-        },
-        body: {
-            type: "box",
-            layout: "vertical",
-            contents: details
-        },
-        footer: {
-            type: "box",
-            layout: "vertical",
-            contents: [
-                {
-                    type: "button",
-                    action: { type: "uri", label: "??????????????? ?", uri: "https://dept-three.vercel.app/" },
-                    style: "primary",
-                    color: "#4338ca",
-                    height: "sm"
-                }
-            ]
-        },
-        styles: {
-            body: { backgroundColor: "#ffffff" },
-            footer: { backgroundColor: "#f8fafc" }
+            "paddingAll": "lg", "borderColor": "#e2e8f0", "borderWidth": "normal", "cornerRadius": "md"
         }
     };
+    return replyQuickReply(replyToken, flex, actions);
 }
 
-function createSettlementBubble(name, month, transfers, receivables) {
-    const contents = [
-        {
-            type: "box",
-            layout: "horizontal",
-            contents: [
-                { type: "text", text: "??", size: "xxl", flex: 0 },
-                {
-                    type: "box",
-                    layout: "vertical",
-                    contents: [
-                        { type: "text", text: "????????" + month, weight: "bold", size: "xl", color: "#1e293b" },
-                        { type: "text", text: "????????? " + name, size: "xs", color: "#64748b", margin: "xs" }
-                    ],
-                    margin: "md",
-                    flex: 1
-                }
-            ]
-        },
-        { type: "separator", margin: "lg", color: "#e2e8f0" }
-    ];
+async function saveTransaction(replyToken, userId, finalData) {
+    try {
+        const batch = writeBatch(db);
+        const today = new Date();
+        const splits = {};
 
-    // Check if cleared all debts
-    if (transfers.length === 0 && receivables.length === 0) {
-        contents.push({
-            type: "box",
-            layout: "vertical",
-            contents: [
-                {
-                    type: "text",
-                    text: "??",
-                    size: "xxl",
-                    align: "center"
-                },
-                {
-                    type: "text",
-                    text: "?????????????????!",
-                    size: "lg",
-                    weight: "bold",
-                    color: "#4338ca",
-                    align: "center",
-                    margin: "md"
-                },
-                {
-                    type: "text",
-                    text: "???????????????????",
-                    size: "sm",
-                    color: "#64748b",
-                    align: "center",
-                    margin: "sm"
-                }
-            ],
-            backgroundColor: "#e0e7ff",
-            cornerRadius: "lg",
-            paddingAll: "lg",
-            margin: "lg"
-        });
-    } else {
-        // Has debts or receivables
-        if (transfers.length > 0) {
-            contents.push({ 
-                type: "text", 
-                text: "?? ???????????", 
-                size: "sm", 
-                weight: "bold", 
-                color: "#8b5cf6", 
-                margin: "lg" 
+        if (finalData.splitMethod === 'custom') {
+            finalData.customAmountStr.split(/[\s,]+/).forEach(p => {
+                const [name, val] = p.split('=');
+                if (name && val) splits[name.trim().toUpperCase()] = parseFloat(val);
             });
-            
-            transfers.forEach(t => {
-                contents.push({
-                    type: "box",
-                    layout: "horizontal",
-                    contents: [
-                        { 
-                            type: "text", 
-                            text: "?? " + t.to, 
-                            size: "sm", 
-                            color: "#1e293b", 
-                            flex: 3 
-                        },
-                        { 
-                            type: "text", 
-                            text: t.amount.toLocaleString() + " ?", 
-                            size: "sm", 
-                            weight: "bold", 
-                            color: "#8b5cf6", 
-                            align: "end", 
-                            flex: 2 
-                        }
-                    ],
-                    backgroundColor: "#f3e8ff",
-                    cornerRadius: "md",
-                    paddingAll: "sm",
-                    margin: "sm"
+        } else {
+            const share = finalData.amount / finalData.participants.length;
+            finalData.participants.forEach(p => splits[p] = share);
+        }
+
+        const icon = 'fa-utensils';
+
+        if (finalData.paymentType === 'installment') {
+            const amountPerMonth = finalData.amount / finalData.installments;
+            const monthlySplits = {};
+            for (let p in splits) monthlySplits[p] = (splits[p] / finalData.amount) * amountPerMonth;
+            const groupId = `grp_line_${Date.now()}`;
+
+            for (let i = 0; i < finalData.installments; i++) {
+                const nextDate = new Date(); nextDate.setMonth(today.getMonth() + i);
+                batch.set(doc(collection(db, "transactions")), {
+                    date: nextDate.toISOString().slice(0, 10),
+                    desc: `${finalData.desc} (${i + 1}/${finalData.installments})`,
+                    amount: amountPerMonth, payer: finalData.payer, splits: monthlySplits,
+                    paymentType: 'installment', installments: finalData.installments,
+                    timestamp: Date.now() + i, groupId: groupId, icon: icon
                 });
+            }
+        } else {
+            batch.set(doc(collection(db, "transactions")), {
+                date: today.toISOString().slice(0, 10),
+                desc: finalData.desc, amount: finalData.amount, payer: finalData.payer,
+                splits: splits, paymentType: 'normal', timestamp: Date.now(), icon: icon
             });
         }
 
-        if (receivables.length > 0) {
-            contents.push({ 
-                type: "text", 
-                text: "?? ?????????", 
-                size: "sm", 
-                weight: "bold", 
-                color: "#6366f1", 
-                margin: "lg" 
-            });
-            
-            receivables.forEach(t => {
-                contents.push({
-                    type: "box",
-                    layout: "horizontal",
-                    contents: [
-                        { 
-                            type: "text", 
-                            text: "?? " + t.from, 
-                            size: "sm", 
-                            color: "#1e293b", 
-                            flex: 3 
-                        },
-                        { 
-                            type: "text", 
-                            text: t.amount.toLocaleString() + " ?", 
-                            size: "sm", 
-                            weight: "bold", 
-                            color: "#6366f1", 
-                            align: "end", 
-                            flex: 2 
-                        }
-                    ],
-                    backgroundColor: "#eef2ff",
-                    cornerRadius: "md",
-                    paddingAll: "sm",
-                    margin: "sm"
-                });
-            });
-        }
+        await batch.commit();
+        await deleteDoc(doc(db, 'user_sessions', userId));
+
+        const flex = {
+            "type": "bubble",
+            "header": {
+                "type": "box", "layout": "vertical",
+                "backgroundColor": finalData.paymentType === 'installment' ? "#f97316" : "#22c55e",
+                "contents": [
+                    { "type": "text", "text": "บันทึกสำเร็จ ✅", "color": "#ffffff", "weight": "bold", "size": "sm" }
+                ]
+            },
+            "body": {
+                "type": "box", "layout": "vertical", "spacing": "md",
+                "contents": [
+                    { "type": "text", "text": finalData.desc, "weight": "bold", "size": "lg" },
+                    { "type": "text", "text": `${finalData.amount.toLocaleString()} บาท`, "size": "xxl", "color": finalData.paymentType === 'installment' ? "#f97316" : "#22c55e", "weight": "bold" },
+                    { "type": "separator" },
+                    { "type": "text", "text": `คนจ่าย: ${finalData.payer}`, "size": "xs", "color": "#666666" },
+                    { "type": "text", "text": `คนหาร: ${finalData.participants.join(', ')}`, "size": "xs", "color": "#666666", "wrap": true }
+                ]
+            }
+        };
+
+        return replyFlex(replyToken, "บันทึกสำเร็จ", flex);
+    } catch (e) {
+        return replyText(replyToken, "❌ เกิดข้อผิดพลาด: " + e.message);
     }
+}
 
-    return {
-        type: "bubble",
-        size: "kilo",
-        body: { 
-            type: "box", 
-            layout: "vertical", 
-            contents: contents 
-        },
-        footer: {
-            type: "box",
-            layout: "vertical",
+async function generateMemberReport(replyToken, memberName) {
+    try {
+        const date = new Date();
+        const currentMonth = date.toISOString().slice(0, 7);
+
+        const q = query(collection(db, "transactions"),
+            where("date", ">=", `${currentMonth}-01`),
+            where("date", "<=", `${currentMonth}-31`)
+        );
+
+        const snapshot = await getDocs(q);
+        let totalPaid = 0;
+        let totalShare = 0;
+        let recentItems = [];
+
+        snapshot.forEach(doc => {
+            const t = doc.data();
+            if (!t.date.startsWith(currentMonth)) return;
+
+            let involved = false;
+            if (t.payer === memberName) {
+                totalPaid += Number(t.amount);
+                involved = true;
+            }
+            if (t.splits && t.splits[memberName]) {
+                totalShare += Number(t.splits[memberName]);
+                involved = true;
+            }
+
+            if (involved) {
+                recentItems.push({
+                    desc: t.desc,
+                    amount: t.amount,
+                    myShare: t.splits[memberName] || 0,
+                    isPayer: t.payer === memberName,
+                    date: t.date
+                });
+            }
+        });
+
+        const balance = totalPaid - totalShare;
+        recentItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+        const itemRows = recentItems.slice(0, 5).map(item => ({
+            type: "box", layout: "horizontal", margin: "sm",
             contents: [
-                { 
-                    type: "button", 
-                    action: { type: "uri", label: "??????? Dept Money ?", uri: "https://dept-three.vercel.app/" }, 
-                    style: "primary", 
-                    color: "#4338ca",
-                    height: "sm"
-                }
+                { type: "text", text: item.desc, size: "xs", color: "#555555", flex: 5, wrap: true },
+                { type: "text", text: item.isPayer ? "จ่าย" : "หาร", size: "xs", color: "#aaaaaa", flex: 2, align: "center" },
+                { type: "text", text: `${item.myShare.toLocaleString()}฿`, size: "xs", color: "#111111", flex: 3, align: "end", weight: "bold" }
             ]
-        },
-        styles: {
-            body: { backgroundColor: "#ffffff" },
-            footer: { backgroundColor: "#f8fafc" }
-        }
-    };
+        }));
+
+        const flex = {
+            type: "bubble",
+            header: {
+                type: "box", layout: "vertical", backgroundColor: "#334155",
+                contents: [
+                    { type: "text", text: "MONTHLY REPORT", color: "#94a3b8", size: "xxs", weight: "bold" },
+                    { type: "text", text: `สรุปยอด: ${memberName}`, color: "#ffffff", size: "lg", weight: "bold", margin: "xs" },
+                    { type: "text", text: `ประจำเดือน: ${currentMonth}`, color: "#cbd5e1", size: "xs" }
+                ]
+            },
+            body: {
+                type: "box", layout: "vertical", backgroundColor: "#ffffff",
+                contents: [
+                    {
+                        type: "box", layout: "horizontal",
+                        contents: [
+                            { type: "text", text: "สำรองจ่ายไป", size: "xs", color: "#64748b" },
+                            { type: "text", text: `${totalPaid.toLocaleString()} ฿`, size: "sm", color: "#1e293b", align: "end", weight: "bold" }
+                        ]
+                    },
+                    {
+                        type: "box", layout: "horizontal", margin: "sm",
+                        contents: [
+                            { type: "text", text: "ส่วนที่ต้องหาร", size: "xs", color: "#64748b" },
+                            { type: "text", text: `${totalShare.toLocaleString()} ฿`, size: "sm", color: "#ef4444", align: "end", weight: "bold" }
+                        ]
+                    },
+                    { type: "separator", margin: "md" },
+                    {
+                        type: "box", layout: "horizontal", margin: "md",
+                        contents: [
+                            { type: "text", text: "ยอดสุทธิ", size: "sm", color: "#334155", weight: "bold" },
+                            {
+                                type: "text",
+                                text: balance >= 0 ? `+${balance.toLocaleString()} ฿ (รับ)` : `${balance.toLocaleString()} ฿ (จ่าย)`,
+                                size: "lg",
+                                color: balance >= 0 ? "#22c55e" : "#ef4444",
+                                align: "end",
+                                weight: "bold"
+                            }
+                        ]
+                    },
+                    { type: "separator", margin: "lg" },
+                    { type: "text", text: "รายการล่าสุด", size: "xs", color: "#94a3b8", margin: "md", weight: "bold" },
+                    ...itemRows
+                ]
+            }
+        };
+
+        await replyFlex(replyToken, "รายงานค่าใช้จ่าย", flex);
+
+    } catch (e) {
+        console.error(e);
+        await replyText(replyToken, "❌ เกิดข้อผิดพลาดในการดึงข้อมูลครับ");
+    }
 }
 
 async function sendToLine(replyToken, payload) {
-    const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-    if (!token) return;
-    const messages = Array.isArray(payload) ? payload : [payload];
-    await fetch('https://api.line.me/v2/bot/message/reply', {
+    const res = await fetch('https://api.line.me/v2/bot/message/reply', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ replyToken, messages })
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}` },
+        body: JSON.stringify({ replyToken, messages: [payload] })
     });
-}
-
-async function saveTransaction(replyToken, userId, data) {
-    try {
-        const batch = writeBatch(db);
-        const installments = data.paymentType === 'installment' ? Number(data.installments) || 1 : 1;
-        const groupId = data.paymentType === 'installment' ? "grp_" + Date.now() : null;
-        const baseDate = new Date();
-        const splits = {};
-        const totalAmount = Number(data.amount);
-        const share = totalAmount / data.participants.length;
-        data.participants.forEach(p => splits[p] = share);
-
-        for (let i = 0; i < installments; i++) {
-            const currentInstallmentDate = new Date(baseDate);
-            currentInstallmentDate.setMonth(baseDate.getMonth() + i);
-            const txn = {
-                date: currentInstallmentDate.toISOString().slice(0, 10),
-                desc: installments > 1 ? `${data.desc} (${i + 1}/${installments})` : data.desc,
-                amount: totalAmount / installments,
-                payer: data.payer,
-                splits: Object.fromEntries(Object.entries(splits).map(([k, v]) => [k, v / installments])),
-                paymentType: data.paymentType || 'normal',
-                icon: 'fa-utensils',
-                groupId: groupId,
-                timestamp: Date.now() + i
-            };
-            batch.set(doc(collection(db, "transactions")), txn);
-        }
-        batch.delete(doc(db, 'user_sessions', userId));
-        await batch.commit();
-
-        const flex = createSuccessBubble(data, totalAmount, installments);
-        return replyFlex(replyToken, "???????????????", flex);
-    } catch (e) {
-        return replyText(replyToken, "? Error saving: " + e.message);
+    if (!res.ok) {
+        const errData = await res.json();
+        console.error("LINE API Error:", JSON.stringify(errData));
     }
 }
