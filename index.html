@@ -362,6 +362,54 @@
         </div>
     </div>
 
+    <!-- ONBOARDING MODAL -->
+    <div id="onboarding-modal"
+        class="hidden fixed inset-0 z-[90] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-slate-800 to-slate-900 p-6 text-white">
+                <h2 class="text-xl font-bold">ยินดีต้อนรับ! 👋</h2>
+                <p class="text-sm text-slate-300 mt-2">กรุณากรอกข้อมูลของคุณเพื่อเริ่มใช้งาน</p>
+            </div>
+
+            <form id="onboarding-form" class="p-6 space-y-4">
+                <!-- Real Name (Required) -->
+                <div>
+                    <label class="text-xs font-bold text-slate-700 mb-1 block">
+                        ชื่อจริง <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="onboard-real-name" required placeholder="เช่น: สุรกิจ"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                    <p class="text-xs text-slate-400 mt-1">สำหรับตรวจสอบสลิปโอนเงิน</p>
+                </div>
+
+                <!-- English Name (Required) -->
+                <div>
+                    <label class="text-xs font-bold text-slate-700 mb-1 block">
+                        ชื่อภาษาอังกฤษ <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="onboard-english-name" required placeholder="เช่น: Kong Surakit"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <!-- PromptPay (Required) -->
+                <div>
+                    <label class="text-xs font-bold text-slate-700 mb-1 block">
+                        พร้อมเพย์ <span class="text-red-500">*</span>
+                    </label>
+                    <input type="text" id="onboard-promptpay" required
+                        placeholder="เบอร์มือถือ 10 หลัก หรือบัตรประชาชน 13 หลัก" pattern="[0-9]{10,13}"
+                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none">
+                    <p class="text-xs text-slate-400 mt-1">สมาชิกจะคัดลอกเพื่อโอนเงินให้คุณได้</p>
+                </div>
+
+                <button type="submit"
+                    class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-900 transition-colors active:scale-95">
+                    เริ่มใช้งาน
+                </button>
+            </form>
+        </div>
+    </div>
+
     <!-- MOBILE TOP BAR -->
     <header
         class="md:hidden fixed top-0 left-0 w-full h-16 bg-white/90 backdrop-blur-md border-b px-4 flex items-center justify-between z-50 shadow-sm">
@@ -1218,16 +1266,21 @@
                     if (ec) ec.classList.remove('hidden');
                 }
 
-                // เช็คว่ามีชื่อจริงหรือยัง
-                const member = this.data.rawMembers.find(m => m.name === name);
-                if (member && (!member.realName || member.realName.trim() === '')) {
-                    // ยังไม่มี → แสดง Popup
-                    this.showRealNameSetupModal();
-                } else {
-                    // มีแล้ว → ไปหน้า Dashboard ตามปกติ
-                    this.navigate('dashboard');
+                // === ONBOARDING CHECK ===
+                // เช็คว่ากรอกข้อมูลครบทั้ง 3 ฟิลด์หรือยัง
+                if (role !== 'admin') {  // Skip onboarding for admin
+                    const member = this.data.rawMembers.find(m => m.name === name);
+                    const isComplete = this.checkOnboardingComplete(member);
+
+                    if (!isComplete) {
+                        // ยังไม่ครบ → แสดง onboarding modal
+                        this.showOnboardingModal(member);
+                        return; // หยุดไม่ไป dashboard
+                    }
                 }
 
+                // กรอกครบแล้วหรือเป็น admin → ไปหน้า Dashboard
+                this.navigate('dashboard');
                 this.showToast(`ยินดีต้อนรับ ${name}`);
             },
 
@@ -1738,6 +1791,121 @@
                 const p = document.getElementById('admin-pass').value;
                 if (u.toLowerCase() === 'admin' && p === '0000') this.completeLogin('admin');
                 else alert('รหัสผ่านไม่ถูกต้อง');
+            },
+
+            // === ONBOARDING FUNCTIONS ===
+
+            async ensureMemberExists(lineUser) {
+                const { userId, displayName } = lineUser;
+
+                // Check if member exists
+                const q = query(collection(db, 'members'), where('lineUserId', '==', userId));
+                const snapshot = await getDocs(q);
+
+                if (snapshot.empty) {
+                    // Auto-create member
+                    const memberName = this.generateMemberName(displayName);
+                    const newMemberRef = doc(collection(db, 'members'));
+
+                    await setDoc(newMemberRef, {
+                        name: memberName,
+                        lineUserId: userId,
+                        lineDisplayName: displayName,
+                        createdAt: new Date()
+                    });
+
+                    console.log('✅ Auto-created member:', memberName);
+
+                    // Return the new member data
+                    return {
+                        id: newMemberRef.id,
+                        name: memberName,
+                        lineUserId: userId,
+                        lineDisplayName: displayName,
+                        ref: newMemberRef
+                    };
+                }
+
+                const memberDoc = snapshot.docs[0];
+                return {
+                    id: memberDoc.id,
+                    ...memberDoc.data(),
+                    ref: memberDoc.ref
+                };
+            },
+
+            generateMemberName(displayName) {
+                // Extract meaningful name from LINE display name
+                const cleaned = displayName.replace(/[^a-zA-Zก-๙]/g, '').toUpperCase();
+                return cleaned.substring(0, 10) || 'USER' + Date.now();
+            },
+
+            async checkOnboardingComplete(member) {
+                if (!member) return false;
+
+                // Check if all required fields exist
+                const hasRealName = member.realName && member.realName.trim().length > 0;
+                const hasEnglishName = member.englishName && member.englishName.trim().length > 0;
+                const hasPromptpay = member.promptpay && member.promptpay.trim().length > 0;
+
+                return hasRealName && hasEnglishName && hasPromptpay;
+            },
+
+            showOnboardingModal(member) {
+                document.getElementById('onboarding-modal').classList.remove('hidden');
+
+                // Pre-fill with existing data if any
+                document.getElementById('onboard-real-name').value = member?.realName || '';
+                document.getElementById('onboard-english-name').value = member?.englishName || '';
+                document.getElementById('onboard-promptpay').value = member?.promptpay || '';
+            },
+
+            async completeOnboarding(e) {
+                e.preventDefault();
+
+                const realName = document.getElementById('onboard-real-name').value.trim();
+                const englishName = document.getElementById('onboard-english-name').value.trim();
+                const promptpay = document.getElementById('onboard-promptpay').value.trim();
+
+                // Validate PromptPay format
+                const cleanPromptpay = promptpay.replace(/[^0-9]/g, '');
+                if (!/^[0-9]{10,13}$/.test(cleanPromptpay)) {
+                    alert('กรุณากรอกพร้อมเพย์ให้ถูกต้อง (10 หรือ 13 หลัก)');
+                    return;
+                }
+
+                try {
+                    // Get current member
+                    const member = this.data.rawMembers.find(m => m.lineUserId === this.data.lineUserId);
+
+                    if (!member || !member.ref) {
+                        alert('ไม่พบข้อมูลสมาชิก');
+                        return;
+                    }
+
+                    // Update member in Firebase
+                    await updateDoc(member.ref, {
+                        realName,
+                        englishName,
+                        promptpay: cleanPromptpay,
+                        onboardingCompletedAt: new Date()
+                    });
+
+                    // Update local data
+                    member.realName = realName;
+                    member.englishName = englishName;
+                    member.promptpay = cleanPromptpay;
+
+                    // Hide modal
+                    document.getElementById('onboarding-modal').classList.add('hidden');
+                    this.showToast('✅ บันทึกข้อมูลเรียบร้อย!');
+
+                    // Reload app
+                    await this.loadData();
+                } catch (error) {
+                    console.error('Error completing onboarding:', error);
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
+                }
             },
 
 
@@ -2556,7 +2724,18 @@
         };
 
         window.app = app;
-        window.addEventListener('DOMContentLoaded', () => app.init());
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
+
+            // === ONBOARDING FORM EVENT LISTENER ===
+            const onboardingForm = document.getElementById('onboarding-form');
+            if (onboardingForm) {
+                onboardingForm.addEventListener('submit', (e) => {
+                    app.completeOnboarding(e);
+                });
+            }
+        });
+
 
         // PWA Service Worker Registration
         if ('serviceWorker' in navigator) {
