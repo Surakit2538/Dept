@@ -1235,7 +1235,9 @@
                 }
             },
 
-            completeLogin(role, name) {
+            async completeLogin(role, name) {
+                console.log('🔐 completeLogin called with:', { role, name });
+
                 this.data.userRole = role;
                 this.data.currentUser = name; // Store current user
                 const loginScreen = document.getElementById('login-screen');
@@ -1269,20 +1271,37 @@
                 // === ONBOARDING CHECK ===
                 // เช็คว่ากรอกข้อมูลครบทั้ง 3 ฟิลด์หรือยัง
                 if (role !== 'admin') {  // Skip onboarding for admin
-                    const member = this.data.rawMembers.find(m => m.name === name);
-                    console.log('🔍 Checking onboarding for:', name);
-                    console.log('Member data:', member);
+                    console.log('🔍 Starting onboarding check for:', name);
 
-                    const isComplete = this.checkOnboardingComplete(member);
-                    console.log('Onboarding complete?', isComplete);
+                    // ⭐ ดึงข้อมูล member ล่าสุดจาก Firebase
+                    try {
+                        const q = query(collection(db, 'members'), where('name', '==', name));
+                        const snapshot = await getDocs(q);
 
-                    if (!isComplete) {
-                        console.log('⚠️ Onboarding incomplete - showing modal');
-                        this.showOnboardingModal(member);
-                        return; // หยุดไม่ไป dashboard
+                        if (!snapshot.empty) {
+                            const freshMember = {
+                                id: snapshot.docs[0].id,
+                                ...snapshot.docs[0].data(),
+                                ref: snapshot.docs[0].ref
+                            };
+
+                            console.log('Fresh member data:', freshMember);
+
+                            const isComplete = this.checkOnboardingComplete(freshMember);
+                            console.log('Onboarding complete?', isComplete);
+
+                            if (!isComplete) {
+                                console.log('⚠️ Onboarding incomplete - showing modal');
+                                this.data.lineUserId = freshMember.lineUserId; // เก็บไว้ใช้ใน completeOnboarding
+                                this.showOnboardingModal(freshMember);
+                                return; // หยุดไม่ไป dashboard
+                            }
+
+                            console.log('✅ Onboarding complete - proceeding to dashboard');
+                        }
+                    } catch (error) {
+                        console.error('Error fetching member data:', error);
                     }
-
-                    console.log('✅ Onboarding complete - proceeding to dashboard');
                 }
 
                 // กรอกครบแล้วหรือเป็น admin → ไปหน้า Dashboard
