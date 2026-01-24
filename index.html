@@ -202,6 +202,32 @@
             align-items: center !important;
         }
 
+        /* Status Badge Styles */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            border: radius 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border-radius: 9999px;
+        }
+
+        .status-badge.pending {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-badge.verified {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-badge.failed {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
         .icon-opt {
             transition: all 0.2s;
             cursor: pointer;
@@ -530,6 +556,60 @@
         <!-- SETTINGS -->
         <section id="view-settings" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-6">
             <h2 class="text-xl font-bold text-slate-800">ตั้งค่าระบบ</h2>
+
+            <!-- ข้อมูลส่วนตัว -->
+            <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
+                <h3 class="font-bold text-slate-700 text-sm mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-user"></i>
+                    ข้อมูลส่วนตัว
+                </h3>
+
+                <div class="space-y-3">
+                    <!-- ชื่อในระบบ (LINE) -->
+                    <div>
+                        <label class="text-xs text-slate-500 flex items-center gap-1">
+                            <i class="fa-brands fa-line text-green-500"></i>
+                            ชื่อในระบบ (LINE)
+                        </label>
+                        <input type="text" id="line-name-display" disabled
+                            class="w-full p-2 bg-slate-50 rounded-lg text-sm text-slate-600 cursor-not-allowed">
+                    </div>
+
+                    <!-- ชื่อจริง -->
+                    <div>
+                        <label class="text-xs text-slate-500 flex items-center gap-1">
+                            <i class="fa-solid fa-id-card text-blue-500"></i>
+                            ชื่อจริง (สำหรับตรวจสอบสลิป)
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="text" id="real-name-display" placeholder="ยังไม่ได้ตั้งค่า"
+                                class="flex-1 p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-100 outline-none">
+                            <button onclick="window.app.updateRealName()"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors">
+                                <i class="fa-solid fa-save"></i>
+                                บันทึก
+                            </button>
+                        </div>
+
+                        <!-- คำอธิบาย -->
+                        <div class="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p class="text-xs text-blue-800 leading-relaxed">
+                                <i class="fa-solid fa-circle-info mr-1"></i>
+                                <strong>ทำไมต้องกรอกชื่อจริง?</strong><br>
+                                เมื่อคุณอัปโหลดสลิปโอนเงินใน Settlement ระบบจะใช้ชื่อนี้ตรวจสอบกับชื่อในสลิปอัตโนมัติ
+                                เพื่อยืนยันว่าโอนให้คนถูกต้อง
+                            </p>
+                        </div>
+
+                        <p class="text-xs text-slate-400 mt-2">
+                            💡 กรอกเฉพาะชื่อที่ปรากฏในสลิป (ไม่ต้องใส่คำนำหน้า)
+                            <br>
+                            ตัวอย่าง: "สมชาย" แทนที่จะเป็น "นาย สมชาย ใจดี"
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-4">
                 <h3 class="font-bold text-slate-700 text-sm">จัดการรายชื่อสมาชิก</h3>
                 <div class="flex gap-2">
@@ -739,6 +819,117 @@
                     <i class="fa-solid fa-check-circle mr-2"></i> บันทึกรายการ
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Real Name Setup Modal (บังคับกรอก) -->
+    <div id="real-name-setup-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fa-solid fa-user-pen text-blue-600 text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">ตั้งค่าชื่อจริง</h3>
+            </div>
+
+            <!-- Explanation -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <p class="text-sm text-blue-800 leading-relaxed">
+                    💡 <strong>ทำไมต้องกรอกชื่อจริง?</strong><br>
+                    เมื่อคุณอัปโหลดสลิปโอนเงินเพื่อยืนยันการชำระใน Settlement
+                    ระบบจะใช้ชื่อจริงนี้ตรวจสอบกับชื่อในสลิปอัตโนมัติ
+                    เพื่อความแม่นยำและความปลอดภัย
+                </p>
+            </div>
+
+            <!-- Input -->
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-slate-700 mb-2">
+                    ชื่อจริงของคุณ
+                </label>
+                <input type="text" id="real-name-input" placeholder="เช่น สมชาย, ปิยะนุช"
+                    class="w-full px-4 py-3 border-2 border-slate-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
+                <p class="text-xs text-slate-500 mt-2">
+                    กรอกเฉพาะชื่อที่ปรากฏในสลิป (ไม่ต้องใส่คำนำหน้า เช่น นาย, นาง)
+                </p>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex gap-3">
+                <button onclick="window.app.saveRealName()"
+                    class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                    บันทึก
+                </button>
+            </div>
+
+            <!-- Note -->
+            <p class="text-xs text-center text-slate-400 mt-4">
+                คุณสามารถแก้ไขชื่อจริงได้ภายหลังในหน้า "ตั้งค่า"
+            </p>
+        </div>
+    </div>
+
+    <!-- Slip Upload Modal -->
+    <div id="slip-upload-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800">ยืนยันการโอนเงิน</h3>
+                <button onclick="window.app.closeSlipUploadModal()" class="text-slate-400 hover:text-slate-600">
+                    <i class="fa-solid fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <p class="text-sm text-slate-600">
+                    คุณต้องโอน: <span id="slip-amount" class="font-bold text-red-600"></span>
+                    <br>
+                    ให้: <span id="slip-to" class="font-bold text-blue-600"></span>
+                </p>
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-slate-700 mb-2">
+                    อัปโหลดสลิปโอนเงิน
+                </label>
+                <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                    onclick="document.getElementById('slip-file-input').click()">
+                    <i class="fa-solid fa-cloud-upload text-4xl text-slate-300 mb-2"></i>
+                    <p class="text-sm text-slate-500">คลิกเพื่อเลือกรูปสลิป</p>
+                    <p class="text-xs text-slate-400 mt-1">รองรับ JPG, PNG, WEBP</p>
+                </div>
+                <input type="file" id="slip-file-input" accept="image/*" class="hidden"
+                    onchange="window.app.handleSlipFileSelected(this.files[0])">
+
+                <div id="slip-preview" class="hidden mt-3">
+                    <p class="text-xs text-green-600 flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle"></i>
+                        <span id="slip-filename"></span>
+                    </p>
+                </div>
+            </div>
+
+            <button id="btn-verify-slip" onclick="window.app.verifySettlementSlip()" disabled
+                class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors">
+                <i class="fa-solid fa-check mr-2"></i>
+                ตรวจสอบสลิป
+            </button>
+        </div>
+    </div>
+
+    <!-- Slip Verification Result Modal -->
+    <div id="slip-result-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+            <div class="text-center mb-4">
+                <div class="result-icon text-6xl mb-3"></div>
+                <h3 class="result-title text-xl font-bold text-slate-800 mb-2"></h3>
+                <div class="result-message text-sm text-slate-600"></div>
+            </div>
+
+            <button onclick="window.app.closeResultModal()"
+                class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-700 transition-colors">
+                ปิด
+            </button>
         </div>
     </div>
 
@@ -976,8 +1167,66 @@
                     if (ec) ec.classList.remove('hidden');
                 }
 
-                this.navigate('dashboard');
+                // เช็คว่ามีชื่อจริงหรือยัง
+                const member = this.data.rawMembers.find(m => m.name === name);
+                if (member && (!member.realName || member.realName.trim() === '')) {
+                    // ยังไม่มี → แสดง Popup
+                    this.showRealNameSetupModal();
+                } else {
+                    // มีแล้ว → ไปหน้า Dashboard ตามปกติ
+                    this.navigate('dashboard');
+                }
+
                 this.showToast(`ยินดีต้อนรับ ${name}`);
+            },
+
+            showRealNameSetupModal() {
+                document.getElementById('real-name-setup-modal').classList.remove('hidden');
+                document.getElementById('real-name-input').focus();
+            },
+
+            async saveRealName() {
+                const realName = document.getElementById('real-name-input').value.trim();
+
+                if (!realName) {
+                    alert('กรุณากรอกชื่อจริง');
+                    return;
+                }
+
+                // Validate: ต้องมีอักษร
+                if (!/[ก-๙a-zA-Z]/.test(realName)) {
+                    alert('กรุณากรอกชื่อที่ถูกต้อง');
+                    return;
+                }
+
+                try {
+                    // อัปเดต Firestore
+                    const member = this.data.rawMembers.find(m => m.name === this.data.currentUser);
+                    if (member && member.ref) {
+                        await updateDoc(member.ref, {
+                            realName: realName,
+                            realNameSetAt: new Date(),
+                            realNameUpdatedAt: new Date()
+                        });
+
+                        // อัปเดต local data
+                        member.realName = realName;
+
+                        // ปิด Modal
+                        document.getElementById('real-name-setup-modal').classList.add('hidden');
+
+                        // แสดง Success
+                        this.showToast('✅ บันทึกชื่อจริงเรียบร้อย');
+
+                        // ไปหน้า Dashboard
+                        this.navigate('dashboard');
+                    } else {
+                        alert('ไม่พบข้อมูลสมาชิก');
+                    }
+                } catch (error) {
+                    console.error('Error saving real name:', error);
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
+                }
             },
 
             logout() {
@@ -1037,6 +1286,195 @@
                 if (this.data.currentView === 'dashboard') this.renderDashboard();
                 if (this.data.currentView === 'history') this.renderHistory();
                 if (this.data.currentView === 'settlement') this.calculateSettlement();
+                if (this.data.currentView === 'settings') this.loadSettingsData();
+            },
+
+            loadSettingsData() {
+                // โหลดข้อมูลส่วนตัว
+                const lineNameDisplay = document.getElementById('line-name-display');
+                const realNameDisplay = document.getElementById('real-name-display');
+
+                if (lineNameDisplay) {
+                    lineNameDisplay.value = this.data.currentUser || '';
+                }
+
+                if (realNameDisplay) {
+                    const member = this.data.rawMembers.find(m => m.name === this.data.currentUser);
+                    realNameDisplay.value = member?.realName || '';
+                }
+            },
+
+            async updateRealName() {
+                const realName = document.getElementById('real-name-display').value.trim();
+
+                if (!realName) {
+                    alert('กรุณากรอกชื่อจริง');
+                    return;
+                }
+
+                // Validate
+                if (!/[ก-๙a-zA-Z]/.test(realName)) {
+                    alert('กรุณากรอกชื่อที่ถูกต้อง');
+                    return;
+                }
+
+                try {
+                    const member = this.data.rawMembers.find(m => m.name === this.data.currentUser);
+                    if (member && member.ref) {
+                        await updateDoc(member.ref, {
+                            realName: realName,
+                            realNameUpdatedAt: new Date()
+                        });
+
+                        // อัปเดต local data
+                        member.realName = realName;
+
+                        this.showToast('✅ อัปเดตชื่อจริงเรียบร้อย');
+                    } else {
+                        alert('ไม่พบข้อมูลสมาชิก');
+                    }
+                } catch (error) {
+                    console.error('Error updating real name:', error);
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
+                }
+            },
+
+            // Slip Upload Functions
+            openSlipUploadModal(from, to, amount) {
+                this.data.currentSettlement = { from, to, amount };
+
+                document.getElementById('slip-amount').textContent = `${amount.toLocaleString()} บาท`;
+                document.getElementById('slip-to').textContent = to;
+
+                // Reset
+                this.data.selectedSlipFile = null;
+                document.getElementById('slip-preview').classList.add('hidden');
+                document.getElementById('btn-verify-slip').disabled = true;
+
+                document.getElementById('slip-upload-modal').classList.remove('hidden');
+            },
+
+            closeSlipUploadModal() {
+                document.getElementById('slip-upload-modal').classList.add('hidden');
+            },
+
+            handleSlipFileSelected(file) {
+                if (!file) return;
+
+                // Validate file type
+                const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                if (!validTypes.includes(file.type)) {
+                    alert('กรุณาเลือกไฟล์รูปภาพ (JPG, PNG, WEBP)');
+                    return;
+                }
+
+                // Validate file size (max 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('ไฟล์ใหญ่เกิน 5MB');
+                    return;
+                }
+
+                this.data.selectedSlipFile = file;
+
+                // Show preview
+                document.getElementById('slip-filename').textContent = file.name;
+                document.getElementById('slip-preview').classList.remove('hidden');
+                document.getElementById('btn-verify-slip').disabled = false;
+            },
+
+            async verifySettlementSlip() {
+                if (!this.data.selectedSlipFile) {
+                    alert('กรุณาเลือกรูปสลิป');
+                    return;
+                }
+
+                const { from, to, amount } = this.data.currentSettlement;
+
+                // Show loading
+                const btn = document.getElementById('btn-verify-slip');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังตรวจสอบ...';
+
+                try {
+                    const formData = new FormData();
+                    formData.append('settlementId', 'temp-' + Date.now()); // TODO: Use real settlement ID
+                    formData.append('from', from);
+                    formData.append('to', to);
+                    formData.append('amount', amount);
+                    formData.append('month', this.data.currentMonth);
+                    formData.append('file', this.data.selectedSlipFile);
+
+                    const response = await fetch('/api/verify-settlement-slip', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const result = await response.json();
+
+                    // Reset button
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> ตรวจสอบสลิป';
+
+                    // Close upload modal
+                    this.closeSlipUploadModal();
+
+                    if (result.success) {
+                        this.showSlipVerificationResult(result.slip, true);
+                        // Refresh settlement
+                        this.calculateSettlement();
+                    } else {
+                        this.showSlipVerificationResult(null, false, result.message);
+                    }
+
+                } catch (error) {
+                    console.error('Error verifying slip:', error);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-check mr-2"></i> ตรวจสอบสลิป';
+                    alert('เกิดข้อผิดพลาด: ' + error.message);
+                }
+            },
+
+            showSlipVerificationResult(slip, success, errorMessage = '') {
+                const modal = document.getElementById('slip-result-modal');
+                const icon = modal.querySelector('.result-icon');
+                const title = modal.querySelector('.result-title');
+                const message = modal.querySelector('.result-message');
+
+                if (success) {
+                    icon.textContent = '✅';
+                    title.textContent = 'ยืนยันสำเร็จ!';
+                    message.innerHTML = `
+                        <div class="text-left space-y-1 mt-4">
+                            <p><strong>ผู้โอน:</strong> ${slip.sender.displayName}</p>
+                            <p><strong>ผู้รับ:</strong> ${slip.receiver.displayName}</p>
+                            <p><strong>จำนวนเงิน:</strong> ${slip.amount.toLocaleString()} บาท</p>
+                            <p><strong>วันที่:</strong> ${this.formatSlipDate(slip.transDate)}</p>
+                            <p><strong>เวลา:</strong> ${slip.transTime}</p>
+                        </div>
+                    `;
+                } else {
+                    icon.textContent = '❌';
+                    title.textContent = 'สลิปไม่ถูกต้อง';
+                    message.textContent = errorMessage || 'เกิดข้อผิดพลาด';
+                }
+
+                modal.classList.remove('hidden');
+            },
+
+            closeResultModal() {
+                document.getElementById('slip-result-modal').classList.add('hidden');
+            },
+
+            formatSlipDate(dateStr) {
+                // dateStr = "20260124"
+                const year = parseInt(dateStr.substring(0, 4));
+                const month = parseInt(dateStr.substring(4, 6));
+                const day = parseInt(dateStr.substring(6, 8));
+
+                const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
+                    'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+
+                return `${day} ${thaiMonths[month - 1]} ${year + 543}`;
             },
 
             renderHistory() {
@@ -1261,7 +1699,7 @@
                 input.value = "";
             },
 
-            calculateSettlement() {
+            async calculateSettlement() {
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
                 const balances = {};
                 this.data.members.forEach(m => balances[m] = 0);
@@ -1276,6 +1714,22 @@
                         });
                     }
                 });
+
+                // หัก verified settlements ออกจาก balances
+                // TODO: เมื่อมี Firestore settlements collection แล้ว uncomment ส่วนนี้
+                /*
+                const verifiedSnapshot = await getDocs(
+                    query(collection(db, 'settlements'),
+                        where('month', '==', this.data.currentMonth),
+                        where('status', '==', 'verified'))
+                );
+                
+                verifiedSnapshot.forEach(doc => {
+                    const s = doc.data();
+                    if (balances.hasOwnProperty(s.from)) balances[s.from] += s.amount;
+                    if (balances.hasOwnProperty(s.to)) balances[s.to] -= s.amount;
+                });
+                */
 
                 const grid = document.getElementById('settlement-status-grid');
                 grid.innerHTML = "";
@@ -1310,14 +1764,39 @@
                     const c = creditors[j];
                     const pay = Math.min(d.amount, c.amount);
 
-                    this.data.settlementPlan.push({ from: d.name, to: c.name, amount: pay });
+                    this.data.settlementPlan.push({ from: d.name, to: c.name, amount: pay, status: 'pending' });
 
-                    planContainer.innerHTML += `
-                        <div class="flex items-center justify-between bg-white p-3 rounded-xl border text-sm">
-                            <div class="font-bold text-slate-700">${d.name} <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> ${c.name}</div>
+                    // สร้าง Settlement Item Card
+                    const item = document.createElement('div');
+                    item.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm';
+
+                    const isCurrentUserPayer = d.name === this.data.currentUser;
+
+                    item.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="font-bold text-slate-700">
+                                ${d.name} 
+                                <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> 
+                                ${c.name}
+                            </div>
                             <div class="font-bold text-red-500">${pay.toLocaleString()} บาท</div>
                         </div>
+                        
+                        <div class="flex items-center justify-between mt-3">
+                            <span class="status-badge pending">
+                                <i class="fa-solid fa-clock mr-1"></i> รอโอนเงิน
+                            </span>
+                            ${isCurrentUserPayer ? `
+                                <button onclick="window.app.openSlipUploadModal('${d.name}', '${c.name}', ${pay})"
+                                        class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                                    <i class="fa-solid fa-cloud-upload mr-1"></i>
+                                    อัปโหลดหลักฐาน
+                                </button>
+                            ` : ''}
+                        </div>
                     `;
+
+                    planContainer.appendChild(item);
 
                     d.amount -= pay;
                     c.amount -= pay;
