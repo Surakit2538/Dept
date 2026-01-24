@@ -47,19 +47,16 @@ export async function verifySlipWithSlipOK(imageBuffer, expectedAmount = null) {
             amountPart = `\r\n--${boundary}\r\nContent-Disposition: form-data; name="amount"\r\n\r\n${expectedAmount}`;
         }
 
-        // Add log parameter
-        const logPart = `\r\n--${boundary}\r\nContent-Disposition: form-data; name="log"\r\n\r\nfalse`;
         const endBoundary = `\r\n--${boundary}--\r\n`;
 
         // Combine all parts
         const headerText = parts.join('');
         const headerBuffer = new TextEncoder().encode(headerText);
         const amountBuffer = new TextEncoder().encode(amountPart);
-        const logBuffer = new TextEncoder().encode(logPart);
         const endBuffer = new TextEncoder().encode(endBoundary);
 
         // Calculate total length
-        const totalLength = headerBuffer.length + fileData.length + amountBuffer.length + logBuffer.length + endBuffer.length;
+        const totalLength = headerBuffer.length + fileData.length + amountBuffer.length + endBuffer.length;
 
         // Create final buffer
         const body = new Uint8Array(totalLength);
@@ -73,9 +70,6 @@ export async function verifySlipWithSlipOK(imageBuffer, expectedAmount = null) {
 
         body.set(amountBuffer, offset);
         offset += amountBuffer.length;
-
-        body.set(logBuffer, offset);
-        offset += logBuffer.length;
 
         body.set(endBuffer, offset);
 
