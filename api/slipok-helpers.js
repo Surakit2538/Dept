@@ -114,7 +114,11 @@ export function matchReceiverName(slipReceiver, realName) {
     const normalize = (str) => {
         if (!str) return '';
         return str.toUpperCase()
-            .replace(/นาย|นาง|นางสาว|MR|MRS|MISS|MS|MR\.|MRS\.|MISS\.|MS\./gi, '')
+            // Remove titles (Full & Abbr)
+            .replace(/^(นาย|นาง|นางสาว|ด\.ช\.|ด\.ญ\.|เด็กชาย|เด็กหญิง|น\.ส\.|น\.ส|MR\.|MRS\.|MISS\.|MS\.|MR|MRS|MISS|MS)(\s+)?/gi, '')
+            // Remove common business prefixes
+            .replace(/^(บจก\.|บมจ\.|หจก\.|บริษัท|ห้างหุ้นส่วนจำกัด)(\s+)?/gi, '')
+            // Keep only Thai/English chars and digits
             .replace(/[^A-Z0-9ก-๙]/g, '');
     };
 
