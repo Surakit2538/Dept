@@ -1161,13 +1161,16 @@
             },
 
             changeMonth(delta) {
+                console.log('changeMonth called with delta:', delta);
                 const date = new Date(this.data.currentMonth + '-01');
                 date.setMonth(date.getMonth() + delta);
                 const newMonth = date.toISOString().slice(0, 7);
+                console.log('New month:', newMonth);
                 this.setMonth(newMonth);
             },
 
             updateMonthDisplay() {
+                console.log('updateMonthDisplay called, currentMonth:', this.data.currentMonth);
                 const selectedDate = new Date(this.data.currentMonth + '-01');
                 const currentDate = new Date();
                 const currentMonth = currentDate.toISOString().slice(0, 7);
@@ -1189,6 +1192,8 @@
                     displayText = `${month} ${year}`;
                 }
 
+                console.log('Display text:', displayText);
+
                 // อัปเดตทุก display
                 const displays = [
                     'current-month-display',    // Dashboard
@@ -1198,7 +1203,12 @@
 
                 displays.forEach(id => {
                     const el = document.getElementById(id);
-                    if (el) el.textContent = displayText;
+                    if (el) {
+                        el.textContent = displayText;
+                        console.log(`Updated ${id}:`, displayText);
+                    } else {
+                        console.warn(`Element ${id} not found`);
+                    }
                 });
             },
 
