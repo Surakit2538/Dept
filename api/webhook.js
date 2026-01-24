@@ -240,15 +240,13 @@ async function handleImageMessage(event) {
         console.log('=== Slip Data Structure ===');
         console.log('slip.amount:', slip.amount);
         console.log('Type of slip.amount:', typeof slip.amount);
-        if (slip.amount && typeof slip.amount === 'object') {
-            console.log('slip.amount.amount:', slip.amount.amount);
-        }
 
         // 4. ตรวจสอบว่ามียอดเงินในสลิปหรือไม่
-        if (!slip.amount || !slip.amount.amount || slip.amount.amount <= 0) {
-            // 🔍 DEBUG: Log why validation failed
-            console.log('❌ Amount validation failed!');
-            console.log('Reason: slip.amount =', slip.amount);
+        // SlipOK ส่ง amount เป็น number โดยตรง (เช่น 50) ไม่ใช่ object
+        const slipAmount = typeof slip.amount === 'number' ? slip.amount : (slip.amount?.amount || 0);
+
+        if (!slipAmount || slipAmount <= 0) {
+            console.log('❌ Amount validation failed! slip.amount =', slip.amount);
 
             return pushMessage(userId,
                 `❌ ไม่สามารถอ่านยอดเงินจากสลิปได้\n\n` +
@@ -256,12 +254,14 @@ async function handleImageMessage(event) {
             );
         }
 
+        console.log('✅ Slip amount validated:', slipAmount);
+
         // 5. หา Settlement ที่ตรงกับยอดเงินในสลิป
-        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slip.amount.amount);
+        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slipAmount);
 
         if (!matchingSettlement) {
             return pushMessage(userId,
-                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slip.amount.amount.toLocaleString()} บาท\n\n` +
+                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slipAmount.toLocaleString()} บาท\n\n` +
                 `กรุณาตรวจสอบยอดในหน้า Settlement แล้วลองใหม่อีกครั้ง`
             );
         }
@@ -303,7 +303,7 @@ async function handleImageMessage(event) {
                 receiver.lineUserId,
                 userMember.name,
                 receiver.name,
-                slip.amount.amount,
+                slipAmount,
                 slip
             );
         }
