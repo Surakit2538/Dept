@@ -1715,43 +1715,7 @@
                     }
                 });
 
-                // หัก verified settlements ออกจาก balances
-                const verifiedForBalance = await getDocs(
-                    query(collection(db, 'settlements'),
-                        where('month', '==', this.data.currentMonth),
-                        where('status', '==', 'verified'))
-                );
-
-                verifiedForBalance.forEach(doc => {
-                    const s = doc.data();
-                    if (balances.hasOwnProperty(s.from)) balances[s.from] += s.amount;
-                    if (balances.hasOwnProperty(s.to)) balances[s.to] -= s.amount;
-                });
-
-                const grid = document.getElementById('settlement-status-grid');
-                grid.innerHTML = "";
-                this.data.members.forEach(m => {
-                    const bal = Math.round(balances[m]);
-                    let color = "bg-slate-50 text-slate-400";
-                    let icon = "fa-circle-check", status = "เคลียร์แล้ว";
-                    if (bal > 1) { color = "bg-emerald-50 text-emerald-700 border-emerald-100"; icon = "fa-hand-holding-dollar"; status = "รอรับเงิน"; }
-                    else if (bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "ต้องจ่าย"; }
-
-                    const card = document.createElement('div');
-                    card.className = `p-4 rounded-2xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${color}`;
-                    card.onclick = () => this.showMemberDetails(m);
-                    card.innerHTML = `<i class="fa-solid ${icon} mb-1 opacity-70"></i><span class="text-xs font-bold">${m}</span><span class="text-[9px] uppercase tracking-tighter opacity-60 mb-1">${status}</span><span class="text-base font-bold">${bal === 0 ? '-' : Math.abs(bal).toLocaleString() + ' บาท'}</span>`;
-                    grid.appendChild(card);
-                });
-
-                const debtors = [], creditors = [];
-                this.data.members.forEach(m => {
-                    const b = Math.round(balances[m]);
-                    if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-                    if (b > 1) creditors.push({ name: m, amount: b });
-                });
-
-                // Fetch verified settlements to check which ones are already verified
+                // Fetch verified settlements (ใช้ครั้งเดียวสำหรับทั้ง balance และ display)
                 const verifiedSnapshot = await getDocs(
                     query(collection(db, 'settlements'),
                         where('month', '==', this.data.currentMonth),
@@ -1768,6 +1732,35 @@
                         status: 'verified',
                         slip: s.slip
                     });
+
+                    // หัก verified settlements ออกจาก balances
+                    if (balances.hasOwnProperty(s.from)) balances[s.from] += s.amount;
+                    if (balances.hasOwnProperty(s.to)) balances[s.to] -= s.amount;
+                });
+
+                // Render member status grid
+                const grid = document.getElementById('settlement-status-grid');
+                grid.innerHTML = "";
+                this.data.members.forEach(m => {
+                    const bal = Math.round(balances[m]);
+                    let color = "bg-slate-50 text-slate-400";
+                    let icon = "fa-circle-check", status = "เคลียร์แล้ว";
+                    if (bal > 1) { color = "bg-emerald-50 text-emerald-700 border-emerald-100"; icon = "fa-hand-holding-dollar"; status = "รอรับเงิน"; }
+                    else if (bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "ต้องจ่าย"; }
+
+                    const card = document.createElement('div');
+                    card.className = `p-4 rounded-2xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${color}`;
+                    card.onclick = () => this.showMemberDetails(m);
+                    card.innerHTML = `<i class="fa-solid ${icon} mb-1 opacity-70"></i><span class="text-xs font-bold">${m}</span><span class="text-[9px] uppercase tracking-tighter opacity-60 mb-1">${status}</span><span class="text-base font-bold">${bal === 0 ? '-' : Math.abs(bal).toLocaleString() + ' บาท'}</span>`;
+                    grid.appendChild(card);
+                });
+
+                // Calculate debtors and creditors
+                const debtors = [], creditors = [];
+                this.data.members.forEach(m => {
+                    const b = Math.round(balances[m]);
+                    if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
+                    if (b > 1) creditors.push({ name: m, amount: b });
                 });
 
                 this.data.settlementPlan = [];
