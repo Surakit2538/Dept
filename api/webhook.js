@@ -600,20 +600,34 @@ async function generateMemberReport(replyToken, memberName) {
         const date = new Date();
         const currentMonth = date.toISOString().slice(0, 7);
 
+        // 1. Fetch Transactions
         const q = query(collection(db, "transactions"),
             where("date", ">=", `${currentMonth}-01`),
             where("date", "<=", `${currentMonth}-31`)
         );
 
         const snapshot = await getDocs(q);
+        const membersSnapshot = await getDocs(collection(db, "members"));
+        const membersData = {};
+        membersSnapshot.docs.forEach(d => {
+            const data = d.data();
+            if (data.name) membersData[data.name.toUpperCase()] = data;
+        });
+
+        const balances = {};
+        // Init balances
+        Object.keys(membersData).forEach(m => balances[m] = 0);
+
         let totalPaid = 0;
         let totalShare = 0;
         let recentItems = [];
 
+        // 2. Calculate Balances & Stats
         snapshot.forEach(doc => {
             const t = doc.data();
             if (!t.date.startsWith(currentMonth)) return;
 
+            // Stats for Report
             let involved = false;
             if (t.payer === memberName) {
                 totalPaid += Number(t.amount);
@@ -623,20 +637,61 @@ async function generateMemberReport(replyToken, memberName) {
                 totalShare += Number(t.splits[memberName]);
                 involved = true;
             }
-
             if (involved) {
                 recentItems.push({
-                    desc: t.desc,
-                    amount: t.amount,
-                    myShare: t.splits[memberName] || 0,
-                    isPayer: t.payer === memberName,
-                    date: t.date
+                    desc: t.desc, amount: t.amount, myShare: t.splits[memberName] || 0,
+                    isPayer: t.payer === memberName, date: t.date
+                });
+            }
+
+            // Calculation for Settlement
+            const payer = t.payer;
+            if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
+
+            if (t.splits) {
+                Object.entries(t.splits).forEach(([debtor, amount]) => {
+                    if (balances[debtor] !== undefined) balances[debtor] -= Number(amount);
                 });
             }
         });
 
+        // 3. Match Debts (Settlement Algorithm)
+        const debtors = [];
+        const creditors = [];
+        Object.entries(balances).forEach(([m, bal]) => {
+            const b = Math.round(bal * 100) / 100; // Fix floating point
+            if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
+            if (b > 1) creditors.push({ name: m, amount: b });
+        });
+
+        // Sort to optimize matching (Optional: Largest First)
+        debtors.sort((a, b) => b.amount - a.amount);
+        creditors.sort((a, b) => b.amount - a.amount);
+
+        const myDebts = []; // List of people I owe
+
+        let i = 0, j = 0;
+        while (i < debtors.length && j < creditors.length) {
+            const debtor = debtors[i];
+            const creditor = creditors[j];
+            const pay = Math.min(debtor.amount, creditor.amount);
+
+            if (debtor.name === memberName) {
+                myDebts.push({ to: creditor.name, amount: pay });
+            }
+
+            debtor.amount -= pay;
+            creditor.amount -= pay;
+
+            if (debtor.amount < 0.01) i++;
+            if (creditor.amount < 0.01) j++;
+        }
+
+        // 4. Generate Flex Message
         const balance = totalPaid - totalShare;
         recentItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Items Rows
         const itemRows = recentItems.slice(0, 5).map(item => ({
             type: "box", layout: "horizontal", margin: "sm",
             contents: [
@@ -645,6 +700,46 @@ async function generateMemberReport(replyToken, memberName) {
                 { type: "text", text: `${(item.myShare || 0).toLocaleString()}฿`, size: "xs", color: "#111111", flex: 3, align: "end", weight: "bold" }
             ]
         }));
+
+        // QR Code Section
+        const debtRows = [];
+        if (myDebts.length > 0) {
+            debtRows.push({ type: "separator", margin: "lg" });
+            debtRows.push({ type: "text", text: "🔻 ที่ต้องโอนจ่าย", size: "sm", weight: "bold", color: "#ef4444", margin: "md" });
+
+            for (const debt of myDebts) {
+                const creditor = membersData[debt.to];
+                const qrUrl = (creditor && creditor.promptpay)
+                    ? `https://promptpay.io/${creditor.promptpay.replace(/[^0-9]/g, '')}/${debt.amount.toFixed(2)}`
+                    : null;
+
+                debtRows.push({
+                    type: "box", layout: "vertical", margin: "md", backgroundColor: "#fef2f2", cornerRadius: "md", paddingAll: "md",
+                    contents: [
+                        {
+                            type: "box", layout: "horizontal",
+                            contents: [
+                                { type: "text", text: `จ่ายให้ ${debt.to}`, size: "sm", weight: "bold", color: "#b91c1c", flex: 7 },
+                                { type: "text", text: `${debt.amount.toLocaleString()} ฿`, size: "sm", weight: "bold", color: "#b91c1c", align: "end", flex: 3 }
+                            ]
+                        }
+                    ]
+                });
+
+                if (qrUrl) {
+                    debtRows.push({
+                        type: "image", url: qrUrl, size: "md", aspectRatio: "1:1", aspectMode: "cover", margin: "sm"
+                    });
+                    debtRows.push({
+                        type: "text", text: "(สแกนเพื่อจ่าย)", size: "xxs", color: "#ef4444", align: "center", margin: "xs"
+                    });
+                } else {
+                    debtRows.push({
+                        type: "text", text: "(ยังไม่ได้ตั้งค่า PromptPay)", size: "xxs", color: "#9ca3af", align: "center", margin: "xs"
+                    });
+                }
+            }
+        }
 
         const flex = {
             type: "bubble",
@@ -688,6 +783,9 @@ async function generateMemberReport(replyToken, memberName) {
                             }
                         ]
                     },
+                    // Add QR Code Rows here
+                    ...debtRows,
+
                     { type: "separator", margin: "lg" },
                     { type: "text", text: "รายการล่าสุด", size: "xs", color: "#94a3b8", margin: "md", weight: "bold" },
                     ...itemRows

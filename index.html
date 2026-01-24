@@ -1035,6 +1035,46 @@
         </div>
     </div>
 
+    <!-- PromptPay QR Modal -->
+    <div id="qr-code-modal"
+        class="hidden fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden relative">
+            <button onclick="document.getElementById('qr-code-modal').classList.add('hidden')"
+                class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors z-10">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="pt-8 pb-6 px-6 text-center">
+                <div class="flex items-center justify-center gap-2 mb-2">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c5/PromptPay_logo.png"
+                        style="height: 24px" class="object-contain" alt="PromptPay">
+                </div>
+                <h3 class="text-lg font-bold text-slate-800" id="qr-receiver-name">Receiver Name</h3>
+                <p class="text-slate-500 text-xs mb-6" id="qr-promptpay-id">xxx-xxx-xxxx</p>
+
+                <div class="bg-indigo-50 p-4 rounded-2xl inline-block shadow-inner mb-4">
+                    <img id="qr-image" src="" alt="QR Code"
+                        class="w-48 h-48 object-contain mix-blend-multiply opacity-0 transition-opacity duration-300"
+                        onload="this.classList.remove('opacity-0')">
+                </div>
+
+                <div class="text-3xl font-bold text-indigo-600 mb-1">
+                    <span id="qr-amount">0.00</span> ฿
+                </div>
+                <p class="text-[10px] text-slate-400">สแกนเพื่อจ่ายเงิน</p>
+
+                <div class="mt-6 flex justify-center">
+                    <button onclick="document.getElementById('qr-code-modal').classList.add('hidden')"
+                        class="px-6 py-2 bg-slate-100 text-slate-600 rounded-full text-sm font-bold hover:bg-slate-200">
+                        ปิดหน้าต่าง
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-indigo-600 h-2 w-full"></div>
+        </div>
+    </div>
+
     <!-- Slip Upload Modal -->
 
     <div id="slip-upload-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
@@ -1837,6 +1877,34 @@
                     return 'X-XXXX-XXXXX-' + number.substring(11, 13) + '-X';
                 }
                 return number;
+            },
+
+            showPromptPayQR(amount, receiverName) {
+                // Find receiver
+                const receiver = this.data.rawMembers.find(m => m.name === receiverName);
+                if (!receiver || !receiver.promptpay) {
+                    alert(`⚠️ ${receiverName} ยังไม่ได้ตั้งค่า PromptPay`);
+                    return;
+                }
+
+                const pp = receiver.promptpay.replace(/[^0-9]/g, '');
+                if (pp.length !== 10 && pp.length !== 13) {
+                    alert(`⚠️ เบอร์ PromptPay ของ ${receiverName} ไม่ถูกต้อง (${pp})`);
+                    return;
+                }
+
+                // Generate QR: https://promptpay.io/{id}/{amount}
+                // Amount should be number
+                // Example: https://promptpay.io/0812345678/500.25
+                const qrUrl = `https://promptpay.io/${pp}/${Number(amount).toFixed(2)}`;
+
+                document.getElementById('qr-receiver-name').textContent = receiverName;
+                document.getElementById('qr-promptpay-id').textContent = this.maskPromptpay(pp);
+                document.getElementById('qr-amount').textContent = Number(amount).toLocaleString();
+                document.getElementById('qr-image').src = qrUrl;
+                document.getElementById('qr-image').classList.add('opacity-0'); // Reset animation
+
+                document.getElementById('qr-code-modal').classList.remove('hidden');
             },
 
             // Slip Upload Functions
