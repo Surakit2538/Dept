@@ -224,6 +224,11 @@ async function handleImageMessage(event) {
 
         const slipData = await verifySlipWithSlipOK(imageBuffer);
 
+        // 🔍 DEBUG: Log SlipOK response
+        console.log('=== SlipOK Response ===');
+        console.log('Success:', slipData.success);
+        console.log('Full Response:', JSON.stringify(slipData, null, 2));
+
         if (!slipData.success) {
             const errorMsg = getSlipErrorMessage(slipData.code);
             return pushMessage(userId, `❌ ${errorMsg}`);
@@ -231,8 +236,20 @@ async function handleImageMessage(event) {
 
         const slip = slipData.data;
 
+        // 🔍 DEBUG: Log slip data structure
+        console.log('=== Slip Data Structure ===');
+        console.log('slip.amount:', slip.amount);
+        console.log('Type of slip.amount:', typeof slip.amount);
+        if (slip.amount && typeof slip.amount === 'object') {
+            console.log('slip.amount.amount:', slip.amount.amount);
+        }
+
         // 4. ตรวจสอบว่ามียอดเงินในสลิปหรือไม่
         if (!slip.amount || !slip.amount.amount || slip.amount.amount <= 0) {
+            // 🔍 DEBUG: Log why validation failed
+            console.log('❌ Amount validation failed!');
+            console.log('Reason: slip.amount =', slip.amount);
+
             return pushMessage(userId,
                 `❌ ไม่สามารถอ่านยอดเงินจากสลิปได้\n\n` +
                 `กรุณาตรวจสอบว่าสลิปชัดเจนและลองใหม่อีกครั้ง`
