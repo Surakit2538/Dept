@@ -1270,13 +1270,19 @@
                 // เช็คว่ากรอกข้อมูลครบทั้ง 3 ฟิลด์หรือยัง
                 if (role !== 'admin') {  // Skip onboarding for admin
                     const member = this.data.rawMembers.find(m => m.name === name);
+                    console.log('🔍 Checking onboarding for:', name);
+                    console.log('Member data:', member);
+
                     const isComplete = this.checkOnboardingComplete(member);
+                    console.log('Onboarding complete?', isComplete);
 
                     if (!isComplete) {
-                        // ยังไม่ครบ → แสดง onboarding modal
+                        console.log('⚠️ Onboarding incomplete - showing modal');
                         this.showOnboardingModal(member);
                         return; // หยุดไม่ไป dashboard
                     }
+
+                    console.log('✅ Onboarding complete - proceeding to dashboard');
                 }
 
                 // กรอกครบแล้วหรือเป็น admin → ไปหน้า Dashboard
@@ -1840,13 +1846,25 @@
                 return cleaned.substring(0, 10) || 'USER' + Date.now();
             },
 
-            async checkOnboardingComplete(member) {
-                if (!member) return false;
+            checkOnboardingComplete(member) {
+                if (!member) {
+                    console.log('❌ No member data');
+                    return false;
+                }
 
                 // Check if all required fields exist
                 const hasRealName = member.realName && member.realName.trim().length > 0;
                 const hasEnglishName = member.englishName && member.englishName.trim().length > 0;
                 const hasPromptpay = member.promptpay && member.promptpay.trim().length > 0;
+
+                console.log('Field check:', {
+                    hasRealName,
+                    hasEnglishName,
+                    hasPromptpay,
+                    realName: member.realName,
+                    englishName: member.englishName,
+                    promptpay: member.promptpay
+                });
 
                 return hasRealName && hasEnglishName && hasPromptpay;
             },
