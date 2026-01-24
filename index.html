@@ -1341,6 +1341,9 @@
             },
 
             loadSettingsData() {
+                // Populate month selectors for admin
+                this.populateMonthSelectors();
+
                 // โหลดข้อมูลส่วนตัว
                 const lineNameDisplay = document.getElementById('line-name-display');
                 const realNameDisplay = document.getElementById('real-name-display');
