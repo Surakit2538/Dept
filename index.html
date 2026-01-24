@@ -2126,6 +2126,116 @@
                 });
             },
 
+            calculateSettlement() {
+                const transactions = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
+                const balances = {};
+                this.data.members.forEach(m => balances[m] = 0);
+
+                transactions.forEach(t => {
+                    const payer = t.payer;
+                    if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
+                    if (t.splits) {
+                        Object.entries(t.splits).forEach(([name, amount]) => {
+                            if (balances[name] !== undefined) balances[name] -= Number(amount);
+                        });
+                    }
+                });
+
+                const debtors = [], creditors = [];
+                Object.entries(balances).forEach(([name, amount]) => {
+                    const val = Math.round(amount * 100) / 100;
+                    if (val < -1) debtors.push({ name, amount: Math.abs(val) });
+                    if (val > 1) creditors.push({ name, amount: val });
+                });
+
+                debtors.sort((a, b) => b.amount - a.amount);
+                creditors.sort((a, b) => b.amount - a.amount);
+
+                const plan = [];
+                let i = 0, j = 0;
+
+                while (i < debtors.length && j < creditors.length) {
+                    const debtor = debtors[i];
+                    const creditor = creditors[j];
+                    const amount = Math.min(debtor.amount, creditor.amount);
+
+                    if (amount > 0) {
+                        plan.push({ from: debtor.name, to: creditor.name, amount });
+                    }
+
+                    debtor.amount -= amount;
+                    creditor.amount -= amount;
+
+                    if (debtor.amount < 0.01) i++;
+                    if (creditor.amount < 0.01) j++;
+                }
+
+                this.renderSettlementPlan(plan);
+            },
+
+            renderSettlementPlan(plan) {
+                const container = document.getElementById('settlement-plan');
+                if (!container) return; // Might be hidden or different view
+
+                if (plan.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-12">
+                            <i class="fa-solid fa-check-circle text-4xl text-emerald-400 mb-3"></i>
+                            <p class="text-slate-500">ไม่มีรายการต้องเคลียร์</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const currentUser = this.data.currentUser;
+
+                container.innerHTML = plan.map(p => {
+                    const isMe = p.from === currentUser;
+                    const isReceiving = p.to === currentUser;
+
+                    let highlightClass = "";
+                    if (isMe) highlightClass = "bg-red-50 border-red-100 ring-1 ring-red-200";
+                    else if (isReceiving) highlightClass = "bg-emerald-50 border-emerald-100 ring-1 ring-emerald-200";
+                    else highlightClass = "bg-white border-slate-100";
+
+                    return `
+                    <div class="flex items-center justify-between p-4 rounded-xl border shadow-sm ${highlightClass} transition-all hover:shadow-md">
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col items-center justify-center min-w-[3rem]">
+                                <span class="font-bold text-sm ${isMe ? 'text-red-600' : 'text-slate-700'}">${p.from}</span>
+                                <i class="fa-solid fa-arrow-down text-slate-300 text-xs my-1"></i>
+                                <span class="font-bold text-sm ${isReceiving ? 'text-emerald-600' : 'text-slate-700'}">${p.to}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col items-end gap-2">
+                            <span class="font-bold text-xl text-slate-900">${p.amount.toLocaleString()} ฿</span>
+                            
+                            <div class="flex gap-2">
+                                ${isMe ? `
+                                    <button onclick="window.app.showPromptPayQR(${p.amount}, '${p.to}')" 
+                                        class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                                        <i class="fa-solid fa-qrcode"></i> Scan
+                                    </button>
+                                    <button onclick="window.app.openSlipUploadModal('${p.from}', '${p.to}', ${p.amount})" 
+                                        class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                                        <i class="fa-solid fa-upload"></i> Slip
+                                    </button>
+                                ` : ''}
+                                
+                                ${!isMe ? `
+                                    <button onclick="window.app.showPromptPayQR(${p.amount}, '${p.to}')" 
+                                        class="px-2 py-1.5 bg-slate-100 text-slate-400 text-xs rounded-lg hover:bg-slate-200 hover:text-slate-600 transition-colors" title="ดู QR Code">
+                                        <i class="fa-solid fa-qrcode"></i>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            },
+
             showAdminLogin() { document.getElementById('admin-login-form').classList.toggle('hidden'); },
             toggleAdminForm() { document.getElementById('admin-login-form').classList.toggle('hidden'); },
 
@@ -2717,7 +2827,69 @@
                 }
             },
 
+            editTransaction(id) {
+                const t = this.data.transactions.find(x => x.id === id);
+                if (!t) return;
+                this.data.editingId = id;
+                this.data.selectedGroupId = t.groupId || null;
+
+                document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการ (ผ่อนชำระ)" : "แก้ไขรายการ";
+                document.getElementById('t-date').value = t.date;
+                document.getElementById('t-payment-type').value = t.paymentType || 'normal';
+                document.getElementById('t-desc').value = t.desc.split(' (')[0]; // Remove installment count text if any
+                document.getElementById('t-amount').value = t.amount;
+                document.getElementById('t-payer').value = t.payer;
+                this.selectIcon(t.icon || 'fa-utensils');
+                this.toggleInstallment();
+
+                // If editing installment, disable payment type change (too complex to switch back and forth)
+                if (t.groupId) {
+                    document.getElementById('t-payment-type').disabled = true;
+                } else {
+                    document.getElementById('t-payment-type').disabled = false;
+                }
+
+                document.getElementById('transaction-modal').classList.remove('hidden');
+
+                // Pass existing participants to renderSplitParticipants
+                const existingParticipants = t.splits ? Object.keys(t.splits) : [];
+                this.renderSplitParticipants(existingParticipants);
+
+                // Set split mode
+                // TODO: Store split mode in transaction? For now guess strictly
+                // If it was custom, we expect precise splits. But let's verify.
+                // Assuming default is equal unless proven otherwise.
+                // Or user can switch manually.
+            },
+
+            async deleteTransaction(id) {
+                if (!confirm('ต้องการลบรายการนี้ใช่ไหม?')) return;
+
+                try {
+                    const t = this.data.transactions.find(x => x.id === id);
+                    if (t.groupId) {
+                        if (confirm('รายการนี้เป็นการผ่อนชำระ ต้องการลบทุกงวดที่เกี่ยวข้องเลยไหม?\n(CANCEL = ลบเฉพาะงวดนี้, OK = ลบทั้งหมด)')) {
+                            // Delete Group
+                            const batch = writeBatch(db);
+                            const groupT = this.data.transactions.filter(x => x.groupId === t.groupId);
+                            groupT.forEach(gt => batch.delete(doc(db, "transactions", gt.id)));
+                            await batch.commit();
+                            this.showToast('ลบรายการผ่อนชำระทั้งหมดแล้ว');
+                            return;
+                        }
+                    }
+
+                    // Delete Single
+                    await deleteDoc(doc(db, "transactions", id));
+                    this.showToast('ลบรายการแล้ว');
+                } catch (e) {
+                    console.error(e);
+                    alert('ลบไม่สำเร็จ: ' + e.message);
+                }
+            },
+
             onCustomAmountInput(input) {
+
                 // Mark this input as manually set by user
                 if (input.value && input.value.trim() !== '') {
                     input.dataset.userSet = 'true';
