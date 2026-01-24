@@ -619,7 +619,7 @@ async function generateMemberReport(replyToken, memberName) {
             contents: [
                 { type: "text", text: item.desc, size: "xs", color: "#555555", flex: 5, wrap: true },
                 { type: "text", text: item.isPayer ? "จ่าย" : "หาร", size: "xs", color: "#aaaaaa", flex: 2, align: "center" },
-                { type: "text", text: `${item.myShare.toLocaleString()}฿`, size: "xs", color: "#111111", flex: 3, align: "end", weight: "bold" }
+                { type: "text", text: `${(item.myShare || 0).toLocaleString()}฿`, size: "xs", color: "#111111", flex: 3, align: "end", weight: "bold" }
             ]
         }));
 
@@ -640,14 +640,14 @@ async function generateMemberReport(replyToken, memberName) {
                         type: "box", layout: "horizontal",
                         contents: [
                             { type: "text", text: "สำรองจ่ายไป", size: "xs", color: "#64748b" },
-                            { type: "text", text: `${totalPaid.toLocaleString()} ฿`, size: "sm", color: "#1e293b", align: "end", weight: "bold" }
+                            { type: "text", text: `${(totalPaid || 0).toLocaleString()} ฿`, size: "sm", color: "#1e293b", align: "end", weight: "bold" }
                         ]
                     },
                     {
                         type: "box", layout: "horizontal", margin: "sm",
                         contents: [
                             { type: "text", text: "ส่วนที่ต้องหาร", size: "xs", color: "#64748b" },
-                            { type: "text", text: `${totalShare.toLocaleString()} ฿`, size: "sm", color: "#ef4444", align: "end", weight: "bold" }
+                            { type: "text", text: `${(totalShare || 0).toLocaleString()} ฿`, size: "sm", color: "#ef4444", align: "end", weight: "bold" }
                         ]
                     },
                     { type: "separator", margin: "md" },
@@ -657,7 +657,7 @@ async function generateMemberReport(replyToken, memberName) {
                             { type: "text", text: "ยอดสุทธิ", size: "sm", color: "#334155", weight: "bold" },
                             {
                                 type: "text",
-                                text: balance >= 0 ? `+${balance.toLocaleString()} ฿ (รับ)` : `${balance.toLocaleString()} ฿ (จ่าย)`,
+                                text: balance >= 0 ? `+${(balance || 0).toLocaleString()} ฿ (รับ)` : `${(balance || 0).toLocaleString()} ฿ (จ่าย)`,
                                 size: "lg",
                                 color: balance >= 0 ? "#22c55e" : "#ef4444",
                                 align: "end",
