@@ -1716,20 +1716,17 @@
                 });
 
                 // หัก verified settlements ออกจาก balances
-                // TODO: เมื่อมี Firestore settlements collection แล้ว uncomment ส่วนนี้
-                /*
                 const verifiedSnapshot = await getDocs(
                     query(collection(db, 'settlements'),
                         where('month', '==', this.data.currentMonth),
                         where('status', '==', 'verified'))
                 );
-                
+
                 verifiedSnapshot.forEach(doc => {
                     const s = doc.data();
                     if (balances.hasOwnProperty(s.from)) balances[s.from] += s.amount;
                     if (balances.hasOwnProperty(s.to)) balances[s.to] -= s.amount;
                 });
-                */
 
                 const grid = document.getElementById('settlement-status-grid');
                 grid.innerHTML = "";

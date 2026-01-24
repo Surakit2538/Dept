@@ -1,4 +1,4 @@
-import { initializeApp } from "firebase/app";
+﻿import { initializeApp } from "firebase/app";
 import {
     getFirestore, doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
