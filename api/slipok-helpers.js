@@ -127,28 +127,25 @@ export function matchReceiverName(slipReceiver, realName) {
     // Try displayName
     const displayNameNorm = normalize(slipReceiver.displayName);
     if (displayNameNorm.includes(realNameNorm) || realNameNorm.includes(displayNameNorm)) {
-        return {
-            matched: true,
-            field: 'displayName',
-            confidence: 0.95
-        };
+        return { matched: true, field: 'displayName', confidence: 0.95, debug: { slip: displayNameNorm, db: realNameNorm } };
     }
 
     // Try name
     const nameNorm = normalize(slipReceiver.name);
     if (nameNorm.includes(realNameNorm) || realNameNorm.includes(nameNorm)) {
-        return {
-            matched: true,
-            field: 'name',
-            confidence: 0.90
-        };
+        return { matched: true, field: 'name', confidence: 0.90, debug: { slip: nameNorm, db: realNameNorm } };
     }
 
     // No match
     return {
         matched: false,
         field: null,
-        confidence: 0
+        confidence: 0,
+        debug: {
+            slipDisplay: displayNameNorm,
+            slipName: nameNorm,
+            db: realNameNorm
+        }
     };
 }
 

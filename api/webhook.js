@@ -288,14 +288,23 @@ async function handleImageMessage(event) {
             );
         }
 
+        console.log(`🔍 MATCHING DEBUG:`);
+        console.log(`   - Slip Receiver: ${JSON.stringify(slip.receiver)}`);
+        console.log(`   - DB Real Name: "${receiver.realName}"`);
+
         const matchResult = matchReceiverName(slip.receiver, receiver.realName);
+        console.log(`   - Result: ${JSON.stringify(matchResult)}`);
 
         if (!matchResult.matched) {
+            const debugInfo = matchResult.debug || {};
             return pushMessage(userId,
                 `❌ ชื่อผู้รับไม่ตรงกัน!\n\n` +
                 `ในสลิป: ${slip.receiver.displayName || slip.receiver.name}\n` +
                 `ในระบบ: ${receiver.realName}\n\n` +
-                `กรุณาตรวจสอบว่าโอนถูกบัญชีหรือไม่`
+                `🔍 Debug Info (Normalized):\n` +
+                `Slip: "${debugInfo.slipDisplay || debugInfo.slipName}"\n` +
+                `DB: "${debugInfo.db}"\n\n` +
+                `กรุณาตรวจสอบว่าชื่อจริงในระบบตรงกับบัญชีธนาคารหรือไม่`
             );
         }
 
