@@ -27,11 +27,5 @@
             "source": "/api/(.*)",
             "destination": "/api/$1"
         }
-    ],
-    "crons": [
-        {
-            "path": "/api/cron-monthly-summary",
-            "schedule": "0 3 1 * *"
-        }
     ]
 }
