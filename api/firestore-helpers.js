@@ -40,6 +40,11 @@ export async function getMemberByName(db, name) {
 
 // Find matching settlement for the user
 export async function findMatchingSettlement(db, fromName, amount, month) {
+    console.log('🔍 [findMatchingSettlement] Starting...');
+    console.log('  fromName:', fromName);
+    console.log('  amount:', amount);
+    console.log('  month:', month);
+
     // Calculate settlements based on transactions
     // This is a simplified version - in production, you'd want to cache this
     const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
@@ -49,6 +54,9 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
     const transactions = transactionsSnapshot.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(t => t.date && t.date.startsWith(month));
+
+    console.log('  📊 Found', transactions.length, 'transactions for month', month);
+    console.log('  👥 Members:', members);
 
     // Calculate balances
     const balances = {};
@@ -64,6 +72,8 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
         }
     });
 
+    console.log('  💰 Balances:', balances);
+
     // Generate settlement plan
     const debtors = [], creditors = [];
     Object.keys(balances).forEach(m => {
@@ -72,14 +82,20 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
         if (b > 1) creditors.push({ name: m, amount: b });
     });
 
+    console.log('  📉 Debtors (owe money):', debtors);
+    console.log('  📈 Creditors (should receive):', creditors);
+
     let i = 0, j = 0;
     while (i < debtors.length && j < creditors.length) {
         const d = debtors[i];
         const c = creditors[j];
         const pay = Math.min(d.amount, c.amount);
 
+        console.log(`  🔄 Checking: ${d.name} → ${c.name} = ${pay} บาท (looking for ${amount})`);
+
         // Check if this matches the slip
         if (d.name === fromName && Math.abs(pay - amount) < 1) {
+            console.log('  ✅ MATCH FOUND!');
             return {
                 from: d.name,
                 to: c.name,
@@ -96,6 +112,7 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
         if (c.amount <= 0.01) j++;
     }
 
+    console.log('  ❌ No matching settlement found');
     return null;
 }
 

@@ -257,12 +257,24 @@ async function handleImageMessage(event) {
         console.log('✅ Slip amount validated:', slipAmount);
 
         // 5. หา Settlement ที่ตรงกับยอดเงินในสลิป
-        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slipAmount);
+        // ใช้เดือนปัจจุบัน (YYYY-MM format)
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        console.log('🔍 Finding settlement for:', userMember.name, 'amount:', slipAmount, 'month:', currentMonth);
+
+        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slipAmount, currentMonth);
+
+        console.log('Settlement found:', matchingSettlement ? 'YES' : 'NO');
+        if (matchingSettlement) {
+            console.log('Settlement details:', JSON.stringify(matchingSettlement, null, 2));
+        }
 
         if (!matchingSettlement) {
             return pushMessage(userId,
                 `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slipAmount.toLocaleString()} บาท\n\n` +
-                `กรุณาตรวจสอบยอดในหน้า Settlement แล้วลองใหม่อีกครั้ง`
+                `กรุณาตรวจสอบยอดในหน้า Settlement แล้วลองใหม่อีกครั้ง\n\n` +
+                `💡 ตรวจสอบว่า:\n` +
+                `- มี Transaction ในเดือนนี้หรือไม่\n` +
+                `- ยอดคงเหลือที่ต้องจ่ายตรงกับ ${slipAmount} บาทหรือไม่`
             );
         }
 
