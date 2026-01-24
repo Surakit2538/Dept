@@ -1944,8 +1944,8 @@
                     document.getElementById('onboarding-modal').classList.add('hidden');
                     this.showToast('✅ บันทึกข้อมูลเรียบร้อย!');
 
-                    // Reload app
-                    await this.loadData();
+                    // Go to dashboard
+                    this.navigate('dashboard');
                 } catch (error) {
                     console.error('Error completing onboarding:', error);
                     alert('เกิดข้อผิดพลาด: ' + error.message);
