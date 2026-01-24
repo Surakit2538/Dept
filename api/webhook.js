@@ -17,11 +17,19 @@ import {
     getMemberByName as getMemberByNameHelper,
     findMatchingSettlement,
     checkDuplicateSlip,
-    saveVerifiedSettlement,
-    sendSlipVerifiedNotification
+    generateMonthlyReportFlex
 } from './firestore-helpers.js';
+// --- REPORT GENERATION HELPER ---
+export async function generateMemberReport(replyToken, memberName) {
+    try {
+        const flex = await generateMonthlyReportFlex(db, memberName);
+        return replyFlex(replyToken, "สรุปยอดรายเดือน", flex);
 
-// --- CONFIGURATION ---
+    } catch (e) {
+        console.error("Generate Report Error:", e);
+        return replyText(replyToken, "❌ เกิดข้อผิดพลาดในการดึงข้อมูล: " + e.message);
+    }
+}
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
     authDomain: "deptmoney-6682a.firebaseapp.com",

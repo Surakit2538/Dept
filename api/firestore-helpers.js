@@ -306,3 +306,208 @@ function formatSlipDate(dateStr) {
 
     return `${day} ${thaiMonths[month - 1]} ${year + 543}`;
 }
+
+// --- REPORT GENERATION HELPER ---
+export async function generateMonthlyReportFlex(db, memberName, monthDate = new Date()) {
+    const currentMonth = monthDate.toISOString().slice(0, 7);
+    const thaiMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const monthName = `${thaiMonths[parseInt(currentMonth.slice(5, 7)) - 1]} ${parseInt(currentMonth.slice(0, 4)) + 543}`;
+
+    // 1. Fetch Transactions
+    const q = query(collection(db, "transactions"),
+        where("date", ">=", `${currentMonth}-01`),
+        where("date", "<=", `${currentMonth}-31`)
+    );
+
+    const snapshot = await getDocs(q);
+    const membersSnapshot = await getDocs(collection(db, "members"));
+    const membersData = {};
+    membersSnapshot.docs.forEach(d => {
+        const data = d.data();
+        if (data.name) membersData[data.name.toUpperCase()] = data;
+    });
+
+    const balances = {};
+    Object.keys(membersData).forEach(m => balances[m] = 0);
+
+    let totalPaid = 0;
+    let totalShare = 0;
+    let recentItems = [];
+
+    // 2. Calculate Balances & Stats
+    snapshot.forEach(doc => {
+        const t = doc.data();
+        if (!t.date.startsWith(currentMonth)) return;
+
+        let involved = false;
+        if (t.payer === memberName) {
+            totalPaid += Number(t.amount);
+            involved = true;
+        }
+        if (t.splits && t.splits[memberName]) {
+            totalShare += Number(t.splits[memberName]);
+            involved = true;
+        }
+        if (involved) {
+            recentItems.push({
+                desc: t.desc, amount: t.amount, myShare: t.splits[memberName] || 0,
+                isPayer: t.payer === memberName, date: t.date
+            });
+        }
+
+        const payer = t.payer;
+        if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
+
+        if (t.splits) {
+            Object.entries(t.splits).forEach(([debtor, amount]) => {
+                if (balances[debtor] !== undefined) balances[debtor] -= Number(amount);
+            });
+        }
+    });
+
+    // 3. Match Debts
+    const debtors = [], creditors = [];
+    Object.entries(balances).forEach(([m, bal]) => {
+        const b = Math.round(bal * 100) / 100;
+        if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
+        if (b > 1) creditors.push({ name: m, amount: b });
+    });
+
+    debtors.sort((a, b) => b.amount - a.amount);
+    creditors.sort((a, b) => b.amount - a.amount);
+
+    const myDebts = [];
+    let i = 0, j = 0;
+    while (i < debtors.length && j < creditors.length) {
+        const debtor = debtors[i];
+        const creditor = creditors[j];
+        const pay = Math.min(debtor.amount, creditor.amount);
+
+        if (debtor.name === memberName) {
+            myDebts.push({ to: creditor.name, amount: pay });
+        }
+
+        debtor.amount -= pay;
+        creditor.amount -= pay;
+
+        if (debtor.amount < 0.01) i++;
+        if (creditor.amount < 0.01) j++;
+    }
+
+    // 4. Generate Flex Message
+    const balance = totalPaid - totalShare;
+    recentItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    // Item Rows
+    const itemRows = recentItems.slice(0, 5).map(item => ({
+        type: "box", layout: "horizontal", margin: "sm",
+        contents: [
+            { type: "text", text: item.desc, size: "xs", color: "#555555", flex: 5, wrap: true },
+            { type: "text", text: item.isPayer ? "จ่าย" : "หาร", size: "xs", color: "#aaaaaa", flex: 2, align: "center" },
+            { type: "text", text: `${(item.myShare || 0).toLocaleString()}฿`, size: "xs", color: "#111111", flex: 3, align: "end", weight: "bold" }
+        ]
+    }));
+
+    // Debt Section (QR Codes)
+    const debtRows = [];
+    if (myDebts.length > 0) {
+        debtRows.push({ type: "separator", margin: "lg" });
+        debtRows.push({ type: "text", text: "🔻 ที่ต้องโอนจ่าย", size: "sm", weight: "bold", color: "#ef4444", margin: "md" });
+
+        for (const debt of myDebts) {
+            const creditor = membersData[debt.to];
+            // Format PromptPay: 000-000-0000 -> 0000000000
+            const cleanPromptpay = (creditor && creditor.promptpay) ? creditor.promptpay.replace(/[^0-9]/g, '') : null;
+            const qrUrl = cleanPromptpay
+                ? `https://promptpay.io/${cleanPromptpay}/${debt.amount.toFixed(2)}`
+                : null;
+
+            debtRows.push({
+                type: "box", layout: "vertical", margin: "md", backgroundColor: "#fef2f2", cornerRadius: "md", paddingAll: "md",
+                contents: [
+                    {
+                        type: "box", layout: "horizontal",
+                        contents: [
+                            { type: "text", text: `จ่ายให้ ${debt.to}`, size: "sm", weight: "bold", color: "#b91c1c", flex: 7 },
+                            { type: "text", text: `${debt.amount.toLocaleString()} ฿`, size: "sm", weight: "bold", color: "#b91c1c", align: "end", flex: 3 }
+                        ]
+                    }
+                ]
+            });
+
+            if (qrUrl) {
+                debtRows.push({
+                    type: "image", url: qrUrl, size: "md", aspectRatio: "1:1", aspectMode: "cover", margin: "sm"
+                });
+                debtRows.push({
+                    type: "text", text: "(สแกนเพื่อจ่าย)", size: "xxs", color: "#ef4444", align: "center", margin: "xs"
+                });
+            } else {
+                debtRows.push({
+                    type: "text", text: "(ยังไม่ได้ตั้งค่า PromptPay)", size: "xxs", color: "#9ca3af", align: "center", margin: "xs"
+                });
+            }
+        }
+    }
+
+    // Main Flex Container
+    return {
+        type: "bubble",
+        size: "mega",
+        header: {
+            type: "box", layout: "vertical",
+            backgroundColor: balance >= 0 ? "#ecfdf5" : "#fff7ed",
+            contents: [
+                { type: "text", text: `สรุปยอด ${monthName}`, weight: "bold", color: "#1f2937", size: "sm" },
+                {
+                    type: "text",
+                    text: `${balance >= 0 ? '+' : ''}${balance.toLocaleString()} บาท`,
+                    weight: "bold",
+                    size: "3xl",
+                    color: balance >= 0 ? "#059669" : "#ea580c",
+                    margin: "sm"
+                },
+                { type: "text", text: balance >= 0 ? "ยอดคงเหลือ (ได้คืน)" : "ยอดคงเหลือ (ต้องจ่าย)", size: "xs", color: balance >= 0 ? "#059669" : "#ea580c" }
+            ]
+        },
+        body: {
+            type: "box", layout: "vertical",
+            contents: [
+                {
+                    type: "box", layout: "horizontal",
+                    contents: [
+                        { type: "text", text: "จ่ายไป", size: "xs", color: "#6b7280" },
+                        { type: "text", text: `${totalPaid.toLocaleString()} ฿`, size: "xs", color: "#1f2937", align: "end", weight: "bold" }
+                    ]
+                },
+                {
+                    type: "box", layout: "horizontal", margin: "sm",
+                    contents: [
+                        { type: "text", text: "หารแล้ว", size: "xs", color: "#6b7280" },
+                        { type: "text", text: `${totalShare.toLocaleString()} ฿`, size: "xs", color: "#1f2937", align: "end", weight: "bold" }
+                    ]
+                },
+                { type: "separator", margin: "lg" },
+                { type: "text", text: "รายการล่าสุด", size: "xs", weight: "bold", color: "#374151", margin: "md" },
+                ...itemRows,
+                ...debtRows
+            ]
+        },
+        footer: {
+            type: "box", layout: "vertical", spacing: "sm",
+            contents: [
+                {
+                    type: "button",
+                    style: "primary",
+                    color: "#06C755",
+                    height: "sm",
+                    action: {
+                        type: "uri",
+                        label: "ดูรายละเอียดเพิ่มเติม",
+                        uri: "https://liff.line.me/2008948704-db2goT00"
+                    }
+                }
+            ]
+        }
+    };
+}
