@@ -663,7 +663,7 @@
                             ชื่อภาษาอังกฤษ
                         </label>
                         <div class="flex gap-2">
-                            <input type="text" id="english-name-display" placeholder="ตัวอย่าง: Kong Surakit"
+                            <input type="text" id="english-name-display" placeholder="ตัวอย่าง: Somchai"
                                 class="flex-1 p-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-100 outline-none">
                             <button onclick="window.app.updateEnglishName()"
                                 class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-700 transition-colors">
@@ -672,7 +672,7 @@
                             </button>
                         </div>
                         <p class="text-xs text-slate-400 mt-2">
-                            ไม่บังคับ - ใช้สำหรับการแสดงผลหรือรายงาน
+                            ใช้สำหรับการตรวจสอบสลิป
                         </p>
                     </div>
 
@@ -703,7 +703,7 @@
                         </div>
 
                         <p class="text-xs text-slate-400 mt-2">
-                            🔒 ข้อมูลนี้จะแสดงเฉพาะตัวเลข 4 ตัวท้ายเท่านั้น
+                            🔒 ข้อมูลนี้จะซ่อนข้อมูล 4 ตัวท้าย
                         </p>
                     </div>
                 </div>
@@ -884,9 +884,11 @@
                     <div class="flex-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">ยอดเงิน</label>
                         <input type="number" id="t-amount" placeholder="0.00"
+                            oninput="window.app.recalculateCustomSplits('total')"
                             class="modal-input border border-slate-200 rounded-xl text-xl font-bold bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                     </div>
                     <div class="flex-1">
+
                         <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">คนจ่าย</label>
                         <div class="flex gap-2">
                             <div class="relative w-full">
@@ -2610,40 +2612,130 @@
                 const container = document.getElementById('split-participants');
                 container.innerHTML = this.data.members.map(m => {
                     // Check logic: if editing (involvedMembers passed), check if in list. If new, check all.
-                    // Request: Default to unchecked for new transactions.
-                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : false;
+                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : true; // Default checked for all
                     return `
                     <div class="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0">
                         <label class="flex items-center gap-3 cursor-pointer select-none">
-                            <input type="checkbox" ${isChecked ? 'checked' : ''} value="${m}" class="participant-check rounded text-slate-800 w-4 h-4 focus:ring-slate-800">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} value="${m}" 
+                                onchange="window.app.recalculateCustomSplits('checkbox')"
+                                class="participant-check rounded text-slate-800 w-4 h-4 focus:ring-slate-800">
                             <span class="text-slate-700 font-bold">${m}</span>
                         </label>
-                        ${this.data.splitMode === 'custom' ? `<input type="number" step="0.01" data-member="${m}" class="participant-amount w-20 p-1.5 border border-slate-200 rounded-lg text-right text-xs focus:ring-2 focus:ring-blue-100 outline-none" placeholder="0.00">` : ''}
+                        ${this.data.splitMode === 'custom' ? `
+                            <input type="number" step="0.01" data-member="${m}" 
+                                oninput="window.app.onCustomAmountInput(this)"
+                                class="participant-amount w-24 p-1.5 border border-slate-200 rounded-lg text-right text-xs focus:ring-2 focus:ring-blue-100 outline-none transition-colors placeholder-slate-300" 
+                                placeholder="Auto">
+                        ` : ''}
                     </div>
                 `}).join('');
+
+                // Initial calculation
+                if (this.data.splitMode === 'custom') {
+                    // If editing, fill existing values
+                    if (this.data.editingId) {
+                        const t = this.data.transactions.find(x => x.id === this.data.editingId);
+                        if (t && t.splits) {
+                            Object.entries(t.splits).forEach(([name, amount]) => {
+                                const input = document.querySelector(`.participant-amount[data-member="${name}"]`);
+                                if (input) {
+                                    input.value = amount;
+                                    input.dataset.userSet = 'true';
+                                }
+                            });
+                        }
+                    }
+                    this.recalculateCustomSplits('init');
+                }
             },
 
-            editTransaction(id) {
-                const t = this.data.transactions.find(x => x.id === id);
-                if (!t) return;
-                this.data.editingId = id;
-                this.data.selectedGroupId = t.groupId || null;
-
-                document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการ (ผ่อนชำระ)" : "แก้ไขรายการ";
-                document.getElementById('t-date').value = t.date;
-                document.getElementById('t-payment-type').value = t.paymentType || 'normal';
-                document.getElementById('t-desc').value = t.desc.split(' (')[0];
-                document.getElementById('t-amount').value = t.amount;
-                document.getElementById('t-payer').value = t.payer;
-                this.selectIcon(t.icon || 'fa-utensils');
-                this.toggleInstallment();
-
-                document.getElementById('transaction-modal').classList.remove('hidden');
-
-                // Pass existing participants to renderSplitParticipants
-                const existingParticipants = t.splits ? Object.keys(t.splits) : [];
-                this.renderSplitParticipants(existingParticipants);
+            onCustomAmountInput(input) {
+                // Mark this input as manually set by user
+                if (input.value && input.value.trim() !== '') {
+                    input.dataset.userSet = 'true';
+                    input.classList.add('font-bold', 'text-slate-800', 'bg-white');
+                    input.classList.remove('text-slate-500', 'bg-slate-50');
+                } else {
+                    delete input.dataset.userSet; // If cleared, go back to auto
+                    input.classList.remove('font-bold', 'text-slate-800', 'bg-white');
+                }
+                this.recalculateCustomSplits('input');
             },
+
+            recalculateCustomSplits(source) {
+                if (this.data.splitMode !== 'custom') return;
+
+                const totalAmount = Number(document.getElementById('t-amount').value) || 0;
+                const inputs = document.querySelectorAll('.participant-amount');
+                const checks = document.querySelectorAll('.participant-check');
+
+                let manualSum = 0;
+                const autoCandidates = [];
+
+                // 1. Identify User Set vs Auto
+                inputs.forEach((input, index) => {
+                    const checkbox = checks[index];
+
+                    if (!checkbox.checked) {
+                        input.value = '';
+                        input.disabled = true;
+                        input.classList.add('opacity-30', 'bg-slate-100');
+                        delete input.dataset.userSet;
+                        return;
+                    }
+
+                    input.disabled = false;
+                    input.classList.remove('opacity-30', 'bg-slate-100');
+
+                    // If user set this value or currently typing
+                    if (input.dataset.userSet === 'true') {
+                        manualSum += Number(input.value) || 0;
+                    } else {
+                        autoCandidates.push(input);
+                    }
+                });
+
+                // 2. Calculate Remaining
+                let remaining = totalAmount - manualSum;
+                // Avoid tiny floating point errors
+                remaining = Math.round(remaining * 100) / 100;
+
+                // 3. Distribute to Auto Candidates
+                if (autoCandidates.length > 0) {
+                    // Reset styles for auto inputs
+                    autoCandidates.forEach(input => {
+                        input.classList.add('text-slate-500', 'bg-slate-50');
+                        input.classList.remove('font-bold', 'text-slate-800', 'bg-white');
+                    });
+
+                    if (remaining < 0) {
+                        // Error State: Over usage
+                        autoCandidates.forEach(input => {
+                            input.value = 0;
+                            input.classList.add('text-red-400');
+                        });
+                        // Optional: Show warning someplace
+                    } else {
+                        const share = Math.floor((remaining / autoCandidates.length) * 100) / 100;
+                        let currentDistributed = 0;
+
+                        // Distribute equally
+                        autoCandidates.forEach((input, i) => {
+                            input.classList.remove('text-red-400');
+
+                            // Last person gets the dust
+                            if (i === autoCandidates.length - 1) {
+                                const finalAmount = remaining - currentDistributed;
+                                input.value = finalAmount.toFixed(2);
+                            } else {
+                                input.value = share.toFixed(2);
+                                currentDistributed += share;
+                            }
+                        });
+                    }
+                }
+            },
+
 
             async saveTransaction() {
                 // document.getElementById('loading-overlay').classList.remove('hidden');
