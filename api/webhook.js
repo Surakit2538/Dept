@@ -79,20 +79,14 @@ async function handleTextMessage(event) {
             return replyText(replyToken, "📝 เริ่มบันทึกรายการ\nกรุณาพิมพ์ชื่อรายการครับ");
         }
 
-        // 2. คำสั่งดูค่าใช้จ่าย
+        // 2. คำสั่งดูค่าใช้จ่าย - ดึงจาก userId โดยอัตโนมัติ
         if (text === "ต้องการดูค่าใช้จ่ายของเดือนนี้") {
-            const members = await getMemberNames();
-            await setDoc(sessionRef, {
-                step: 'SELECT_MEMBER_TO_VIEW',
-                timestamp: serverTimestamp()
-            });
-
-            const actions = members.map(m => ({
-                type: "action", action: { type: "message", label: m, text: m }
-            }));
-
-            const flex = createInteractiveCard("เลือกสมาชิก", "ต้องการดูยอดของใครครับ?", "กดเลือก: ก้อง, แคร์, กอล์ฟ");
-            return replyQuickReply(replyToken, flex, actions);
+            const memberName = await getMemberNameByLineId(userId);
+            if (!memberName) {
+                return replyText(replyToken, "❌ ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
+            }
+            await generateMemberReport(replyToken, memberName);
+            return;
         }
 
         // ถ้าพิมพ์อย่างอื่นมา ให้ปล่อยผ่าน (Ignore)
@@ -112,14 +106,6 @@ async function handleTextMessage(event) {
         });
         const flex = createInteractiveCard("ระบุราคา", `รายการ: ${text}`, "ระบบจะถามหารกับใครบ้าง");
         return replyFlex(replyToken, "ระบุราคา", flex);
-    }
-
-    // STEP 0.5: รับชื่อสมาชิก (เพื่อดูรายงาน)
-    if (currentStep === 'SELECT_MEMBER_TO_VIEW') {
-        const memberName = text.toUpperCase();
-        await generateMemberReport(replyToken, memberName);
-        await deleteDoc(sessionRef);
-        return;
     }
 
     // STEP 2: รับราคา -> ถามคนจ่าย
@@ -245,12 +231,20 @@ async function handleImageMessage(event) {
 
         const slip = slipData.data;
 
-        // 4. หา Settlement ที่ตรงกับยอดเงินในสลิป
+        // 4. ตรวจสอบว่ามียอดเงินในสลิปหรือไม่
+        if (!slip.amount || !slip.amount.amount || slip.amount.amount <= 0) {
+            return pushMessage(userId,
+                `❌ ไม่สามารถอ่านยอดเงินจากสลิปได้\n\n` +
+                `กรุณาตรวจสอบว่าสลิปชัดเจนและลองใหม่อีกครั้ง`
+            );
+        }
+
+        // 5. หา Settlement ที่ตรงกับยอดเงินในสลิป
         const matchingSettlement = await findMatchingSettlement(db, userMember.name, slip.amount.amount);
 
         if (!matchingSettlement) {
             return pushMessage(userId,
-                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${(slip.amount?.amount || 0).toLocaleString()} บาท\n\n` +
+                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slip.amount.amount.toLocaleString()} บาท\n\n` +
                 `กรุณาตรวจสอบยอดในหน้า Settlement แล้วลองใหม่อีกครั้ง`
             );
         }
