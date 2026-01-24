@@ -214,7 +214,7 @@ export function createSlipSuccessMessage(slip, settlement) {
                                 },
                                 {
                                     type: 'text',
-                                    text: `${slip.amount.toLocaleString()} บาท`,
+                                    text: `${(slip.amount?.amount || 0).toLocaleString()} บาท`,
                                     wrap: true,
                                     color: '#10b981',
                                     size: 'md',

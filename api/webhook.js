@@ -250,7 +250,7 @@ async function handleImageMessage(event) {
 
         if (!matchingSettlement) {
             return pushMessage(userId,
-                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slip.amount.amount.toLocaleString()} บาท\n\n` +
+                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${(slip.amount?.amount || 0).toLocaleString()} บาท\n\n` +
                 `กรุณาตรวจสอบยอดในหน้า Settlement แล้วลองใหม่อีกครั้ง`
             );
         }
