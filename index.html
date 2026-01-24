@@ -1270,23 +1270,27 @@
 
                 // === ONBOARDING CHECK ===
                 // เช็คว่ากรอกข้อมูลครบทั้ง 3 ฟิลด์หรือยัง
-                if (role !== 'admin') {  // Skip onboarding for admin
-                    console.log('🔍 Starting onboarding check for:', name);
+                // ⭐ ดึงข้อมูล member ล่าสุดจาก Firebase ก่อนเช็ค
+                console.log('🔍 Starting onboarding check for:', name);
 
-                    // ⭐ ดึงข้อมูล member ล่าสุดจาก Firebase
-                    try {
-                        const q = query(collection(db, 'members'), where('name', '==', name));
-                        const snapshot = await getDocs(q);
+                try {
+                    const q = query(collection(db, 'members'), where('name', '==', name));
+                    const snapshot = await getDocs(q);
 
-                        if (!snapshot.empty) {
-                            const freshMember = {
-                                id: snapshot.docs[0].id,
-                                ...snapshot.docs[0].data(),
-                                ref: snapshot.docs[0].ref
-                            };
+                    if (!snapshot.empty) {
+                        const freshMember = {
+                            id: snapshot.docs[0].id,
+                            ...snapshot.docs[0].data(),
+                            ref: snapshot.docs[0].ref
+                        };
 
-                            console.log('Fresh member data:', freshMember);
+                        console.log('Fresh member data:', freshMember);
 
+                        // เช็ค role จาก Firebase ไม่ใช่ role ที่ถูก override
+                        const isRealAdmin = freshMember.role && freshMember.role.toLowerCase() === 'admin';
+                        console.log('Is real admin (from Firebase)?', isRealAdmin);
+
+                        if (!isRealAdmin) {  // เฉพาะ non-admin ต้องผ่าน onboarding
                             const isComplete = this.checkOnboardingComplete(freshMember);
                             console.log('Onboarding complete?', isComplete);
 
@@ -1298,11 +1302,14 @@
                             }
 
                             console.log('✅ Onboarding complete - proceeding to dashboard');
+                        } else {
+                            console.log('👑 Real admin - skipping onboarding');
                         }
-                    } catch (error) {
-                        console.error('Error fetching member data:', error);
                     }
+                } catch (error) {
+                    console.error('Error fetching member data:', error);
                 }
+
 
                 // กรอกครบแล้วหรือเป็น admin → ไปหน้า Dashboard
                 this.navigate('dashboard');
