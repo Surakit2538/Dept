@@ -407,6 +407,43 @@ async function replyQuickReply(replyToken, flex, actions) {
     await sendToLine(replyToken, message);
 }
 
+
+
+async function pushMessage(userId, text) {
+    try {
+        await fetch('https://api.line.me/v2/bot/message/push', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+            },
+            body: JSON.stringify({
+                to: userId,
+                messages: [{ type: 'text', text }]
+            })
+        });
+    } catch (error) {
+        console.error('Error pushing message:', error);
+    }
+}
+
+async function pushFlex(userId, altText, contents) {
+    try {
+        await fetch('https://api.line.me/v2/bot/message/push', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`
+            },
+            body: JSON.stringify({
+                to: userId,
+                messages: [{ type: 'flex', altText, contents }]
+            })
+        });
+    } catch (error) {
+        console.error('Error pushing flex:', error);
+    }
+}
 function createInteractiveCard(title, description, hintText = null) {
     const contents = [
         // Header with icon + title
