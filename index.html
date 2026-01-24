@@ -1516,22 +1516,28 @@
 
                 try {
                     // Update Firebase
+                    // 🔄 CHANGE: Update name to LINE Display Name
+                    const displayName = profile.displayName.toUpperCase().trim();
+
                     const memberRef = member.ref || doc(db, "members", member.id);
                     await updateDoc(memberRef, {
+                        name: displayName, // Overwrite old "Test" name with real LINE name
+                        oldName: member.name, // Keep history just in case
                         lineUserId: profile.userId,
                         lineDisplayName: profile.displayName,
                         linkedAt: new Date().toISOString()
                     });
 
-                    // Proceed to login
+                    // Proceed to login with NEW name
                     document.getElementById('account-linking-modal').classList.add('hidden');
-                    this.completeLogin('member', member.name); // Using existing member name
+                    this.completeLogin('member', displayName);
 
                 } catch (e) {
                     console.error(e);
                     alert("เชื่อมต่อไม่สำเร็จ: " + e.message);
                 }
             },
+
 
             async skipLinking() {
                 const profile = this.data.pendingLineProfile;
