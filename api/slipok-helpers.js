@@ -27,7 +27,9 @@ export async function getImageContent(messageId) {
 // Verify slip with SlipOK API
 export async function verifySlipWithSlipOK(imageBuffer, expectedAmount = null) {
     try {
-        const FormData = (await import('form-data')).default;
+        // Import form-data dynamically
+        const formDataModule = await import('form-data');
+        const FormData = formDataModule.default || formDataModule;
         const formData = new FormData();
 
         formData.append('files', imageBuffer, {
