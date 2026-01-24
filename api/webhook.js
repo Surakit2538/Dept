@@ -104,7 +104,7 @@ async function handleTextMessage(event) {
             data: { desc: text },
             timestamp: serverTimestamp()
         });
-        const flex = createInteractiveCard("ระบุราคา", `รายการ: ${text}`, "ระบบจะถามหารกับใครบ้าง");
+        const flex = createInteractiveCard("ระบุราคา", `รายการ: ${text}`, "ระบุราคาเป็นจำนวนเงิน (ไม่ต้องใส่ตัวเลข) ครับ");
         return replyFlex(replyToken, "ระบุราคา", flex);
     }
 
@@ -116,7 +116,7 @@ async function handleTextMessage(event) {
         await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, amount } }, { merge: true });
         const members = await getMemberNames();
         const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-        const flex = createInteractiveCard("ระบุคนจ่าย", `ยอดเงิน: ${amount.toLocaleString()} บาท`);
+        const flex = createInteractiveCard("ระบุคนจ่าย", `ยอดเงิน: ${amount.toLocaleString()} บาท (หากไม่พบชื่อให้ทำในเว็บไซต์)`);
         return replyQuickReply(replyToken, flex, actions);
     }
 
