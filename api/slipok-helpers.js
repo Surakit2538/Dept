@@ -24,32 +24,68 @@ export async function getImageContent(messageId) {
     }
 }
 
-// Verify slip with SlipOK API
+// Verify slip with SlipOK API (Using native FormData without form-data package)
 export async function verifySlipWithSlipOK(imageBuffer, expectedAmount = null) {
     try {
-        // Import form-data dynamically
-        const formDataModule = await import('form-data');
-        const FormData = formDataModule.default || formDataModule;
-        const formData = new FormData();
+        // Create boundary for multipart/form-data
+        const boundary = '----WebKitFormBoundary' + Math.random().toString(36).substring(2);
 
-        formData.append('files', imageBuffer, {
-            filename: 'slip.jpg',
-            contentType: 'image/jpeg'
-        });
+        // Build multipart body manually
+        const parts = [];
 
+        // Add file part
+        parts.push(`--${boundary}\r\n`);
+        parts.push(`Content-Disposition: form-data; name="files"; filename="slip.jpg"\r\n`);
+        parts.push(`Content-Type: image/jpeg\r\n\r\n`);
+
+        // Convert buffer to array for concatenation
+        const fileData = new Uint8Array(imageBuffer);
+
+        // Add amount if provided
+        let amountPart = '';
         if (expectedAmount) {
-            formData.append('amount', expectedAmount);
+            amountPart = `\r\n--${boundary}\r\nContent-Disposition: form-data; name="amount"\r\n\r\n${expectedAmount}`;
         }
 
-        formData.append('log', 'false');
+        // Add log parameter
+        const logPart = `\r\n--${boundary}\r\nContent-Disposition: form-data; name="log"\r\n\r\nfalse`;
+        const endBoundary = `\r\n--${boundary}--\r\n`;
+
+        // Combine all parts
+        const headerText = parts.join('');
+        const headerBuffer = new TextEncoder().encode(headerText);
+        const amountBuffer = new TextEncoder().encode(amountPart);
+        const logBuffer = new TextEncoder().encode(logPart);
+        const endBuffer = new TextEncoder().encode(endBoundary);
+
+        // Calculate total length
+        const totalLength = headerBuffer.length + fileData.length + amountBuffer.length + logBuffer.length + endBuffer.length;
+
+        // Create final buffer
+        const body = new Uint8Array(totalLength);
+        let offset = 0;
+
+        body.set(headerBuffer, offset);
+        offset += headerBuffer.length;
+
+        body.set(fileData, offset);
+        offset += fileData.length;
+
+        body.set(amountBuffer, offset);
+        offset += amountBuffer.length;
+
+        body.set(logBuffer, offset);
+        offset += logBuffer.length;
+
+        body.set(endBuffer, offset);
 
         const response = await fetch(SLIPOK_API_URL, {
             method: 'POST',
             headers: {
                 'x-authorization': SLIPOK_API_KEY,
-                ...formData.getHeaders()
+                'Content-Type': `multipart/form-data; boundary=${boundary}`
             },
-            body: formData
+            body: body
         });
 
         const result = await response.json();
