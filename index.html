@@ -401,10 +401,24 @@
 
         <!-- DASHBOARD -->
         <section id="view-dashboard" class="p-4 md:p-8 max-w-5xl mx-auto space-y-6 fade-in">
-            <div class="flex justify-between items-center bg-white p-3 rounded-xl shadow-sm border border-slate-100">
-                <h2 class="font-bold text-slate-700 text-sm">สรุปยอดประจำเดือน</h2>
-                <select onchange="window.app.setMonth(this.value)"
-                    class="global-month-selector bg-slate-50 border border-slate-200 text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600"></select>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
+                <h2 class="font-bold text-slate-700 text-sm mb-3 text-center">สรุปยอดประจำเดือน</h2>
+                <div class="flex items-center justify-center gap-3">
+                    <button onclick="window.app.changeMonth(-1)"
+                        class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
+                        <i class="fa-solid fa-chevron-left text-slate-600 text-sm"></i>
+                    </button>
+
+                    <div class="text-center min-w-[130px]">
+                        <div id="current-month-display" class="font-bold text-slate-800 text-sm">เดือนนี้</div>
+                        <div class="h-0.5 bg-gradient-to-r from-transparent via-slate-300 to-transparent mt-1"></div>
+                    </div>
+
+                    <button onclick="window.app.changeMonth(1)"
+                        class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
+                        <i class="fa-solid fa-chevron-right text-slate-600 text-sm"></i>
+                    </button>
+                </div>
             </div>
 
             <div
@@ -442,10 +456,25 @@
 
         <!-- HISTORY -->
         <section id="view-history" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
-            <div class="flex justify-between items-center mb-2">
-                <h2 class="text-xl font-bold text-slate-800">รายการใช้จ่าย</h2>
-                <select onchange="window.app.setMonth(this.value)"
-                    class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-base font-bold text-slate-800">รายการใช้จ่าย</h2>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.app.changeMonth(-1)"
+                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
+                            <i class="fa-solid fa-chevron-left text-slate-600 text-xs"></i>
+                        </button>
+
+                        <div id="history-month-display"
+                            class="font-bold text-slate-700 text-xs min-w-[100px] text-center">เดือนนี้</div>
+
+                        <button onclick="window.app.changeMonth(1)"
+                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
+                            <i class="fa-solid fa-chevron-right text-slate-600 text-xs"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
             <div id="transaction-list-mobile" class="space-y-1 pb-20 md:pb-0"></div>
             <div id="empty-state" class="hidden py-10 text-center text-slate-400">
@@ -458,10 +487,25 @@
 
         <!-- SETTLEMENT -->
         <section id="view-settlement" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
-            <div class="flex justify-between items-center mb-2">
-                <h2 class="text-xl font-bold text-slate-800">สรุปยอดที่ต้องเคลียร์</h2>
-                <select onchange="window.app.setMonth(this.value)"
-                    class="global-month-selector bg-white border text-sm rounded-lg px-2 py-1 outline-none font-medium text-slate-600 shadow-sm"></select>
+            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-4">
+                <div class="flex items-center justify-between gap-3">
+                    <h2 class="text-base font-bold text-slate-800">สรุปยอดที่ต้องเคลียร์</h2>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.app.changeMonth(-1)"
+                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
+                            <i class="fa-solid fa-chevron-left text-slate-600 text-xs"></i>
+                        </button>
+
+                        <div id="settlement-month-display"
+                            class="font-bold text-slate-700 text-xs min-w-[100px] text-center">เดือนนี้</div>
+
+                        <button onclick="window.app.changeMonth(1)"
+                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
+                            <i class="fa-solid fa-chevron-right text-slate-600 text-xs"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div class="bg-blue-50 text-blue-700 text-xs p-3 rounded-lg flex items-center gap-2 border border-blue-100">
@@ -738,7 +782,7 @@
 
             async init() {
                 this.initBackground();
-                this.populateMonthSelectors();
+                this.updateMonthDisplay();
                 this.selectIcon('fa-utensils');
                 this.initLiff();
 
@@ -1112,8 +1156,50 @@
 
             setMonth(val) {
                 this.data.currentMonth = val;
-                document.querySelectorAll('.global-month-selector').forEach(s => s.value = val);
+                this.updateMonthDisplay();
                 this.refreshCurrentView();
+            },
+
+            changeMonth(delta) {
+                const date = new Date(this.data.currentMonth + '-01');
+                date.setMonth(date.getMonth() + delta);
+                const newMonth = date.toISOString().slice(0, 7);
+                this.setMonth(newMonth);
+            },
+
+            updateMonthDisplay() {
+                const selectedDate = new Date(this.data.currentMonth + '-01');
+                const currentDate = new Date();
+                const currentMonth = currentDate.toISOString().slice(0, 7);
+
+                let displayText;
+
+                // ถ้าเป็นเดือนปัจจุบัน แสดง "เดือนนี้"
+                if (this.data.currentMonth === currentMonth) {
+                    displayText = 'เดือนนี้';
+                } else {
+                    // ถ้าไม่ใช่ แสดงชื่อเดือน + ปี
+                    const thaiMonths = [
+                        'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
+                        'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
+                        'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+                    ];
+                    const month = thaiMonths[selectedDate.getMonth()];
+                    const year = selectedDate.getFullYear() + 543; // แปลงเป็น พ.ศ.
+                    displayText = `${month} ${year}`;
+                }
+
+                // อัปเดตทุก display
+                const displays = [
+                    'current-month-display',    // Dashboard
+                    'history-month-display',     // History
+                    'settlement-month-display'   // Settlement
+                ];
+
+                displays.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = displayText;
+                });
             },
 
             populatePayerSelector() {
@@ -1267,15 +1353,30 @@
             renderMonthlyTrendChart() {
                 const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
                 if (this.charts.monthlyTrend) this.charts.monthlyTrend.destroy();
-                const months = [], amounts = [], d = new Date();
-                for (let i = 0; i < 6; i++) {
+
+                const months = [], amounts = [];
+
+                // เริ่มจากเดือนที่เลือก (ขวาสุด)
+                const selectedDate = new Date(this.data.currentMonth + '-01');
+
+                // ย้อนหลัง 5 เดือน + เดือนที่เลือก = รวม 6 เดือน
+                for (let i = 5; i >= 0; i--) {
+                    const d = new Date(selectedDate);
+                    d.setMonth(selectedDate.getMonth() - i);
+
                     const key = d.toISOString().slice(0, 7);
                     const thaiYear = String(d.getFullYear() + 543).slice(-2);
                     const label = `${String(d.getMonth() + 1).padStart(2, '0')}/${thaiYear}`;
-                    months.unshift(label);
-                    amounts.unshift(this.data.transactions.filter(t => t.date.startsWith(key)).reduce((a, t) => a + Number(t.amount), 0));
-                    d.setMonth(d.getMonth() - 1);
+
+                    months.push(label);
+
+                    const total = this.data.transactions
+                        .filter(t => t.date.startsWith(key))
+                        .reduce((a, t) => a + Number(t.amount), 0);
+                    amounts.push(total);
                 }
+
+                // Highlight เดือนที่เลือก (ตำแหน่งสุดท้าย index = 5)
                 this.charts.monthlyTrend = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -1290,7 +1391,13 @@
                         responsive: true,
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
-                        scales: { y: { display: false }, x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 0 } } }
+                        scales: {
+                            y: { display: false },
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { size: 10 }, maxRotation: 0 }
+                            }
+                        }
                     }
                 });
             },
