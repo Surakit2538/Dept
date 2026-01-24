@@ -1716,13 +1716,13 @@
                 });
 
                 // หัก verified settlements ออกจาก balances
-                const verifiedSnapshot = await getDocs(
+                const verifiedForBalance = await getDocs(
                     query(collection(db, 'settlements'),
                         where('month', '==', this.data.currentMonth),
                         where('status', '==', 'verified'))
                 );
 
-                verifiedSnapshot.forEach(doc => {
+                verifiedForBalance.forEach(doc => {
                     const s = doc.data();
                     if (balances.hasOwnProperty(s.from)) balances[s.from] += s.amount;
                     if (balances.hasOwnProperty(s.to)) balances[s.to] -= s.amount;
@@ -1751,9 +1751,56 @@
                     if (b > 1) creditors.push({ name: m, amount: b });
                 });
 
+                // Fetch verified settlements to check which ones are already verified
+                const verifiedSnapshot = await getDocs(
+                    query(collection(db, 'settlements'),
+                        where('month', '==', this.data.currentMonth),
+                        where('status', '==', 'verified'))
+                );
+
+                const verifiedSettlements = [];
+                verifiedSnapshot.forEach(doc => {
+                    const s = doc.data();
+                    verifiedSettlements.push({
+                        from: s.from,
+                        to: s.to,
+                        amount: s.amount,
+                        status: 'verified',
+                        slip: s.slip
+                    });
+                });
+
                 this.data.settlementPlan = [];
                 const planContainer = document.getElementById('settlement-plan');
                 planContainer.innerHTML = "";
+
+                // แสดง verified settlements ก่อน
+                verifiedSettlements.forEach(vs => {
+                    const item = document.createElement('div');
+                    item.className = 'bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm';
+
+                    item.innerHTML = `
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="font-bold text-slate-700">
+                                ${vs.from} 
+                                <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> 
+                                ${vs.to}
+                            </div>
+                            <div class="font-bold text-emerald-600">${vs.amount.toLocaleString()} บาท</div>
+                        </div>
+                        
+                        <div class="flex items-center justify-between mt-3">
+                            <span class="status-badge verified">
+                                <i class="fa-solid fa-check-circle mr-1"></i> ยืนยันแล้ว
+                            </span>
+                            <span class="text-xs text-emerald-600">
+                                <i class="fa-solid fa-calendar-check mr-1"></i> ${this.formatSlipDate(vs.slip.transDate)}
+                            </span>
+                        </div>
+                    `;
+
+                    planContainer.appendChild(item);
+                });
 
                 let i = 0, j = 0;
                 while (i < debtors.length && j < creditors.length) {
@@ -1761,39 +1808,47 @@
                     const c = creditors[j];
                     const pay = Math.min(d.amount, c.amount);
 
-                    this.data.settlementPlan.push({ from: d.name, to: c.name, amount: pay, status: 'pending' });
+                    // เช็คว่า settlement นี้ verified แล้วหรือยัง
+                    const isVerified = verifiedSettlements.some(
+                        vs => vs.from === d.name && vs.to === c.name && Math.abs(vs.amount - pay) < 1
+                    );
 
-                    // สร้าง Settlement Item Card
-                    const item = document.createElement('div');
-                    item.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm';
+                    // ถ้ายังไม่ verified ถึงจะแสดง
+                    if (!isVerified) {
+                        this.data.settlementPlan.push({ from: d.name, to: c.name, amount: pay, status: 'pending' });
 
-                    const isCurrentUserPayer = d.name === this.data.currentUser;
+                        // สร้าง Settlement Item Card
+                        const item = document.createElement('div');
+                        item.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm';
 
-                    item.innerHTML = `
-                        <div class="flex items-center justify-between mb-2">
-                            <div class="font-bold text-slate-700">
-                                ${d.name} 
-                                <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> 
-                                ${c.name}
+                        const isCurrentUserPayer = d.name === this.data.currentUser;
+
+                        item.innerHTML = `
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="font-bold text-slate-700">
+                                    ${d.name} 
+                                    <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> 
+                                    ${c.name}
+                                </div>
+                                <div class="font-bold text-red-500">${pay.toLocaleString()} บาท</div>
                             </div>
-                            <div class="font-bold text-red-500">${pay.toLocaleString()} บาท</div>
-                        </div>
-                        
-                        <div class="flex items-center justify-between mt-3">
-                            <span class="status-badge pending">
-                                <i class="fa-solid fa-clock mr-1"></i> รอโอนเงิน
-                            </span>
-                            ${isCurrentUserPayer ? `
-                                <button onclick="window.app.openSlipUploadModal('${d.name}', '${c.name}', ${pay})"
-                                        class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-700 transition-colors">
-                                    <i class="fa-solid fa-cloud-upload mr-1"></i>
-                                    อัปโหลดหลักฐาน
-                                </button>
-                            ` : ''}
-                        </div>
-                    `;
+                            
+                            <div class="flex items-center justify-between mt-3">
+                                <span class="status-badge pending">
+                                    <i class="fa-solid fa-clock mr-1"></i> รอโอนเงิน
+                                </span>
+                                ${isCurrentUserPayer ? `
+                                    <button onclick="window.app.openSlipUploadModal('${d.name}', '${c.name}', ${pay})"
+                                            class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-700 transition-colors">
+                                        <i class="fa-solid fa-cloud-upload mr-1"></i>
+                                        อัปโหลดหลักฐาน
+                                    </button>
+                                ` : ''}
+                            </div>
+                        `;
 
-                    planContainer.appendChild(item);
+                        planContainer.appendChild(item);
+                    }
 
                     d.amount -= pay;
                     c.amount -= pay;
@@ -2080,7 +2135,28 @@
                 } else {
                     if (confirm('ยืนยันลบรายการนี้?')) {
                         // document.getElementById('loading-overlay').classList.remove('hidden');
-                        try { await deleteDoc(doc(db, "transactions", id.trim())); } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
+                        try {
+                            await deleteDoc(doc(db, "transactions", id.trim()));
+
+                            // ลบ verified settlements ที่เกี่ยวข้องด้วย (ถ้ามี)
+                            const month = t.date.substring(0, 7);
+                            const settlementsQuery = query(
+                                collection(db, 'settlements'),
+                                where('month', '==', month),
+                                where('status', '==', 'verified')
+                            );
+
+                            const settlementsSnapshot = await getDocs(settlementsQuery);
+                            const batch = writeBatch(db);
+                            settlementsSnapshot.forEach(doc => {
+                                batch.delete(doc.ref);
+                            });
+
+                            if (!settlementsSnapshot.empty) {
+                                await batch.commit();
+                                console.log('Deleted related settlements');
+                            }
+                        } catch (e) { alert("เกิดข้อผิดพลาด: " + e.message); }
                         // document.getElementById('loading-overlay').classList.add('hidden');
                     }
                 }
