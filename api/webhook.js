@@ -104,7 +104,7 @@ async function handleTextMessage(event) {
             data: { desc: text },
             timestamp: serverTimestamp()
         });
-        const flex = createInteractiveCard("ระบุราคา", `รายการ: ${text}`, "ระบุราคาเป็นจำนวนเงิน (ไม่ต้องใส่ตัวเลข) ครับ");
+        const flex = createInteractiveCard("ระบุราคา", `รายการ: ${text}`, "ระบุราคาเป็นจำนวนเงิน (ใส่เฉพาะตัวเลขไม่ต้องมี บาท) ครับ");
         return replyFlex(replyToken, "ระบุราคา", flex);
     }
 
@@ -138,7 +138,15 @@ async function handleTextMessage(event) {
             await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
             const flex = createInteractiveCard("ระบุจำนวนงวด", "ต้องการผ่อนกี่เดือน? (2-24)", "ตัวอย่าง: 3, 6, 12");
             return replyFlex(replyToken, "ระบุจำนวนงวด", flex);
+        } else if (text.toLowerCase().includes("subscription") || text.includes("💳")) {
+            // Subscription - ข้ามไปถามคนหารเลย
+            await setDoc(sessionRef, {
+                step: 'ASK_PARTICIPANTS',
+                data: { ...data, paymentType: 'subscription', installments: 1, participants: [] }
+            }, { merge: true });
+            return await askParticipants(replyToken, userId, []);
         } else {
+            // จ่ายเต็ม
             await setDoc(sessionRef, {
                 step: 'ASK_PARTICIPANTS',
                 data: { ...data, paymentType: 'normal', installments: 1, participants: [] }
@@ -566,7 +574,36 @@ async function saveTransaction(replyToken, userId, finalData) {
                     timestamp: Date.now() + i, groupId: groupId, icon: icon
                 });
             }
+        } else if (finalData.paymentType === 'subscription') {
+            // Subscription - บันทึกรายการ
+            batch.set(doc(collection(db, "transactions")), {
+                date: today.toISOString().slice(0, 10),
+                desc: `${finalData.desc} 📅`,
+                amount: finalData.amount,
+                payer: finalData.payer,
+                splits: splits,
+                paymentType: 'subscription',
+                subscriptionRecurring: true, // Default เปิดใช้งาน auto-renew
+                subscriptionStartDate: today.toISOString().slice(0, 10),
+                icon: icon,
+                timestamp: Date.now()
+            });
+
+            // บันทึก template สำหรับ auto-renew
+            const billingDay = today.getDate();
+            batch.set(doc(collection(db, "subscription_templates")), {
+                desc: finalData.desc,
+                amount: finalData.amount,
+                payer: finalData.payer,
+                splits: splits,
+                icon: icon,
+                billingDay: billingDay,
+                active: true,
+                createdAt: today,
+                createdBy: finalData.payer
+            });
         } else {
+            // จ่ายเต็ม (normal)
             batch.set(doc(collection(db, "transactions")), {
                 date: today.toISOString().slice(0, 10),
                 desc: finalData.desc, amount: finalData.amount, payer: finalData.payer,
@@ -581,7 +618,7 @@ async function saveTransaction(replyToken, userId, finalData) {
             "type": "bubble",
             "header": {
                 "type": "box", "layout": "vertical",
-                "backgroundColor": finalData.paymentType === 'installment' ? "#f97316" : "#22c55e",
+                "backgroundColor": finalData.paymentType === 'installment' ? "#f97316" : finalData.paymentType === 'subscription' ? "#9333ea" : "#22c55e",
                 "contents": [
                     { "type": "text", "text": "บันทึกสำเร็จ ✅", "color": "#ffffff", "weight": "bold", "size": "sm" }
                 ]
@@ -590,10 +627,19 @@ async function saveTransaction(replyToken, userId, finalData) {
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
                     { "type": "text", "text": finalData.desc, "weight": "bold", "size": "lg" },
-                    { "type": "text", "text": `${finalData.amount.toLocaleString()} บาท`, "size": "xxl", "color": finalData.paymentType === 'installment' ? "#f97316" : "#22c55e", "weight": "bold" },
+                    {
+                        "type": "text",
+                        "text": `${finalData.amount.toLocaleString()} บาท`,
+                        "size": "xxl",
+                        "color": finalData.paymentType === 'installment' ? "#f97316" : finalData.paymentType === 'subscription' ? "#9333ea" : "#22c55e",
+                        "weight": "bold"
+                    },
                     { "type": "separator" },
                     { "type": "text", "text": `คนจ่าย: ${finalData.payer}`, "size": "xs", "color": "#666666" },
-                    { "type": "text", "text": `คนหาร: ${finalData.participants.join(', ')}`, "size": "xs", "color": "#666666", "wrap": true }
+                    { "type": "text", "text": `คนหาร: ${finalData.participants.join(', ')}`, "size": "xs", "color": "#666666", "wrap": true },
+                    ...(finalData.paymentType === 'subscription' ? [
+                        { "type": "text", "text": "💳 Subscription (สร้างทุกเดือนอัตโนมัติ)", "size": "xs", "color": "#9333ea", "margin": "md" }
+                    ] : [])
                 ]
             }
         };
