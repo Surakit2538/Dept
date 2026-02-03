@@ -767,7 +767,7 @@
         <button onclick="window.app.navigate('settings')"
             class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-settings">
             <i class="fa-solid fa-users-gear text-lg"></i>
-            <span class="text-[10px]">เคลียร์</span>
+            <span class="text-[10px]">ตั้งค่า</span>
         </button>
     </nav>
 
@@ -822,6 +822,7 @@
                                 class="modal-input transition-all">
                                 <option value="normal">จ่ายเต็ม</option>
                                 <option value="installment">ผ่อนชำระ</option>
+                                <option value="subscription">Subscription</option>
                             </select>
                             <i
                                 class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
@@ -834,6 +835,22 @@
                     <input type="number" id="t-installments" placeholder="เช่น 3"
                         class="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm focus:border-orange-400 outline-none">
                     <p class="text-[10px] text-orange-400 mt-1">* ระบบจะหารยอดเท่ากันในทุกเดือน</p>
+                </div>
+
+                <!-- Subscription Wrapper -->
+                <div id="t-subscription-wrapper" class="hidden bg-purple-50 p-4 rounded-xl border border-purple-100">
+                    <label class="text-[10px] font-bold text-purple-600 uppercase mb-1 block">ระบบ Subscription</label>
+                    <div class="flex items-center gap-2 mb-2">
+                        <input type="checkbox" id="t-subscription-recurring" checked
+                            class="w-4 h-4 text-purple-600 rounded">
+                        <label for="t-subscription-recurring" class="text-xs text-purple-700">
+                            สร้างรายการทุกเดือนอัตโนมัติ
+                        </label>
+                    </div>
+                    <p class="text-[10px] text-purple-400 mt-1">
+                        💡 เปิดใช้งาน: รายการนี้จะปรากฏทุกเดือนโดยอัตโนมัติ<br>
+                        📅 ตัวอย่าง: Netflix, Spotify, ค่าน้ำ-ไฟ
+                    </p>
                 </div>
 
                 <!-- ICON SELECTION -->
@@ -2095,7 +2112,12 @@
                                     ${t.desc}
                                 </div>
                                 <div class="text-xs text-slate-400 mt-0.5">
-                                    ${t.payer} จ่ายให้ | ${isInstallment ? '<span class="text-orange-400"><i class="fa-solid fa-clock-rotate-left"></i> ผ่อนชำระ</span>' : 'จ่ายเต็ม'}
+                                    ${t.payer} จ่ายให้ | ${t.paymentType === 'installment'
+                            ? '<span class="text-orange-400"><i class="fa-solid fa-clock-rotate-left"></i> ผ่อนชำระ</span>'
+                            : t.paymentType === 'subscription'
+                                ? '<span class="text-purple-500"><i class="fa-solid fa-rotate"></i> Subscription</span>'
+                                : 'จ่ายเต็ม'
+                        }
                                 </div>
                             </div>
                         </div >
@@ -2105,11 +2127,12 @@
                     `;
 
                     // Edit Icon
-                    html += `
-                    <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
-                        <i class="fa-solid fa-pen"></i>
-                    </button>
-                    `;
+                    // Edit button removed - แก้ปัญหาการแจ้งเตือนซ้ำเมื่อแก้ไขรายการที่มีสลิปแล้ว
+                    // html += `
+                    // <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
+                    //     <i class="fa-solid fa-pen"></i>
+                    // </button>
+                    // `;
 
                     // Delete Icon (Admin Only)
                     if (this.data.userRole === 'admin') {
@@ -2772,7 +2795,15 @@
 
             closeModal(id) { document.getElementById(id).classList.add('hidden'); },
 
-            toggleInstallment() { document.getElementById('t-installment-wrapper').classList.toggle('hidden', document.getElementById('t-payment-type').value !== 'installment'); },
+            toggleInstallment() {
+                const type = document.getElementById('t-payment-type').value;
+                const installmentWrapper = document.getElementById('t-installment-wrapper');
+                const subscriptionWrapper = document.getElementById('t-subscription-wrapper');
+
+                // ซ่อน/แสดง UI ตาม type
+                installmentWrapper.classList.toggle('hidden', type !== 'installment');
+                subscriptionWrapper.classList.toggle('hidden', type !== 'subscription');
+            },
 
             selectIcon(iconName) {
                 document.getElementById('t-icon').value = iconName;
@@ -2835,6 +2866,10 @@
                 }
             },
 
+            // editTransaction - DISABLED to prevent settlement issues
+            // When user edits a transaction after slip verification, it causes notification issues
+            // Kept for reference, can be re-enabled if needed in the future
+            /*
             editTransaction(id) {
                 const t = this.data.transactions.find(x => x.id === id);
                 if (!t) return;
@@ -2869,6 +2904,7 @@
                 // Assuming default is equal unless proven otherwise.
                 // Or user can switch manually.
             },
+            */
 
             async deleteTransaction(id) {
                 if (!confirm('ต้องการลบรายการนี้ใช่ไหม?')) return;
@@ -3025,23 +3061,74 @@
                         batch.update(doc(db, "transactions", this.data.editingId), { desc, payer, amount, splits, date, icon });
                     }
                 } else {
-                    const installments = type === 'installment' ? Number(document.getElementById('t-installments').value) || 1 : 1;
-                    const groupId = type === 'installment' ? "grp_" + Date.now() : null;
-                    const baseDate = new Date(date);
+                    // สร้างรายการใหม่
+                    if (type === 'installment') {
+                        const installments = Number(document.getElementById('t-installments').value) || 1;
+                        const groupId = "grp_" + Date.now();
+                        const baseDate = new Date(date);
 
-                    for (let i = 0; i < installments; i++) {
-                        const currentInstallmentDate = new Date(baseDate);
-                        currentInstallmentDate.setMonth(baseDate.getMonth() + i);
+                        for (let i = 0; i < installments; i++) {
+                            const currentInstallmentDate = new Date(baseDate);
+                            currentInstallmentDate.setMonth(baseDate.getMonth() + i);
+                            const txn = {
+                                date: currentInstallmentDate.toISOString().slice(0, 10),
+                                desc: `${desc} (${i + 1}/${installments})`,
+                                amount: amount / installments,
+                                payer,
+                                splits: Object.fromEntries(Object.entries(splits).map(([k, v]) => [k, v / installments])),
+                                paymentType: 'installment',
+                                icon,
+                                groupId,
+                                timestamp: Date.now() + i
+                            };
+                            batch.set(doc(collection(db, "transactions")), txn);
+                        }
+                    } else if (type === 'subscription') {
+                        // สร้างรายการ Subscription
+                        const recurring = document.getElementById('t-subscription-recurring').checked;
+
                         const txn = {
-                            date: currentInstallmentDate.toISOString().slice(0, 10),
-                            desc: installments > 1 ? `${desc} (${i + 1}/${installments})` : desc,
-                            amount: amount / installments,
+                            date,
+                            desc: `${desc} 📅`,
+                            amount,
                             payer,
-                            splits: Object.fromEntries(Object.entries(splits).map(([k, v]) => [k, v / installments])),
-                            paymentType: type,
+                            splits,
+                            paymentType: 'subscription',
                             icon,
-                            groupId,
-                            timestamp: Date.now() + i
+                            subscriptionRecurring: recurring,
+                            subscriptionStartDate: date,
+                            timestamp: Date.now()
+                        };
+
+                        batch.set(doc(collection(db, "transactions")), txn);
+
+                        // บันทึก template สำหรับ auto-renew (ถ้าเปิดใช้)
+                        if (recurring) {
+                            const billingDay = new Date(date).getDate();
+                            const subRef = doc(collection(db, "subscription_templates"));
+                            batch.set(subRef, {
+                                desc,
+                                amount,
+                                payer,
+                                splits,
+                                icon,
+                                billingDay,
+                                active: true,
+                                createdAt: new Date(),
+                                createdBy: this.data.currentUser
+                            });
+                        }
+                    } else {
+                        // จ่ายเต็ม (normal)
+                        const txn = {
+                            date,
+                            desc,
+                            amount,
+                            payer,
+                            splits,
+                            paymentType: 'normal',
+                            icon,
+                            timestamp: Date.now()
                         };
                         batch.set(doc(collection(db, "transactions")), txn);
                     }

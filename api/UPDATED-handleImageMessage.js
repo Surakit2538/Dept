@@ -33,15 +33,22 @@ async function handleImageMessage(event) {
 
         const slip = slipData.data;
 
-        // 4. หา Settlement ที่ตรงกับจำนวนเงินในสลิป
-        const currentMonth = new Date().toISOString().slice(0, 7);
-        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slip.amount, currentMonth);
+        // 4. หา Settlement ที่ตรงกับจำนวนเงินในสลิป (Smart Search - ค้นหาทุกเดือนที่ค้างชำระ)
+        const matchingSettlement = await findMatchingSettlementSmart(db, userMember.name, slip.amount);
 
         if (!matchingSettlement) {
             return pushMessage(userId,
                 `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slip.amount.toLocaleString()} บาท\n\n` +
                 `กรุณาตรวจสอบว่าคุณมีรายการที่ต้องชำระจำนวนนี้หรือไม่`
             );
+        }
+
+        // แจ้งเตือนถ้าเป็นเดือนเก่า
+        const settlementMonth = matchingSettlement.month;
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        if (settlementMonth !== currentMonth) {
+            const formattedMonth = formatMonth(settlementMonth);
+            await pushMessage(userId, `ℹ️ ตรวจพบรายการเดือน ${formattedMonth}`);
         }
 
         // 5. ตรวจสอบชื่อผู้รับ
@@ -112,7 +119,16 @@ async function getImageContent(messageId) {
         const arrayBuffer = await response.arrayBuffer();
         return Buffer.from(arrayBuffer);
     } catch (error) {
-        console.error('Error getting image content:', error);
+        console.error('Error fetching image:', error);
         return null;
     }
+}
+
+// Helper function to format month
+function formatMonth(yearMonth) {
+    const [year, month] = yearMonth.split('-');
+    const thaiMonths = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
+        'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม',
+        'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+    return `${thaiMonths[parseInt(month) - 1]} ${parseInt(year) + 543}`;
 }

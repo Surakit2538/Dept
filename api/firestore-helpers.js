@@ -112,7 +112,110 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
         if (c.amount <= 0.01) j++;
     }
 
-    console.log('  ❌ No matching settlement found');
+}
+
+// Find matching settlement (Smart Search - ค้นหาย้อนหลังทุกเดือนที่ค้างชำระ)
+export async function findMatchingSettlementSmart(db, fromName, amount) {
+    console.log('🔍 [findMatchingSettlementSmart] Starting SMART SEARCH...');
+    console.log('  fromName:', fromName);
+    console.log('  amount:', amount);
+
+    // Step 1: หาเดือนที่มี transaction
+    const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
+    const membersSnapshot = await getDocs(collection(db, 'members'));
+
+    const members = membersSnapshot.docs.map(d => d.data().name);
+    const allTransactions = transactionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Group transactions by month
+    const monthsWithTransactions = {};
+    allTransactions.forEach(t => {
+        if (t.date) {
+            const month = t.date.slice(0, 7); // "2026-02"
+            if (!monthsWithTransactions[month]) {
+                monthsWithTransactions[month] = [];
+            }
+            monthsWithTransactions[month].push(t);
+        }
+    });
+
+    // Sort months (newest first)
+    const months = Object.keys(monthsWithTransactions).sort().reverse();
+    console.log('  📅 Found transactions in months:', months);
+
+    // Step 2: ตรวจสอบแต่ละเดือน (เดือนล่าสุดก่อน)
+    const settlementsSnapshot = await getDocs(collection(db, 'settlements'));
+    const verifiedSettlements = {};
+
+    settlementsSnapshot.docs.forEach(d => {
+        const settlement = d.data();
+        if (settlement.status === 'verified' && settlement.month) {
+            const key = `${settlement.from}-${settlement.to}-${settlement.month}`;
+            verifiedSettlements[key] = true;
+        }
+    });
+
+    console.log('  ✅ Verified settlements:', Object.keys(verifiedSettlements).length);
+
+    // Step 3: ค้นหาในแต่ละเดือนที่ยังไม่ได้ชำระ
+    for (const month of months) {
+        console.log(`  🔍 Checking month: ${month}`);
+
+        const transactions = monthsWithTransactions[month];
+
+        // calculatebalances for this month
+        const balances = {};
+        members.forEach(m => balances[m] = 0);
+
+        transactions.forEach(t => {
+            const payer = t.payer || "";
+            if (balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
+            if (t.splits) {
+                Object.keys(t.splits).forEach(k => {
+                    if (balances.hasOwnProperty(k)) balances[k] -= Number(t.splits[k]);
+                });
+            }
+        });
+
+        // Generate settlement plan
+        const debtors = [], creditors = [];
+        Object.keys(balances).forEach(m => {
+            const b = Math.round(balances[m]);
+            if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
+            if (b > 1) creditors.push({ name: m, amount: b });
+        });
+
+        let i = 0, j = 0;
+        while (i < debtors.length && j < creditors.length) {
+            const d = debtors[i];
+            const c = creditors[j];
+            const pay = Math.min(d.amount, c.amount);
+
+            // Check if verified already
+            const key = `${d.name}-${c.name}-${month}`;
+            const isVerified = verifiedSettlements[key];
+
+            // Check if this matches the slip AND not verified yet
+            if (d.name === fromName && Math.abs(pay - amount) < 1 && !isVerified) {
+                console.log(`  ✅ MATCH FOUND in month ${month}!`);
+                return {
+                    from: d.name,
+                    to: c.name,
+                    amount: pay,
+                    month: month,
+                    transactionIds: transactions.map(t => t.id)
+                };
+            }
+
+            d.amount -= pay;
+            c.amount -= pay;
+
+            if (d.amount <= 0.01) i++;
+            if (c.amount <= 0.01) j++;
+        }
+    }
+
+    console.log('  ❌ No matching settlement found in any month');
     return null;
 }
 
