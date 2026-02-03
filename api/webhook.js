@@ -577,7 +577,10 @@ async function saveTransaction(replyToken, userId, finalData) {
                 });
             }
         } else if (finalData.paymentType === 'subscription') {
-            // Subscription - บันทึกรายการ
+            // Subscription - สร้างเฉพาะเดือนปัจจุบัน + template (ใช้ Cloud Functions สร้างเดือนถัดไป)
+            const groupId = `sub_${Date.now()}`;
+
+            // สร้างรายการเดือนปัจจุบัน
             batch.set(doc(collection(db, "transactions")), {
                 date: today.toISOString().slice(0, 10),
                 desc: `${finalData.desc} 📅`,
@@ -585,13 +588,14 @@ async function saveTransaction(replyToken, userId, finalData) {
                 payer: finalData.payer,
                 splits: splits,
                 paymentType: 'subscription',
-                subscriptionRecurring: true, // Default เปิดใช้งาน auto-renew
+                subscriptionRecurring: true,
                 subscriptionStartDate: today.toISOString().slice(0, 10),
+                groupId: groupId,
                 icon: icon,
                 timestamp: Date.now()
             });
 
-            // บันทึก template สำหรับ auto-renew
+            // บันทึก template สำหรับ Cloud Functions
             const billingDay = today.getDate();
             batch.set(doc(collection(db, "subscription_templates")), {
                 desc: finalData.desc,
@@ -600,9 +604,11 @@ async function saveTransaction(replyToken, userId, finalData) {
                 splits: splits,
                 icon: icon,
                 billingDay: billingDay,
+                groupId: groupId,
                 active: true,
                 createdAt: today,
-                createdBy: finalData.payer
+                createdBy: finalData.payer,
+                lastGeneratedMonth: today.toISOString().slice(0, 7) // "2026-02"
             });
         } else {
             // จ่ายเต็ม (normal)
