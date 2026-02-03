@@ -126,9 +126,11 @@ async function handleTextMessage(event) {
         await setDoc(sessionRef, { step: 'ASK_PAYMENT_TYPE', data: { ...data, payer } }, { merge: true });
         const actions = [
             { type: "action", action: { type: "message", label: "จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
-            { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } }
+            { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } },
+            { type: "action", action: { type: "message", label: "💳 Subscription", text: "Subscription" } }
         ];
-        const flex = createInteractiveCard("รูปแบบการชำระ", `คนจ่าย: ${payer}\nเลือกรูปแบบการชำระครับ`);
+        const flex = createInteractiveCard("รูปแบบการชำระ", `คนจ่าย: ${payer}
+เลือกรูปแบบการชำระครับ`);
         return replyQuickReply(replyToken, flex, actions);
     }
 

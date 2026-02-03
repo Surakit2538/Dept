@@ -3084,23 +3084,33 @@
                             batch.set(doc(collection(db, "transactions")), txn);
                         }
                     } else if (type === 'subscription') {
-                        // สร้างรายการ Subscription
+                        // สร้างรายการ Subscription ล่วงหน้า 12 เดือน (ถ้า recurring = true)
                         const recurring = document.getElementById('t-subscription-recurring').checked;
+                        const groupId = `sub_${Date.now()}`;
+                        const subscriptionMonths = recurring ? 12 : 1; // ถ้า recurring = true สร้าง 12 เดือน
+                        const baseDate = new Date(date);
 
-                        const txn = {
-                            date,
-                            desc: `${desc} 📅`,
-                            amount,
-                            payer,
-                            splits,
-                            paymentType: 'subscription',
-                            icon,
-                            subscriptionRecurring: recurring,
-                            subscriptionStartDate: date,
-                            timestamp: Date.now()
-                        };
+                        for (let i = 0; i < subscriptionMonths; i++) {
+                            const currentDate = new Date(baseDate);
+                            currentDate.setMonth(baseDate.getMonth() + i);
 
-                        batch.set(doc(collection(db, "transactions")), txn);
+                            const txn = {
+                                date: currentDate.toISOString().slice(0, 10),
+                                desc: `${desc} ${recurring ? '📅' : ''}`,
+                                amount,
+                                payer,
+                                splits,
+                                paymentType: 'subscription',
+                                icon,
+                                subscriptionRecurring: recurring,
+                                subscriptionStartDate: date,
+                                subscriptionMonth: i + 1,
+                                groupId: groupId,
+                                timestamp: Date.now() + i
+                            };
+
+                            batch.set(doc(collection(db, "transactions")), txn);
+                        }
 
                         // บันทึก template สำหรับ auto-renew (ถ้าเปิดใช้)
                         if (recurring) {
@@ -3113,6 +3123,7 @@
                                 splits,
                                 icon,
                                 billingDay,
+                                groupId,
                                 active: true,
                                 createdAt: new Date(),
                                 createdBy: this.data.currentUser
