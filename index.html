@@ -39,24 +39,36 @@
 
     <style>
         :root {
-            /* Glassmorphism Theme Variables */
-            --glass-bg: rgba(255, 255, 255, 0.15);
-            --glass-border: rgba(255, 255, 255, 0.3);
-            --glass-blur: 16px;
-            --glass-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.2);
+            /* Premium Dark Theme Variables */
+            --bg-base: #0a0a0c;
+            /* Deep black background */
+            --bg-card: #1c1c1e;
+            /* Dark gray for cards */
+            --bg-card-hover: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+            --accent-brand: #ffffff;
+            /* White buttons / icons in some places */
+            --accent-gradient-1: #4B6CB7;
+            /* Blueish */
+            --accent-gradient-2: #182848;
+
+            /* Glassmorphism Variables */
+            --glass-bg: rgba(28, 28, 30, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-blur: 24px;
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+
+            /* Login Animation Gradient Variables */
             --bg-gradient-1: #0f172a;
-            /* Slate 900 */
             --bg-gradient-2: #1e1b4b;
-            /* Indigo 950 */
             --bg-gradient-3: #172554;
-            /* Blue 950 */
-            --text-primary: #1e293b;
         }
 
         body {
             font-family: 'Noto Sans Thai', sans-serif;
-            background-color: #f8fafc;
-            color: #334155;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
             -webkit-tap-highlight-color: transparent;
             height: 100dvh;
             overflow: hidden;
@@ -370,81 +382,81 @@
         body,
         main,
         #main-content {
-            background-color: #0f172a !important;
-            color: #f8fafc !important;
+            background-color: var(--bg-base) !important;
+            color: var(--text-primary) !important;
         }
 
         .bg-white {
-            background-color: #1e293b !important;
+            background-color: var(--bg-card) !important;
         }
 
         .bg-slate-50,
         .bg-\[\#f8fafc\] {
-            background-color: #0f172a !important;
+            background-color: var(--bg-base) !important;
         }
 
         .bg-slate-100 {
-            background-color: #334155 !important;
+            background-color: #2c2c2e !important;
         }
 
         .bg-slate-200,
         .bg-\[\#e2e8f0\] {
-            background-color: #475569 !important;
+            background-color: #3a3a3c !important;
         }
 
         .bg-white\/90 {
-            background-color: rgba(30, 41, 59, 0.9) !important;
+            background-color: rgba(28, 28, 30, 0.9) !important;
         }
 
         .bg-white\/95 {
-            background-color: rgba(30, 41, 59, 0.95) !important;
+            background-color: rgba(28, 28, 30, 0.95) !important;
         }
 
         .text-slate-800,
         .text-slate-700 {
-            color: #f1f5f9 !important;
+            color: var(--text-primary) !important;
         }
 
         .text-slate-600 {
-            color: #cbd5e1 !important;
+            color: #e5e5ea !important;
         }
 
         .text-slate-500 {
-            color: #94a3b8 !important;
+            color: var(--text-secondary) !important;
         }
 
         .border-slate-100,
         .border-slate-200,
         .border-slate-300 {
-            border-color: #334155 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         .border-b,
         .border-t,
         .border-r,
         .border {
-            border-color: #334155 !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         .modal-input,
         input,
         select {
-            background-color: #0f172a !important;
-            color: #f1f5f9 !important;
-            border-color: #334155 !important;
+            background-color: var(--bg-card) !important;
+            color: var(--text-primary) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         input::placeholder,
         select::placeholder {
-            color: #64748b !important;
+            color: var(--text-secondary) !important;
         }
 
         /* Nav & Headers */
         header,
         nav,
         aside {
-            background-color: #1e293b !important;
-            border-color: #334155 !important;
+            background-color: var(--bg-card) !important;
+            border-color: rgba(255, 255, 255, 0.1) !important;
         }
 
         .nav-btn:hover,
@@ -454,9 +466,10 @@
         }
 
         .bottom-nav-item.active {
-            background-color: #4f46e5 !important;
-            color: #ffffff !important;
-            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4) !important;
+            background-color: var(--text-primary) !important;
+            color: var(--bg-base) !important;
+            border-radius: 9999px !important;
+            box-shadow: 0 4px 15px rgba(255, 255, 255, 0.1) !important;
         }
 
         .nav-btn.active {
@@ -713,42 +726,66 @@
 
         <!-- DASHBOARD -->
         <section id="view-dashboard" class="p-4 md:p-8 max-w-5xl mx-auto space-y-6 fade-in">
-            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-                <h2 class="font-bold text-slate-700 text-sm mb-3 text-center">สรุปยอดประจำเดือน</h2>
-                <div class="flex items-center justify-center gap-3">
+            <div class="bg-[#1c1c1e] p-4 rounded-[20px] shadow-sm border border-white/5">
+                <h2 class="font-bold text-slate-300 text-sm mb-3 pl-2">สรุปยอดประจำเดือน</h2>
+                <div class="flex items-center justify-between px-2">
                     <button onclick="window.app.changeMonth(-1)"
-                        class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
-                        <i class="fa-solid fa-chevron-left text-slate-600 text-sm"></i>
+                        class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
+                        <i class="fa-solid fa-chevron-left text-slate-300 text-xs"></i>
                     </button>
 
-                    <div class="text-center min-w-[130px]">
-                        <div id="current-month-display" class="font-bold text-slate-800 text-sm">เดือนนี้</div>
-                        <div class="h-0.5 bg-gradient-to-r from-transparent via-slate-300 to-transparent mt-1"></div>
+                    <div class="text-center px-4 py-1.5 bg-white/5 rounded-full border border-white/5">
+                        <div id="current-month-display" class="font-bold text-white text-xs">เดือนนี้</div>
                     </div>
 
                     <button onclick="window.app.changeMonth(1)"
-                        class="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
-                        <i class="fa-solid fa-chevron-right text-slate-600 text-sm"></i>
+                        class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
+                        <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
                     </button>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"
+                        class="w-10 h-10 rounded-full border border-white/20">
+                    <div>
+                        <p class="text-[10px] text-slate-400">Welcome back,</p>
+                        <h2 class="font-bold text-white text-sm" id="user-name-display-dash">Dept Money User</h2>
+                    </div>
+                </div>
+                <div
+                    class="w-10 h-10 rounded-full bg-[#1c1c1e] flex items-center justify-center border border-white/10">
+                    <i class="fa-regular fa-bell text-white"></i>
                 </div>
             </div>
 
             <div
-                class="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 shadow-lg text-white relative overflow-hidden">
-                <div class="absolute right-0 top-0 p-4 opacity-10">
-                    <i class="fa-solid fa-wallet text-8xl"></i>
+                class="bg-gradient-to-br from-[#4B6CB7] via-[#8E54E9] to-[#182848] rounded-[24px] p-6 shadow-[0_15px_40px_rgba(75,108,183,0.4)] text-white relative overflow-hidden">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                <div class="absolute -left-10 -bottom-10 w-40 h-40 bg-[#ec4899]/30 rounded-full blur-2xl"></div>
+
+                <div class="relative z-10">
+                    <div class="flex justify-between items-center mb-6">
+                        <div
+                            class="bg-white/20 backdrop-blur-md px-3 py-1.5 rounded-full text-xs flex items-center gap-1 font-medium border border-white/20">
+                            Dept Card <i class="fa-solid fa-chevron-down text-[10px] ml-1"></i>
+                        </div>
+                        <i class="fa-brands fa-cc-mastercard text-2xl opacity-80"></i>
+                    </div>
+                    <p class="text-white/80 text-xs font-medium tracking-wide mb-1">ยอดรวมเดือนนี้</p>
+                    <div class="flex justify-between items-end">
+                        <h3 class="text-4xl font-bold tracking-tight" id="total-expense">0 ฿</h3>
+                        <i class="fa-solid fa-eye text-white/50 text-sm mb-2"></i>
+                    </div>
                 </div>
-                <p class="text-slate-400 text-xs font-medium uppercase tracking-wider">ยอดรวมเดือนนี้</p>
-                <h3 class="text-4xl font-bold mt-1 tracking-tight" id="total-expense">0 บาท</h3>
             </div>
 
-            <button onclick="window.app.openModal('transaction-modal')"
-                class="w-full bg-white border border-slate-200 p-4 rounded-xl shadow-sm flex items-center justify-center gap-2 text-slate-700 font-bold active:scale-[0.98] transition-all hover:bg-slate-50">
-                <div class="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center text-slate-600">
-                    <i class="fa-solid fa-plus"></i>
-                </div>
-                เพิ่มรายการ
-            </button>
+            <div class="flex justify-between items-center px-1">
+                <h3 class="font-bold text-white text-sm">Recent Transaction</h3>
+                <button onclick="window.app.navigate('history')"
+                    class="text-[10px] text-slate-400 hover:text-white transition-colors">View all</button>
+            </div>
 
             <div class="grid grid-cols-1 gap-4">
                 <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
@@ -768,22 +805,23 @@
 
         <!-- HISTORY -->
         <section id="view-history" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-4">
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="text-base font-bold text-slate-800">รายการใช้จ่าย</h2>
+            <div class="bg-[#1c1c1e] p-3 rounded-[20px] shadow-sm border border-white/5 mb-4">
+                <div class="flex items-center justify-between gap-3 px-2">
+                    <h2 class="text-sm font-bold text-slate-300">รายการใช้จ่าย</h2>
 
                     <div class="flex items-center gap-2">
                         <button onclick="window.app.changeMonth(-1)"
-                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
-                            <i class="fa-solid fa-chevron-left text-slate-600 text-xs"></i>
+                            class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
+                            <i class="fa-solid fa-chevron-left text-slate-300 text-xs"></i>
                         </button>
 
                         <div id="history-month-display"
-                            class="font-bold text-slate-700 text-xs min-w-[100px] text-center">เดือนนี้</div>
+                            class="font-bold text-white text-xs min-w-[80px] text-center bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                            เดือนนี้</div>
 
                         <button onclick="window.app.changeMonth(1)"
-                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
-                            <i class="fa-solid fa-chevron-right text-slate-600 text-xs"></i>
+                            class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
+                            <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
                         </button>
                     </div>
                 </div>
@@ -799,22 +837,23 @@
 
         <!-- SETTLEMENT -->
         <section id="view-settlement" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-4">
-            <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 mb-4">
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="text-base font-bold text-slate-800">สรุปยอดที่ต้องเคลียร์</h2>
+            <div class="bg-[#1c1c1e] p-3 rounded-[20px] shadow-sm border border-white/5 mb-4">
+                <div class="flex items-center justify-between gap-3 px-2">
+                    <h2 class="text-sm font-bold text-slate-300">สรุปยอดที่ต้องเคลียร์</h2>
 
                     <div class="flex items-center gap-2">
                         <button onclick="window.app.changeMonth(-1)"
-                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
-                            <i class="fa-solid fa-chevron-left text-slate-600 text-xs"></i>
+                            class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
+                            <i class="fa-solid fa-chevron-left text-slate-300 text-xs"></i>
                         </button>
 
                         <div id="settlement-month-display"
-                            class="font-bold text-slate-700 text-xs min-w-[100px] text-center">เดือนนี้</div>
+                            class="font-bold text-white text-xs min-w-[80px] text-center bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                            เดือนนี้</div>
 
                         <button onclick="window.app.changeMonth(1)"
-                            class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-all active:scale-95">
-                            <i class="fa-solid fa-chevron-right text-slate-600 text-xs"></i>
+                            class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
+                            <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
                         </button>
                     </div>
                 </div>
@@ -947,37 +986,35 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100 space-y-4">
-                <h3 class="font-bold text-slate-700 text-sm">จัดการรายชื่อสมาชิก</h3>
+            <div class="bg-[#1c1c1e] rounded-[20px] p-4 shadow-sm border border-white/5 space-y-4">
+                <h3 class="font-bold text-slate-300 text-sm">จัดการรายชื่อสมาชิก</h3>
                 <div class="flex gap-2">
                     <input type="text" id="new-member-name" placeholder="ชื่อภาษาอังกฤษ..."
-                        class="flex-1 px-3 py-2 border rounded-lg text-sm bg-slate-50">
+                        class="flex-1 px-3 py-2 border border-white/10 rounded-lg text-sm bg-white/5 text-white placeholder-slate-500 outline-none">
                     <button onclick="window.app.addMember()"
-                        class="bg-slate-800 text-white px-4 rounded-lg text-sm font-bold shadow-sm">เพิ่ม</button>
+                        class="bg-white text-black px-4 rounded-lg text-sm font-bold shadow-sm">เพิ่ม</button>
                 </div>
                 <div id="member-list" class="flex flex-wrap gap-2"></div>
             </div>
 
             <button id="btn-export-csv" onclick="window.app.exportCSV()"
-                class="hidden w-full bg-white border border-slate-300 text-slate-700 py-3 rounded-xl font-bold text-sm shadow-sm active:scale-[0.98] transition-all">
-                <i class="fa-solid fa-file-csv text-green-600 mr-2"></i> Export ข้อมูลเป็น CSV
+                class="hidden w-full bg-[#1c1c1e] border border-white/5 text-slate-300 py-3 rounded-[20px] font-bold text-sm shadow-sm active:scale-[0.98] transition-all">
+                <i class="fa-solid fa-file-csv text-emerald-500 mr-2"></i> Export ข้อมูลเป็น CSV
             </button>
 
-            <div id="admin-danger-zone" class="hidden bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
-                    <i class="fa-solid fa-gear"></i> การตั้งค่า
+            <div id="admin-danger-zone"
+                class="hidden bg-[#1c1c1e] p-4 rounded-[20px] border border-red-500/20 space-y-4">
+                <h3 class="font-bold text-red-400 text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation"></i> อันตราย (ลบข้อมูล)
                 </h3>
 
-                <div class="bg-red-50 p-3 rounded-lg border border-red-100 mt-4">
-                    <h4 class="font-bold text-red-700 text-xs mb-2"><i class="fa-solid fa-triangle-exclamation"></i>
-                        ลบข้อมูล</h4>
+                <div class="bg-red-900/10 p-3 rounded-lg border border-red-500/20 mt-4">
                     <div class="flex gap-2 mb-2">
                         <select id="delete-month-selector"
-                            class="flex-1 bg-white border border-red-200 text-xs rounded-lg px-2 outline-none text-slate-600"></select>
+                            class="flex-1 bg-white/5 border border-red-500/20 text-xs rounded-lg px-2 py-2 outline-none text-red-200"></select>
                         <button onclick="window.app.clearMonthData()"
-                            class="bg-red-500 hover:bg-red-600 text-white px-3 py-2 rounded-lg text-xs font-bold shadow-sm">ลบเดือนนี้</button>
+                            class="bg-red-500/20 hover:bg-red-500/40 text-red-400 px-3 py-2 rounded-lg text-xs font-bold shadow-sm border border-red-500/30 transition-colors">ลบเดือนนี้</button>
                     </div>
-                    <p class="text-[9px] text-red-400 mt-1">* ระวังข้อมูลนี้จะถูกลบถาวร</p>
                 </div>
             </div>
         </section>
@@ -986,81 +1023,120 @@
 
     <!-- MOBILE NAV -->
     <nav
-        class="md:hidden fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur border-t border-slate-200 h-20 grid grid-cols-4 px-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-40">
+        class="md:hidden fixed bottom-4 left-4 right-4 bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-full h-16 flex justify-around items-center px-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-40 transform transition-transform">
         <button onclick="window.app.navigate('dashboard')"
-            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-dashboard">
-            <i class="fa-solid fa-chart-pie text-lg"></i>
-            <span class="text-[10px]">ภาพรวม</span>
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1 w-12 h-12 text-center"
+            id="mob-nav-dashboard">
+            <i class="fa-solid fa-chart-pie text-[18px]"></i>
         </button>
         <button onclick="window.app.navigate('history')"
-            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-history">
-            <i class="fa-solid fa-list-ul text-lg"></i>
-            <span class="text-[10px]">ภาพรวม</span>
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1 w-12 h-12 text-center"
+            id="mob-nav-history">
+            <i class="fa-solid fa-clock-rotate-left text-[18px]"></i>
         </button>
         <button onclick="window.app.navigate('settlement')"
-            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-settlement">
-            <i class="fa-solid fa-money-bill-transfer text-lg"></i>
-            <span class="text-[10px]">เคลียร์</span>
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1 w-12 h-12 text-center"
+            id="mob-nav-settlement">
+            <i class="fa-solid fa-money-bill-transfer text-[18px]"></i>
         </button>
         <button onclick="window.app.navigate('settings')"
-            class="bottom-nav-item flex flex-col items-center justify-center gap-1" id="mob-nav-settings">
-            <i class="fa-solid fa-users-gear text-lg"></i>
-            <span class="text-[10px]">ตั้งค่า</span>
+            class="bottom-nav-item flex flex-col items-center justify-center gap-1 w-12 h-12 text-center"
+            id="mob-nav-settings">
+            <i class="fa-solid fa-gear text-[18px]"></i>
         </button>
     </nav>
 
     <!-- MODAL: MEMBER DETAIL -->
     <div id="member-detail-modal"
-        class="hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        class="hidden fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
         <div
-            class="bg-white w-full max-w-md max-h-[80vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden m-4 transform transition-all">
-            <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
-                <span id="member-detail-title" class="font-bold text-slate-800 text-lg">รายละเอียด</span>
+            class="bg-[#0a0a0c] w-full max-w-md max-h-[90vh] rounded-t-[32px] md:rounded-[32px] flex flex-col shadow-2xl overflow-hidden transform transition-all border border-white/10">
+            <div class="p-4 border-b border-white/5 flex justify-between items-center bg-[#1c1c1e]">
+                <span id="member-detail-title" class="font-bold text-white text-lg ml-2">รายละเอียด</span>
                 <button onclick="window.app.closeModal('member-detail-modal')"
-                    class="w-8 h-8 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-slate-500 transition-colors">
+                    class="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar" id="member-detail-list"></div>
-            <div class="p-4 border-t bg-slate-50 flex justify-between items-center">
-                <span class="text-xs text-slate-500 font-bold uppercase tracking-widest">ยอดรวมทั้งหมด</span>
-                <span id="member-detail-total"
-                    class="text-lg font-bold text-slate-800 underline decoration-slate-300 decoration-2 underline-offset-4">0
-                    บาท</span>
+            <div class="p-6 border-t border-white/5 bg-[#1c1c1e] flex justify-between items-end">
+                <span class="text-xs text-slate-400 font-bold uppercase tracking-widest">ยอดรวมทั้งหมด</span>
+                <span id="member-detail-total" class="text-2xl font-bold text-white">0
+                    ฿</span>
             </div>
         </div>
     </div>
 
     <!-- MODAL: ADD/EDIT TRANSACTION -->
     <div id="transaction-modal"
-        class="hidden fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+        class="hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
         <div
-            class="bg-white w-full max-w-md max-h-[85vh] rounded-2xl flex flex-col shadow-2xl overflow-hidden m-4 transform transition-all">
-            <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
-                <span id="modal-title" class="font-bold text-slate-800 text-lg">บันทึกรายการ</span>
+            class="bg-[#0a0a0c] w-full max-w-md h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-[32px] md:rounded-[32px] flex flex-col shadow-2xl overflow-hidden transform transition-all border border-white/10">
+            <!-- Modal Handle for mobile -->
+            <div class="w-full h-8 flex items-center justify-center md:hidden shrink-0 mt-2">
+                <div class="w-12 h-1.5 bg-white/20 rounded-full"></div>
+            </div>
+
+            <div class="p-4 flex justify-between items-center shrink-0">
+                <span id="modal-title" class="font-bold text-white text-lg ml-2">บันทึกรายการ</span>
                 <button onclick="window.app.closeModal('transaction-modal')"
-                    class="w-8 h-8 bg-slate-200 hover:bg-slate-300 rounded-full flex items-center justify-center text-slate-500 transition-colors">
+                    class="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
-            <div class="flex-1 overflow-y-auto overflow-x-hidden p-5 space-y-5 custom-scrollbar">
 
-                <!-- Date & Type -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="w-full">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
-                        <div class="relative w-full">
-                            <input type="date" id="t-date" class="modal-input transition-all">
+            <!-- AMOUNT HEADER -->
+            <div
+                class="w-full bg-gradient-to-r from-[#8E54E9] to-[#4B6CB7] p-8 text-center shrink-0 relative overflow-hidden">
+                <div class="absolute inset-0 opacity-20 mix-blend-overlay"
+                    style="background-image: url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E');">
+                </div>
+
+                <h3 class="text-white/80 text-xs font-medium uppercase tracking-wider mb-2 relative z-10">Amount (฿)
+                </h3>
+                <input type="number" id="t-amount" placeholder="0.00"
+                    oninput="window.app.recalculateCustomSplits('total')"
+                    class="w-full bg-transparent text-5xl font-bold text-white text-center outline-none placeholder-white/30 relative z-10">
+
+                <div
+                    class="mt-4 inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 relative z-10 cursor-pointer">
+                    <i class="fa-solid fa-pen text-white text-xs"></i>
+                    <span class="text-white text-xs font-medium">Change amount</span>
+                </div>
+            </div>
+
+            <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar pb-32">
+
+                <!-- Date, Type, Payer -->
+                <div class="space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="w-full">
+                            <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
+                            <div class="relative w-full">
+                                <input type="date" id="t-date" class="modal-input transition-all">
+                            </div>
+                        </div>
+                        <div class="w-full">
+                            <label
+                                class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รูปแบบการจ่าย</label>
+                            <div class="relative w-full">
+                                <select id="t-payment-type" onchange="window.app.toggleInstallment()"
+                                    class="modal-input transition-all">
+                                    <option value="normal">จ่ายเต็ม</option>
+                                    <option value="installment">ผ่อนชำระ</option>
+                                    <option value="subscription">Subscription</option>
+                                </select>
+                                <i
+                                    class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                            </div>
                         </div>
                     </div>
                     <div class="w-full">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รูปแบบการจ่าย</label>
+                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">คนจ่ายเงิน <span
+                                class="text-white/30">(ใครจ่าย)</span></label>
                         <div class="relative w-full">
-                            <select id="t-payment-type" onchange="window.app.toggleInstallment()"
-                                class="modal-input transition-all">
-                                <option value="normal">จ่ายเต็ม</option>
-                                <option value="installment">ผ่อนชำระ</option>
-                                <option value="subscription">Subscription</option>
+                            <select id="t-payer" class="modal-input transition-all">
+                                <!-- Members will be populated here -->
                             </select>
                             <i
                                 class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
@@ -1135,125 +1211,111 @@
                         class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="flex-1">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">ยอดเงิน</label>
-                        <input type="number" id="t-amount" placeholder="0.00"
-                            oninput="window.app.recalculateCustomSplits('total')"
-                            class="modal-input border border-slate-200 rounded-xl text-xl font-bold bg-slate-50 text-slate-700 outline-none focus:ring-2 focus:ring-blue-100 transition-all">
-                    </div>
-                    <div class="flex-1">
-
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">คนจ่าย</label>
-                        <div class="flex gap-2">
-                            <div class="relative w-full">
-                                <select id="t-payer"
-                                    class="modal-input border border-slate-200 rounded-xl text-sm bg-white outline-none appearance-none focus:ring-2 focus:ring-blue-100 transition-all font-bold text-slate-700 w-full"></select>
-                                <i
-                                    class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
-                            </div>
-                            <button onclick="window.app.openModal('quick-add-member-modal')"
-                                class="bg-indigo-500 text-white w-10 h-[46px] rounded-xl flex items-center justify-center shadow-sm hover:bg-indigo-600 transition-colors">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                <div class="bg-[#1c1c1e] p-4 rounded-[20px] border border-white/5 shadow-sm mt-4">
                     <div class="flex justify-between items-center mb-3">
-                        <span class="text-[10px] font-bold text-slate-400 uppercase">คนหาร</span>
-                        <div class="flex bg-slate-50 rounded-lg p-1 border">
+                        <span class="text-xs font-bold text-slate-400">คนหาร (Split)</span>
+                        <div class="flex bg-white/5 rounded-lg p-1 border border-white/5">
                             <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal"
-                                class="px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-800 text-white transition-all">หารเท่า</button>
+                                class="px-3 py-1.5 rounded-md text-[10px] font-bold bg-white text-black transition-all">หารเท่า</button>
                             <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom"
                                 class="px-3 py-1.5 rounded-md text-[10px] font-bold text-slate-400 transition-all">ระบุเอง</button>
                         </div>
                     </div>
                     <div id="split-participants"
-                        class="space-y-1 max-h-40 overflow-y-auto pr-2 custom-scrollbar border-t border-slate-50 pt-2">
+                        class="space-y-1 max-h-40 overflow-y-auto pr-2 custom-scrollbar border-t border-white/5 pt-3">
                     </div>
                 </div>
             </div>
-            <div class="p-4 border-t bg-white">
-                <button id="btn-save-transaction" onclick="window.app.saveTransaction()"
-                    class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg active:scale-[0.98] transition-all text-sm">
-                    <i class="fa-solid fa-check-circle mr-2"></i> บันทึกรายการ
-                </button>
+
+            <!-- FLOATING ACTION BUTTONS -->
+            <div
+                class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c] to-transparent pt-12">
+                <div class="flex gap-3">
+                    <button onclick="window.app.closeModal('transaction-modal')"
+                        class="w-14 h-14 bg-[#1c1c1e] text-white rounded-2xl flex items-center justify-center hover:bg-[#2c2c2e] transition-colors border border-white/5">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                    <!-- Instead of attachment for now, reuse close or secondary action -->
+                    <button
+                        class="w-14 h-14 bg-[#1c1c1e] text-white rounded-2xl flex items-center justify-center hover:bg-[#2c2c2e] transition-colors border border-white/5">
+                        <i class="fa-solid fa-paperclip text-lg"></i>
+                    </button>
+                    <button id="btn-save-transaction" onclick="window.app.saveTransaction()"
+                        class="flex-1 bg-white text-black rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all text-lg flex items-center justify-center">
+                        <i class="fa-solid fa-check"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Real Name Setup Modal (บังคับกรอก) -->
-    <div id="real-name-setup-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+    <div id="real-name-setup-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] hidden px-4">
+        <div
+            class="bg-[#1c1c1e] rounded-[32px] p-8 max-w-md w-full shadow-2xl border border-white/10 relative overflow-hidden">
             <!-- Header -->
-            <div class="text-center mb-4">
-                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fa-solid fa-user-pen text-blue-600 text-2xl"></i>
+            <div class="text-center mb-6 relative z-10">
+                <div
+                    class="w-20 h-20 bg-indigo-500/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-500/30">
+                    <i class="fa-solid fa-user-pen text-indigo-400 text-3xl"></i>
                 </div>
-                <h3 class="text-xl font-bold text-slate-800">ตั้งค่าชื่อจริง</h3>
+                <h3 class="text-2xl font-bold text-white mb-2">ตั้งค่าชื่อจริง</h3>
             </div>
 
             <!-- Explanation -->
-            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                <p class="text-sm text-blue-800 leading-relaxed">
-                    💡 <strong>ทำไมต้องกรอกชื่อจริง?</strong><br>
-                    เมื่อคุณอัปโหลดสลิปโอนเงินเพื่อยืนยันการชำระใน Settlement
-                    ระบบจะใช้ชื่อจริงนี้ตรวจสอบกับชื่อในสลิปอัตโนมัติ
-                    เพื่อความแม่นยำและความปลอดภัย
+            <div class="bg-indigo-900/20 border border-indigo-500/20 rounded-[20px] p-5 mb-6 relative z-10">
+                <p class="text-sm text-indigo-300 leading-relaxed font-medium">
+                    <span class="text-lg mr-2">💡</span><strong>ทำไมต้องกรอกชื่อจริง?</strong><br>
+                    <span class="opacity-80 mt-1 block">เมื่อคุณอัปโหลดสลิปโอนเงินเพื่อยืนยันการชำระ
+                        ระบบจะใช้ชื่อจริงนี้ตรวจสอบกับชื่อในสลิปอัตโนมัติ เพื่อความแม่นยำ</span>
                 </p>
             </div>
 
             <!-- Input -->
-            <div class="mb-6">
-                <label class="block text-sm font-bold text-slate-700 mb-2">
-                    ชื่อจริงของคุณ
+            <div class="mb-8 relative z-10">
+                <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">
+                    ชื่อจริงบนสลิปของคุณ
                 </label>
                 <input type="text" id="real-name-input" placeholder="เช่น สมชาย, ปิยะนุช"
-                    class="w-full px-4 py-3 border-2 border-slate-200 rounded-lg text-sm focus:border-blue-500 focus:outline-none">
-                <p class="text-xs text-slate-500 mt-2">
-                    กรอกเฉพาะชื่อที่ปรากฏในสลิป (ไม่ต้องใส่คำนำหน้า เช่น นาย, นาง)
+                    class="w-full px-5 py-4 bg-white/5 border border-white/10 rounded-2xl text-lg font-bold text-white focus:border-indigo-500 focus:bg-indigo-500/5 focus:outline-none transition-all placeholder:font-normal placeholder:text-slate-600">
+                <p class="text-[10px] text-slate-500 mt-2 flex items-start gap-1">
+                    <i class="fa-solid fa-circle-info mt-0.5"></i> กรอกเฉพาะชื่อที่ปรากฏในสลิป (ไม่ต้องใส่ นาย, นาง)
                 </p>
             </div>
 
             <!-- Actions -->
-            <div class="flex gap-3">
+            <div class="flex gap-3 relative z-10">
                 <button onclick="window.app.saveRealName()"
-                    class="flex-1 bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-colors">
-                    บันทึก
+                    class="flex-1 bg-white text-black py-4 rounded-2xl font-bold hover:bg-slate-200 transition-colors shadow-lg active:scale-[0.98] text-lg">
+                    บันทึกข้อมูล
                 </button>
             </div>
-
-            <!-- Note -->
-            <p class="text-xs text-center text-slate-400 mt-4">
-                คุณสามารถแก้ไขชื่อจริงได้ภายหลังในหน้า "ตั้งค่า"
-            </p>
         </div>
-    </div>
     </div>
 
     <!-- Quick Add Member Modal -->
     <div id="quick-add-member-modal"
-        class="hidden fixed inset-0 z-[80] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6">
-            <h3 class="text-lg font-bold text-slate-800 mb-4">เพิ่มสมาชิกแบบด่วน</h3>
+        class="hidden fixed inset-0 z-[80] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1c1c1e] w-full max-w-sm rounded-[32px] shadow-2xl p-8 border border-white/10">
+            <h3 class="text-xl font-bold text-white mb-6">เพิ่มสมาชิกแบบด่วน</h3>
 
             <form onsubmit="window.app.quickAddMember(event)">
-                <div class="mb-4">
-                    <label class="block text-xs font-bold text-slate-500 mb-1">ชื่อสมาชิก</label>
+                <div class="mb-6">
+                    <label
+                        class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">ชื่อสมาชิก</label>
                     <input type="text" id="quick-add-name" required placeholder="เช่น BANK"
-                        class="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none uppercase">
-                    <p class="text-[10px] text-slate-400 mt-1">* กรอกชื่อเล่นภาษาอังกฤษ (ไม่ต้อง login LINE ก็ได้)</p>
+                        class="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-lg font-bold text-white focus:border-indigo-500 focus:bg-indigo-500/5 focus:outline-none transition-all placeholder:font-normal placeholder:text-slate-600 uppercase">
+                    <p class="text-[10px] text-slate-500 mt-2">* กรอกชื่อเล่นภาษาอังกฤษ (ไม่ต้อง login LINE ก็ได้)</p>
                 </div>
 
-                <div class="flex gap-2">
+                <div class="flex gap-3">
                     <button type="button" onclick="window.app.closeModal('quick-add-member-modal')"
-                        class="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-50">
+                        class="flex-1 px-4 py-3 border border-white/10 rounded-2xl text-sm font-bold text-slate-400 hover:bg-white/5 transition-colors">
                         ยกเลิก
                     </button>
                     <button type="submit"
-                        class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700">
+                        class="flex-1 px-4 py-3 bg-white text-black rounded-2xl text-sm font-bold hover:bg-slate-200 transition-colors shadow-lg active:scale-[0.98]">
                         เพิ่ม
                     </button>
                 </div>
@@ -1261,29 +1323,33 @@
         </div>
     </div>
 
-    </div>
-    </div>
-
     <!-- Account Linking Modal -->
     <div id="account-linking-modal"
-        class="hidden fixed inset-0 z-[95] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-            <div class="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 text-white text-center">
-                <i class="fa-solid fa-link text-4xl mb-3 opacity-80"></i>
-                <h2 class="text-xl font-bold">เชื่อมต่อบัญชี</h2>
-                <p class="text-sm text-white/80 mt-1">พบรายชื่อที่อาจเป็นคุณ</p>
+        class="hidden fixed inset-0 z-[95] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-[#1c1c1e] w-full max-w-md rounded-[32px] shadow-2xl overflow-hidden border border-white/10">
+            <div
+                class="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white text-center relative overflow-hidden">
+                <div class="absolute inset-0 opacity-20 mix-blend-overlay"
+                    style="background-image: url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E');">
+                </div>
+                <div
+                    class="relative z-10 w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm border border-white/30">
+                    <i class="fa-solid fa-link text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-bold relative z-10">เชื่อมต่อบัญชี</h2>
+                <p class="text-sm text-white/80 mt-2 relative z-10 font-medium">พบรายชื่อที่อาจเป็นคุณ</p>
             </div>
 
-            <div class="p-4">
-                <p class="text-sm text-slate-600 mb-3 text-center">คุณคือบุคคลต่อไปนี้ใช่หรือไม่?</p>
-                <div id="unlinked-members-list" class="space-y-2 max-h-[40vh] overflow-y-auto custom-scrollbar">
+            <div class="p-6">
+                <p class="text-sm text-slate-400 mb-4 text-center font-bold">คุณคือบุคคลต่อไปนี้ใช่หรือไม่?</p>
+                <div id="unlinked-members-list" class="space-y-3 max-h-[40vh] overflow-y-auto custom-scrollbar">
                     <!-- Dynamic List -->
                 </div>
             </div>
 
-            <div class="p-4 bg-slate-50 border-t border-slate-100">
+            <div class="p-4 bg-[#0a0a0c] border-t border-white/5">
                 <button onclick="window.app.skipLinking()"
-                    class="w-full py-3 text-slate-500 text-sm font-bold hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-all">
+                    class="w-full py-4 text-slate-400 text-sm font-bold hover:text-white hover:bg-white/5 rounded-2xl transition-all">
                     ไม่ใช่ฉัน / สร้างบัญชีใหม่
                 </button>
             </div>
@@ -1292,10 +1358,11 @@
 
     <!-- PromptPay QR Modal -->
     <div id="qr-code-modal"
-        class="hidden fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden relative">
+        class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div
+            class="bg-[#1c1c1e] w-full max-w-sm rounded-[32px] shadow-2xl overflow-hidden relative border border-white/10">
             <button onclick="document.getElementById('qr-code-modal').classList.add('hidden')"
-                class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-slate-200 transition-colors z-10">
+                class="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center hover:bg-white/20 transition-colors z-10">
                 <i class="fa-solid fa-xmark"></i>
             </button>
 
@@ -1304,93 +1371,117 @@
                     <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1769281620/PromptPay-logo_dd6p5v.png"
                         style="height: 24px" class="object-contain" alt="PromptPay">
                 </div>
-                <h3 class="text-lg font-bold text-slate-800" id="qr-receiver-name">Receiver Name</h3>
-                <p class="text-slate-500 text-xs mb-6" id="qr-promptpay-id">xxx-xxx-xxxx</p>
+                <h3 class="text-lg font-bold text-white mt-4" id="qr-receiver-name">Receiver Name</h3>
+                <p class="text-slate-400 text-xs mb-6" id="qr-promptpay-id">xxx-xxx-xxxx</p>
 
-                <div class="bg-indigo-50 p-4 rounded-2xl inline-block shadow-inner mb-4">
+                <div class="bg-white p-4 rounded-3xl inline-block shadow-inner mb-4">
                     <img id="qr-image" src="" alt="QR Code"
-                        class="w-48 h-48 object-contain mix-blend-multiply opacity-0 transition-opacity duration-300"
+                        class="w-48 h-48 object-contain opacity-0 transition-opacity duration-300"
                         onload="this.classList.remove('opacity-0')">
                 </div>
 
-                <div class="text-3xl font-bold text-indigo-600 mb-1">
+                <div class="text-3xl font-bold text-white mb-1">
                     <span id="qr-amount">0.00</span> ฿
                 </div>
-                <p class="text-[10px] text-slate-400">สแกนเพื่อจ่ายเงิน</p>
+                <p class="text-[10px] text-slate-500">สแกนเพื่อจ่ายเงิน</p>
 
                 <div class="mt-6 flex justify-center">
                     <button onclick="document.getElementById('qr-code-modal').classList.add('hidden')"
-                        class="px-6 py-2 bg-slate-100 text-slate-600 rounded-full text-sm font-bold hover:bg-slate-200">
+                        class="px-6 py-3 bg-white/10 text-white rounded-full text-sm font-bold hover:bg-white/20 transition-colors border border-white/10 w-full">
                         ปิดหน้าต่าง
                     </button>
                 </div>
             </div>
-
-            <div class="bg-indigo-600 h-2 w-full"></div>
         </div>
     </div>
 
-    <!-- Slip Upload Modal -->
+    <!-- Floating Action Button (FAB) -->
+    <button onclick="window.app.openModal('transaction-modal')"
+        class="fixed bottom-[90px] md:bottom-10 shadow-[0_8px_30px_rgba(99,102,241,0.4)] right-6 w-14 h-14 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-white hover:scale-110 active:scale-95 transition-all z-40 group border border-white/10">
+        <i class="fa-solid fa-plus text-xl group-hover:rotate-90 transition-transform duration-300"></i>
+    </button>
 
-    <div id="slip-upload-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold text-slate-800">ยืนยันการโอนเงิน</h3>
-                <button onclick="window.app.closeSlipUploadModal()" class="text-slate-400 hover:text-slate-600">
-                    <i class="fa-solid fa-times text-xl"></i>
+    <!-- Slip Upload Modal -->
+    <div id="slip-upload-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 z-50 hidden animate-fade-in">
+        <div
+            class="bg-[#0a0a0c] w-full max-w-md rounded-t-[32px] md:rounded-[32px] p-6 shadow-2xl border border-white/10 relative">
+            <!-- Modal Handle for mobile -->
+            <div class="absolute top-2 left-1/2 -translate-x-1/2 w-12 h-1.5 bg-white/20 rounded-full md:hidden"></div>
+
+            <div class="flex justify-between items-center mb-6 pt-2 md:pt-0">
+                <h3 class="text-lg font-bold text-white">ยืนยันการโอนเงิน</h3>
+                <button onclick="window.app.closeSlipUploadModal()"
+                    class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+                    <i class="fa-solid fa-times"></i>
                 </button>
             </div>
 
-            <div class="mb-4">
-                <p class="text-sm text-slate-600">
-                    คุณต้องโอน: <span id="slip-amount" class="font-bold text-red-600"></span>
-                    <br>
-                    ให้: <span id="slip-to" class="font-bold text-blue-600"></span>
-                </p>
+            <div class="bg-[#1c1c1e] p-4 rounded-[20px] border border-white/5 mb-6 shadow-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-slate-400">คุณต้องโอนให้</span>
+                    <span id="slip-to" class="font-bold text-white text-sm"></span>
+                </div>
+                <div class="flex justify-between items-baseline">
+                    <span class="text-xs text-slate-400">จำนวนเงิน</span>
+                    <div class="text-right">
+                        <span id="slip-amount" class="font-bold text-red-400 text-2xl"></span>
+                        <span class="text-red-400 text-sm font-bold ml-1">฿</span>
+                    </div>
+                </div>
             </div>
 
             <div class="mb-6">
-                <label class="block text-sm font-bold text-slate-700 mb-2">
+                <label class="block text-xs font-bold text-slate-400 uppercase mb-2">
                     อัปโหลดสลิปโอนเงิน
                 </label>
-                <div class="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 transition-colors cursor-pointer"
+                <div class="border-2 border-dashed border-white/20 bg-[#1c1c1e] rounded-[24px] p-8 text-center hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all cursor-pointer group"
                     onclick="document.getElementById('slip-file-input').click()">
-                    <i class="fa-solid fa-cloud-upload text-4xl text-slate-300 mb-2"></i>
-                    <p class="text-sm text-slate-500">คลิกเพื่อเลือกรูปสลิป</p>
-                    <p class="text-xs text-slate-400 mt-1">รองรับ JPG, PNG, WEBP</p>
+                    <div
+                        class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:bg-indigo-500/20 transition-colors">
+                        <i
+                            class="fa-solid fa-cloud-upload text-2xl text-slate-400 group-hover:text-indigo-400 transition-colors"></i>
+                    </div>
+                    <p class="text-sm font-bold text-white">คลิกเพื่อเลือกรูปสลิป</p>
+                    <p class="text-[10px] text-slate-500 mt-1">รองรับ JPG, PNG, WEBP</p>
                 </div>
                 <input type="file" id="slip-file-input" accept="image/*" class="hidden"
                     onchange="window.app.handleSlipFileSelected(this.files[0])">
 
-                <div id="slip-preview" class="hidden mt-3">
-                    <p class="text-xs text-green-600 flex items-center gap-2">
-                        <i class="fa-solid fa-check-circle"></i>
-                        <span id="slip-filename"></span>
-                    </p>
+                <div id="slip-preview"
+                    class="hidden mt-3 bg-emerald-900/20 border border-emerald-500/20 p-3 rounded-xl flex items-center gap-2">
+                    <i class="fa-solid fa-check-circle text-emerald-500"></i>
+                    <span id="slip-filename" class="text-xs text-emerald-400 truncate max-w-[250px]"></span>
                 </div>
             </div>
 
             <button id="btn-verify-slip" onclick="window.app.verifySettlementSlip()" disabled
-                class="w-full bg-blue-600 text-white py-3 rounded-lg font-bold disabled:bg-slate-300 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors">
-                <i class="fa-solid fa-check mr-2"></i>
+                class="w-full bg-white text-black py-4 rounded-[20px] font-bold disabled:bg-white/10 disabled:text-white/30 disabled:cursor-not-allowed hover:bg-slate-200 transition-colors shadow-lg active:scale-[0.98] text-lg flex items-center justify-center gap-2">
+                <i class="fa-solid fa-check"></i>
                 ตรวจสอบสลิป
             </button>
         </div>
     </div>
 
     <!-- Slip Verification Result Modal -->
-    <div id="slip-result-modal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
-            <div class="text-center mb-4">
-                <div class="result-icon text-6xl mb-3"></div>
-                <h3 class="result-title text-xl font-bold text-slate-800 mb-2"></h3>
-                <div class="result-message text-sm text-slate-600"></div>
-            </div>
+    <div id="slip-result-modal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] hidden animate-fade-in px-4">
+        <div
+            class="bg-[#1c1c1e] rounded-[32px] p-8 max-w-sm w-full shadow-2xl border border-white/10 text-center relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-white/5 to-transparent"></div>
 
-            <button onclick="window.app.closeResultModal()"
-                class="w-full bg-slate-800 text-white py-3 rounded-lg font-bold hover:bg-slate-700 transition-colors">
-                ปิด
-            </button>
+            <div class="relative z-10">
+                <div
+                    class="result-icon text-7xl mb-6 mx-auto flex items-center justify-center w-24 h-24 rounded-full bg-white/5 border border-white/10 shadow-inner drop-shadow-lg">
+                </div>
+                <h3 class="result-title text-2xl font-bold text-white mb-2"></h3>
+                <div class="result-message text-sm text-slate-400 mb-8"></div>
+
+                <button onclick="window.app.closeResultModal()"
+                    class="w-full bg-white/10 text-white py-4 rounded-full font-bold hover:bg-white/20 transition-colors border border-white/10 active:scale-95 shadow-sm">
+                    ปิด
+                </button>
+            </div>
         </div>
     </div>
 
@@ -1782,20 +1873,22 @@
 
                 unlinkedMembers.forEach(member => {
                     const div = document.createElement('div');
-                    div.className = 'p-3 bg-slate-50 border border-slate-100 rounded-xl flex justify-between items-center hover:bg-indigo-50 hover:border-indigo-100 transition-all cursor-pointer group';
+                    div.className = 'p-4 bg-[#0a0a0c] border border-white/5 rounded-2xl flex justify-between items-center hover:bg-white/5 hover:border-white/10 transition-all cursor-pointer group';
                     div.onclick = () => this.linkAccount(member);
 
                     div.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center text-slate-500 font-bold group-hover:text-indigo-600 group-hover:border-indigo-200">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-[#1c1c1e] border border-white/10 flex items-center justify-center text-slate-400 font-bold text-lg group-hover:text-white group-hover:border-white/20 transition-all shadow-inner">
                                 ${member.name.charAt(0)}
                             </div>
                             <div>
-                                <h4 class="font-bold text-slate-700 text-sm group-hover:text-indigo-700">${member.name}</h4>
-                                <p class="text-[10px] text-slate-400">สร้างเมื่อ: ${member.createdAt ? new Date(member.createdAt).toLocaleDateString('th-TH') : 'ไม่ระบุ'}</p>
+                                <h4 class="font-bold text-white text-base group-hover:text-indigo-400 transition-colors">${member.name}</h4>
+                                <p class="text-[10px] text-slate-500 mt-0.5">สร้างเมื่อ: ${member.createdAt ? new Date(member.createdAt).toLocaleDateString('th-TH') : 'ไม่ระบุ'}</p>
                             </div>
                         </div>
-                        <i class="fa-solid fa-chevron-right text-slate-300 text-xs group-hover:text-indigo-400"></i>
+                        <div class="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center group-hover:bg-indigo-500/20 transition-colors">
+                            <i class="fa-solid fa-chevron-right text-slate-500 text-xs group-hover:text-indigo-400"></i>
+                        </div>
                     `;
                     list.appendChild(div);
                 });
@@ -2336,32 +2429,25 @@
                     }
 
                     const div = document.createElement('div');
-                    div.className = "bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between";
+                    div.className = "bg-[#1c1c1e] p-4 rounded-[20px] shadow-sm border border-white/5 flex items-center justify-between mb-2";
 
                     let html = `
-                                <div class="flex items-center gap-4">
-                            <div class="flex flex-col items-center justify-center bg-slate-50 rounded-lg w-12 h-12 text-slate-500 border border-slate-200">
-                                <span class="text-lg font-bold leading-none">${day}</span>
-                                <span class="text-[10px]">${month}</span>
+                        <div class="flex items-center gap-4">
+                            <div class="flex flex-col items-center justify-center bg-white/5 rounded-full w-12 h-12 text-white border border-white/10 shrink-0">
+                                <i class="fa-solid ${iconClass} text-lg"></i>
                             </div>
                             <div>
-                                <div class="font-bold text-slate-700 text-sm flex items-center gap-2">
-                                    <i class="fa-solid ${iconClass} text-slate-400"></i>
+                                <div class="font-bold text-white text-sm flex items-center gap-2">
                                     ${t.desc}
                                 </div>
-                                <div class="text-xs text-slate-400 mt-0.5">
-                                    ${t.payer} จ่ายให้ | ${t.paymentType === 'installment'
-                            ? '<span class="text-orange-400"><i class="fa-solid fa-clock-rotate-left"></i> ผ่อนชำระ</span>'
-                            : t.paymentType === 'subscription'
-                                ? '<span class="text-purple-500"><i class="fa-solid fa-rotate"></i> Subscription</span>'
-                                : 'จ่ายเต็ม'
-                        }
+                                <div class="text-[10px] text-slate-400 mt-0.5">
+                                    ${t.payer} จ่ายให้
                                 </div>
                             </div>
-                        </div >
-            <div class="flex flex-col items-end gap-1">
-                <span class="font-bold text-slate-800">${Number(t.amount).toLocaleString()} บาท</span>
-                <div class="flex gap-2 mt-1">
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <span class="font-bold text-white text-sm">-${Number(t.amount).toLocaleString()} ฿</span>
+                            <div class="flex gap-2">
                     `;
 
                     // Edit Icon
@@ -2722,21 +2808,17 @@
             },
 
             renderMemberList() {
-                const container = document.getElementById('member-list');
-                const list = this.data.rawMembers || this.data.members.map(n => ({ name: n, role: 'member' }));
-                const isCurrentUserAdmin = this.data.userRole === 'admin';
-                container.innerHTML = list.map(m => {
-                    const name = m.name || m;
-                    const role = m.role || 'member';
-                    const isAdmin = role === 'admin';
-                    const adminBadge = isAdmin ? '<i class="fa-solid fa-crown text-yellow-500 ml-1"></i>' : '';
-                    let action = '';
-                    if (isCurrentUserAdmin && name !== this.data.currentUser) {
-                        action = `onclick="window.app.toggleAdminRole('${name}', '${role}')" style="cursor: pointer" title="แตะเพื่อเปลี่ยนสิทธิ์"`;
-                    }
-                    const bg = isAdmin ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 border';
-                    return `<span ${action} class="px-3 py-1 rounded-full text-xs font-bold ${bg} select-none transition-transform hover:scale-105 inline-flex items-center shadow-sm">${name} ${adminBadge}</span>`;
-                }).join('');
+                const list = document.getElementById('member-list');
+                list.innerHTML = "";
+                this.data.members.forEach(m => {
+                    const div = document.createElement('div');
+                    div.className = "flex items-center gap-2 bg-[#1c1c1e] border border-white/5 px-4 py-2 rounded-full";
+                    div.innerHTML = `
+                        <span class="text-sm font-medium text-white">${m}</span>
+                        ${(m !== 'GAME' && this.data.userRole === 'admin') ? `<button onclick="window.app.deleteMember('${m}')" class="text-xs text-red-400 hover:text-red-300 ml-1"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                    `;
+                    list.appendChild(div);
+                });
             },
 
             async toggleAdminRole(name, currentRole) {
@@ -2807,18 +2889,22 @@
                 // Render member status grid
                 const grid = document.getElementById('settlement-status-grid');
                 grid.innerHTML = "";
-                this.data.members.forEach(m => {
-                    const bal = Math.round(balances[m]);
-                    let color = "bg-slate-50 text-slate-400";
-                    let icon = "fa-circle-check", status = "เคลียร์แล้ว";
-                    if (bal > 1) { color = "bg-emerald-50 text-emerald-700 border-emerald-100"; icon = "fa-hand-holding-dollar"; status = "รอรับเงิน"; }
-                    else if (bal < -1) { color = "bg-red-50 text-red-700 border-red-100"; icon = "fa-money-bill-wave"; status = "ต้องจ่าย"; }
+                this.data.members.forEach(name => {
+                    const amount = balances[name] || 0;
+                    const div = document.createElement('div');
+                    div.className = `p-3 rounded-[20px] shadow-sm border border-white/5 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 bg-[#1c1c1e]`;
 
-                    const card = document.createElement('div');
-                    card.className = `p-4 rounded-2xl border flex flex-col items-center text-center cursor-pointer transition-all active:scale-95 ${color}`;
-                    card.onclick = () => this.showMemberDetails(m);
-                    card.innerHTML = `<i class="fa-solid ${icon} mb-1 opacity-70"></i><span class="text-xs font-bold">${m}</span><span class="text-[9px] uppercase tracking-tighter opacity-60 mb-1">${status}</span><span class="text-base font-bold">${bal === 0 ? '-' : Math.abs(bal).toLocaleString() + ' บาท'}</span>`;
-                    grid.appendChild(card);
+                    div.onclick = () => window.app.showMemberDetails(name); // Corrected function name
+
+                    let titleColor = "text-slate-400";
+                    let amtColor = amount > 1 ? "text-green-400" : (amount < -1 ? "text-red-400" : "text-slate-500");
+                    let iconHtml = amount > 1 ? '<i class="fa-solid fa-arrow-up text-xs mr-1"></i>' : (amount < -1 ? '<i class="fa-solid fa-arrow-down text-xs mr-1"></i>' : '<i class="fa-solid fa-equals text-xs mr-1"></i>');
+
+                    div.innerHTML = `
+                        <h4 class="text-xs font-bold ${titleColor} mb-1">${name}</h4>
+                        <span class="${amtColor} font-bold text-lg flex items-center">${iconHtml}${Math.abs(amount).toLocaleString()}</span>
+                    `;
+                    grid.appendChild(div);
                 });
 
                 // Calculate debtors and creditors
@@ -2840,19 +2926,19 @@
 
                     item.innerHTML = `
                         <div class="flex items-center justify-between mb-2">
-                            <div class="font-bold text-slate-700">
+                            <div class="font-bold text-slate-300">
                                 ${vs.from} 
-                                <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> 
+                                <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i> 
                                 ${vs.to}
                             </div>
-                            <div class="font-bold text-emerald-600">${vs.amount.toLocaleString()} บาท</div>
+                            <div class="font-bold text-emerald-400">${vs.amount.toLocaleString()} ฿</div>
                         </div>
                         
                         <div class="flex items-center justify-between mt-3">
-                            <span class="status-badge verified">
+                            <span class="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full font-bold flex items-center">
                                 <i class="fa-solid fa-check-circle mr-1"></i> ยืนยันแล้ว
                             </span>
-                            <span class="text-xs text-emerald-600">
+                            <span class="text-xs text-emerald-500">
                                 <i class="fa-solid fa-calendar-check mr-1"></i> ${this.formatSlipDate(vs.slip.transDate)}
                             </span>
                         </div>
@@ -2878,34 +2964,34 @@
 
                         // สร้าง Settlement Item Card
                         const item = document.createElement('div');
-                        item.className = 'bg-white p-4 rounded-xl border border-slate-200 shadow-sm';
+                        item.className = 'bg-[#1c1c1e] p-4 rounded-[20px] border border-white/5 shadow-sm';
 
                         const isCurrentUserPayer = d.name === this.data.currentUser;
 
                         item.innerHTML = `
                             <div class="flex items-center justify-between mb-2">
-                                <div class="font-bold text-slate-700">
+                                <div class="font-bold text-slate-300">
                                     ${d.name} 
-                                    <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-300"></i> 
+                                    <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i> 
                                     ${c.name}
                                 </div>
-                                <div class="font-bold text-red-500">${pay.toLocaleString()} บาท</div>
+                                <div class="font-bold text-red-400">${pay.toLocaleString()} ฿</div>
                             </div>
                             
                             <div class="flex items-center justify-between mt-3">
-                                <span class="status-badge pending">
+                                <span class="text-xs bg-red-900/30 text-red-400 border border-red-500/30 px-2 py-1 rounded-full font-bold flex items-center">
                                     <i class="fa-solid fa-clock mr-1"></i> รอโอนเงิน
                                 </span>
                                 
                                 <div class="flex gap-2">
                                     <button onclick="window.app.showPromptPayQR(${pay}, '${c.name}')" 
-                                        class="text-xs bg-indigo-50 text-indigo-600 border border-indigo-100 px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-100 transition-colors flex items-center gap-1 active:scale-95">
+                                        class="text-xs bg-white/5 text-white border border-white/10 px-3 py-1.5 rounded-lg font-bold hover:bg-white/10 transition-colors flex items-center gap-1 active:scale-95">
                                         <i class="fa-solid fa-qrcode"></i> Scan
                                     </button>
                                     
                                     ${isCurrentUserPayer ? `
                                         <button onclick="window.app.openSlipUploadModal('${d.name}', '${c.name}', ${pay})"
-                                                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-sm active:scale-95 flex items-center gap-1">
+                                                class="text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg font-bold hover:bg-indigo-700 transition-colors shadow-sm active:scale-95 flex items-center gap-1">
                                             <i class="fa-solid fa-cloud-upload"></i>
                                             อัปโหลด
                                         </button>
@@ -2941,10 +3027,10 @@
                     if (matchKey) myShare = Number(t.splits[matchKey]);
                     totalSpent += myShare;
                     const isPayer = (t.payer || "").toUpperCase() === target;
-                    list.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-100 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-slate-700">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${t.amount} บาท</span></div><div class="text-right"><div class="text-sm font-bold text-slate-800">-${myShare.toLocaleString()} บาท</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ส่วนของคุณ</div></div></div>`;
+                    list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${t.amount} ฿</span></div><div class="text-right"><div class="text-sm font-bold text-white">-${myShare.toLocaleString()} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ส่วนของคุณ</div></div></div>`;
                 });
                 document.getElementById('member-detail-title').textContent = `รายละเอียด ${target} `;
-                document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} บาท`;
+                document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} ฿`;
                 document.getElementById('member-detail-modal').classList.remove('hidden');
             },
 
@@ -3084,6 +3170,8 @@
                 document.getElementById('t-payment-type').value = "normal";
                 // Set default date to today
                 document.getElementById('t-date').value = new Date().toISOString().slice(0, 10);
+                // Set default payer to current user
+                document.getElementById('t-payer').value = this.data.currentUser || '';
                 this.toggleInstallment();
                 this.selectIcon('fa-utensils');
                 document.getElementById(id).classList.remove('hidden');
