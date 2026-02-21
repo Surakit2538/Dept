@@ -69,7 +69,6 @@
             background-size: 400% 400%;
             animation: gradientBG 15s ease infinite;
             overflow: hidden;
-            position: relative;
         }
 
         @keyframes gradientBG {
@@ -362,6 +361,171 @@
             height: 1px;
             background-color: #e2e8f0;
             z-index: 0;
+        }
+
+        /* --- GLOBAL DARK THEME OVERRIDES --- */
+        body,
+        main,
+        #main-content {
+            background-color: #0f172a !important;
+            color: #f8fafc !important;
+        }
+
+        .bg-white {
+            background-color: #1e293b !important;
+        }
+
+        .bg-slate-50,
+        .bg-\[\#f8fafc\] {
+            background-color: #0f172a !important;
+        }
+
+        .bg-slate-100 {
+            background-color: #334155 !important;
+        }
+
+        .bg-slate-200,
+        .bg-\[\#e2e8f0\] {
+            background-color: #475569 !important;
+        }
+
+        .bg-white\/90 {
+            background-color: rgba(30, 41, 59, 0.9) !important;
+        }
+
+        .bg-white\/95 {
+            background-color: rgba(30, 41, 59, 0.95) !important;
+        }
+
+        .text-slate-800,
+        .text-slate-700 {
+            color: #f1f5f9 !important;
+        }
+
+        .text-slate-600 {
+            color: #cbd5e1 !important;
+        }
+
+        .text-slate-500 {
+            color: #94a3b8 !important;
+        }
+
+        .border-slate-100,
+        .border-slate-200,
+        .border-slate-300 {
+            border-color: #334155 !important;
+        }
+
+        .border-b,
+        .border-t,
+        .border-r,
+        .border {
+            border-color: #334155 !important;
+        }
+
+        .modal-input,
+        input,
+        select {
+            background-color: #0f172a !important;
+            color: #f1f5f9 !important;
+            border-color: #334155 !important;
+        }
+
+        input::placeholder,
+        select::placeholder {
+            color: #64748b !important;
+        }
+
+        /* Nav & Headers */
+        header,
+        nav,
+        aside {
+            background-color: #1e293b !important;
+            border-color: #334155 !important;
+        }
+
+        .nav-btn:hover,
+        .bottom-nav-item:hover,
+        .icon-opt:hover {
+            background-color: #334155 !important;
+        }
+
+        .bottom-nav-item.active {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4) !important;
+        }
+
+        .nav-btn.active {
+            background-color: #4f46e5 !important;
+            color: #ffffff !important;
+        }
+
+        .date-header span {
+            background-color: #334155 !important;
+            color: #cbd5e1 !important;
+        }
+
+        .date-header::before {
+            background-color: #334155 !important;
+        }
+
+        /* Status Badge overrides */
+        .status-badge.pending {
+            background-color: #451a03 !important;
+            color: #fef3c7 !important;
+        }
+
+        .status-badge.verified {
+            background-color: #064e3b !important;
+            color: #d1fae5 !important;
+        }
+
+        .status-badge.failed {
+            background-color: #7f1d1d !important;
+            color: #fee2e2 !important;
+        }
+
+        /* General text inversions for light colors */
+        .bg-blue-50 {
+            background-color: rgba(59, 130, 246, 0.1) !important;
+            border-color: rgba(59, 130, 246, 0.2) !important;
+            color: #93c5fd !important;
+        }
+
+        .text-blue-800 {
+            color: #93c5fd !important;
+        }
+
+        .text-blue-700 {
+            color: #93c5fd !important;
+        }
+
+        .bg-green-50 {
+            background-color: rgba(34, 197, 94, 0.1) !important;
+            border-color: rgba(34, 197, 94, 0.2) !important;
+            color: #86efac !important;
+        }
+
+        .text-green-800 {
+            color: #86efac !important;
+        }
+
+        .bg-red-50 {
+            background-color: rgba(239, 68, 68, 0.1) !important;
+            border-color: rgba(239, 68, 68, 0.2) !important;
+            color: #fca5a5 !important;
+        }
+
+        .text-red-700 {
+            color: #fca5a5 !important;
+        }
+
+        /* Fix login text display issues due to text override */
+        #login-screen h1,
+        #login-screen p,
+        #login-screen .text-white {
+            color: #ffffff !important;
         }
     </style>
 </head>
