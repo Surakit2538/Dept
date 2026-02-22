@@ -673,6 +673,8 @@
             <div class="flex items-center gap-2">
                 <span id="mobile-role-badge"
                     class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold text-slate-500 border border-slate-200">GUEST</span>
+                <img id="mobile-profile-pic" src="" alt="Profile"
+                    class="w-7 h-7 rounded-full object-cover hidden border border-slate-200 shadow-sm">
                 <button onclick="window.app.logout()"
                     class="text-red-400 hover:text-red-600 ml-1 p-1 active:scale-90 transition-transform">
                     <i class="fa-solid fa-right-from-bracket text-sm"></i>
@@ -713,6 +715,13 @@
             </button>
         </nav>
         <div class="p-4 border-t">
+            <div id="desktop-profile-container" class="flex items-center gap-3 mb-4 px-2 hidden">
+                <img id="desktop-profile-pic" src=""
+                    class="w-8 h-8 rounded-full border border-slate-200 shadow-sm object-cover">
+                <div class="flex flex-col truncate">
+                    <span id="desktop-user-name" class="text-sm font-bold text-slate-800 truncate">User</span>
+                </div>
+            </div>
             <button onclick="window.app.logout()"
                 class="w-full text-xs text-red-500 hover:text-red-600 flex items-center justify-center gap-2 py-2">
                 <i class="fa-solid fa-right-from-bracket"></i> ออกจากระบบ
@@ -1729,7 +1738,7 @@
                         }
                         let role = (existingById && existingById.role && existingById.role.toLowerCase() === 'admin') ? 'admin' : 'member';
                         if (isSuperAdmin) role = 'admin';
-                        this.completeLogin(role, displayName);
+                        this.completeLogin(role, displayName, profile.pictureUrl);
                     } else {
                         this.updateDebug("ID Not Found. Checking Name...");
                         let existingByName = (this.data.rawMembers || []).find(m => m.name === displayName);
@@ -1744,7 +1753,7 @@
                             await updateDoc(ref, { lineUserId: userId });
                             let role = (existingByName.role === 'admin') ? 'admin' : 'member';
                             if (isSuperAdmin) role = 'admin';
-                            this.completeLogin(role, displayName);
+                            this.completeLogin(role, displayName, profile.pictureUrl);
                         } else {
                             // Check for ANY unlinked members (candidates)
                             const unlinkedMembers = this.data.rawMembers.filter(m => !m.lineUserId);
@@ -1757,7 +1766,7 @@
                             } else {
                                 this.updateDebug("Creating New User...");
                                 await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId, role: 'member', joinedAt: new Date().toISOString() });
-                                this.completeLogin(isSuperAdmin ? 'admin' : 'member', displayName);
+                                this.completeLogin(isSuperAdmin ? 'admin' : 'member', displayName, profile.pictureUrl);
                             }
                         }
                     }
@@ -1769,11 +1778,12 @@
                 }
             },
 
-            async completeLogin(role, name) {
-                console.log('🔐 completeLogin called with:', { role, name });
+            async completeLogin(role, name, pictureUrl = '') {
+                console.log('🔐 completeLogin called with:', { role, name, pictureUrl });
 
                 this.data.userRole = role;
                 this.data.currentUser = name; // Store current user
+                this.data.userPictureUrl = pictureUrl;
                 const loginScreen = document.getElementById('login-screen');
                 if (loginScreen) loginScreen.classList.add('hidden');
 
@@ -1789,6 +1799,21 @@
                     badge.textContent = name || role.toUpperCase();
                     if (role === 'admin') {
                         badge.className = "text-[10px] bg-slate-800 px-2 py-1 rounded-full font-bold text-white";
+                    }
+                }
+
+                // Apply Profile Pictures if Login sent one
+                if (pictureUrl) {
+                    const mobilePic = document.getElementById('mobile-profile-pic');
+                    if (mobilePic) {
+                        mobilePic.src = pictureUrl;
+                        mobilePic.classList.remove('hidden');
+                    }
+                    const desktopPic = document.getElementById('desktop-profile-pic');
+                    if (desktopPic) {
+                        desktopPic.src = pictureUrl;
+                        const container = document.getElementById('desktop-profile-container');
+                        if (container) container.classList.remove('hidden');
                     }
                 }
 
@@ -2029,7 +2054,8 @@
 
                     // Proceed to login with NEW name
                     document.getElementById('account-linking-modal').classList.add('hidden');
-                    this.completeLogin('member', displayName);
+                    const picUrl = profile.pictureUrl || '';
+                    this.completeLogin('member', displayName, picUrl);
 
                 } catch (e) {
                     console.error(e);
@@ -2059,7 +2085,8 @@
                     });
 
                     document.getElementById('account-linking-modal').classList.add('hidden');
-                    this.completeLogin('member', displayName);
+                    const picUrl = profile.pictureUrl || '';
+                    this.completeLogin('member', displayName, picUrl);
                 } catch (e) {
                     console.error(e);
                     alert("สร้างบัญชีไม่สำเร็จ: " + e.message);
