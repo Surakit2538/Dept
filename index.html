@@ -847,14 +847,13 @@
             </div>
 
             <div class="grid grid-cols-1 gap-4">
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-700 text-sm mb-4">แนวโน้มรายเดือน (6 เดือนล่าสุด)</h3>
-                    <div class="chart-container">
-                        <canvas id="monthlyTrendChart"></canvas>
-                    </div>
+                <div class="bg-[#1c1c1e] rounded-[20px] p-4 shadow-sm border border-white/5">
+                    <h3 class="font-bold text-white text-sm mb-1">แนวโน้มรายเดือน</h3>
+                    <p class="text-xs text-slate-400 mb-4">6 เดือนล่าสุด</p>
+                    <div id="monthly-trend-bar-chart" class="flex items-end gap-2 h-[120px]"></div>
                 </div>
-                <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
-                    <h3 class="font-bold text-slate-700 text-sm mb-4">เดือนนี้ใครจ่ายไปเท่าไหร่?</h3>
+                <div class="bg-[#1c1c1e] rounded-[20px] p-4 shadow-sm border border-white/5">
+                    <h3 class="font-bold text-white text-sm mb-4">เดือนนี้ใครจ่ายไปเท่าไหร่?</h3>
                     <div class="chart-container">
                         <canvas id="payerChart"></canvas>
                     </div>
@@ -3155,75 +3154,55 @@
 
                     const formattedAmt = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-                    if (isActive) {
-                        // Active User - Large Netflix-style Hero Card
-                        div.className = `card-stack-item min-w-[280px] sm:min-w-[320px] h-[150px] p-5 rounded-[24px] shadow-2xl flex flex-col justify-between cursor-pointer transition-all bg-gradient-to-br ${isCurrentUser ? 'from-indigo-600 via-purple-600' : 'from-slate-700 via-slate-600'} to-[#1c1c1e] relative overflow-hidden shrink-0 snap-center border border-white/20`;
+                    // All cards use same full layout; active card gets highlighted styling
+                    const bgClass = isActive
+                        ? (isCurrentUser
+                            ? 'bg-gradient-to-br from-indigo-600 via-purple-600 to-[#1c1c1e] border-white/20'
+                            : 'bg-gradient-to-br from-slate-700 via-slate-600 to-[#1c1c1e] border-white/20')
+                        : (isCurrentUser
+                            ? 'bg-gradient-to-br from-indigo-700/70 to-purple-900/70 border-indigo-400/20'
+                            : 'bg-[#2c2c2e] border-white/5');
 
-                        const decorHtml = `
-                            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                            <div class="absolute bottom-0 left-0 w-24 h-24 bg-${isCurrentUser ? 'indigo' : 'slate'}-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
-                        `;
+                    div.className = `card-stack-item ${isActive ? 'active-card' : ''} w-[210px] h-[130px] p-4 rounded-[22px] shadow-xl flex flex-col justify-between cursor-pointer ${bgClass} border relative overflow-hidden`;
 
-                        let titleLabel = isCurrentUser ? "ยอดรวมของคุณ" : `ยอดรวมของ ${name}`;
-                        let badgeHtml = isCurrentUser
-                            ? `<div class="text-[9px] font-bold px-2 py-1 bg-white/10 rounded-full text-white backdrop-blur-sm border border-white/10 shadow-sm flex items-center gap-1"><i class="fa-solid fa-user"></i> ฉัน</div>`
-                            : `<div class="text-[9px] font-bold px-2 py-1 bg-white/10 rounded-full text-white backdrop-blur-sm border border-white/10 shadow-sm flex items-center gap-1 animate-pulse"><i class="fa-solid fa-clock-rotate-left"></i> ดูประวัติ</div>`;
+                    const decorHtml = isActive ? `
+                        <div class="absolute top-0 right-0 w-28 h-28 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
+                    ` : '';
 
-                        let textHtml = amount >= 0.01 ? (isCurrentUser ? `ยอดที่คุณต้องได้รับ` : `ยอดที่ ${name} ต้องได้รับ`) : (amount <= -0.01 ? (isCurrentUser ? `ยอดที่คุณต้องจ่าย` : `ยอดที่ ${name} ต้องจ่าย`) : `ยอดเคลียร์พอดี`);
-                        let amtColor = amount >= 0.01 ? "text-emerald-300" : (amount <= -0.01 ? "text-rose-300" : "text-white/80");
-                        let amtIcon = amount >= 0.01 ? '<i class="fa-solid fa-arrow-up text-sm mr-1"></i>' : (amount <= -0.01 ? '<i class="fa-solid fa-arrow-down text-sm mr-1"></i>' : '');
+                    let badgeHtml = isCurrentUser
+                        ? `<span class="text-[8px] font-bold bg-white/15 text-white px-1.5 py-0.5 rounded-full"><i class="fa-solid fa-user mr-0.5"></i>ฉัน</span>`
+                        : `<span class="text-[8px] font-bold bg-white/10 text-white/70 px-1.5 py-0.5 rounded-full ${isActive ? 'animate-pulse' : ''}"><i class="fa-solid fa-clock-rotate-left mr-0.5"></i>ดูประวัติ</span>`;
 
-                        div.innerHTML = `
-                            ${decorHtml}
-                            <div class="flex items-start justify-between relative z-10 mb-2">
-                                <div class="flex items-center gap-3">
-                                    ${getPic(name, "w-10 h-10", "text-lg")}
-                                    <div class="flex flex-col">
-                                        <h4 class="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-0.5">${titleLabel}</h4>
-                                        <h3 class="text-sm font-extrabold text-white">${name}</h3>
-                                    </div>
-                                </div>
-                                ${badgeHtml}
+                    let textHtml = amount >= 0.01
+                        ? `ต้องได้รับ`
+                        : (amount <= -0.01 ? `ต้องจ่าย` : `เคลียร์พอดี`);
+                    let amtColor = amount >= 0.01 ? 'text-emerald-300' : (amount <= -0.01 ? 'text-rose-300' : 'text-white/80');
+                    let amtIcon = amount >= 0.01
+                        ? '<i class="fa-solid fa-arrow-up text-[10px] mr-0.5"></i>'
+                        : (amount <= -0.01 ? '<i class="fa-solid fa-arrow-down text-[10px] mr-0.5"></i>' : '');
+
+                    div.innerHTML = `
+                        ${decorHtml}
+                        <div class="flex items-center justify-between relative z-10">
+                            <div class="flex items-center gap-2">
+                                ${getPic(name, 'w-8 h-8', 'text-sm')}
+                                <span class="text-xs font-extrabold text-white">${name}</span>
                             </div>
-                            <div class="relative z-10 mt-auto">
-                                <p class="text-[10px] font-bold ${amtColor} mb-0.5 opacity-90">${textHtml}</p>
-                                <span class="text-[28px] font-extrabold text-white drop-shadow-sm flex items-end gap-1 leading-none tracking-tight">
-                                    ${amtIcon}${formattedAmt} <span class="text-xs font-bold text-white/50 mb-1 ml-1">THB</span>
-                                </span>
-                            </div>
-                        `;
-                    } else {
-                        // Inactive/Shrunk Cards
-                        const bgClass = isCurrentUser
-                            ? "bg-gradient-to-br from-indigo-600/90 to-purple-800/90 border-indigo-400/30 shadow-[0_4px_20px_-4px_rgba(79,70,229,0.5)]"
-                            : "bg-[#2c2c2e] border-white/5 shadow-xl";
+                            ${badgeHtml}
+                        </div>
+                        <div class="relative z-10">
+                            <p class="text-[9px] font-semibold text-white/50 mb-0.5 uppercase tracking-widest">${textHtml}</p>
+                            <span class="text-[20px] font-extrabold ${amtColor} flex items-center gap-0.5 leading-none">
+                                ${amtIcon}${formattedAmt} <span class="text-[10px] font-bold text-white/40 ml-0.5">฿</span>
+                            </span>
+                        </div>
+                    `;
 
-                        div.className = `card-stack-item min-w-[140px] h-[130px] p-4 rounded-[20px] flex flex-col items-center justify-between cursor-pointer transition-all ${bgClass} shrink-0 snap-start relative overflow-hidden self-end`;
-
-                        let titleColor = isCurrentUser ? "text-white" : "text-slate-300";
-                        let amtColor = amount >= 0.01 ? (isCurrentUser ? "text-emerald-300" : "text-emerald-400") : (amount <= -0.01 ? (isCurrentUser ? "text-rose-300" : "text-rose-400") : (isCurrentUser ? "text-white/80" : "text-slate-500"));
-                        let iconHtml = amount >= 0.01 ? '<i class="fa-solid fa-arrow-up text-[10px] mr-1"></i>' : (amount <= -0.01 ? '<i class="fa-solid fa-arrow-down text-[10px] mr-1"></i>' : '<i class="fa-solid fa-equals text-[10px] mr-1"></i>');
-                        let highlightGlow = amount >= 0.01 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500 to-emerald-500/0 opacity-50"></div>' : (amount <= -0.01 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-rose-500/0 via-rose-500 to-rose-500/0 opacity-50"></div>' : '');
-
-                        div.innerHTML = `
-                            ${highlightGlow}
-                            <div class="flex flex-col items-center gap-2 mb-2 mt-1 relative z-10">
-                                ${getPic(name, "w-[42px] h-[42px]", "text-base")}
-                                <div class="flex flex-col items-center w-full">
-                                    <h4 class="text-[11px] font-bold ${titleColor} truncate w-full text-center tracking-wide">${name}</h4>
-                                    ${isCurrentUser ? '<span class="text-[8px] text-white/60 bg-white/10 px-1.5 rounded-full mt-0.5"><i class="fa-solid fa-user"></i> ฉัน</span>' : ''}
-                                </div>
-                            </div>
-                            <div class="${amtColor} font-bold text-sm flex items-center justify-center bg-[#1c1c1e]/80 px-2 py-1.5 rounded-xl shadow-inner border border-white/5 w-full mt-auto relative z-10 backdrop-blur-sm">
-                                ${iconHtml}${formattedAmt}
-                            </div>
-                        `;
-                    }
                     grid.appendChild(div);
                 });
 
                 const spacer = document.createElement('div');
-                spacer.className = "min-w-[40vw] shrink-0";
+                spacer.className = "min-w-[24px] shrink-0";
                 grid.appendChild(spacer);
 
                 // Precise distance-based centering for mobile scroll
@@ -3404,87 +3383,38 @@
             },
 
             renderMonthlyTrendChart() {
-                const ctx = document.getElementById('monthlyTrendChart').getContext('2d');
-                if (this.charts.monthlyTrend) this.charts.monthlyTrend.destroy();
+                const container = document.getElementById('monthly-trend-bar-chart');
+                if (!container) return;
+                container.innerHTML = '';
 
                 const months = [], amounts = [];
-
-                // เริ่มจากเดือนที่เลือก (ขวาสุด)
                 const selectedDate = new Date(this.data.currentMonth + '-01');
+                const thaiMonthNames = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
 
-                // ย้อนหลัง 5 เดือน + เดือนที่เลือก = รวม 6 เดือน
                 for (let i = 5; i >= 0; i--) {
                     const d = new Date(selectedDate);
                     d.setMonth(selectedDate.getMonth() - i);
-
                     const key = d.toISOString().slice(0, 7);
-                    const thaiYear = String(d.getFullYear() + 543).slice(-2);
-                    const label = `${String(d.getMonth() + 1).padStart(2, '0')}/${thaiYear}`;
-
-                    months.push(label);
-
+                    months.push(thaiMonthNames[d.getMonth()]);
                     const total = this.data.transactions
                         .filter(t => t.date.startsWith(key))
                         .reduce((a, t) => a + Number(t.amount), 0);
                     amounts.push(total);
                 }
 
-                // สร้าง Gradient สำหรับเส้นและพื้นหลัง
-                let gradientFill = ctx.createLinearGradient(0, 0, 0, 300);
-                gradientFill.addColorStop(0, 'rgba(79, 70, 229, 0.4)'); /* Indigo-600 */
-                gradientFill.addColorStop(1, 'rgba(79, 70, 229, 0.0)');
+                const maxAmt = Math.max(...amounts, 1);
 
-                let gradientStroke = ctx.createLinearGradient(0, 0, 400, 0);
-                gradientStroke.addColorStop(0, '#4f46e5'); /* Indigo-600 */
-                gradientStroke.addColorStop(1, '#ec4899'); /* Pink-500 */
-
-                // Highlight เดือนที่เลือก (ตำแหน่งสุดท้าย index = 5)
-                this.charts.monthlyTrend = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: months,
-                        datasets: [{
-                            data: amounts,
-                            borderColor: gradientStroke,
-                            backgroundColor: gradientFill,
-                            borderWidth: 3,
-                            pointBackgroundColor: months.map((_, i) => i === 5 ? '#ec4899' : '#fff'),
-                            pointBorderColor: months.map((_, i) => i === 5 ? '#ec4899' : '#4f46e5'),
-                            pointBorderWidth: 2,
-                            pointRadius: months.map((_, i) => i === 5 ? 6 : 4),
-                            pointHoverRadius: 8,
-                            fill: true,
-                            tension: 0.4 // Curved line
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: {
-                            legend: { display: false },
-                            datalabels: {
-                                display: function (context) {
-                                    return context.dataIndex === 5 || context.dataIndex === 0; // Show only first and last
-                                },
-                                align: 'top',
-                                color: '#4b5563', /* Slate-600 */
-                                font: { weight: 'bold', size: 10 },
-                                formatter: (v) => v > 0 ? (v / 1000).toFixed(1) + 'k' : ""
-                            }
-                        },
-                        scales: {
-                            y: { display: false, min: 0 },
-                            x: {
-                                grid: { display: false, drawBorder: false },
-                                border: { display: false },
-                                ticks: { font: { size: 10, family: "'Noto Sans Thai', sans-serif" }, color: '#94a3b8', maxRotation: 0 }
-                            }
-                        },
-                        interaction: {
-                            mode: 'index',
-                            intersect: false,
-                        },
-                    }
+                amounts.forEach((amt, i) => {
+                    const pct = Math.max(Math.round((amt / maxAmt) * 100), 8);
+                    const isHighlight = i === 5;
+                    const col = document.createElement('div');
+                    col.className = 'flex flex-col items-center justify-end flex-1 h-full gap-1.5';
+                    col.innerHTML = `
+                        <span class="text-[10px] font-bold ${isHighlight ? 'text-white' : 'text-slate-400'}">${pct}%</span>
+                        <div class="w-full rounded-full" style="height: ${pct}%; background: ${isHighlight ? 'linear-gradient(to bottom, #a5b4fc, #4f46e5)' : 'rgba(99,102,241,0.22)'}; min-height: 10%;"></div>
+                        <span class="text-[10px] font-semibold ${isHighlight ? 'text-indigo-400' : 'text-slate-500'}">${months[i]}</span>
+                    `;
+                    container.appendChild(col);
                 });
             },
 
