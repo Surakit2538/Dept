@@ -481,13 +481,20 @@
             align-items: center;
             padding-top: 1.5rem;
             padding-bottom: 2.5rem;
-            gap: 1rem;
+            padding-right: 100px;
+            /* Allow enough scroll space for pushed cards */
         }
 
         .card-stack-item {
             position: relative;
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
             scroll-snap-align: center;
+            margin-left: -55px;
+            /* Overlap cards */
+        }
+
+        .card-stack-item:first-child {
+            margin-left: 0;
         }
 
         /* Elevate current hovered card */
@@ -496,6 +503,12 @@
             transform: translateY(-8px) scale(1.05);
             z-index: 50 !important;
             box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.6), 0 15px 15px -5px rgba(0, 0, 0, 0.4);
+        }
+
+        /* Push the rest of the cards to the right to create the gap */
+        .card-stack-item:hover~.card-stack-item,
+        .card-stack-item.centered~.card-stack-item {
+            transform: translateX(65px);
         }
 
         header,
@@ -913,7 +926,7 @@
             </div>
 
             <div id="settlement-status-grid"
-                class="overflow-x-auto hide-scrollbar card-stack-container px-6 md:px-4 flex gap-4 snap-x snap-mandatory">
+                class="overflow-x-auto hide-scrollbar card-stack-container px-6 md:px-4 snap-x snap-mandatory">
             </div>
 
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2 mt-6">แผนการโอนเงิน</h3>
@@ -3251,14 +3264,14 @@
                     item.className = 'bg-emerald-50 p-4 rounded-xl border border-emerald-200 shadow-sm';
 
                     item.innerHTML = `
-                            < div class="flex items-center justify-between mb-2" >
+                            <div class="flex items-center justify-between mb-2">
                             <div class="font-bold text-slate-300 flex items-center gap-2">
                                 ${getPic(vs.from)} <span class="text-sm">${vs.from}</span>
                                 <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i> 
                                 ${getPic(vs.to)} <span class="text-sm">${vs.to}</span>
                             </div>
                             <div class="font-bold text-emerald-400">${vs.amount.toLocaleString()} ฿</div>
-                        </div >
+                        </div>
 
             <div class="flex items-center justify-between mt-3">
                 <span class="text-xs bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 px-2 py-1 rounded-full font-bold flex items-center">
@@ -3295,14 +3308,14 @@
                         const isCurrentUserPayer = d.name === this.data.currentUser;
 
                         item.innerHTML = `
-            < div class="flex items-center justify-between mb-2" >
+            <div class="flex items-center justify-between mb-2">
                                 <div class="font-bold text-slate-300 flex items-center gap-2">
                                     ${getPic(d.name)} <span class="text-sm">${d.name}</span>
                                     <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i> 
                                     ${getPic(c.name)} <span class="text-sm">${c.name}</span>
                                 </div>
                                 <div class="font-bold text-red-400">${pay.toLocaleString()} ฿</div>
-                            </div >
+                            </div>
 
             <div class="flex items-center justify-between mt-3">
                 <span class="text-xs bg-red-900/30 text-red-400 border border-red-500/30 px-2 py-1 rounded-full font-bold flex items-center">
