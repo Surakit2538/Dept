@@ -452,6 +452,15 @@
         }
 
         /* Nav & Headers */
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
         header,
         nav,
         aside {
@@ -866,7 +875,8 @@
                 <span>สามารถกดดูรายละเอียดเพิ่มเติมได้</span>
             </div>
 
-            <div id="settlement-status-grid" class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4"></div>
+            <div id="settlement-status-grid"
+                class="flex overflow-x-auto gap-4 pb-4 snap-x hide-scrollbar -mx-4 px-4 md:mx-0 md:px-0"></div>
 
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2 mt-6">แผนการโอนเงิน</h3>
             <div id="settlement-plan" class="space-y-2"></div>
@@ -3033,24 +3043,74 @@
                     return `<div class="${size} rounded-full bg-slate-700 text-white flex items-center justify-center font-bold ${text} border border-white/10 shadow-sm shrink-0">${name.substring(0, 1)}</div>`;
                 };
 
-                this.data.members.forEach(name => {
+                // Sort members: current user first
+                const sortedMembers = [...this.data.members].sort((a, b) => {
+                    const curr = (this.data.currentUser || "").toUpperCase();
+                    if (a === curr) return -1;
+                    if (b === curr) return 1;
+                    return 0;
+                });
+
+                sortedMembers.forEach(name => {
                     const amount = balances[name] || 0;
                     const div = document.createElement('div');
-                    div.className = `p-3 rounded-[20px] shadow-sm border border-white/5 flex flex-col items-center justify-center cursor-pointer transition-all active:scale-95 bg-[#1c1c1e]`;
+                    const isCurrentUser = name === (this.data.currentUser || "").toUpperCase();
 
-                    div.onclick = () => window.app.showMemberDetails(name); // Corrected function name
+                    div.onclick = () => window.app.showMemberDetails(name);
 
-                    let titleColor = "text-slate-400";
-                    let amtColor = amount > 1 ? "text-green-400" : (amount < -1 ? "text-red-400" : "text-slate-500");
-                    let iconHtml = amount > 1 ? '<i class="fa-solid fa-arrow-up text-xs mr-1"></i>' : (amount < -1 ? '<i class="fa-solid fa-arrow-down text-xs mr-1"></i>' : '<i class="fa-solid fa-equals text-[10px] mr-1"></i>');
+                    if (isCurrentUser) {
+                        // Current User - Large Netflix-style Hero Card
+                        div.className = `min-w-[280px] sm:min-w-[320px] p-5 rounded-[24px] shadow-lg flex flex-col justify-between cursor-pointer transition-all active:scale-95 bg-gradient-to-br from-indigo-600 via-purple-600 to-[#1c1c1e] relative overflow-hidden shrink-0 snap-start border border-white/20`;
 
-                    div.innerHTML = `
-                        <div class="flex flex-col items-center gap-1.5 mb-1.5">
-                            ${getPic(name, "w-8 h-8", "text-sm")}
-                            <h4 class="text-[10px] font-bold ${titleColor}">${name}</h4>
-                        </div>
-                        <span class="${amtColor} font-bold text-lg flex items-center">${iconHtml}${Math.abs(amount).toLocaleString()}</span>
-                    `;
+                        const decorHtml = `
+                            <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
+                            <div class="absolute bottom-0 left-0 w-24 h-24 bg-indigo-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+                        `;
+
+                        let textHtml = amount > 1 ? `ยอดรวมที่คุณต้องได้รับ` : (amount < -1 ? `ยอดที่คุณต้องจ่ายรวม` : `ยอดเคลียร์ของคุณพอดี`);
+                        let amtColor = amount > 1 ? "text-emerald-300" : (amount < -1 ? "text-rose-300" : "text-white/80");
+                        let amtIcon = amount > 1 ? '<i class="fa-solid fa-arrow-up text-sm mr-1"></i>' : (amount < -1 ? '<i class="fa-solid fa-arrow-down text-sm mr-1"></i>' : '');
+
+                        div.innerHTML = `
+                            ${decorHtml}
+                            <div class="flex items-start justify-between relative z-10 mb-4">
+                                <div class="flex items-center gap-3">
+                                    ${getPic(name, "w-10 h-10", "text-lg")}
+                                    <div class="flex flex-col">
+                                        <h4 class="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-0.5">ยอดรวมของคุณ</h4>
+                                        <h3 class="text-sm font-extrabold text-white">${name}</h3>
+                                    </div>
+                                </div>
+                                <div class="text-[9px] font-bold px-2 py-1 bg-white/10 rounded-full text-white backdrop-blur-sm border border-white/10 shadow-sm flex items-center gap-1"><i class="fa-solid fa-user"></i> ฉัน</div>
+                            </div>
+                            <div class="relative z-10 mt-2">
+                                <p class="text-[10px] font-bold ${amtColor} mb-1 opacity-90">${textHtml}</p>
+                                <span class="text-[28px] font-extrabold text-white drop-shadow-sm flex items-end gap-1 leading-none tracking-tight">
+                                    ${amtIcon}${Math.abs(amount).toLocaleString()} <span class="text-xs font-bold text-white/50 mb-1 ml-1">THB</span>
+                                </span>
+                            </div>
+                        `;
+                    } else {
+                        // Other Members - Smaller sleek cards
+                        div.className = `min-w-[130px] p-4 rounded-[20px] shadow-sm flex flex-col items-center justify-between cursor-pointer transition-all active:scale-95 bg-[#2c2c2e] border border-white/5 shrink-0 snap-start relative overflow-hidden`;
+
+                        let titleColor = "text-slate-300";
+                        let amtColor = amount > 1 ? "text-emerald-400" : (amount < -1 ? "text-rose-400" : "text-slate-500");
+                        let iconHtml = amount > 1 ? '<i class="fa-solid fa-arrow-up text-[10px] mr-1"></i>' : (amount < -1 ? '<i class="fa-solid fa-arrow-down text-[10px] mr-1"></i>' : '<i class="fa-solid fa-equals text-[10px] mr-1"></i>');
+                        let highlightGlow = amount > 1 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500 to-emerald-500/0 opacity-50"></div>' : (amount < -1 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-rose-500/0 via-rose-500 to-rose-500/0 opacity-50"></div>' : '');
+
+                        div.innerHTML = `
+                            ${highlightGlow}
+                            <div class="flex flex-col items-center gap-2 mb-3 mt-1">
+                                ${getPic(name, "w-[42px] h-[42px]", "text-base")}
+                                <h4 class="text-[11px] font-bold ${titleColor} truncate w-full text-center tracking-wide">${name}</h4>
+                            </div>
+                            <div class="${amtColor} font-bold text-base flex items-center justify-center bg-[#1c1c1e]/80 px-2 py-1.5 rounded-xl shadow-inner border border-white/5 w-full mt-auto">
+                                ${iconHtml}${Math.abs(amount).toLocaleString()}
+                            </div>
+                        `;
+                    }
+
                     grid.appendChild(div);
                 });
 
