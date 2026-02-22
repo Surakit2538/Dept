@@ -1881,7 +1881,13 @@
                     }
                 }
 
-                // Apply Profile Pictures if Login sent one
+                // Apply Profile Pictures and update desktop sidebar name
+                const desktopName = document.getElementById('desktop-user-name');
+                if (desktopName) desktopName.textContent = name;
+
+                const dtContainer = document.getElementById('desktop-profile-container');
+                if (dtContainer) dtContainer.classList.remove('hidden');
+
                 if (pictureUrl) {
                     const mobilePic = document.getElementById('mobile-profile-pic');
                     if (mobilePic) {
@@ -1891,8 +1897,6 @@
                     const desktopPic = document.getElementById('desktop-profile-pic');
                     if (desktopPic) {
                         desktopPic.src = pictureUrl;
-                        const container = document.getElementById('desktop-profile-container');
-                        if (container) container.classList.remove('hidden');
                     }
                 }
 
