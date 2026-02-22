@@ -493,19 +493,23 @@
             position: relative;
             flex-shrink: 0;
             transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
-                opacity 0.38s ease, box-shadow 0.38s ease, background 0.38s ease;
+                box-shadow 0.38s ease, background 0.38s ease;
             scroll-snap-align: center;
-            opacity: 0.70;
-            transform: scale(0.88) translateY(8px);
-            width: clamp(160px, 44vw, 230px);
-            height: 145px;
-            margin-left: -28px;
+            opacity: 1;
+            /* no dimming */
+            transform: scale(0.86) translateY(10px);
+            /* slightly small + pushed down */
+            width: clamp(185px, 55vw, 260px);
+            /* wider cards */
+            height: 150px;
+            margin-left: -44px;
+            /* more overlap */
             background: #2c2c2e;
             border-color: rgba(255, 255, 255, 0.05);
         }
 
         .card-stack-item[data-is-me="true"] {
-            background: linear-gradient(135deg, rgba(67, 56, 202, 0.45) 0%, rgba(109, 40, 217, 0.45) 100%);
+            background: linear-gradient(135deg, rgba(67, 56, 202, 0.55) 0%, rgba(109, 40, 217, 0.55) 100%);
             border-color: rgba(99, 102, 241, 0.2);
         }
 
@@ -513,12 +517,11 @@
             margin-left: 0;
         }
 
-        /* Centered: full bright color via CSS - no JS needed */
+        /* Centered card: pops up, full color */
         .card-stack-item.centered {
-            transform: scale(1.07) translateY(-6px) !important;
-            opacity: 1 !important;
+            transform: scale(1.08) translateY(-6px) !important;
             z-index: 10 !important;
-            box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 22px 44px -8px rgba(0, 0, 0, 0.85);
         }
 
         .card-stack-item[data-is-me="true"].centered {
@@ -533,8 +536,7 @@
 
         @media (hover: hover) {
             .card-stack-item:not(.centered):hover {
-                opacity: 0.88;
-                transform: scale(0.92) translateY(5px);
+                transform: scale(0.92) translateY(4px);
             }
         }
 
@@ -3223,17 +3225,20 @@
                 const cards = Array.from(grid.querySelectorAll('.card-stack-item'));
 
                 // Add spacer divs so first/last card can scroll to center
+                // spacerBefore = (containerW - cardW) / 2  so first card centers
+                // spacerAfter  = containerW / 2            guaranteed last card reaches center
                 const firstCard = cards[0];
-                const cardW = firstCard ? firstCard.offsetWidth : 180;
-                const containerW = grid.clientWidth;
-                const spacerW = Math.max(Math.round((containerW - cardW) / 2) - 20, 8);
+                const cardW = firstCard ? firstCard.offsetWidth : 200;
+                const containerW = grid.clientWidth || window.innerWidth;
+                const spacerBeforeW = Math.max(Math.round((containerW - cardW) / 2), 8);
+                const spacerAfterW = Math.max(Math.round(containerW / 2), 80);
 
                 const spacerBefore = document.createElement('div');
-                spacerBefore.style.cssText = `flex-shrink:0;width:${spacerW}px;min-width:${spacerW}px;`;
+                spacerBefore.style.cssText = `flex-shrink:0;width:${spacerBeforeW}px;min-width:${spacerBeforeW}px;`;
                 grid.insertBefore(spacerBefore, grid.firstChild);
 
                 const spacerAfter = document.createElement('div');
-                spacerAfter.style.cssText = `flex-shrink:0;width:${spacerW + 20}px;min-width:${spacerW + 20}px;`;
+                spacerAfter.style.cssText = `flex-shrink:0;width:${spacerAfterW}px;min-width:${spacerAfterW}px;`;
                 grid.appendChild(spacerAfter);
 
                 // Centering logic: works on both mobile and desktop
