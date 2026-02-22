@@ -3076,11 +3076,12 @@
                     return `<div class="${size} rounded-full bg-slate-700 text-white flex items-center justify-center font-bold ${text} border border-white/10 shadow-sm shrink-0">${name.substring(0, 1)}</div>`;
                 };
 
-                // Sort members: Active card user first
-                const activeCard = (this.data.activeMemberCard || this.data.currentUser || "").toUpperCase();
+                // Sort members: Always Current User first, expand in place
+                const currentUser = (this.data.currentUser || "").toUpperCase();
+                const activeCard = (this.data.activeMemberCard || currentUser).toUpperCase();
                 const sortedMembers = [...this.data.members].sort((a, b) => {
-                    if (a === activeCard) return -1;
-                    if (b === activeCard) return 1;
+                    if (a === currentUser) return -1;
+                    if (b === currentUser) return 1;
                     return 0;
                 });
 
@@ -3090,7 +3091,7 @@
                     const isCurrentUser = name === (this.data.currentUser || "").toUpperCase();
                     const isActive = name === activeCard;
 
-                    div.style.zIndex = 40 - index;
+                    div.style.zIndex = isActive ? 50 : 40 - index;
 
                     div.onclick = () => {
                         if (!isActive) {
@@ -3141,21 +3142,28 @@
                             </div>
                         `;
                     } else {
-                        // Other Members - Smaller sleek cards
-                        div.className = `card-stack-item min-w-[140px] h-[130px] p-4 rounded-[20px] shadow-xl flex flex-col items-center justify-between cursor-pointer transition-all bg-[#2c2c2e] border border-white/5 shrink-0 snap-start relative overflow-hidden self-end`;
+                        // Inactive/Shrunk Cards
+                        const bgClass = isCurrentUser
+                            ? "bg-gradient-to-br from-indigo-600/90 to-purple-800/90 border-indigo-400/30 shadow-[0_4px_20px_-4px_rgba(79,70,229,0.5)]"
+                            : "bg-[#2c2c2e] border-white/5 shadow-xl";
 
-                        let titleColor = "text-slate-300";
-                        let amtColor = amount >= 0.01 ? "text-emerald-400" : (amount <= -0.01 ? "text-rose-400" : "text-slate-500");
+                        div.className = `card-stack-item min-w-[140px] h-[130px] p-4 rounded-[20px] flex flex-col items-center justify-between cursor-pointer transition-all ${bgClass} shrink-0 snap-start relative overflow-hidden self-end`;
+
+                        let titleColor = isCurrentUser ? "text-white" : "text-slate-300";
+                        let amtColor = amount >= 0.01 ? (isCurrentUser ? "text-emerald-300" : "text-emerald-400") : (amount <= -0.01 ? (isCurrentUser ? "text-rose-300" : "text-rose-400") : (isCurrentUser ? "text-white/80" : "text-slate-500"));
                         let iconHtml = amount >= 0.01 ? '<i class="fa-solid fa-arrow-up text-[10px] mr-1"></i>' : (amount <= -0.01 ? '<i class="fa-solid fa-arrow-down text-[10px] mr-1"></i>' : '<i class="fa-solid fa-equals text-[10px] mr-1"></i>');
                         let highlightGlow = amount >= 0.01 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500 to-emerald-500/0 opacity-50"></div>' : (amount <= -0.01 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-rose-500/0 via-rose-500 to-rose-500/0 opacity-50"></div>' : '');
 
                         div.innerHTML = `
                             ${highlightGlow}
-                            <div class="flex flex-col items-center gap-2 mb-2 mt-1">
+                            <div class="flex flex-col items-center gap-2 mb-2 mt-1 relative z-10">
                                 ${getPic(name, "w-[42px] h-[42px]", "text-base")}
-                                <h4 class="text-[11px] font-bold ${titleColor} truncate w-full text-center tracking-wide">${name}</h4>
+                                <div class="flex flex-col items-center w-full">
+                                    <h4 class="text-[11px] font-bold ${titleColor} truncate w-full text-center tracking-wide">${name}</h4>
+                                    ${isCurrentUser ? '<span class="text-[8px] text-white/60 bg-white/10 px-1.5 rounded-full mt-0.5"><i class="fa-solid fa-user"></i> ฉัน</span>' : ''}
+                                </div>
                             </div>
-                            <div class="${amtColor} font-bold text-sm flex items-center justify-center bg-[#1c1c1e]/80 px-2 py-1.5 rounded-xl shadow-inner border border-white/5 w-full mt-auto">
+                            <div class="${amtColor} font-bold text-sm flex items-center justify-center bg-[#1c1c1e]/80 px-2 py-1.5 rounded-xl shadow-inner border border-white/5 w-full mt-auto relative z-10 backdrop-blur-sm">
                                 ${iconHtml}${formattedAmt}
                             </div>
                         `;
