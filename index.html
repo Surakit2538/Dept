@@ -481,8 +481,6 @@
             align-items: flex-end;
             padding-top: 1rem;
             padding-bottom: 1.5rem;
-            padding-left: 16px;
-            padding-right: 48px;
             cursor: grab;
             user-select: none;
         }
@@ -494,30 +492,49 @@
         .card-stack-item {
             position: relative;
             flex-shrink: 0;
-            transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.38s ease, box-shadow 0.38s ease;
+            transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.38s ease, box-shadow 0.38s ease, background 0.38s ease;
             scroll-snap-align: center;
             opacity: 0.70;
             transform: scale(0.88) translateY(8px);
             width: clamp(160px, 44vw, 230px);
             height: 145px;
-            margin-left: -25px;
+            margin-left: -28px;
+            background: #2c2c2e;
+            border-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .card-stack-item[data-is-me="true"] {
+            background: linear-gradient(135deg, rgba(67, 56, 202, 0.45) 0%, rgba(109, 40, 217, 0.45) 100%);
+            border-color: rgba(99, 102, 241, 0.2);
         }
 
         .card-stack-item:first-child {
             margin-left: 0;
         }
 
+        /* Centered: full bright color via CSS - no JS needed */
         .card-stack-item.centered {
-            transform: scale(1.0) translateY(0px) !important;
+            transform: scale(1.07) translateY(-6px) !important;
             opacity: 1 !important;
             z-index: 10 !important;
             box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.8);
         }
 
+        .card-stack-item[data-is-me="true"].centered {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 55%, #1c1c1e 100%);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-stack-item[data-is-me="false"].centered {
+            background: linear-gradient(135deg, #374151 0%, #4b5563 55%, #1c1c1e 100%);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
         @media (hover: hover) {
             .card-stack-item:not(.centered):hover {
-                opacity: 0.9;
-                transform: scale(0.93) translateY(4px);
+                opacity: 0.88;
+                transform: scale(0.92) translateY(5px);
             }
         }
 
@@ -858,7 +875,7 @@
                     class="text-[10px] text-slate-400 hover:text-white transition-colors">View all</button>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                 <div class="bg-[#1c1c1e] rounded-[20px] p-4 shadow-sm border border-white/5">
                     <h3 class="font-bold text-white text-sm mb-1">แนวโน้มรายเดือน</h3>
                     <p class="text-xs text-slate-400 mb-4">6 เดือนล่าสุด</p>
@@ -866,7 +883,7 @@
                 </div>
                 <div class="bg-[#1c1c1e] rounded-[20px] p-4 shadow-sm border border-white/5">
                     <h3 class="font-bold text-white text-sm mb-3">เดือนนี้ใครจ่ายไปเท่าไหร่?</h3>
-                    <div id="payerChart" class="chart-container"></div>
+                    <div id="payerChart"></div>
                 </div>
             </div>
         </section>
@@ -3151,33 +3168,22 @@
                     const isCurrentUser = name === (this.data.currentUser || "").toUpperCase();
                     const isActive = name === activeCard;
 
-                    div.style.zIndex = isActive ? 50 : 40 - index;
+                    // Card color driven by CSS via data-is-me attribute (changes on scroll, not click)
+                    div.dataset.isMe = isCurrentUser ? 'true' : 'false';
+                    div.className = `card-stack-item ${isActive ? 'centered' : ''} p-4 rounded-[22px] shadow-xl flex flex-col justify-between cursor-pointer border relative overflow-hidden`;
 
+                    // onclick: if already centered visually → show details; otherwise just let scroll handle it
                     div.onclick = () => {
-                        if (!isActive) {
-                            this.data.activeMemberCard = name;
-                            this.calculateSettlement();
-                        } else {
+                        if (div.classList.contains('centered')) {
                             window.app.showMemberDetails(name);
+                        } else {
+                            // Snap scroll to this card
+                            div.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
                         }
                     };
-
                     const formattedAmt = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-                    // All cards use same full layout; active card gets highlighted styling
-                    const bgClass = isActive
-                        ? (isCurrentUser
-                            ? 'bg-gradient-to-br from-indigo-600 via-purple-600 to-[#1c1c1e] border-white/20'
-                            : 'bg-gradient-to-br from-slate-700 via-slate-600 to-[#1c1c1e] border-white/20')
-                        : (isCurrentUser
-                            ? 'bg-gradient-to-br from-indigo-700/70 to-purple-900/70 border-indigo-400/20'
-                            : 'bg-[#2c2c2e] border-white/5');
-
-                    div.className = `card-stack-item ${isActive ? 'centered' : ''} p-4 rounded-[22px] shadow-xl flex flex-col justify-between cursor-pointer ${bgClass} border relative overflow-hidden`;
-
-                    const decorHtml = isActive ? `
-                        <div class="absolute top-0 right-0 w-28 h-28 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
-                    ` : '';
+                    const decorHtml = `<div class="absolute top-0 right-0 w-28 h-28 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>`;
 
                     let badgeHtml = isCurrentUser
                         ? `<span class="text-[8px] font-bold bg-white/15 text-white px-1.5 py-0.5 rounded-full"><i class="fa-solid fa-user mr-0.5"></i>ฉัน</span>`
@@ -3212,9 +3218,22 @@
                 });
                 // No manual spacer needed — container ::before/::after handles first/last card centering
 
-                // Centering logic: works on both mobile and desktop (always active)
+                // Add spacer divs so first/last card can scroll to center
+                const firstCard = cards[0];
+                const cardW = firstCard ? firstCard.offsetWidth : 180;
+                const containerW = grid.clientWidth;
+                const spacerW = Math.max(Math.round((containerW - cardW) / 2) - 28, 8);
+
+                const spacerBefore = document.createElement('div');
+                spacerBefore.style.cssText = `flex-shrink:0;width:${spacerW}px;min-width:${spacerW}px;`;
+                grid.insertBefore(spacerBefore, grid.firstChild);
+
+                const spacerAfter = document.createElement('div');
+                spacerAfter.style.cssText = `flex-shrink:0;width:${spacerW + 28}px;min-width:${spacerW + 28}px;`;
+                grid.appendChild(spacerAfter);
+
+                // Centering logic: works on both mobile and desktop
                 {
-                    const cards = Array.from(grid.querySelectorAll('.card-stack-item'));
                     let animationFrameId = null;
 
                     const updateCenterCard = () => {
@@ -3227,44 +3246,32 @@
                             const rect = c.getBoundingClientRect();
                             const cardCenter = rect.left + rect.width / 2;
                             const diff = Math.abs(gridCenter - cardCenter);
-                            if (diff < minDiff) {
-                                minDiff = diff;
-                                centeredCard = c;
-                            }
+                            if (diff < minDiff) { minDiff = diff; centeredCard = c; }
                         });
 
                         cards.forEach(c => c.classList.remove('centered'));
                         if (centeredCard) centeredCard.classList.add('centered');
                     };
 
-                    const scrollHandler = () => {
+                    grid.addEventListener('scroll', () => {
                         if (animationFrameId) cancelAnimationFrame(animationFrameId);
                         animationFrameId = requestAnimationFrame(updateCenterCard);
-                    };
+                    }, { passive: true });
 
-                    grid.addEventListener('scroll', scrollHandler, { passive: true });
-
-                    // Mouse drag to scroll (desktop)
+                    // Mouse drag scroll (desktop)
                     let isDown = false, startX, scrollLeft;
                     grid.addEventListener('mousedown', e => {
-                        isDown = true;
-                        grid.classList.add('is-dragging');
-                        startX = e.pageX - grid.offsetLeft;
-                        scrollLeft = grid.scrollLeft;
+                        isDown = true; grid.classList.add('is-dragging');
+                        startX = e.pageX - grid.offsetLeft; scrollLeft = grid.scrollLeft;
                     });
-                    window.addEventListener('mouseup', () => {
-                        isDown = false;
-                        grid.classList.remove('is-dragging');
-                    });
+                    window.addEventListener('mouseup', () => { isDown = false; grid.classList.remove('is-dragging'); });
                     grid.addEventListener('mousemove', e => {
-                        if (!isDown) return;
-                        e.preventDefault();
-                        const x = e.pageX - grid.offsetLeft;
-                        const walk = (x - startX) * 1.5;
+                        if (!isDown) return; e.preventDefault();
+                        const walk = (e.pageX - grid.offsetLeft - startX) * 1.5;
                         grid.scrollLeft = scrollLeft - walk;
                     });
 
-                    setTimeout(updateCenterCard, 50);
+                    setTimeout(updateCenterCard, 60);
                 }
 
                 // Calculate debtors and creditors
