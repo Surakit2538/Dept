@@ -2592,7 +2592,7 @@
                             </div>
                         </div>
                         <div class="flex flex-col items-end gap-1">
-                            <span class="font-bold text-white text-sm">-${Number(t.amount).toLocaleString()} ฿</span>
+                            <span class="font-bold text-white text-sm">-${Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿</span>
                             <div class="flex gap-2">
                     `;
 
@@ -3051,29 +3051,32 @@
                     return 0;
                 });
 
-                sortedMembers.forEach(name => {
+                sortedMembers.forEach((name, index) => {
                     const amount = balances[name] || 0;
                     const div = document.createElement('div');
                     const isCurrentUser = name === (this.data.currentUser || "").toUpperCase();
 
+                    div.style.zIndex = 40 - index;
                     div.onclick = () => window.app.showMemberDetails(name);
+
+                    const formattedAmt = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
                     if (isCurrentUser) {
                         // Current User - Large Netflix-style Hero Card
-                        div.className = `min-w-[280px] sm:min-w-[320px] p-5 rounded-[24px] shadow-lg flex flex-col justify-between cursor-pointer transition-all active:scale-95 bg-gradient-to-br from-indigo-600 via-purple-600 to-[#1c1c1e] relative overflow-hidden shrink-0 snap-start border border-white/20`;
+                        div.className = `card-stack-item min-w-[280px] sm:min-w-[320px] h-[150px] p-5 rounded-[24px] shadow-2xl flex flex-col justify-between cursor-pointer transition-all bg-gradient-to-br from-indigo-600 via-purple-600 to-[#1c1c1e] relative overflow-hidden shrink-0 snap-center border border-white/20`;
 
                         const decorHtml = `
                             <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
                             <div class="absolute bottom-0 left-0 w-24 h-24 bg-indigo-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
                         `;
 
-                        let textHtml = amount > 1 ? `ยอดรวมที่คุณต้องได้รับ` : (amount < -1 ? `ยอดที่คุณต้องจ่ายรวม` : `ยอดเคลียร์ของคุณพอดี`);
-                        let amtColor = amount > 1 ? "text-emerald-300" : (amount < -1 ? "text-rose-300" : "text-white/80");
-                        let amtIcon = amount > 1 ? '<i class="fa-solid fa-arrow-up text-sm mr-1"></i>' : (amount < -1 ? '<i class="fa-solid fa-arrow-down text-sm mr-1"></i>' : '');
+                        let textHtml = amount >= 0.01 ? `ยอดรวมที่คุณต้องได้รับ` : (amount <= -0.01 ? `ยอดที่คุณต้องจ่ายรวม` : `ยอดเคลียร์ของคุณพอดี`);
+                        let amtColor = amount >= 0.01 ? "text-emerald-300" : (amount <= -0.01 ? "text-rose-300" : "text-white/80");
+                        let amtIcon = amount >= 0.01 ? '<i class="fa-solid fa-arrow-up text-sm mr-1"></i>' : (amount <= -0.01 ? '<i class="fa-solid fa-arrow-down text-sm mr-1"></i>' : '');
 
                         div.innerHTML = `
                             ${decorHtml}
-                            <div class="flex items-start justify-between relative z-10 mb-4">
+                            <div class="flex items-start justify-between relative z-10 mb-2">
                                 <div class="flex items-center gap-3">
                                     ${getPic(name, "w-10 h-10", "text-lg")}
                                     <div class="flex flex-col">
@@ -3083,30 +3086,30 @@
                                 </div>
                                 <div class="text-[9px] font-bold px-2 py-1 bg-white/10 rounded-full text-white backdrop-blur-sm border border-white/10 shadow-sm flex items-center gap-1"><i class="fa-solid fa-user"></i> ฉัน</div>
                             </div>
-                            <div class="relative z-10 mt-2">
-                                <p class="text-[10px] font-bold ${amtColor} mb-1 opacity-90">${textHtml}</p>
+                            <div class="relative z-10 mt-auto">
+                                <p class="text-[10px] font-bold ${amtColor} mb-0.5 opacity-90">${textHtml}</p>
                                 <span class="text-[28px] font-extrabold text-white drop-shadow-sm flex items-end gap-1 leading-none tracking-tight">
-                                    ${amtIcon}${Math.abs(amount).toLocaleString()} <span class="text-xs font-bold text-white/50 mb-1 ml-1">THB</span>
+                                    ${amtIcon}${formattedAmt} <span class="text-xs font-bold text-white/50 mb-1 ml-1">THB</span>
                                 </span>
                             </div>
                         `;
                     } else {
                         // Other Members - Smaller sleek cards
-                        div.className = `min-w-[130px] p-4 rounded-[20px] shadow-sm flex flex-col items-center justify-between cursor-pointer transition-all active:scale-95 bg-[#2c2c2e] border border-white/5 shrink-0 snap-start relative overflow-hidden`;
+                        div.className = `card-stack-item min-w-[140px] h-[130px] p-4 rounded-[20px] shadow-xl flex flex-col items-center justify-between cursor-pointer transition-all bg-[#2c2c2e] border border-white/5 shrink-0 snap-start relative overflow-hidden self-end`;
 
                         let titleColor = "text-slate-300";
-                        let amtColor = amount > 1 ? "text-emerald-400" : (amount < -1 ? "text-rose-400" : "text-slate-500");
-                        let iconHtml = amount > 1 ? '<i class="fa-solid fa-arrow-up text-[10px] mr-1"></i>' : (amount < -1 ? '<i class="fa-solid fa-arrow-down text-[10px] mr-1"></i>' : '<i class="fa-solid fa-equals text-[10px] mr-1"></i>');
-                        let highlightGlow = amount > 1 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500 to-emerald-500/0 opacity-50"></div>' : (amount < -1 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-rose-500/0 via-rose-500 to-rose-500/0 opacity-50"></div>' : '');
+                        let amtColor = amount >= 0.01 ? "text-emerald-400" : (amount <= -0.01 ? "text-rose-400" : "text-slate-500");
+                        let iconHtml = amount >= 0.01 ? '<i class="fa-solid fa-arrow-up text-[10px] mr-1"></i>' : (amount <= -0.01 ? '<i class="fa-solid fa-arrow-down text-[10px] mr-1"></i>' : '<i class="fa-solid fa-equals text-[10px] mr-1"></i>');
+                        let highlightGlow = amount >= 0.01 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-emerald-500/0 via-emerald-500 to-emerald-500/0 opacity-50"></div>' : (amount <= -0.01 ? '<div class="absolute top-0 w-full h-1 bg-gradient-to-r from-rose-500/0 via-rose-500 to-rose-500/0 opacity-50"></div>' : '');
 
                         div.innerHTML = `
                             ${highlightGlow}
-                            <div class="flex flex-col items-center gap-2 mb-3 mt-1">
+                            <div class="flex flex-col items-center gap-2 mb-2 mt-1">
                                 ${getPic(name, "w-[42px] h-[42px]", "text-base")}
                                 <h4 class="text-[11px] font-bold ${titleColor} truncate w-full text-center tracking-wide">${name}</h4>
                             </div>
-                            <div class="${amtColor} font-bold text-base flex items-center justify-center bg-[#1c1c1e]/80 px-2 py-1.5 rounded-xl shadow-inner border border-white/5 w-full mt-auto">
-                                ${iconHtml}${Math.abs(amount).toLocaleString()}
+                            <div class="${amtColor} font-bold text-sm flex items-center justify-center bg-[#1c1c1e]/80 px-2 py-1.5 rounded-xl shadow-inner border border-white/5 w-full mt-auto">
+                                ${iconHtml}${formattedAmt}
                             </div>
                         `;
                     }
@@ -3225,7 +3228,8 @@
             showMemberDetails(member) {
                 const target = member.toUpperCase();
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth))
-                    .filter(t => (t.payer || "").toUpperCase() === target || Object.keys(t.splits || {}).some(k => k.toUpperCase() === target));
+                    .filter(t => (t.payer || "").toUpperCase() === target || Object.keys(t.splits || {}).some(k => k.toUpperCase() === target))
+                    .sort((a, b) => new Date(b.date) - new Date(a.date) || (b.timestamp || 0) - (a.timestamp || 0));
                 const list = document.getElementById('member-detail-list');
                 list.innerHTML = ""; let totalSpent = 0;
                 filtered.forEach(t => {
@@ -3234,17 +3238,21 @@
                     if (matchKey) myShare = Number(t.splits[matchKey]);
                     totalSpent += myShare;
                     const isPayer = (t.payer || "").toUpperCase() === target;
-                    list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${t.amount} ฿</span></div><div class="text-right"><div class="text-sm font-bold text-white">-${myShare.toLocaleString()} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">ส่วนของคุณ</div></div></div>`;
+
+                    const myShareStr = myShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                    const fullAmtStr = Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                    list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center"><div class="text-sm font-bold text-white">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div>`;
                 });
                 document.getElementById('member-detail-title').textContent = `รายละเอียด ${target} `;
-                document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString()} ฿`;
+                document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿`;
                 document.getElementById('member-detail-modal').classList.remove('hidden');
             },
 
             renderDashboard() {
                 const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
                 const total = filtered.reduce((acc, t) => acc + Number(t.amount), 0);
-                document.getElementById('total-expense').textContent = total.toLocaleString() + ' บาท';
+                document.getElementById('total-expense').textContent = total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' บาท';
                 this.renderMonthlyTrendChart();
                 const payers = {};
                 filtered.forEach(t => { const p = (t.payer || "N/A").toUpperCase(); payers[p] = (payers[p] || 0) + Number(t.amount); });
