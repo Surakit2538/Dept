@@ -475,38 +475,52 @@
             scrollbar-width: none;
         }
 
-        /* Card Stack Overlay Effect */
+        /* Card Stack - Horizontal Scroll, Scale Animation */
         .card-stack-container {
             display: flex;
-            align-items: center;
-            padding-top: 1.5rem;
-            padding-bottom: 2.5rem;
+            align-items: flex-end;
+            padding-top: 1rem;
+            padding-bottom: 1rem;
+            gap: 10px;
+            /* first card accessible: left padding as half-screen */
+            scroll-padding-inline: 16px;
+        }
+
+        /* Spacer pseudo-elements so first/last card can be centered */
+        .card-stack-container::before,
+        .card-stack-container::after {
+            content: '';
+            flex-shrink: 0;
+            width: calc(50vw - 90px);
         }
 
         .card-stack-item {
             position: relative;
-            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+            flex-shrink: 0;
+            transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.38s ease, box-shadow 0.38s ease;
             scroll-snap-align: center;
-            margin-left: -50px;
-            /* Overlap cards */
+            opacity: 0.65;
+            transform: scale(0.88) translateY(6px);
+            width: clamp(150px, 42vw, 220px);
+            /* Responsive width */
+            height: 140px;
         }
 
-        .card-stack-item:first-child {
-            margin-left: 0;
-        }
-
-        /* Elevate current hovered card */
-        .card-stack-item:hover,
+        /* Active card pops up - noticeably bigger */
         .card-stack-item.centered {
-            transform: translateY(-10px) scale(1.05);
-            z-index: 50 !important;
-            box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.6), 0 15px 15px -5px rgba(0, 0, 0, 0.4);
+            transform: scale(1.0) translateY(0px) !important;
+            opacity: 1 !important;
+            z-index: 10 !important;
+            box-shadow: 0 24px 48px -8px rgba(0, 0, 0, 0.8);
         }
 
-        /* Push the rest of the cards to the right to create the gap */
-        .card-stack-item:hover~.card-stack-item,
-        .card-stack-item.centered~.card-stack-item {
-            transform: translateX(60px);
+        /* Desktop: hover also lifts */
+        @media (hover: hover) {
+            .card-stack-item:hover {
+                transform: scale(1.05) translateY(-4px) !important;
+                opacity: 1 !important;
+                z-index: 10 !important;
+            }
         }
 
         header,
@@ -923,7 +937,7 @@
             </div>
 
             <div id="settlement-status-grid"
-                class="overflow-x-auto hide-scrollbar card-stack-container px-6 md:px-4 snap-x snap-mandatory">
+                class="overflow-x-auto hide-scrollbar card-stack-container snap-x snap-mandatory -mx-4">
             </div>
 
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2 mt-6">แผนการโอนเงิน</h3>
@@ -3163,7 +3177,7 @@
                             ? 'bg-gradient-to-br from-indigo-700/70 to-purple-900/70 border-indigo-400/20'
                             : 'bg-[#2c2c2e] border-white/5');
 
-                    div.className = `card-stack-item ${isActive ? 'active-card' : ''} w-[210px] h-[130px] p-4 rounded-[22px] shadow-xl flex flex-col justify-between cursor-pointer ${bgClass} border relative overflow-hidden`;
+                    div.className = `card-stack-item ${isActive ? 'centered' : ''} p-4 rounded-[22px] shadow-xl flex flex-col justify-between cursor-pointer ${bgClass} border relative overflow-hidden`;
 
                     const decorHtml = isActive ? `
                         <div class="absolute top-0 right-0 w-28 h-28 bg-white/10 rounded-full blur-2xl -mr-8 -mt-8 pointer-events-none"></div>
@@ -3200,10 +3214,7 @@
 
                     grid.appendChild(div);
                 });
-
-                const spacer = document.createElement('div');
-                spacer.className = "min-w-[24px] shrink-0";
-                grid.appendChild(spacer);
+                // No manual spacer needed — container ::before/::after handles first/last card centering
 
                 // Precise distance-based centering for mobile scroll
                 if (window.innerWidth < 768) {
@@ -3407,10 +3418,13 @@
                 amounts.forEach((amt, i) => {
                     const pct = Math.max(Math.round((amt / maxAmt) * 100), 8);
                     const isHighlight = i === 5;
+                    const label = amt >= 1000
+                        ? (amt >= 1000000 ? (amt / 1000000).toFixed(1) + 'M' : (amt / 1000).toFixed(1) + 'K')
+                        : (Math.round(amt) || '0');
                     const col = document.createElement('div');
                     col.className = 'flex flex-col items-center justify-end flex-1 h-full gap-1.5';
                     col.innerHTML = `
-                        <span class="text-[10px] font-bold ${isHighlight ? 'text-white' : 'text-slate-400'}">${pct}%</span>
+                        <span class="text-[10px] font-bold ${isHighlight ? 'text-white' : 'text-slate-400'} leading-tight text-center">${label}</span>
                         <div class="w-full rounded-full" style="height: ${pct}%; background: ${isHighlight ? 'linear-gradient(to bottom, #a5b4fc, #4f46e5)' : 'rgba(99,102,241,0.22)'}; min-height: 10%;"></div>
                         <span class="text-[10px] font-semibold ${isHighlight ? 'text-indigo-400' : 'text-slate-500'}">${months[i]}</span>
                     `;
@@ -3419,35 +3433,61 @@
             },
 
             renderPayerChart(data) {
-                const ctx = document.getElementById('payerChart').getContext('2d');
-                if (this.charts.payer) this.charts.payer.destroy();
-                this.charts.payer = new Chart(ctx, {
-                    type: 'doughnut',
-                    data: {
-                        labels: Object.keys(data),
-                        datasets: [{
-                            data: Object.values(data),
-                            backgroundColor: ['#4f46e5', '#ec4899', '#8b5cf6', '#0ea5e9', '#10b981', '#f59e0b'],
-                            borderWidth: 2,
-                            borderColor: '#ffffff',
-                            hoverOffset: 4,
-                            borderRadius: 6
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        cutout: '70%',
-                        plugins: {
-                            legend: { position: 'bottom', labels: { usePointStyle: true, padding: 20, font: { size: 11, family: "'Noto Sans Thai', sans-serif" } } },
-                            datalabels: {
-                                color: '#fff',
-                                font: { weight: 'bold', size: 11 },
-                                formatter: (v) => v > 0 ? v.toLocaleString() : ""
-                            }
-                        }
-                    }
-                });
+                const container = document.getElementById('payerChart').parentElement;
+                // Replace canvas with a custom HTML donut chart
+                container.innerHTML = '';
+
+                const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+                if (entries.length === 0) {
+                    container.innerHTML = '<p class="text-center text-slate-500 text-xs py-8">ไม่มีข้อมูล</p>';
+                    return;
+                }
+
+                const total = entries.reduce((s, [, v]) => s + v, 0);
+                const colors = ['#6366f1', '#a855f7', '#ec4899', '#0ea5e9', '#10b981', '#f59e0b', '#ef4444'];
+
+                // Build SVG donut
+                const radius = 54;
+                const cx = 70, cy = 70;
+                const circumference = 2 * Math.PI * radius;
+                let cumulativePct = 0;
+                const segments = entries.map(([name, val], i) => {
+                    const pct = val / total;
+                    const dash = pct * circumference;
+                    const gap = circumference - dash;
+                    const offset = -cumulativePct * circumference;
+                    cumulativePct += pct;
+                    return `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="${colors[i % colors.length]}" stroke-width="14" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" stroke-linecap="round" transform="rotate(-90 ${cx} ${cy})"/>`;
+                }).join('');
+
+                const totalStr = total >= 1000 ? (total / 1000).toFixed(1) + 'K' : Math.round(total);
+
+                const legendHtml = entries.map(([name, val], i) => `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${colors[i % colors.length]}"></span>
+                            <span class="text-xs font-semibold text-slate-300 truncate max-w-[90px]">${name}</span>
+                        </div>
+                        <span class="text-xs font-bold text-white">${val.toLocaleString()} ฿</span>
+                    </div>
+                `).join('');
+
+                container.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="shrink-0 relative" style="width:140px;height:140px">
+                            <svg width="140" height="140" viewBox="0 0 140 140">
+                                <circle cx="${cx}" cy="${cy}" r="${radius}" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="14"/>
+                                ${segments}
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                <span class="text-[11px] text-slate-400 font-semibold">รวม</span>
+                                <span class="text-base font-extrabold text-white leading-tight">${totalStr}</span>
+                                <span class="text-[10px] text-slate-500">฿</span>
+                            </div>
+                        </div>
+                        <div class="flex-1 flex flex-col gap-2 overflow-hidden">${legendHtml}</div>
+                    </div>
+                `;
             },
 
             openModal(id) {
