@@ -3076,11 +3076,11 @@
                     return `<div class="${size} rounded-full bg-slate-700 text-white flex items-center justify-center font-bold ${text} border border-white/10 shadow-sm shrink-0">${name.substring(0, 1)}</div>`;
                 };
 
-                // Sort members: current user first
+                // Sort members: Active card user first
+                const activeCard = (this.data.activeMemberCard || this.data.currentUser || "").toUpperCase();
                 const sortedMembers = [...this.data.members].sort((a, b) => {
-                    const curr = (this.data.currentUser || "").toUpperCase();
-                    if (a === curr) return -1;
-                    if (b === curr) return 1;
+                    if (a === activeCard) return -1;
+                    if (b === activeCard) return 1;
                     return 0;
                 });
 
@@ -3088,22 +3088,36 @@
                     const amount = balances[name] || 0;
                     const div = document.createElement('div');
                     const isCurrentUser = name === (this.data.currentUser || "").toUpperCase();
+                    const isActive = name === activeCard;
 
                     div.style.zIndex = 40 - index;
-                    div.onclick = () => window.app.showMemberDetails(name);
+
+                    div.onclick = () => {
+                        if (!isActive) {
+                            this.data.activeMemberCard = name;
+                            this.calculateSettlement();
+                        } else {
+                            window.app.showMemberDetails(name);
+                        }
+                    };
 
                     const formattedAmt = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-                    if (isCurrentUser) {
-                        // Current User - Large Netflix-style Hero Card
-                        div.className = `card-stack-item min-w-[280px] sm:min-w-[320px] h-[150px] p-5 rounded-[24px] shadow-2xl flex flex-col justify-between cursor-pointer transition-all bg-gradient-to-br from-indigo-600 via-purple-600 to-[#1c1c1e] relative overflow-hidden shrink-0 snap-center border border-white/20`;
+                    if (isActive) {
+                        // Active User - Large Netflix-style Hero Card
+                        div.className = `card-stack-item min-w-[280px] sm:min-w-[320px] h-[150px] p-5 rounded-[24px] shadow-2xl flex flex-col justify-between cursor-pointer transition-all bg-gradient-to-br ${isCurrentUser ? 'from-indigo-600 via-purple-600' : 'from-slate-700 via-slate-600'} to-[#1c1c1e] relative overflow-hidden shrink-0 snap-center border border-white/20`;
 
                         const decorHtml = `
                             <div class="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none"></div>
-                            <div class="absolute bottom-0 left-0 w-24 h-24 bg-indigo-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
+                            <div class="absolute bottom-0 left-0 w-24 h-24 bg-${isCurrentUser ? 'indigo' : 'slate'}-400/20 rounded-full blur-xl -ml-6 -mb-6 pointer-events-none"></div>
                         `;
 
-                        let textHtml = amount >= 0.01 ? `ยอดรวมที่คุณต้องได้รับ` : (amount <= -0.01 ? `ยอดที่คุณต้องจ่ายรวม` : `ยอดเคลียร์ของคุณพอดี`);
+                        let titleLabel = isCurrentUser ? "ยอดรวมของคุณ" : `ยอดรวมของ ${name}`;
+                        let badgeHtml = isCurrentUser
+                            ? `<div class="text-[9px] font-bold px-2 py-1 bg-white/10 rounded-full text-white backdrop-blur-sm border border-white/10 shadow-sm flex items-center gap-1"><i class="fa-solid fa-user"></i> ฉัน</div>`
+                            : `<div class="text-[9px] font-bold px-2 py-1 bg-white/10 rounded-full text-white backdrop-blur-sm border border-white/10 shadow-sm flex items-center gap-1 animate-pulse"><i class="fa-solid fa-clock-rotate-left"></i> ดูประวัติ</div>`;
+
+                        let textHtml = amount >= 0.01 ? (isCurrentUser ? `ยอดที่คุณต้องได้รับ` : `ยอดที่ ${name} ต้องได้รับ`) : (amount <= -0.01 ? (isCurrentUser ? `ยอดที่คุณต้องจ่าย` : `ยอดที่ ${name} ต้องจ่าย`) : `ยอดเคลียร์พอดี`);
                         let amtColor = amount >= 0.01 ? "text-emerald-300" : (amount <= -0.01 ? "text-rose-300" : "text-white/80");
                         let amtIcon = amount >= 0.01 ? '<i class="fa-solid fa-arrow-up text-sm mr-1"></i>' : (amount <= -0.01 ? '<i class="fa-solid fa-arrow-down text-sm mr-1"></i>' : '');
 
@@ -3113,11 +3127,11 @@
                                 <div class="flex items-center gap-3">
                                     ${getPic(name, "w-10 h-10", "text-lg")}
                                     <div class="flex flex-col">
-                                        <h4 class="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-0.5">ยอดรวมของคุณ</h4>
+                                        <h4 class="text-[10px] font-bold text-white/70 uppercase tracking-widest mb-0.5">${titleLabel}</h4>
                                         <h3 class="text-sm font-extrabold text-white">${name}</h3>
                                     </div>
                                 </div>
-                                <div class="text-[9px] font-bold px-2 py-1 bg-white/10 rounded-full text-white backdrop-blur-sm border border-white/10 shadow-sm flex items-center gap-1"><i class="fa-solid fa-user"></i> ฉัน</div>
+                                ${badgeHtml}
                             </div>
                             <div class="relative z-10 mt-auto">
                                 <p class="text-[10px] font-bold ${amtColor} mb-0.5 opacity-90">${textHtml}</p>
