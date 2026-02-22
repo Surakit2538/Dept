@@ -1094,8 +1094,9 @@
 
                 <div class="p-5 space-y-4 mt-2">
                     <!-- Amount Input -->
+                    <!-- Amount Input -->
                     <div
-                        class="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-[20px] p-4 shadow-sm border border-indigo-500/20 focus-within:border-indigo-400 focus-within:bg-indigo-500/10 transition-all flex flex-col mb-2">
+                        class="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-[20px] p-4 shadow-sm focus-within:bg-indigo-500/15 transition-all flex flex-col mb-2">
                         <label
                             class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mb-2 ml-1">จำนวนเงิน
                             (บาท)</label>
@@ -1111,8 +1112,7 @@
                     </div>
 
                     <!-- Payer Input (Who Paid) -->
-                    <div
-                        class="bg-[#2C2C2E] rounded-[16px] p-2 shadow-sm border border-white/5 flex items-center focus-within:border-white/20 transition-all">
+                    <div class="bg-[#2C2C2E] rounded-[16px] p-2 shadow-sm flex items-center transition-all mt-1">
                         <div
                             class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center mr-3 ml-1 shadow-inner">
                             <i class="fa-solid fa-user text-purple-400"></i>
@@ -1131,8 +1131,7 @@
 
                     <div class="grid grid-cols-2 gap-3">
                         <!-- Date Input -->
-                        <div
-                            class="bg-[#2C2C2E] rounded-[16px] p-3 shadow-sm border border-white/5 focus-within:border-white/20 transition-all relative">
+                        <div class="bg-[#2C2C2E] rounded-[16px] p-3 shadow-sm transition-all relative">
                             <div class="flex items-center mb-2">
                                 <i class="fa-regular fa-calendar text-blue-400 mr-2 text-sm"></i>
                                 <span class="text-[10px] text-white/40 font-bold uppercase">วันที่</span>
@@ -1142,8 +1141,7 @@
                         </div>
 
                         <!-- Type Input -->
-                        <div
-                            class="bg-[#2C2C2E] rounded-[16px] p-3 shadow-sm border border-white/5 focus-within:border-white/20 transition-all relative">
+                        <div class="bg-[#2C2C2E] rounded-[16px] p-3 shadow-sm transition-all relative">
                             <div class="flex items-center mb-2">
                                 <i class="fa-solid fa-money-bill-wave text-emerald-400 mr-2 text-sm"></i>
                                 <span class="text-[10px] text-white/40 font-bold uppercase">รูปแบบจ่าย</span>
@@ -1161,34 +1159,113 @@
                     </div>
 
                     <!-- Desc Input -->
-                    <div
-                        class="bg-[#2C2C2E] rounded-[16px] p-2 shadow-sm border border-white/5 flex items-center focus-within:border-white/20 transition-all">
-                        <div
-                            class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center mr-3 ml-1 shadow-inner">
-                            <i class="fa-solid fa-align-left text-orange-400"></i>
-                        </div>
+                    <div class="bg-[#2C2C2E] rounded-[16px] p-2 shadow-sm flex items-center transition-all">
+                        <button type="button"
+                            onclick="document.getElementById('icon-dropdown-menu').classList.toggle('hidden')"
+                            id="btn-icon-selector"
+                            class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center mr-3 ml-1 shadow-inner transition-colors hover:bg-orange-500/30">
+                            <span id="t-selected-icon-display" class="font-emoji text-xl drop-shadow-sm">🍽️</span>
+                        </button>
                         <div class="flex-1 flex flex-col justify-center">
-                            <span class="text-[9px] text-white/40 font-bold uppercase mt-1">รายละเอียด</span>
-                            <input type="text" id="t-desc" placeholder="เช่น ค่าน้ำ, ค่าไฟ..."
-                                class="flex-1 text-sm font-bold text-white outline-none bg-transparent placeholder-white/20 w-full mt-1 pb-1 !border-none">
+                            <span class="text-[9px] text-white/40 font-bold uppercase mt-1">รายละเอียด
+                                (วิเคราะห์หมวดหมู่อัตโนมัติ)</span>
+                            <div class="flex items-center justify-between pr-3">
+                                <input type="text" id="t-desc" placeholder="เช่น ข้าวมันไก่, ค่าไฟ..."
+                                    oninput="autoAnalyzeIcon(this.value)"
+                                    class="flex-1 text-sm font-bold text-white outline-none bg-transparent placeholder-white/20 w-full mt-1 pb-1 !border-none">
+                            </div>
                         </div>
                     </div>
 
+                    <!-- Hidden Icon Menu for Manual Override -->
+                    <div id="icon-dropdown-menu"
+                        class="hidden bg-[#2C2C2E] rounded-[16px] p-4 shadow-xl mt-1 flex-wrap gap-2 justify-start relative z-10 transition-all">
+                        <span
+                            class="w-full text-[9px] text-white/30 font-bold uppercase mb-1">เลือกหมวดหมู่เพิ่มเติม</span>
+                        <button type="button" onclick="selectIconManual('fa-utensils', '🍽️', 'orange')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">🍽️</button>
+                        <button type="button" onclick="selectIconManual('fa-cart-shopping', '🛒', 'blue')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">🛒</button>
+                        <button type="button" onclick="selectIconManual('fa-car', '🚗', 'red')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">🚗</button>
+                        <button type="button" onclick="selectIconManual('fa-bolt', '⚡', 'yellow')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">⚡</button>
+                        <button type="button" onclick="selectIconManual('fa-gift', '🎁', 'pink')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">🎁</button>
+                        <button type="button" onclick="selectIconManual('fa-house', '🏠', 'green')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">🏠</button>
+                        <button type="button" onclick="selectIconManual('fa-mug-hot', '☕', 'amber')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">☕</button>
+                        <button type="button" onclick="selectIconManual('fa-gamepad', '🎮', 'purple')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">🎮</button>
+                        <button type="button" onclick="selectIconManual('fa-mobile-screen', '📱', 'sky')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">📱</button>
+                        <button type="button" onclick="selectIconManual('fa-bus', '🚌', 'teal')"
+                            class="w-[42px] h-[42px] rounded-xl bg-white/5 flex items-center justify-center hover:bg-white/10 transition-all font-emoji text-xl shadow-sm">🚌</button>
+                    </div>
+                    <input type="hidden" id="t-icon" value="fa-utensils">
+
+                    <script>
+                        // Smart Auto-Detect Icon System
+                        window.iconDict = [
+                            { keywords: ['ข้าว', 'กิน', 'อาหาร', 'ก๋วยเตี๋ยว', 'น้ำ', 'ขนม', 'บุฟเฟ่ต์', 'ชาบู', 'หมูกระทะ', 'food', 'eat', 'dinner', 'kfc', 'mcdonald'], iconId: 'fa-utensils', emoji: '🍽️', color: 'orange' },
+                            { keywords: ['กาแฟ', 'ชา', 'คาเฟ่', 'เครื่องดื่ม', 'starbucks', 'cafe', 'coffee', 'tea'], iconId: 'fa-mug-hot', emoji: '☕', color: 'amber' },
+                            { keywords: ['ซื้อ', 'ของ', 'ช้อป', 'shopee', 'lazada', '7-11', 'เซเว่น', 'เสื้อ', 'กางเกง', 'รองเท้า', 'shopping', 'mall', 'ตลาด'], iconId: 'fa-cart-shopping', emoji: '🛒', color: 'blue' },
+                            { keywords: ['รถ', 'เดินทาง', 'น้ำมัน', 'ทางด่วน', 'mrt', 'bts', 'grab', 'bolt', 'แท็กซี่', 'taxi', 'วิน', 'car', 'gas'], iconId: 'fa-car', emoji: '🚗', color: 'red' },
+                            { keywords: ['บัส', 'รถเมล์', 'ทัวร์', 'bus'], iconId: 'fa-bus', emoji: '🚌', color: 'teal' },
+                            { keywords: ['ไฟ', 'ค่าไฟ', 'เน็ต', 'โทรศัพท์', 'ais', 'true', 'dtac', 'internet', 'electric'], iconId: 'fa-bolt', emoji: '⚡', color: 'yellow' },
+                            { keywords: ['บ้าน', 'ค่าเช่า', 'หอ', 'คอนโด', 'ส่วนกลาง', 'house', 'rent', 'room'], iconId: 'fa-house', emoji: '🏠', color: 'green' },
+                            { keywords: ['ของขวัญ', 'วันเกิด', 'ทำบุญ', 'ซอง', 'gift', 'donate'], iconId: 'fa-gift', emoji: '🎁', color: 'pink' },
+                            { keywords: ['เกม', 'สตรีม', 'เติมเงิน', 'steam', 'game', 'play'], iconId: 'fa-gamepad', emoji: '🎮', color: 'purple' },
+                            { keywords: ['มือถือ', 'ไอโฟน', 'ซ่อม', 'phone', 'mobile', 'ipad'], iconId: 'fa-mobile-screen', emoji: '📱', color: 'sky' }
+                        ];
+
+                        window.isManualIconSelected = false;
+
+                        function autoAnalyzeIcon(text) {
+                            if (!text) {
+                                // optional reset but let's keep it steady
+                                return;
+                            }
+                            if (window.isManualIconSelected) return; // don't override if user manually picked
+
+                            text = text.toLowerCase();
+                            for (const category of window.iconDict) {
+                                if (category.keywords.some(kw => text.includes(kw.toLowerCase()))) {
+                                    applyIconUI(category.iconId, category.emoji, category.color);
+                                    break;
+                                }
+                            }
+                        }
+
+                        function selectIconManual(iconId, emoji, color) {
+                            window.isManualIconSelected = true;
+                            applyIconUI(iconId, emoji, color);
+                            document.getElementById('icon-dropdown-menu').classList.add('hidden');
+                        }
+
+                        function applyIconUI(iconId, emoji, color) {
+                            document.getElementById('t-icon').value = iconId;
+                            document.getElementById('t-selected-icon-display').innerText = emoji;
+
+                            // Update container color safely by removing all known colors
+                            const btn = document.getElementById('btn-icon-selector');
+                            btn.className = `w-10 h-10 rounded-xl flex items-center justify-center mr-3 ml-1 shadow-inner transition-colors bg-${color}-500/20 hover:bg-${color}-500/30`;
+                        }
+                    </script>
+
                     <!-- Installment/Subscription Wrappers -->
-                    <div id="t-installment-wrapper"
-                        class="hidden bg-orange-500/10 p-4 rounded-[16px] border border-orange-500/20">
+                    <div id="t-installment-wrapper" class="hidden bg-orange-500/10 p-4 rounded-[16px]">
                         <label class="text-[10px] font-bold text-orange-400 uppercase mb-2 block ml-1">จำนวนงวด
                             (เดือน)</label>
-                        <div
-                            class="flex items-center bg-black/20 border border-orange-500/20 rounded-xl px-4 py-2 shadow-inner">
+                        <div class="flex items-center bg-black/20 rounded-xl px-4 py-2 shadow-inner">
                             <input type="number" id="t-installments" placeholder="ระบุจำนวนตัวเลข"
                                 class="w-full text-sm font-bold text-white outline-none bg-transparent !border-none">
                             <i class="fa-solid fa-calendar-days text-orange-500/50"></i>
                         </div>
                     </div>
 
-                    <div id="t-subscription-wrapper"
-                        class="hidden bg-purple-500/10 p-4 rounded-[16px] border border-purple-500/20">
+                    <div id="t-subscription-wrapper" class="hidden bg-purple-500/10 p-4 rounded-[16px]">
                         <div class="flex items-center gap-3 mb-1">
                             <input type="checkbox" id="t-subscription-recurring" checked
                                 class="w-5 h-5 text-purple-600 rounded-md border-purple-300 focus:ring-purple-500 outline-none">
@@ -1197,46 +1274,6 @@
                                 สร้างรายการยอดนี้อัตโนมัติทุกเดือน
                             </label>
                         </div>
-                    </div>
-
-                    <!-- icon picker -->
-                    <div class="mt-5">
-                        <label
-                            class="text-[10px] font-bold text-white/40 uppercase mb-2 block ml-1">เลือกไอคอนหมวดหมู่</label>
-                        <div class="flex gap-2.5 overflow-x-auto pb-3 custom-scrollbar justify-start px-1"
-                            id="icon-picker">
-                            <button type="button" onclick="window.app.selectIcon('fa-utensils')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-utensils">🍽️</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-cart-shopping')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-cart-shopping">🛒</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-car')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-car">🚗</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-bolt')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-bolt">⚡</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-gift')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-gift">🎁</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-house')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-house">🏠</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-mug-hot')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-mug-hot">☕</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-gamepad')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-gamepad">🎮</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-mobile-screen')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-mobile-screen">📱</button>
-                            <button type="button" onclick="window.app.selectIcon('fa-bus')"
-                                class="icon-opt w-[48px] h-[48px] flex-shrink-0 border border-white/5 rounded-2xl bg-[#2C2C2E] flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all font-emoji"
-                                data-icon="fa-bus">🚌</button>
-                        </div>
-                        <input type="hidden" id="t-icon" value="fa-utensils">
                     </div>
 
                     <!-- split section -->
