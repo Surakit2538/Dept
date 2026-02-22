@@ -1120,14 +1120,14 @@
                     </style>
 
                     <!-- Amount Input -->
-                    <div
-                        class="bg-gradient-to-r from-indigo-500/10 to-purple-500/10 rounded-[20px] p-4 shadow-sm focus-within:bg-indigo-500/15 transition-all flex flex-col mb-2 border border-white/10">
+                    <div class="flex flex-col mb-4">
                         <label
                             class="text-[10px] text-indigo-300 font-bold uppercase tracking-wider mb-2 ml-1">จำนวนเงิน
                             (บาท)</label>
-                        <div class="flex items-center">
+                        <div
+                            class="flex items-center bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/30 rounded-2xl p-4 hover:border-indigo-500/50 transition-all focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 focus-within:bg-indigo-500/15">
                             <div
-                                class="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center shadow-inner">
+                                class="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center shadow-inner shrink-0">
                                 <i class="fa-solid fa-baht-sign text-indigo-400 text-lg"></i>
                             </div>
                             <input type="number" id="t-amount" placeholder="0.00"
@@ -1137,45 +1137,40 @@
                     </div>
 
                     <!-- Payer Input (Who Paid) -->
-                    <div
-                        class="bg-[#2C2C2E] rounded-[16px] p-2 shadow-sm flex items-center transition-all mt-1 relative border border-white/5">
+                    <div class="flex flex-col mb-4">
+                        <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 ml-1">ใครจ่ายเงิน</label>
                         <div
-                            class="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center mr-3 ml-1 shadow-inner">
-                            <i class="fa-solid fa-user text-purple-400"></i>
-                        </div>
-                        <div class="flex-1 flex flex-col justify-center">
-                            <span class="text-[9px] text-white/40 font-bold uppercase mt-1">ใครจ่ายเงิน</span>
-                            <div class="flex items-center justify-between pr-3 mb-1 w-full">
-                                <select id="t-payer"
-                                    class="flex-1 text-sm font-bold text-white outline-none bg-transparent appearance-none cursor-pointer w-full !border-none mt-1">
-                                    <!-- Populated dynamically -->
-                                </select>
-                                <i
-                                    class="fa-solid fa-chevron-down text-white/30 text-[10px] pointer-events-none absolute right-4 bottom-3"></i>
+                            class="flex items-center bg-[#2C2C2E]/50 border border-white/10 rounded-2xl px-3 py-2.5 hover:border-white/30 transition-all focus-within:border-white/50 relative">
+                            <div
+                                class="w-8 h-8 rounded-full bg-purple-500/20 flex items-center justify-center mr-3 shrink-0">
+                                <i class="fa-solid fa-user text-purple-400 text-xs"></i>
                             </div>
+                            <select id="t-payer"
+                                class="flex-1 text-sm font-bold text-white outline-none bg-transparent appearance-none cursor-pointer w-full !border-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                            <i class="fa-solid fa-chevron-down text-white/30 text-[10px] pointer-events-none pr-1"></i>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 gap-3 mt-3">
+                    <div class="grid grid-cols-2 gap-3 mb-4">
                         <!-- Date Input -->
-                        <div
-                            class="bg-[#2C2C2E] rounded-[16px] px-3 py-2 shadow-sm transition-all relative h-[72px] flex flex-col justify-center border border-white/5">
-                            <div class="flex items-center mb-1.5">
-                                <i class="fa-regular fa-calendar text-blue-400 mr-2 text-sm"></i>
-                                <span class="text-[10px] text-white/40 font-bold uppercase">วันที่</span>
+                        <div class="flex flex-col">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 ml-1">วันที่</label>
+                            <div
+                                class="flex items-center bg-[#2C2C2E]/50 border border-white/10 rounded-2xl px-3 py-2.5 hover:border-white/30 transition-all focus-within:border-white/50">
+                                <i class="fa-regular fa-calendar text-blue-400 text-sm mr-2.5 shrink-0"></i>
+                                <input type="date" id="t-date"
+                                    class="w-full text-xs font-bold text-white outline-none bg-transparent cursor-pointer !border-none custom-date-input">
                             </div>
-                            <input type="date" id="t-date"
-                                class="w-full text-xs font-bold text-white outline-none bg-transparent cursor-pointer !border-none custom-date-input">
                         </div>
 
                         <!-- Type Input -->
-                        <div
-                            class="bg-[#2C2C2E] rounded-[16px] px-3 py-2 shadow-sm transition-all relative h-[72px] flex flex-col justify-center border border-white/5">
-                            <div class="flex items-center mb-1.5">
-                                <i class="fa-solid fa-money-bill-wave text-emerald-400 mr-2 text-sm"></i>
-                                <span class="text-[10px] text-white/40 font-bold uppercase">รูปแบบจ่าย</span>
-                            </div>
-                            <div class="flex items-center justify-between w-full">
+                        <div class="flex flex-col">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 ml-1">รูปแบบจ่าย</label>
+                            <div
+                                class="flex items-center bg-[#2C2C2E]/50 border border-white/10 rounded-2xl px-3 py-2.5 hover:border-white/30 transition-all focus-within:border-white/50">
+                                <i class="fa-solid fa-money-bill-wave text-emerald-400 text-sm mr-2.5 shrink-0"></i>
                                 <select id="t-payment-type" onchange="window.app.toggleInstallment()"
                                     class="flex-1 text-xs font-bold text-white outline-none bg-transparent appearance-none cursor-pointer w-full !border-none">
                                     <option value="normal" class="bg-[#2C2C2E] text-white">จ่ายเต็ม</option>
@@ -1183,28 +1178,31 @@
                                     <option value="subscription" class="bg-[#2C2C2E] text-white">Subscription</option>
                                 </select>
                                 <i
-                                    class="fa-solid fa-chevron-down text-white/30 text-[10px] pointer-events-none absolute right-4 bottom-3"></i>
+                                    class="fa-solid fa-chevron-down text-white/30 text-[10px] pointer-events-none px-1"></i>
                             </div>
                         </div>
                     </div>
 
                     <!-- Desc Input -->
-                    <div
-                        class="bg-[#2C2C2E] rounded-[16px] p-2 shadow-sm flex items-center transition-all mt-3 relative border border-white/5">
-                        <button type="button"
-                            onclick="document.getElementById('icon-dropdown-menu').classList.toggle('hidden')"
-                            id="btn-icon-selector"
-                            class="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center mr-3 ml-1 shadow-inner transition-colors hover:bg-orange-500/30 shrink-0">
-                            <span id="t-selected-icon-display" class="font-emoji text-xl drop-shadow-sm">🍽️</span>
-                        </button>
-                        <div class="flex-1 flex flex-col justify-center">
-                            <span class="text-[9px] text-white/40 font-bold uppercase mt-1">รายละเอียด
-                                (วิเคราะห์หมวดหมู่อัตโนมัติ)</span>
-                            <div class="flex items-center justify-between pr-3">
-                                <input type="text" id="t-desc" placeholder="เช่น ข้าวมันไก่, ค่าไฟ..."
-                                    oninput="autoAnalyzeIcon(this.value)"
-                                    class="flex-1 text-sm font-bold text-white outline-none bg-transparent placeholder-white/20 w-full mt-1 pb-1 !border-none">
-                            </div>
+                    <div class="flex flex-col mb-4 relative">
+                        <label
+                            class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 ml-1 flex justify-between w-full">
+                            <span>รายละเอียด</span>
+                            <span
+                                class="text-white/30 text-[8px] font-normal leading-tight">(ระบบเดาหมวดหมู่อัตโนมัติได้)</span>
+                        </label>
+                        <div
+                            class="flex items-center bg-[#2C2C2E]/50 border border-white/10 rounded-2xl p-1.5 pr-4 hover:border-white/30 transition-all focus-within:border-white/50 focus-within:bg-[#2C2C2E]/80">
+                            <button type="button"
+                                onclick="document.getElementById('icon-dropdown-menu').classList.toggle('hidden')"
+                                id="btn-icon-selector"
+                                class="w-9 h-9 rounded-xl bg-orange-500/20 flex items-center justify-center mr-3 mt-0.5 shadow-inner transition-colors hover:bg-orange-500/30 shrink-0">
+                                <span id="t-selected-icon-display"
+                                    class="font-emoji text-[16px] drop-shadow-sm">🍽️</span>
+                            </button>
+                            <input type="text" id="t-desc" placeholder="เช่น ข้าวมันไก่, ค่าไฟ..."
+                                oninput="autoAnalyzeIcon(this.value)"
+                                class="flex-1 text-sm font-bold text-white outline-none bg-transparent placeholder-white/20 w-full !border-none py-1.5">
                         </div>
 
                         <!-- Hidden Icon Menu for Manual Override (Dropdown) -->
