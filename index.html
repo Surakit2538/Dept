@@ -475,23 +475,20 @@
             scrollbar-width: none;
         }
 
-        /* Card Stack - Horizontal Scroll, Scale Animation */
+        /* Card Stack - Horizontal Scroll with Overlap */
         .card-stack-container {
             display: flex;
             align-items: flex-end;
             padding-top: 1rem;
-            padding-bottom: 1rem;
-            gap: 10px;
-            /* first card accessible: left padding as half-screen */
-            scroll-padding-inline: 16px;
+            padding-bottom: 1.5rem;
+            padding-left: 16px;
+            padding-right: 48px;
+            cursor: grab;
+            user-select: none;
         }
 
-        /* Spacer pseudo-elements so first/last card can be centered */
-        .card-stack-container::before,
-        .card-stack-container::after {
-            content: '';
-            flex-shrink: 0;
-            width: calc(50vw - 90px);
+        .card-stack-container.is-dragging {
+            cursor: grabbing;
         }
 
         .card-stack-item {
@@ -499,27 +496,28 @@
             flex-shrink: 0;
             transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.38s ease, box-shadow 0.38s ease;
             scroll-snap-align: center;
-            opacity: 0.65;
-            transform: scale(0.88) translateY(6px);
-            width: clamp(150px, 42vw, 220px);
-            /* Responsive width */
-            height: 140px;
+            opacity: 0.70;
+            transform: scale(0.88) translateY(8px);
+            width: clamp(160px, 44vw, 230px);
+            height: 145px;
+            margin-left: -25px;
         }
 
-        /* Active card pops up - noticeably bigger */
+        .card-stack-item:first-child {
+            margin-left: 0;
+        }
+
         .card-stack-item.centered {
             transform: scale(1.0) translateY(0px) !important;
             opacity: 1 !important;
             z-index: 10 !important;
-            box-shadow: 0 24px 48px -8px rgba(0, 0, 0, 0.8);
+            box-shadow: 0 20px 40px -8px rgba(0, 0, 0, 0.8);
         }
 
-        /* Desktop: hover also lifts */
         @media (hover: hover) {
-            .card-stack-item:hover {
-                transform: scale(1.05) translateY(-4px) !important;
-                opacity: 1 !important;
-                z-index: 10 !important;
+            .card-stack-item:not(.centered):hover {
+                opacity: 0.9;
+                transform: scale(0.93) translateY(4px);
             }
         }
 
@@ -860,17 +858,15 @@
                     class="text-[10px] text-slate-400 hover:text-white transition-colors">View all</button>
             </div>
 
-            <div class="grid grid-cols-1 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div class="bg-[#1c1c1e] rounded-[20px] p-4 shadow-sm border border-white/5">
                     <h3 class="font-bold text-white text-sm mb-1">แนวโน้มรายเดือน</h3>
                     <p class="text-xs text-slate-400 mb-4">6 เดือนล่าสุด</p>
                     <div id="monthly-trend-bar-chart" class="flex items-end gap-2 h-[120px]"></div>
                 </div>
                 <div class="bg-[#1c1c1e] rounded-[20px] p-4 shadow-sm border border-white/5">
-                    <h3 class="font-bold text-white text-sm mb-4">เดือนนี้ใครจ่ายไปเท่าไหร่?</h3>
-                    <div class="chart-container">
-                        <canvas id="payerChart"></canvas>
-                    </div>
+                    <h3 class="font-bold text-white text-sm mb-3">เดือนนี้ใครจ่ายไปเท่าไหร่?</h3>
+                    <div id="payerChart" class="chart-container"></div>
                 </div>
             </div>
         </section>
@@ -3216,19 +3212,20 @@
                 });
                 // No manual spacer needed — container ::before/::after handles first/last card centering
 
-                // Precise distance-based centering for mobile scroll
-                if (window.innerWidth < 768) {
+                // Centering logic: works on both mobile and desktop (always active)
+                {
                     const cards = Array.from(grid.querySelectorAll('.card-stack-item'));
                     let animationFrameId = null;
 
                     const updateCenterCard = () => {
-                        const gridCenter = window.innerWidth / 2;
+                        const gridRect = grid.getBoundingClientRect();
+                        const gridCenter = gridRect.left + gridRect.width / 2;
                         let minDiff = Infinity;
                         let centeredCard = null;
 
                         cards.forEach(c => {
                             const rect = c.getBoundingClientRect();
-                            const cardCenter = rect.left + (rect.width / 2);
+                            const cardCenter = rect.left + rect.width / 2;
                             const diff = Math.abs(gridCenter - cardCenter);
                             if (diff < minDiff) {
                                 minDiff = diff;
@@ -3237,9 +3234,7 @@
                         });
 
                         cards.forEach(c => c.classList.remove('centered'));
-                        if (centeredCard && minDiff <= gridCenter * 1.5) {
-                            centeredCard.classList.add('centered');
-                        }
+                        if (centeredCard) centeredCard.classList.add('centered');
                     };
 
                     const scrollHandler = () => {
@@ -3248,7 +3243,28 @@
                     };
 
                     grid.addEventListener('scroll', scrollHandler, { passive: true });
-                    setTimeout(updateCenterCard, 50); // Initial check
+
+                    // Mouse drag to scroll (desktop)
+                    let isDown = false, startX, scrollLeft;
+                    grid.addEventListener('mousedown', e => {
+                        isDown = true;
+                        grid.classList.add('is-dragging');
+                        startX = e.pageX - grid.offsetLeft;
+                        scrollLeft = grid.scrollLeft;
+                    });
+                    window.addEventListener('mouseup', () => {
+                        isDown = false;
+                        grid.classList.remove('is-dragging');
+                    });
+                    grid.addEventListener('mousemove', e => {
+                        if (!isDown) return;
+                        e.preventDefault();
+                        const x = e.pageX - grid.offsetLeft;
+                        const walk = (x - startX) * 1.5;
+                        grid.scrollLeft = scrollLeft - walk;
+                    });
+
+                    setTimeout(updateCenterCard, 50);
                 }
 
                 // Calculate debtors and creditors
@@ -3433,8 +3449,9 @@
             },
 
             renderPayerChart(data) {
-                const container = document.getElementById('payerChart').parentElement;
-                // Replace canvas with a custom HTML donut chart
+                const container = document.getElementById('payerChart');
+                if (!container) return;
+                // Replace content with a custom HTML donut chart
                 container.innerHTML = '';
 
                 const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
