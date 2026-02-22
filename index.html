@@ -481,15 +481,13 @@
             align-items: center;
             padding-top: 1.5rem;
             padding-bottom: 2.5rem;
-            padding-right: 100px;
-            /* Allow enough scroll space for pushed cards */
         }
 
         .card-stack-item {
             position: relative;
-            transition: all 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+            transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1), box-shadow 0.35s cubic-bezier(0.25, 1, 0.5, 1);
             scroll-snap-align: center;
-            margin-left: -55px;
+            margin-left: -50px;
             /* Overlap cards */
         }
 
@@ -500,7 +498,7 @@
         /* Elevate current hovered card */
         .card-stack-item:hover,
         .card-stack-item.centered {
-            transform: translateY(-8px) scale(1.05);
+            transform: translateY(-10px) scale(1.05);
             z-index: 50 !important;
             box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.6), 0 15px 15px -5px rgba(0, 0, 0, 0.4);
         }
@@ -508,7 +506,7 @@
         /* Push the rest of the cards to the right to create the gap */
         .card-stack-item:hover~.card-stack-item,
         .card-stack-item.centered~.card-stack-item {
-            transform: translateX(65px);
+            transform: translateX(60px);
         }
 
         header,
@@ -1078,7 +1076,7 @@
 
     <!-- MOBILE NAV -->
     <nav
-        class="md:hidden fixed bottom-4 left-4 right-4 bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-full h-16 flex justify-around items-center px-4 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-40 transform transition-transform relative">
+        class="md:hidden fixed bottom-4 left-0 right-0 mx-auto w-[92%] max-w-[400px] bg-[#1c1c1e]/90 backdrop-blur-xl border border-white/10 rounded-full h-16 flex justify-around items-center px-2 shadow-[0_10px_30px_rgba(0,0,0,0.5)] z-40">
         <div id="nav-indicator"></div>
         <button onclick="window.app.navigate('dashboard')"
             class="bottom-nav-item flex flex-col items-center justify-center gap-1 w-12 h-12 text-center"
@@ -3224,26 +3222,43 @@
                     grid.appendChild(div);
                 });
 
-                // Attach IntersectionObserver for mobile card-scrolling animation
-                if (window.innerWidth < 768) {
-                    const cards = grid.querySelectorAll('.card-stack-item');
-                    const observerOptions = {
-                        root: grid,
-                        rootMargin: '0px',
-                        threshold: 0.6 // Trigger when card is mostly in view
-                    };
+                const spacer = document.createElement('div');
+                spacer.className = "min-w-[40vw] shrink-0";
+                grid.appendChild(spacer);
 
-                    const observer = new IntersectionObserver((entries) => {
-                        entries.forEach(entry => {
-                            if (entry.isIntersecting) {
-                                // removing from all first
-                                cards.forEach(c => c.classList.remove('centered'));
-                                entry.target.classList.add('centered');
+                // Precise distance-based centering for mobile scroll
+                if (window.innerWidth < 768) {
+                    const cards = Array.from(grid.querySelectorAll('.card-stack-item'));
+                    let animationFrameId = null;
+
+                    const updateCenterCard = () => {
+                        const gridCenter = window.innerWidth / 2;
+                        let minDiff = Infinity;
+                        let centeredCard = null;
+
+                        cards.forEach(c => {
+                            const rect = c.getBoundingClientRect();
+                            const cardCenter = rect.left + (rect.width / 2);
+                            const diff = Math.abs(gridCenter - cardCenter);
+                            if (diff < minDiff) {
+                                minDiff = diff;
+                                centeredCard = c;
                             }
                         });
-                    }, observerOptions);
 
-                    cards.forEach(card => observer.observe(card));
+                        cards.forEach(c => c.classList.remove('centered'));
+                        if (centeredCard && minDiff <= gridCenter * 1.5) {
+                            centeredCard.classList.add('centered');
+                        }
+                    };
+
+                    const scrollHandler = () => {
+                        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+                        animationFrameId = requestAnimationFrame(updateCenterCard);
+                    };
+
+                    grid.addEventListener('scroll', scrollHandler, { passive: true });
+                    setTimeout(updateCenterCard, 50); // Initial check
                 }
 
                 // Calculate debtors and creditors
