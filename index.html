@@ -1068,183 +1068,191 @@
     </div>
 
     <!-- MODAL: ADD/EDIT TRANSACTION -->
+    <!-- MODAL: ADD/EDIT TRANSACTION -->
     <div id="transaction-modal"
-        class="hidden fixed inset-0 z-[70] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
+        class="hidden fixed inset-0 z-[70] bg-[#0A0C27]/90 backdrop-blur-md flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
         <div
-            class="bg-[#0a0a0c] w-full max-w-md h-[90vh] md:h-auto md:max-h-[85vh] rounded-t-[32px] md:rounded-[32px] flex flex-col shadow-2xl overflow-hidden transform transition-all border border-white/10">
-            <!-- Modal Handle for mobile -->
-            <div class="w-full h-8 flex items-center justify-center md:hidden shrink-0 mt-2">
-                <div class="w-12 h-1.5 bg-white/20 rounded-full"></div>
-            </div>
+            class="w-full max-w-[420px] h-[95vh] md:h-auto md:max-h-[90vh] rounded-t-[40px] md:rounded-[40px] flex flex-col shadow-2xl overflow-hidden transform transition-all border border-white/10 bg-[#0B0E4E] relative">
 
-            <div class="p-4 flex justify-between items-center shrink-0">
-                <span id="modal-title" class="font-bold text-white text-lg ml-2">บันทึกรายการ</span>
-                <button onclick="window.app.closeModal('transaction-modal')"
-                    class="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <!-- AMOUNT HEADER -->
-            <div
-                class="w-full bg-gradient-to-r from-[#8E54E9] to-[#4B6CB7] p-8 text-center shrink-0 relative overflow-hidden">
-                <div class="absolute inset-0 opacity-20 mix-blend-overlay"
-                    style="background-image: url('data:image/svg+xml,%3Csvg width=\'20\' height=\'20\' viewBox=\'0 0 20 20\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'%23ffffff\' fill-opacity=\'1\' fill-rule=\'evenodd\'%3E%3Ccircle cx=\'3\' cy=\'3\' r=\'3\'/%3E%3Ccircle cx=\'13\' cy=\'13\' r=\'3\'/%3E%3C/g%3E%3C/svg%3E');">
-                </div>
-
-                <h3 class="text-white/80 text-xs font-medium uppercase tracking-wider mb-2 relative z-10">Amount (฿)
-                </h3>
-                <input type="number" id="t-amount" placeholder="0.00"
-                    oninput="window.app.recalculateCustomSplits('total')"
-                    class="w-full bg-transparent text-5xl font-bold text-white text-center outline-none placeholder-white/30 relative z-10">
-
-                <div
-                    class="mt-4 inline-flex items-center gap-2 bg-white/20 backdrop-blur-md px-4 py-2 rounded-full border border-white/20 relative z-10 cursor-pointer">
-                    <i class="fa-solid fa-pen text-white text-xs"></i>
-                    <span class="text-white text-xs font-medium">Change amount</span>
-                </div>
-            </div>
-
-            <div class="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-6 custom-scrollbar pb-32">
-
-                <!-- Date, Type, Payer -->
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="w-full">
-                            <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">วันที่</label>
-                            <div class="relative w-full">
-                                <input type="date" id="t-date" class="modal-input transition-all">
-                            </div>
-                        </div>
-                        <div class="w-full">
-                            <label
-                                class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รูปแบบการจ่าย</label>
-                            <div class="relative w-full">
-                                <select id="t-payment-type" onchange="window.app.toggleInstallment()"
-                                    class="modal-input transition-all">
-                                    <option value="normal">จ่ายเต็ม</option>
-                                    <option value="installment">ผ่อนชำระ</option>
-                                    <option value="subscription">Subscription</option>
-                                </select>
-                                <i
-                                    class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
-                            </div>
-                        </div>
+            <!-- Header Section (Dark Blue) -->
+            <div class="px-6 pt-8 pb-8 flex-shrink-0 relative z-10 w-full mb-2">
+                <div class="flex justify-between items-center mb-6">
+                    <div class="flex items-center gap-2">
+                        <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"
+                            class="w-6 h-6 rounded-md shadow-sm">
+                        <span class="text-white font-bold text-sm tracking-wide">Dept Money</span>
                     </div>
-                    <div class="w-full">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">คนจ่ายเงิน <span
-                                class="text-white/30">(ใครจ่าย)</span></label>
-                        <div class="relative w-full">
-                            <select id="t-payer" class="modal-input transition-all">
-                                <!-- Members will be populated here -->
+                    <div class="flex items-center gap-4">
+                        <span
+                            class="text-white/80 text-xs font-medium bg-white/10 px-2 py-1 rounded-full border border-white/10"><i
+                                class="fa-solid fa-globe mr-1"></i> TH</span>
+                        <button onclick="window.app.closeModal('transaction-modal')"
+                            class="text-white hover:text-white/70 transition-colors bg-white/5 hover:bg-white/10 w-8 h-8 rounded-full flex items-center justify-center border border-white/10">
+                            <i class="fa-solid fa-xmark text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <h2 class="text-[32px] font-extrabold text-white mb-2 tracking-tight leading-tight" id="modal-title">
+                    บันทึกรายการ</h2>
+                <p class="text-white/70 text-sm leading-relaxed max-w-[95%] font-medium">
+                    กรอกรายละเอียดค่าใช้จ่าย เพื่อให้ระบบสรุปยอดให้สมาชิกโดยอัตโนมัติ
+                </p>
+            </div>
+
+            <!-- Main Form Content (Card) -->
+            <div
+                class="bg-[#1C1C1E] flex-1 w-full rounded-t-[32px] overflow-y-auto custom-scrollbar relative shadow-[0_-15px_40px_rgba(0,0,0,0.5)] z-20 pb-[100px]">
+
+                <div class="p-5 space-y-4 mt-2">
+                    <!-- Amount Input -->
+                    <div
+                        class="bg-white/5 rounded-full p-2 pl-5 shadow-inner border border-white/10 focus-within:ring-2 focus-within:ring-indigo-500/50 transition-all flex items-center">
+                        <div class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center">
+                            <i class="fa-solid fa-baht-sign text-indigo-400 text-sm"></i>
+                        </div>
+                        <input type="number" id="t-amount" placeholder="ระบุจำนวนเงิน (0.00)"
+                            oninput="window.app.recalculateCustomSplits('total')"
+                            class="flex-1 text-xl font-bold text-white outline-none bg-transparent placeholder-white/30 ml-3">
+                    </div>
+
+                    <!-- Input group for Type and Payer -->
+                    <div
+                        class="bg-white/5 rounded-[24px] border border-white/10 shadow-inner flex flex-col overflow-hidden">
+                        <div
+                            class="flex items-center pr-4 border-b border-white/5 focus-within:bg-white/5 transition-colors pl-5">
+                            <i class="fa-solid fa-money-bill-wave text-indigo-400 w-6"></i>
+                            <select id="t-payment-type" onchange="window.app.toggleInstallment()"
+                                class="flex-1 py-4 text-sm font-bold text-white outline-none bg-transparent appearance-none ml-2 cursor-pointer w-full !border-none">
+                                <option value="normal" class="text-slate-800">จ่ายเต็ม</option>
+                                <option value="installment" class="text-slate-800">ผ่อนชำระ</option>
+                                <option value="subscription" class="text-slate-800">Subscription</option>
                             </select>
+                            <span
+                                class="text-[10px] text-white/50 font-bold px-2 py-1 bg-black/20 rounded-md pointer-events-none">TYPE</span>
+                        </div>
+
+                        <div class="flex items-center pr-4 focus-within:bg-white/5 transition-colors pl-5">
+                            <i class="fa-solid fa-user text-indigo-400 w-6"></i>
+                            <select id="t-payer"
+                                class="flex-1 py-4 text-sm font-bold text-white outline-none bg-transparent appearance-none ml-2 cursor-pointer w-full !border-none">
+                                <!-- Populated dynamically -->
+                            </select>
+                            <span
+                                class="text-[10px] text-white/50 font-bold px-2 py-1 bg-black/20 rounded-md pointer-events-none">PAYER</span>
+                        </div>
+                    </div>
+
+                    <!-- Date & Desc in one block -->
+                    <div
+                        class="bg-white/5 rounded-[24px] border border-white/10 shadow-inner flex flex-col overflow-hidden">
+                        <!-- Date -->
+                        <div
+                            class="flex items-center pr-4 border-b border-white/5 focus-within:bg-white/5 transition-colors pl-5 relative w-full h-[54px]">
                             <i
-                                class="fa-solid fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none"></i>
+                                class="fa-regular fa-calendar text-indigo-400 w-6 absolute left-5 top-1/2 -translate-y-1/2 z-10 pointer-events-none"></i>
+                            <input type="date" id="t-date"
+                                class="w-full text-sm font-bold text-white outline-none bg-transparent pl-12 h-full cursor-pointer rounded-t-[24px] !border-none">
+                            <span
+                                class="text-[10px] text-white/50 font-bold px-2 py-1 bg-black/20 rounded-md pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 z-10 w-fit">DATE</span>
+                        </div>
+
+                        <!-- Desc -->
+                        <div class="flex items-center pr-4 focus-within:bg-white/5 transition-colors pl-5">
+                            <i class="fa-solid fa-align-left text-indigo-400 w-6"></i>
+                            <input type="text" id="t-desc" placeholder="รายการ (เช่น ค่าน้ำ)"
+                                class="flex-1 py-4 text-sm font-bold text-white outline-none bg-transparent placeholder-white/30 ml-2 !border-none">
                         </div>
                     </div>
-                </div>
 
-                <div id="t-installment-wrapper" class="hidden bg-orange-50 p-4 rounded-xl border border-orange-100">
-                    <label class="text-[10px] font-bold text-orange-600 uppercase mb-1 block">จำนวนงวด</label>
-                    <input type="number" id="t-installments" placeholder="เช่น 3"
-                        class="w-full bg-white border border-orange-200 rounded-lg p-2 text-sm focus:border-orange-400 outline-none">
-                    <p class="text-[10px] text-orange-400 mt-1">* ระบบจะหารยอดเท่ากันในทุกเดือน</p>
-                </div>
-
-                <!-- Subscription Wrapper -->
-                <div id="t-subscription-wrapper" class="hidden bg-purple-50 p-4 rounded-xl border border-purple-100">
-                    <label class="text-[10px] font-bold text-purple-600 uppercase mb-1 block">ระบบ Subscription</label>
-                    <div class="flex items-center gap-2 mb-2">
-                        <input type="checkbox" id="t-subscription-recurring" checked
-                            class="w-4 h-4 text-purple-600 rounded">
-                        <label for="t-subscription-recurring" class="text-xs text-purple-700">
-                            สร้างรายการทุกเดือนอัตโนมัติ
-                        </label>
-                    </div>
-                    <p class="text-[10px] text-purple-400 mt-1">
-                        💡 เปิดใช้งาน: รายการนี้จะปรากฏทุกเดือนโดยอัตโนมัติ<br>
-                        📅 ตัวอย่าง: Netflix, Spotify, ค่าน้ำ-ไฟ
-                    </p>
-                </div>
-
-                <!-- ICON SELECTION -->
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-2 block">เลือกไอคอน</label>
-                    <div class="flex gap-3 overflow-x-auto pb-2 custom-scrollbar" id="icon-picker">
-                        <button type="button" onclick="window.app.selectIcon('fa-utensils')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-utensils">🍽️</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-cart-shopping')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-cart-shopping">🛒</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-car')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-car">🚗</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-bolt')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-bolt">⚡</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-gift')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-gift">🎁</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-house')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-house">🏠</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-mug-hot')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-mug-hot">☕</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-gamepad')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-gamepad">🎮</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-mobile-screen')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-mobile-screen">📱</button>
-                        <button type="button" onclick="window.app.selectIcon('fa-bus')"
-                            class="icon-opt w-10 h-10 flex-shrink-0 border rounded-xl bg-white flex items-center justify-center text-lg shadow-sm"
-                            data-icon="fa-bus">🚌</button>
-                    </div>
-                    <input type="hidden" id="t-icon" value="fa-utensils">
-                </div>
-
-                <div>
-                    <label class="text-[10px] font-bold text-slate-400 uppercase mb-1 block">รายละเอียด</label>
-                    <input type="text" id="t-desc" placeholder="เช่น ค่าน้ำ..."
-                        class="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm outline-none focus:ring-2 focus:ring-blue-100 transition-all">
-                </div>
-
-                <div class="bg-[#1c1c1e] p-4 rounded-[20px] border border-white/5 shadow-sm mt-4">
-                    <div class="flex justify-between items-center mb-3">
-                        <span class="text-xs font-bold text-slate-400">คนหาร (Split)</span>
-                        <div class="flex bg-white/5 rounded-lg p-1 border border-white/5">
-                            <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal"
-                                class="px-3 py-1.5 rounded-md text-[10px] font-bold bg-white text-black transition-all">หารเท่า</button>
-                            <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom"
-                                class="px-3 py-1.5 rounded-md text-[10px] font-bold text-slate-400 transition-all">ระบุเอง</button>
+                    <!-- Installment/Subscription Wrappers -->
+                    <div id="t-installment-wrapper"
+                        class="hidden bg-orange-500/10 p-4 rounded-[20px] border border-orange-500/20">
+                        <label class="text-[10px] font-bold text-orange-400 uppercase mb-2 block ml-1">จำนวนงวด</label>
+                        <div
+                            class="flex items-center bg-black/20 border border-orange-500/20 rounded-full px-4 py-1 shadow-inner">
+                            <input type="number" id="t-installments" placeholder="เช่น 3"
+                                class="w-full text-sm font-bold text-white py-2 outline-none bg-transparent !border-none">
+                            <span class="text-xs font-bold text-orange-400">เดือน</span>
                         </div>
                     </div>
-                    <div id="split-participants"
-                        class="space-y-1 max-h-40 overflow-y-auto pr-2 custom-scrollbar border-t border-white/5 pt-3">
+
+                    <div id="t-subscription-wrapper"
+                        class="hidden bg-purple-500/10 p-4 rounded-[20px] border border-purple-500/20">
+                        <div class="flex items-center gap-3 mb-1">
+                            <input type="checkbox" id="t-subscription-recurring" checked
+                                class="w-5 h-5 text-purple-600 rounded-md border-purple-300 focus:ring-purple-500 outline-none">
+                            <label for="t-subscription-recurring"
+                                class="text-sm font-bold text-purple-200 cursor-pointer">
+                                สร้างรายการยอดนี้อัตโนมัติทุกเดือน
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- icon picker -->
+                    <div class="mt-4">
+                        <label class="text-[10px] font-bold text-white/50 uppercase mb-2 block ml-1">เลือกไอคอน</label>
+                        <div class="flex gap-2 overflow-x-auto pb-2 custom-scrollbar justify-start px-1"
+                            id="icon-picker">
+                            <button type="button" onclick="window.app.selectIcon('fa-utensils')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-utensils">🍽️</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-cart-shopping')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-cart-shopping">🛒</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-car')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-car">🚗</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-bolt')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-bolt">⚡</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-gift')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-gift">🎁</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-house')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-house">🏠</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-mug-hot')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-mug-hot">☕</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-gamepad')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-gamepad">🎮</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-mobile-screen')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-mobile-screen">📱</button>
+                            <button type="button" onclick="window.app.selectIcon('fa-bus')"
+                                class="icon-opt w-[46px] h-[46px] flex-shrink-0 border border-white/10 rounded-[14px] bg-white/5 flex items-center justify-center text-xl shadow-sm hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-colors"
+                                data-icon="fa-bus">🚌</button>
+                        </div>
+                        <input type="hidden" id="t-icon" value="fa-utensils">
+                    </div>
+
+                    <!-- split section -->
+                    <div class="bg-white/5 p-5 rounded-[24px] border border-white/10 shadow-inner mt-4 relative">
+                        <div class="flex justify-between items-center mb-4">
+                            <span class="text-[11px] font-bold text-white/50 uppercase tracking-wide">คนหาร
+                                (Split)</span>
+                            <div class="flex bg-black/20 rounded-[10px] p-1 border border-white/5">
+                                <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal"
+                                    class="px-3 py-1 rounded-md text-[10px] font-bold bg-white/10 text-indigo-300 shadow-sm transition-all border border-white/10">หารเท่า</button>
+                                <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom"
+                                    class="px-3 py-1 rounded-md text-[10px] font-bold text-white/50 hover:text-white/80 transition-all">ระบุเอง</button>
+                            </div>
+                        </div>
+                        <div id="split-participants" class="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- FLOATING ACTION BUTTONS -->
+            <!-- Footer Action Buttons -->
             <div
-                class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-[#0a0a0c] via-[#0a0a0c] to-transparent pt-12">
-                <div class="flex gap-3">
-                    <button onclick="window.app.closeModal('transaction-modal')"
-                        class="w-14 h-14 bg-[#1c1c1e] text-white rounded-2xl flex items-center justify-center hover:bg-[#2c2c2e] transition-colors border border-white/5">
-                        <i class="fa-solid fa-xmark text-lg"></i>
-                    </button>
-                    <!-- Instead of attachment for now, reuse close or secondary action -->
-                    <button
-                        class="w-14 h-14 bg-[#1c1c1e] text-white rounded-2xl flex items-center justify-center hover:bg-[#2c2c2e] transition-colors border border-white/5">
-                        <i class="fa-solid fa-paperclip text-lg"></i>
-                    </button>
-                    <button id="btn-save-transaction" onclick="window.app.saveTransaction()"
-                        class="flex-1 bg-white text-black rounded-2xl font-bold shadow-lg active:scale-[0.98] transition-all text-lg flex items-center justify-center">
-                        <i class="fa-solid fa-check"></i>
-                    </button>
-                </div>
+                class="absolute bottom-0 left-0 w-full px-5 py-6 bg-gradient-to-t from-[#1C1C1E] via-[#1C1C1E] to-transparent pt-16 rounded-b-[40px] z-30 pointer-events-none">
+                <button id="btn-save-transaction" onclick="window.app.saveTransaction()"
+                    class="w-full bg-[#4633E7] text-white py-4 rounded-full font-bold shadow-[0_8px_20px_rgba(70,51,231,0.3)] hover:bg-[#3525b5] hover:shadow-[0_8px_25px_rgba(70,51,231,0.4)] active:scale-[0.98] transition-all text-[16px] flex items-center justify-center gap-2 pointer-events-auto border border-[#5d4bed]">
+                    บันทึกรายการ
+                </button>
             </div>
         </div>
     </div>
