@@ -3174,14 +3174,12 @@
                     div.dataset.isMe = isCurrentUser ? 'true' : 'false';
                     div.className = `card-stack-item ${isActive ? 'centered' : ''} p-4 rounded-[22px] shadow-xl flex flex-col justify-between cursor-pointer border relative overflow-hidden`;
 
-                    // onclick: if centered → show history details; if not → scroll it to center
+                    // onclick: always show member details immediately on click
                     div.dataset.memberName = name;
-                    div.onclick = () => {
-                        if (div.classList.contains('centered')) {
-                            window.app.showMemberDetails(name);
-                        } else {
-                            div.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                        }
+                    div.onclick = (e) => {
+                        // Prevent firing if user was dragging (desktop)
+                        if (grid._wasDragging) { grid._wasDragging = false; return; }
+                        window.app.showMemberDetails(name);
                     };
                     const formattedAmt = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -3270,13 +3268,15 @@
                     // Mouse drag scroll (desktop)
                     let isDown = false, startX, scrollLeft;
                     grid.addEventListener('mousedown', e => {
-                        isDown = true; grid.classList.add('is-dragging');
+                        isDown = true; grid._wasDragging = false;
+                        grid.classList.add('is-dragging');
                         startX = e.pageX - grid.offsetLeft; scrollLeft = grid.scrollLeft;
                     });
                     window.addEventListener('mouseup', () => { isDown = false; grid.classList.remove('is-dragging'); });
                     grid.addEventListener('mousemove', e => {
                         if (!isDown) return; e.preventDefault();
                         const walk = (e.pageX - grid.offsetLeft - startX) * 1.5;
+                        if (Math.abs(walk) > 4) grid._wasDragging = true; // only flag if actual drag
                         grid.scrollLeft = scrollLeft - walk;
                     });
 
