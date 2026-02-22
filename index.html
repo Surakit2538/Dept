@@ -3380,7 +3380,7 @@
                 }
 
                 if (!planContainer.innerHTML) {
-                    planContainer.innerHTML = `< div class="text-center py-4 text-slate-300 text-xs italic" > ไม่มีมียอดค้างชำระ</div > `;
+                    planContainer.innerHTML = `<div class="text-center py-4 text-slate-300 text-xs italic"> ไม่มีมียอดค้างชำระ</div> `;
                 }
             },
 
@@ -3392,13 +3392,13 @@
                 const list = document.getElementById('member-detail-list');
                 if (filtered.length === 0) {
                     list.innerHTML = `
-            < div class="flex flex-col items-center justify-center py-10 gap-3 text-center" >
+            <div class="flex flex-col items-center justify-center py-10 gap-3 text-center">
                             <div class="w-14 h-14 rounded-full bg-white/5 flex items-center justify-center">
                                 <i class="fa-solid fa-receipt text-2xl text-slate-500"></i>
                             </div>
                             <p class="text-sm font-bold text-slate-400">ไม่มีรายการค่าใช้จ่าย</p>
                             <p class="text-xs text-slate-600">ยังไม่มีรายการของเดือนนี้</p>
-                        </div >
+                        </div>
             `;
                 } else {
                     filtered.forEach(t => {
@@ -3409,7 +3409,7 @@
                         const isPayer = (t.payer || "").toUpperCase() === target;
                         const myShareStr = myShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                         const fullAmtStr = Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        list.innerHTML += `< div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center" ><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center"><div class="text-sm font-bold text-white">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div > `;
+                        list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center"><div class="text-sm font-bold text-white">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div> `;
                     });
                 }
                 document.getElementById('member-detail-title').textContent = `รายละเอียด ${target} `;
@@ -3580,7 +3580,7 @@
                     // Check logic: if editing (involvedMembers passed), check if in list. If new, check all.
                     const isChecked = this.data.editingId ? involvedMembers.includes(m) : true; // Default checked for all
                     return `
-            < div class="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0" >
+            <div class="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0">
                 <label class="flex items-center gap-3 cursor-pointer select-none">
                     <input type="checkbox" ${isChecked ? 'checked' : ''} value="${m}"
                         onchange="window.app.recalculateCustomSplits('checkbox')"
@@ -3594,7 +3594,7 @@
                                 placeholder="Auto">
                         ` : ''
                         }
-                    </div >
+                    </div>
             `}).join('');
 
                 // Initial calculation
