@@ -481,33 +481,21 @@
             align-items: center;
             padding-top: 1.5rem;
             padding-bottom: 2.5rem;
-            padding-right: 2rem;
-            /* Give room for last card hover */
+            gap: 1rem;
         }
 
         .card-stack-item {
             position: relative;
-            transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
-            margin-left: -55px;
-            /* Overlap cards */
-        }
-
-        .card-stack-item:first-child {
-            margin-left: 0;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            scroll-snap-align: center;
         }
 
         /* Elevate current hovered card */
         .card-stack-item:hover,
         .card-stack-item.centered {
-            transform: translateY(-16px) rotate(-1deg) scale(1.03);
+            transform: translateY(-8px) scale(1.05);
             z-index: 50 !important;
             box-shadow: 0 25px 35px -5px rgba(0, 0, 0, 0.6), 0 15px 15px -5px rgba(0, 0, 0, 0.4);
-        }
-
-        /* Push the rest of the cards to the right */
-        .card-stack-item:hover~.card-stack-item,
-        .card-stack-item.centered~.card-stack-item {
-            transform: translateX(65px);
         }
 
         header,
@@ -925,7 +913,8 @@
             </div>
 
             <div id="settlement-status-grid"
-                class="overflow-x-auto hide-scrollbar card-stack-container -mx-4 px-6 md:-mx-2 md:px-4"></div>
+                class="overflow-x-auto hide-scrollbar card-stack-container px-6 md:px-4 flex gap-4 snap-x snap-mandatory">
+            </div>
 
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2 mt-6">แผนการโอนเงิน</h3>
             <div id="settlement-plan" class="space-y-2"></div>
@@ -1705,11 +1694,10 @@
                     if (indicator && indicator.dataset.targetId) {
                         const target = document.getElementById(indicator.dataset.targetId);
                         if (target) {
-                            const navRect = target.parentElement.getBoundingClientRect();
-                            const btnRect = target.getBoundingClientRect();
-                            if (navRect.width > 0) {
-                                indicator.style.left = `${btnRect.left - navRect.left}px`;
-                                indicator.style.width = `${btnRect.width}px`;
+                            const parentWidth = target.offsetParent ? target.offsetParent.offsetWidth : 0;
+                            if (parentWidth > 0) {
+                                indicator.style.left = `${target.offsetLeft}px`;
+                                indicator.style.width = `${target.offsetWidth}px`;
                             }
                         }
                     }
@@ -2267,12 +2255,9 @@
                     const indicator = document.getElementById('nav-indicator');
                     if (indicator) {
                         const updateIndicator = () => {
-                            const navRect = mobNav.parentElement.getBoundingClientRect();
-                            const btnRect = mobNav.getBoundingClientRect();
-                            if (navRect.width === 0) return; // Menu is currently hidden
-                            const relativeLeft = btnRect.left - navRect.left;
-                            indicator.style.left = `${relativeLeft}px`;
-                            indicator.style.width = `${btnRect.width}px`;
+                            if (!mobNav.offsetParent) return; // Menu is currently hidden
+                            indicator.style.left = `${mobNav.offsetLeft}px`;
+                            indicator.style.width = `${mobNav.offsetWidth}px`;
                         };
                         updateIndicator();
                         setTimeout(updateIndicator, 150); // Refresh after potential unhide or layout shift
@@ -3352,7 +3337,7 @@
                 }
 
                 if (!planContainer.innerHTML) {
-                    planContainer.innerHTML = `< div class="text-center py-4 text-slate-300 text-xs italic" > ไม่มีมียอดค้างชำระ</div > `;
+                    planContainer.innerHTML = `<div class="text-center py-4 text-slate-300 text-xs italic">ไม่มีมียอดค้างชำระ</div>`;
                 }
             },
 
@@ -3373,7 +3358,7 @@
                     const myShareStr = myShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                     const fullAmtStr = Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-                    list.innerHTML += `< div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center" ><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center"><div class="text-sm font-bold text-white">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div > `;
+                    list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center"><div class="flex flex-col"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center"><div class="text-sm font-bold text-white">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div>`;
                 });
                 document.getElementById('member-detail-title').textContent = `รายละเอียด ${target} `;
                 document.getElementById('member-detail-total').textContent = `${totalSpent.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ฿`;
