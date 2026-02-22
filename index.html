@@ -953,7 +953,7 @@
                 class="overflow-x-auto hide-scrollbar card-stack-container snap-x snap-mandatory -mx-4">
             </div>
 
-            <h3 class="font-bold text-slate-300 text-sm border-b border-white/10 pb-2 mt-6">แผนการโอนเงิน</h3>
+            <h3 class="font-bold text-slate-700 text-sm border-b pb-2 mt-6">แผนการโอนเงิน</h3>
             <div id="settlement-plan" class="space-y-2"></div>
 
             <div id="settlement-admin-actions" class="hidden mt-8 pt-4 border-t border-slate-200">
@@ -3172,14 +3172,13 @@
                     div.dataset.isMe = isCurrentUser ? 'true' : 'false';
                     div.className = `card-stack-item ${isActive ? 'centered' : ''} p-4 rounded-[22px] shadow-xl flex flex-col justify-between cursor-pointer border relative overflow-hidden`;
 
-                    // Click behavior: centered → show details immediately; not centered → scroll to center first
+                    // onclick: if centered → show history details; if not → scroll it to center
+                    div.dataset.memberName = name;
                     div.onclick = () => {
                         if (div.classList.contains('centered')) {
                             window.app.showMemberDetails(name);
                         } else {
                             div.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
-                            // After scroll animation, show details (350ms = scroll snap settle time)
-                            setTimeout(() => window.app.showMemberDetails(name), 380);
                         }
                     };
                     const formattedAmt = Math.abs(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3188,7 +3187,8 @@
 
                     let badgeHtml = isCurrentUser
                         ? `<span class="text-[8px] font-bold bg-white/15 text-white px-1.5 py-0.5 rounded-full"><i class="fa-solid fa-user mr-0.5"></i>ฉัน</span>`
-                        : `<span class="text-[8px] font-bold bg-white/10 text-white/70 px-1.5 py-0.5 rounded-full ${isActive ? 'animate-pulse' : ''}"><i class="fa-solid fa-clock-rotate-left mr-0.5"></i>ดูประวัติ</span>`;
+                        : `<span class="text-[8px] font-bold bg-white/10 text-white/70 px-1.5 py-0.5 rounded-full"><i class="fa-solid fa-clock-rotate-left mr-0.5"></i>ดูประวัติ</span>`;
+
 
                     let textHtml = amount >= 0.01
                         ? `ต้องได้รับ`
@@ -3219,18 +3219,21 @@
                 });
                 // No manual spacer needed — container ::before/::after handles first/last card centering
 
+                // Define cards array from the DOM now that all are appended
+                const cards = Array.from(grid.querySelectorAll('.card-stack-item'));
+
                 // Add spacer divs so first/last card can scroll to center
                 const firstCard = cards[0];
                 const cardW = firstCard ? firstCard.offsetWidth : 180;
                 const containerW = grid.clientWidth;
-                const spacerW = Math.max(Math.round((containerW - cardW) / 2) - 28, 8);
+                const spacerW = Math.max(Math.round((containerW - cardW) / 2) - 20, 8);
 
                 const spacerBefore = document.createElement('div');
                 spacerBefore.style.cssText = `flex-shrink:0;width:${spacerW}px;min-width:${spacerW}px;`;
                 grid.insertBefore(spacerBefore, grid.firstChild);
 
                 const spacerAfter = document.createElement('div');
-                spacerAfter.style.cssText = `flex-shrink:0;width:${spacerW + 28}px;min-width:${spacerW + 28}px;`;
+                spacerAfter.style.cssText = `flex-shrink:0;width:${spacerW + 20}px;min-width:${spacerW + 20}px;`;
                 grid.appendChild(spacerAfter);
 
                 // Centering logic: works on both mobile and desktop
