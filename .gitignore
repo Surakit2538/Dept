@@ -67,3 +67,19 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+
+# ==== Custom User Ignores ====
+# Local deployment & utility scripts
+*.bat
+*.ps1
+run_server.ps1
+Dept.code-workspace
+
+# API Documentation and Backup scripts
+SlipOK API Guide.txt
+api/ADD-TO-WEBHOOK.txt
+api/COMPLETE-INSTRUCTIONS.md
+api/UPDATED-handleImageMessage.js
+
+.vercel
+.env*.local

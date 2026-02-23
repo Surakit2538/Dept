@@ -1,0 +1,15 @@
+# Vercel Ignore File
+# Ignore Local Scripts
+*.bat
+*.ps1
+*.code-workspace
+
+# Ignore Docs & Backups
+*.txt
+*.md
+api/UPDATED-handleImageMessage.js
+
+# Ignore Firebase Cloud Functions folder (Vercel only needs /api)
+functions/
+.firebaserc
+firebase.json
