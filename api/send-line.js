@@ -69,13 +69,12 @@ export default async function handler(req, res) {
                 header: {
                     type: "box",
                     layout: "vertical",
-                    backgroundColor: "#f0fdf4",
-                    paddingAll: "xl",
+                    backgroundColor: "#334155",
                     contents: [
                         {
                             type: "text",
                             text: "ADMIN REPORT",
-                            color: "#166534",
+                            color: "#94a3b8",
                             size: "xxs",
                             weight: "bold"
                         },
@@ -83,16 +82,15 @@ export default async function handler(req, res) {
                             type: "text",
                             text: "สรุปยอดเคลียร์เงิน 💸",
                             weight: "bold",
-                            size: "xl",
-                            color: "#15803d",
+                            size: "lg",
+                            color: "#ffffff",
                             margin: "xs"
                         },
                         {
                             type: "text",
                             text: `ประจำเดือน: ${month}`,
                             size: "xs",
-                            color: "#86efac",
-                            margin: "xs"
+                            color: "#cbd5e1"
                         }
                     ]
                 },

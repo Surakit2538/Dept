@@ -435,48 +435,7 @@ async function pushFlex(userId, altText, contents) {
 }
 
 function createInteractiveCard(title, description, hintText = null) {
-    const contents = [
-        // Header with icon + title
-        {
-            type: "box",
-            layout: "horizontal",
-            spacing: "md",
-            contents: [
-                {
-                    type: "box",
-                    layout: "vertical",
-                    contents: [
-                        {
-                            type: "text",
-                            text: "💰",
-                            size: "xxl"
-                        }
-                    ],
-                    flex: 0
-                },
-                {
-                    type: "box",
-                    layout: "vertical",
-                    contents: [
-                        {
-                            type: "text",
-                            text: title,
-                            weight: "bold",
-                            size: "xl",
-                            color: "#1e293b"
-                        },
-                        {
-                            type: "text",
-                            text: description,
-                            size: "sm",
-                            color: "#64748b",
-                            wrap: true
-                        }
-                    ]
-                }
-            ]
-        }
-    ];
+    const contents = [];
 
     if (hintText) {
         contents.push({
@@ -496,11 +455,23 @@ function createInteractiveCard(title, description, hintText = null) {
             cornerRadius: "md",
             margin: "md"
         });
+    } else {
+        contents.push({
+            type: "text", text: "โปรดเลือกหรือพิมพ์ข้อความด้านล่าง", size: "xs", color: "#94a3b8", align: "center"
+        });
     }
 
     return {
         type: "bubble",
         size: "kilo",
+        header: {
+            type: "box", layout: "vertical", backgroundColor: "#334155",
+            contents: [
+                { type: "text", text: "DEPT ALERT", color: "#94a3b8", size: "xxs", weight: "bold" },
+                { type: "text", text: title, color: "#ffffff", size: "lg", weight: "bold", margin: "xs" },
+                { type: "text", text: description, color: "#cbd5e1", size: "xs", wrap: true }
+            ]
+        },
         body: {
             type: "box",
             layout: "vertical",
@@ -523,20 +494,20 @@ async function askParticipants(replyToken, userId, selectedList) {
 
     const flex = {
         "type": "bubble", "size": "mega",
+        "header": {
+            "type": "box", "layout": "vertical", "backgroundColor": "#334155",
+            "contents": [
+                { "type": "text", "text": "DEPT ALERT", "color": "#94a3b8", "size": "xxs", "weight": "bold" },
+                { "type": "text", "text": "หารกับใครบ้าง?", "color": "#ffffff", "size": "lg", "weight": "bold", "margin": "xs" },
+                { "type": "text", "text": selectedList.length > 0 ? `เลือกแล้ว: ${selectedList.join(', ')}` : "ยังไม่ได้เลือกใคร", "color": "#cbd5e1", "size": "xs", "wrap": true }
+            ]
+        },
         "body": {
             "type": "box", "layout": "vertical", "backgroundColor": "#ffffff",
             "contents": [
-                {
-                    "type": "box", "layout": "horizontal", "alignItems": "center",
-                    "contents": [
-                        { "type": "text", "text": "👥", "size": "xxl", "flex": 0 },
-                        { "type": "text", "text": "หารกับใครบ้าง?", "weight": "bold", "size": "md", "color": "#1e293b", "margin": "md" }
-                    ]
-                },
-                { "type": "text", "text": selectedList.length > 0 ? `เลือกแล้ว: ${selectedList.join(', ')}` : "ยังไม่ได้เลือกใคร", "size": "xs", "color": "#64748b", "margin": "md", "wrap": true },
-                { "type": "text", "text": "แตะที่ชื่อเพื่อเลือก/ออก แล้วกดปุ่มยืนยัน", "size": "xxs", "color": "#94a3b8", "margin": "xs" }
+                { "type": "text", "text": "แตะที่ชื่อเพื่อเลือก/ออก แล้วกดปุ่มยืนยัน", "size": "xs", "color": "#94a3b8", "align": "center" }
             ],
-            "paddingAll": "lg", "borderColor": "#e2e8f0", "borderWidth": "normal", "cornerRadius": "md"
+            "paddingAll": "lg"
         }
     };
     return replyQuickReply(replyToken, flex, actions);
@@ -626,27 +597,41 @@ async function saveTransaction(replyToken, userId, finalData) {
             "type": "bubble",
             "header": {
                 "type": "box", "layout": "vertical",
-                "backgroundColor": finalData.paymentType === 'installment' ? "#f97316" : finalData.paymentType === 'subscription' ? "#9333ea" : "#22c55e",
+                "backgroundColor": "#334155",
                 "contents": [
-                    { "type": "text", "text": "บันทึกสำเร็จ ✅", "color": "#ffffff", "weight": "bold", "size": "sm" }
+                    { "type": "text", "text": "SUCCESS REPORT", "color": "#22c55e", "size": "xxs", "weight": "bold" },
+                    { "type": "text", "text": "บันทึกสำเร็จ ✅", "color": "#ffffff", "size": "lg", "weight": "bold", "margin": "xs" },
+                    { "type": "text", "text": finalData.desc, "color": "#cbd5e1", "size": "xs", "wrap": true }
                 ]
             },
             "body": {
                 "type": "box", "layout": "vertical", "spacing": "md",
                 "contents": [
-                    { "type": "text", "text": finalData.desc, "weight": "bold", "size": "lg" },
                     {
-                        "type": "text",
-                        "text": `${finalData.amount.toLocaleString()} บาท`,
-                        "size": "xxl",
-                        "color": finalData.paymentType === 'installment' ? "#f97316" : finalData.paymentType === 'subscription' ? "#9333ea" : "#22c55e",
-                        "weight": "bold"
+                        "type": "box", "layout": "horizontal",
+                        "contents": [
+                            { "type": "text", "text": "ยอดเงิน", "size": "xs", "color": "#64748b" },
+                            { "type": "text", "text": `${finalData.amount.toLocaleString()} ฿`, "size": "sm", "color": finalData.paymentType === 'installment' ? "#f97316" : finalData.paymentType === 'subscription' ? "#9333ea" : "#22c55e", "align": "end", "weight": "bold" }
+                        ]
                     },
-                    { "type": "separator" },
-                    { "type": "text", "text": `คนจ่าย: ${finalData.payer}`, "size": "xs", "color": "#666666" },
-                    { "type": "text", "text": `คนหาร: ${finalData.participants.join(', ')}`, "size": "xs", "color": "#666666", "wrap": true },
+                    { "type": "separator", "margin": "md" },
+                    {
+                        "type": "box", "layout": "horizontal", "margin": "md",
+                        "contents": [
+                            { "type": "text", "text": "คนจ่าย", "size": "xs", "color": "#64748b" },
+                            { "type": "text", "text": finalData.payer, "size": "sm", "color": "#1e293b", "align": "end", "weight": "bold" }
+                        ]
+                    },
+                    {
+                        "type": "box", "layout": "horizontal", "margin": "md",
+                        "contents": [
+                            { "type": "text", "text": "คนหาร", "size": "xs", "color": "#64748b", "flex": 1 },
+                            { "type": "text", "text": finalData.participants.join(', '), "size": "sm", "color": "#1e293b", "align": "end", "weight": "bold", "wrap": true, "flex": 3 }
+                        ]
+                    },
                     ...(finalData.paymentType === 'subscription' ? [
-                        { "type": "text", "text": "💳 Subscription (สร้างทุกเดือนอัตโนมัติ)", "size": "xs", "color": "#9333ea", "margin": "md" }
+                        { "type": "separator", "margin": "md" },
+                        { "type": "text", "text": "💳 Subscription (สร้างทุกเดือนอัตโนมัติ)", "size": "xs", "color": "#9333ea", "margin": "md", "align": "center" }
                     ] : [])
                 ]
             }

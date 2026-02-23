@@ -289,96 +289,52 @@ export async function sendSlipVerifiedNotification(lineUserId, fromName, toName,
             header: {
                 type: 'box',
                 layout: 'vertical',
+                backgroundColor: '#334155',
                 contents: [
                     {
                         type: 'text',
-                        text: '💰 มีคนโอนเงินให้คุณแล้ว',
+                        text: 'TRANSFER ALERT',
+                        color: '#94a3b8',
+                        size: 'xxs',
+                        weight: 'bold'
+                    },
+                    {
+                        type: 'text',
+                        text: '💰 มีคนโอนเงินให้คุณ',
                         weight: 'bold',
                         color: '#ffffff',
-                        size: 'sm'
+                        size: 'lg',
+                        margin: 'xs'
+                    },
+                    {
+                        type: 'text',
+                        text: `${fromName} โอนเงินให้คุณแล้ว`,
+                        color: '#cbd5e1',
+                        size: 'xs',
+                        wrap: true
                     }
-                ],
-                backgroundColor: '#10b981',
-                paddingAll: '15px'
+                ]
             },
             body: {
                 type: 'box',
                 layout: 'vertical',
                 contents: [
                     {
-                        type: 'text',
-                        text: `${fromName} โอนเงินให้คุณแล้ว`,
-                        weight: 'bold',
-                        size: 'lg',
-                        margin: 'none'
-                    },
-                    {
-                        type: 'box',
-                        layout: 'vertical',
-                        margin: 'lg',
-                        spacing: 'sm',
+                        type: 'box', layout: 'horizontal',
                         contents: [
-                            {
-                                type: 'box',
-                                layout: 'baseline',
-                                spacing: 'sm',
-                                contents: [
-                                    {
-                                        type: 'text',
-                                        text: 'จำนวนเงิน',
-                                        color: '#aaaaaa',
-                                        size: 'sm',
-                                        flex: 2
-                                    },
-                                    {
-                                        type: 'text',
-                                        text: `${amount.toLocaleString()} บาท`,
-                                        wrap: true,
-                                        color: '#10b981',
-                                        size: 'md',
-                                        weight: 'bold',
-                                        flex: 3
-                                    }
-                                ]
-                            },
-                            {
-                                type: 'box',
-                                layout: 'baseline',
-                                spacing: 'sm',
-                                contents: [
-                                    {
-                                        type: 'text',
-                                        text: 'วันที่โอน',
-                                        color: '#aaaaaa',
-                                        size: 'sm',
-                                        flex: 2
-                                    },
-                                    {
-                                        type: 'text',
-                                        text: formatSlipDate(slip.transDate),
-                                        wrap: true,
-                                        color: '#666666',
-                                        size: 'sm',
-                                        flex: 3
-                                    }
-                                ]
-                            }
+                            { type: 'text', text: 'จำนวนเงิน', size: 'xs', color: '#64748b' },
+                            { type: 'text', text: `${amount.toLocaleString()} ฿`, size: 'sm', color: '#10b981', align: 'end', weight: 'bold' }
                         ]
                     },
                     {
-                        type: 'box',
-                        layout: 'vertical',
-                        margin: 'lg',
+                        type: 'box', layout: 'horizontal', margin: 'sm',
                         contents: [
-                            {
-                                type: 'text',
-                                text: '✅ Settlement ของเดือนนี้อัปเดตแล้ว',
-                                size: 'xs',
-                                color: '#999999',
-                                wrap: true
-                            }
+                            { type: 'text', text: 'วันที่โอน', size: 'xs', color: '#64748b' },
+                            { type: 'text', text: formatSlipDate(slip.transDate), size: 'sm', color: '#1e293b', align: 'end', weight: 'bold' }
                         ]
-                    }
+                    },
+                    { type: 'separator', margin: 'md' },
+                    { type: 'text', text: '✅ Settlement ของเดือนนี้อัปเดตแล้ว', size: 'xs', color: '#64748b', align: 'center', margin: 'md', wrap: true }
                 ]
             }
         }

@@ -166,146 +166,69 @@ export function createSlipSuccessMessage(slip, settlement) {
         header: {
             type: 'box',
             layout: 'vertical',
+            backgroundColor: '#334155',
             contents: [
                 {
                     type: 'text',
-                    text: '✅ ยืนยันการโอนเงินสำเร็จ',
+                    text: 'TRANSFER SUCCESS',
+                    color: '#94a3b8',
+                    size: 'xxs',
+                    weight: 'bold'
+                },
+                {
+                    type: 'text',
+                    text: '✅ ยืนยันการโอนสำเร็จ',
                     weight: 'bold',
                     color: '#ffffff',
-                    size: 'sm'
+                    size: 'lg',
+                    margin: 'xs'
+                },
+                {
+                    type: 'text',
+                    text: 'ข้อมูลการโอนเงินชำระหนี้',
+                    color: '#cbd5e1',
+                    size: 'xs'
                 }
-            ],
-            backgroundColor: '#10b981',
-            paddingAll: '15px'
+            ]
         },
         body: {
             type: 'box',
             layout: 'vertical',
             contents: [
                 {
-                    type: 'text',
-                    text: 'ข้อมูลการโอนเงิน',
-                    weight: 'bold',
-                    size: 'lg',
-                    margin: 'none'
+                    type: "box", layout: "horizontal",
+                    contents: [
+                        { type: "text", text: "จำนวนเงิน", size: "xs", color: "#64748b" },
+                        { type: "text", text: `${(typeof slip.amount === 'number' ? slip.amount : (slip.amount?.amount || 0)).toLocaleString()} ฿`, size: "sm", color: "#10b981", align: "end", weight: "bold" }
+                    ]
+                },
+                { type: "separator", margin: "md" },
+                {
+                    type: "box", layout: "horizontal", margin: "md",
+                    contents: [
+                        { type: "text", text: "ผู้โอน", size: "xs", color: "#64748b", flex: 1 },
+                        { type: "text", text: slip.sender.displayName, size: "sm", color: "#1e293b", align: "end", weight: "bold", wrap: true, flex: 3 }
+                    ]
                 },
                 {
-                    type: 'box',
-                    layout: 'vertical',
-                    margin: 'lg',
-                    spacing: 'sm',
+                    type: "box", layout: "horizontal", margin: "sm",
                     contents: [
-                        {
-                            type: 'box',
-                            layout: 'baseline',
-                            spacing: 'sm',
-                            contents: [
-                                {
-                                    type: 'text',
-                                    text: 'จำนวนเงิน',
-                                    color: '#aaaaaa',
-                                    size: 'sm',
-                                    flex: 2
-                                },
-                                {
-                                    type: 'text',
-                                    text: `${(typeof slip.amount === 'number' ? slip.amount : (slip.amount?.amount || 0)).toLocaleString()} บาท`,
-                                    wrap: true,
-                                    color: '#10b981',
-                                    size: 'md',
-                                    weight: 'bold',
-                                    flex: 3
-                                }
-                            ]
-                        },
-                        {
-                            type: 'box',
-                            layout: 'baseline',
-                            spacing: 'sm',
-                            contents: [
-                                {
-                                    type: 'text',
-                                    text: 'ผู้โอน',
-                                    color: '#aaaaaa',
-                                    size: 'sm',
-                                    flex: 2
-                                },
-                                {
-                                    type: 'text',
-                                    text: slip.sender.displayName,
-                                    wrap: true,
-                                    color: '#666666',
-                                    size: 'sm',
-                                    flex: 3
-                                }
-                            ]
-                        },
-                        {
-                            type: 'box',
-                            layout: 'baseline',
-                            spacing: 'sm',
-                            contents: [
-                                {
-                                    type: 'text',
-                                    text: 'ผู้รับ',
-                                    color: '#aaaaaa',
-                                    size: 'sm',
-                                    flex: 2
-                                },
-                                {
-                                    type: 'text',
-                                    text: slip.receiver.displayName,
-                                    wrap: true,
-                                    color: '#666666',
-                                    size: 'sm',
-                                    flex: 3
-                                }
-                            ]
-                        },
-                        {
-                            type: 'box',
-                            layout: 'baseline',
-                            spacing: 'sm',
-                            contents: [
-                                {
-                                    type: 'text',
-                                    text: 'วันที่',
-                                    color: '#aaaaaa',
-                                    size: 'sm',
-                                    flex: 2
-                                },
-                                {
-                                    type: 'text',
-                                    text: formatSlipDate(slip.transDate),
-                                    wrap: true,
-                                    color: '#666666',
-                                    size: 'sm',
-                                    flex: 3
-                                }
-                            ]
-                        },
-                        {
-                            type: 'box',
-                            layout: 'baseline',
-                            spacing: 'sm',
-                            contents: [
-                                {
-                                    type: 'text',
-                                    text: 'เวลา',
-                                    color: '#aaaaaa',
-                                    size: 'sm',
-                                    flex: 2
-                                },
-                                {
-                                    type: 'text',
-                                    text: slip.transTime,
-                                    wrap: true,
-                                    color: '#666666',
-                                    size: 'sm',
-                                    flex: 3
-                                }
-                            ]
-                        }
+                        { type: "text", text: "ผู้รับ", size: "xs", color: "#64748b", flex: 1 },
+                        { type: "text", text: slip.receiver.displayName, size: "sm", color: "#1e293b", align: "end", weight: "bold", wrap: true, flex: 3 }
+                    ]
+                },
+                {
+                    type: "box", layout: "horizontal", margin: "sm",
+                    contents: [
+                        { type: "text", text: "วันที่", size: "xs", color: "#64748b" },
+                        { type: "text", text: formatSlipDate(slip.transDate), size: "sm", color: "#1e293b", align: "end", weight: "bold" }
+                    ]
+                },
+                {
+                    type: "box", layout: "horizontal", margin: "sm",
+                    contents: [
+                        { type: "text", text: "เวลา", size: "xs", color: "#64748b" },
+                        { type: "text", text: slip.transTime, size: "sm", color: "#1e293b", align: "end", weight: "bold" }
                     ]
                 }
             ]
