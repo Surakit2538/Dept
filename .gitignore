@@ -80,9 +80,5 @@ SlipOK API Guide.txt
 api/ADD-TO-WEBHOOK.txt
 api/COMPLETE-INSTRUCTIONS.md
 api/UPDATED-handleImageMessage.js
-<<<<<<< HEAD
-
 .vercel
 .env*.local
-=======
->>>>>>> f7e98dd32d1b25e1e9fbfef57bff74cf1389996c
