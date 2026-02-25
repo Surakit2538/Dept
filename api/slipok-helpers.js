@@ -144,7 +144,7 @@ export function matchReceiverName(slipReceiver, realName) {
 }
 
 // Get slip error message
-export function getSlipErrorMessage(code) {
+export function getSlipErrorMessage(code, messageFromApi = null) {
     const errorMessages = {
         1001: 'ไม่พบข้อมูลในสลิป',
         1007: 'ไม่พบ QR Code ในรูป',
@@ -155,7 +155,15 @@ export function getSlipErrorMessage(code) {
         2002: 'หมดโควต้าการใช้งาน'
     };
 
-    return errorMessages[code] || 'เกิดข้อผิดพลาดในการตรวจสอบสลิป';
+    if (code && errorMessages[code]) {
+        return errorMessages[code];
+    }
+
+    if (messageFromApi) {
+        return `${messageFromApi} (Code: ${code || 'Error'})`;
+    }
+
+    return `เกิดข้อผิดพลาดในการตรวจสอบสลิป (Code: ${code || 'Unknown'})`;
 }
 
 // Create slip success Flex Message

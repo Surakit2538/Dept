@@ -240,7 +240,7 @@ async function handleImageMessage(event) {
         console.log('Full Response:', JSON.stringify(slipData, null, 2));
 
         if (!slipData.success) {
-            const errorMsg = getSlipErrorMessage(slipData.code);
+            const errorMsg = getSlipErrorMessage(slipData.code, slipData.message);
             return pushMessage(userId, `❌ ${errorMsg}`);
         }
 
