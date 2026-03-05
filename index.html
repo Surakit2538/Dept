@@ -2781,17 +2781,24 @@
                     if (creditor.amount < 0.01) j++;
                 }
 
-                // --- หักลบยอดที่ยืนยันแล้วด้วย Admin หรือจากการอัพสลิป ---
+                // --- แยกรายการที่ยืนยันแล้ว และ ยังไม่ยืนยัน ---
                 const verifiedSettlements = this.data.settlements.filter(s => s.status === 'verified' && s.month === this.data.currentMonth);
-                const finalPlan = plan.map(p => {
-                    // หากมียอดที่จ่ายไปแล้วและได้รับการ verify แล้ว ให้เอามาหักออก
+                const finalPlan = [];
+
+                plan.forEach(p => {
                     const paid = verifiedSettlements
                         .filter(s => s.from === p.from && s.to === p.to)
                         .reduce((sum, s) => Number(sum) + Number(s.amount), 0);
 
-                    p.amount -= paid;
-                    return p;
-                }).filter(p => p.amount > 0.1);
+                    if (paid > 0) {
+                        finalPlan.push({ from: p.from, to: p.to, amount: paid, isPaid: true });
+                    }
+
+                    const remaining = p.amount - paid;
+                    if (remaining > 0.1) {
+                        finalPlan.push({ from: p.from, to: p.to, amount: remaining, isPaid: false });
+                    }
+                });
 
                 this.renderSettlementPlan(finalPlan);
             },
@@ -2817,7 +2824,8 @@
                     const isReceiving = p.to === currentUser;
 
                     let highlightClass = "";
-                    if (isMe) highlightClass = "bg-red-50 border-red-100 ring-1 ring-red-200";
+                    if (p.isPaid) highlightClass = "bg-emerald-50/50 border-emerald-100 opacity-60";
+                    else if (isMe) highlightClass = "bg-red-50 border-red-100 ring-1 ring-red-200";
                     else if (isReceiving) highlightClass = "bg-emerald-50 border-emerald-100 ring-1 ring-emerald-200";
                     else highlightClass = "bg-white border-slate-100";
 
@@ -2825,33 +2833,37 @@
                     <div class="flex items-center justify-between p-4 rounded-xl border shadow-sm ${highlightClass} transition-all hover:shadow-md">
                         <div class="flex items-center gap-4">
                             <div class="flex flex-col items-center justify-center min-w-[3rem]">
-                                <span class="font-bold text-sm ${isMe ? 'text-red-600' : 'text-slate-700'}">${p.from}</span>
+                                <span class="font-bold text-sm ${isMe && !p.isPaid ? 'text-red-600' : 'text-slate-700'}">${p.from}</span>
                                 <i class="fa-solid fa-arrow-down text-slate-300 text-xs my-1"></i>
-                                <span class="font-bold text-sm ${isReceiving ? 'text-emerald-600' : 'text-slate-700'}">${p.to}</span>
+                                <span class="font-bold text-sm ${isReceiving && !p.isPaid ? 'text-emerald-600' : 'text-slate-700'}">${p.to}</span>
                             </div>
                         </div>
                         
                         <div class="flex flex-col items-end gap-2">
-                            <span class="font-bold text-xl text-slate-900">${p.amount.toLocaleString()} ฿</span>
+                            <span class="font-bold text-xl ${p.isPaid ? 'text-emerald-600' : 'text-slate-900'}">${p.amount.toLocaleString()} ฿</span>
                             
                             <div class="flex gap-2">
-                                ${isMe ? `
-                                    <button onclick="window.app.showPromptPayQR(${p.amount}, '${p.to}')" 
-                                        class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
-                                        <i class="fa-solid fa-qrcode"></i> Scan
-                                    </button>
-                                    <button onclick="window.app.openSlipUploadModal('${p.from}', '${p.to}', ${p.amount})" 
-                                        class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
-                                        <i class="fa-solid fa-upload"></i> Slip
-                                    </button>
-                                ` : ''}
-                                
-                                ${!isMe ? `
-                                    <button onclick="window.app.showPromptPayQR(${p.amount}, '${p.to}')" 
-                                        class="px-2 py-1.5 bg-slate-100 text-slate-400 text-xs rounded-lg hover:bg-slate-200 hover:text-slate-600 transition-colors" title="ดู QR Code">
-                                        <i class="fa-solid fa-qrcode"></i>
-                                    </button>
-                                ` : ''}
+                                ${p.isPaid ? `
+                                    <span class="px-2 py-1 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-md flex items-center gap-1 shadow-sm"><i class="fa-solid fa-check-circle"></i> ยืนยันแล้ว</span>
+                                ` : `
+                                    ${isMe ? `
+                                        <button onclick="window.app.showPromptPayQR(${p.amount}, '${p.to}')" 
+                                            class="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                                            <i class="fa-solid fa-qrcode"></i> Scan
+                                        </button>
+                                        <button onclick="window.app.openSlipUploadModal('${p.from}', '${p.to}', ${p.amount})" 
+                                            class="px-3 py-1.5 bg-emerald-500 text-white text-xs font-bold rounded-lg hover:bg-emerald-600 flex items-center gap-1.5 shadow-sm active:scale-95 transition-all">
+                                            <i class="fa-solid fa-upload"></i> Slip
+                                        </button>
+                                    ` : ''}
+                                    
+                                    ${!isMe ? `
+                                        <button onclick="window.app.showPromptPayQR(${p.amount}, '${p.to}')" 
+                                            class="px-2 py-1.5 bg-slate-100 text-slate-400 text-xs rounded-lg hover:bg-slate-200 hover:text-slate-600 transition-colors" title="ดู QR Code">
+                                            <i class="fa-solid fa-qrcode"></i>
+                                        </button>
+                                    ` : ''}
+                                `}
                             </div>
                         </div>
                     </div>
