@@ -2738,9 +2738,18 @@
             },
 
             calculateSettlement() {
+                // Safety guard - bail out if data not ready
+                if (!this.data || !Array.isArray(this.data.transactions)) {
+                    console.warn('[Settlement] Data not ready yet, skipping calculateSettlement');
+                    return;
+                }
+                if (!Array.isArray(this.data.settlements)) this.data.settlements = [];
+
+                console.log('[Settlement Debug] calculateSettlement called. Month:', this.data.currentMonth, '| settlements count:', this.data.settlements.length);
+
                 const transactions = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
                 const balances = {};
-                this.data.members.forEach(m => balances[m] = 0);
+                (this.data.members || []).forEach(m => balances[m] = 0);
 
                 transactions.forEach(t => {
                     const payer = t.payer;
