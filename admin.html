@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dept Money - Admin Dashboard</title>
+
+    <link rel="icon" type="image/png"
+        href="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- LIFF SDK -->
+    <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+    <!-- Firebase SDK (Modular) -->
+    <script type="module" src="admin-app.js"></script>
+
+    <style>
+        :root {
+            --bg-base: #0a0a0c;
+            --bg-card: #1c1c1e;
+            --text-primary: #ffffff;
+            --text-secondary: #8e8e93;
+        }
+
+        body {
+            font-family: 'Noto Sans Thai', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background-color: #4f46e5;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body class="flex h-screen overflow-hidden">
+
+    <!-- Auth Guard / Loading -->
+    <div id="auth-guard" class="fixed inset-0 bg-[#0a0a0c] z-50 flex flex-col items-center justify-center">
+        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mb-4"></div>
+        <p class="text-slate-400 font-medium" id="auth-status-text">กำลังตรวจสอบสิทธิ์ Admin...</p>
+
+        <div id="auth-error-panel" class="hidden text-center mt-4">
+            <div class="bg-red-500/10 border border-red-500/30 text-red-400 p-4 rounded-xl mb-4 max-w-sm mx-auto">
+                <i class="fa-solid fa-triangle-exclamation text-2xl mb-2"></i>
+                <p>คุณไม่มีสิทธิ์เข้าถึงหน้านี้ หรือไม่ได้เข้าสู่ระบบ</p>
+            </div>
+            <a href="index.html"
+                class="inline-block bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg transition-colors">
+                กลับสู่หน้าหลัก
+            </a>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#1c1c1e] border-r border-white/10 flex flex-col hidden md:flex">
+        <div class="p-6 border-b border-white/10 flex items-center gap-3">
+            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"
+                class="w-8 h-8 rounded-lg shadow-sm">
+            <div>
+                <span class="font-bold text-lg text-white block leading-tight">Admin<br>Dashboard</span>
+            </div>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2">
+            <button
+                class="tab-btn active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-white/5 text-slate-300 transition-colors"
+                data-target="tab-pending">
+                <i class="fa-solid fa-clock-rotate-left w-5"></i> รอยืนยันสลิป
+            </button>
+            <button
+                class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-white/5 text-slate-300 transition-colors"
+                data-target="tab-verified">
+                <i class="fa-solid fa-check-double w-5"></i> ประวัติที่ยืนยันแล้ว
+            </button>
+            <button
+                class="tab-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium hover:bg-white/5 text-slate-300 transition-colors"
+                data-target="tab-admins">
+                <i class="fa-solid fa-user-shield w-5"></i> จัดการสิทธิ์ Admin
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-white/10">
+            <div class="flex items-center gap-3 mb-4 px-2">
+                <div
+                    class="w-8 h-8 rounded-full bg-indigo-500/20 flex items-center justify-center border border-indigo-500/50">
+                    <i class="fa-solid fa-user-astronaut text-indigo-400 text-xs"></i>
+                </div>
+                <div class="flex flex-col truncate">
+                    <span id="admin-user-name" class="text-sm font-bold text-white truncate">Admin User</span>
+                    <span class="text-[10px] text-emerald-400">Superuser</span>
+                </div>
+            </div>
+            <a href="index.html"
+                class="w-full text-xs text-slate-400 hover:text-white flex items-center justify-center gap-2 py-2 transition-colors">
+                <i class="fa-solid fa-arrow-left"></i> กลับไประบบหลัก
+            </a>
+        </div>
+    </aside>
+
+    <!-- Mobile Nav Header -->
+    <header
+        class="md:hidden fixed top-0 left-0 w-full h-16 bg-[#1c1c1e] border-b border-white/10 px-4 flex items-center justify-between z-40">
+        <div class="flex items-center gap-2">
+            <img src="https://res.cloudinary.com/dbeuu3lmv/image/upload/v1768919170/icon_jsaxxj.png"
+                class="w-8 h-8 rounded-lg">
+            <span class="font-bold text-white">Admin</span>
+        </div>
+        <select id="mobile-tab-select"
+            class="bg-white/10 border border-white/20 text-white text-sm rounded-lg px-3 py-1.5 outline-none">
+            <option value="tab-pending" class="bg-[#1c1c1e]">รอยืนยันสลิป</option>
+            <option value="tab-verified" class="bg-[#1c1c1e]">ประวัติที่ยืนยันแล้ว</option>
+            <option value="tab-admins" class="bg-[#1c1c1e]">จัดการสิทธิ์ Admin</option>
+        </select>
+    </header>
+
+    <!-- Main Content Area -->
+    <main
+        class="flex-1 overflow-y-auto pt-20 pb-8 md:pt-8 px-4 md:px-8 relative bg-gradient-to-br from-[#0a0a0c] to-[#121214]">
+
+        <!-- Global Month Selector -->
+        <div
+            class="max-w-4xl mx-auto mb-6 bg-[#1c1c1e] p-4 rounded-2xl border border-white/10 flex justify-between items-center shadow-lg">
+            <h2 class="text-white font-bold flex items-center gap-2">
+                <i class="fa-regular fa-calendar text-indigo-400"></i> เลือกเดือนที่ต้องการดูข้อมูล
+            </h2>
+            <select id="global-month-selector"
+                class="bg-black/40 border border-white/20 text-white px-4 py-2 rounded-xl outline-none focus:border-indigo-500 font-bold min-w-[150px]">
+                <!-- Populated by JS -->
+            </select>
+        </div>
+
+        <div class="max-w-4xl mx-auto">
+
+            <!-- TAB 1: Pending Settlements -->
+            <section id="tab-pending" class="tab-content active space-y-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-white">ยอดค้างชำระ (รอยืนยัน)</h2>
+                    <button id="btn-refresh-pending"
+                        class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-white/10">
+                        <i class="fa-solid fa-arrows-rotate"></i> รีเฟรช
+                    </button>
+                </div>
+
+                <div class="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 mb-6">
+                    <p class="text-sm border-indigo-400/50 text-indigo-200">
+                        <i class="fa-solid fa-circle-info mr-2"></i> <strong>วิธียืนยันแบบ Manual:</strong>
+                        หากมีคนโอนเงินมาแล้วแต่ไม่ได้แนบสลิป/สลิปมีปัญหา Admin สามารถกดปุ่ม "ยืนยันว่าจ่ายแล้ว"
+                        ให้กับบุคคลนั้นได้เลย ระบบจะสร้างเอกสารยืนยันให้ทันที
+                    </p>
+                </div>
+
+                <div id="pending-list" class="grid gap-4">
+                    <!-- Loaded via JS -->
+                    <div class="text-center py-10 text-slate-500"><i
+                            class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i><br>กำลังโหลดข้อมูล...</div>
+                </div>
+            </section>
+
+            <!-- TAB 2: Verified History (Edit/Delete) -->
+            <section id="tab-verified" class="tab-content space-y-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-white">ประวัติรายการที่ยืนยันแล้ว</h2>
+                    <button id="btn-refresh-verified"
+                        class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-white/10">
+                        <i class="fa-solid fa-arrows-rotate"></i> รีเฟรช
+                    </button>
+                </div>
+
+                <div class="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-6">
+                    <p class="text-sm text-amber-200">
+                        <i class="fa-solid fa-lightbulb mr-2"></i> <strong>โอนเงินผิดเดือน?</strong>
+                        คุณสามารถแก้ไขเดือนที่ User จ่ายเงินเข้ามาได้ที่นี่
+                        โดยระบบจะอัปเดตไปตัดยอดของเดือนที่คุณเลือกอัตโนมัติ
+                    </p>
+                </div>
+
+                <div id="verified-list" class="grid gap-4">
+                    <!-- Loaded via JS -->
+                </div>
+            </section>
+
+            <!-- TAB 3: Admin Management -->
+            <section id="tab-admins" class="tab-content space-y-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold text-white">จัดการสิทธิ์ Admin</h2>
+                    <button id="btn-refresh-admins"
+                        class="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-white/10">
+                        <i class="fa-solid fa-arrows-rotate"></i> รีเฟรช
+                    </button>
+                </div>
+
+                <div class="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+                    <p class="text-sm text-red-200">
+                        <i class="fa-solid fa-shield-halved mr-2"></i> <strong>โปรดระมัดระวัง:</strong> ผู้ที่มีสิทธิ์
+                        Admin จะสามารถเข้าถึงหน้านี้ ยืนยันสลิป แก้ไขเดือน และลบรายการโอนเงินได้ทั้งหมด
+                    </p>
+                </div>
+
+                <div class="bg-[#1c1c1e] rounded-2xl border border-white/10 overflow-hidden">
+                    <div
+                        class="grid grid-cols-12 gap-4 p-4 border-b border-white/10 bg-black/20 text-xs font-bold text-slate-400 uppercase tracking-wider">
+                        <div class="col-span-8 md:col-span-6">ชื่อสมาชิก / LINE Name</div>
+                        <div class="col-span-4 md:col-span-3 text-center">สิทธิ์ Admin</div>
+                        <div class="col-span-12 md:col-span-3 text-right hidden md:block">จัดการ</div>
+                    </div>
+
+                    <div id="admin-members-list" class="divide-y divide-white/5">
+                        <!-- Loaded via JS -->
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="admin-toast"
+        class="fixed bottom-[-100px] left-1/2 transform -translate-x-1/2 bg-[#2c2c2e] text-white px-6 py-3 rounded-full shadow-2xl border border-white/10 transition-all duration-300 z-[100] flex items-center gap-3 font-medium">
+        <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-msg">อัปเดตสำเร็จ!</span>
+    </div>
+
+</body>
+
+</html>
