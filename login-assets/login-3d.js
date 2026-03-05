@@ -49,8 +49,8 @@
     class ParticleSystem {
         constructor(canvasId, particleCount = 30) {
             this.canvas = document.getElementById(canvasId);
-            if (!this.canvas) {
-                console.warn('Particle canvas not found');
+            if (!this.canvas || typeof this.canvas.getContext !== 'function') {
+                console.warn('Particle canvas not found or is not a canvas element, skipping particles');
                 return;
             }
 
