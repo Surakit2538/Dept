@@ -2782,18 +2782,24 @@
                 }
 
                 // --- แยกรายการที่ยืนยันแล้ว และ ยังไม่ยืนยัน ---
-                const verifiedSettlements = this.data.settlements.filter(s => s.status === 'verified');
+                const verifiedSettlements = this.data.settlements.filter(s => s.status === 'verified' && (!s.month || s.month === this.data.currentMonth));
                 const finalPlan = [];
+                const verifiedMap = {};
 
+                verifiedSettlements.forEach(s => {
+                    const key = `${s.from}-${s.to}`;
+                    verifiedMap[key] = (verifiedMap[key] || 0) + Number(s.amount);
+                });
+
+                // แสดงรายการที่จ่ายไปแล้วทั้งหมด
+                Object.entries(verifiedMap).forEach(([key, amount]) => {
+                    const [from, to] = key.split('-');
+                    finalPlan.push({ from, to, amount, isPaid: true });
+                });
+
+                // คำนวณยอดคงเหลือ
                 plan.forEach(p => {
-                    const paid = verifiedSettlements
-                        .filter(s => s.from === p.from && s.to === p.to && (!s.month || s.month === this.data.currentMonth))
-                        .reduce((sum, s) => Number(sum) + Number(s.amount), 0);
-
-                    if (paid > 0) {
-                        finalPlan.push({ from: p.from, to: p.to, amount: paid, isPaid: true });
-                    }
-
+                    const paid = verifiedMap[`${p.from}-${p.to}`] || 0;
                     const remaining = p.amount - paid;
                     if (remaining > 0.1) {
                         finalPlan.push({ from: p.from, to: p.to, amount: remaining, isPaid: false });
