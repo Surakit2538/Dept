@@ -250,6 +250,9 @@ const app = {
             const div = document.createElement('div');
             div.className = 'bg-[#1c1c1e] p-5 rounded-2xl border border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-500/30 transition-colors shadow-sm';
 
+            const safeFrom = p.from.replace(/'/g, "\\'");
+            const safeTo = p.to.replace(/'/g, "\\'");
+
             div.innerHTML = `
                 <div class="flex items-center gap-4">
                     <div class="flex flex-col items-center justify-center min-w-[3rem]">
@@ -262,7 +265,7 @@ const app = {
                         <div class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-clock text-amber-500"></i> รอการยืนยัน</div>
                     </div>
                 </div>
-                <button onclick="window.adminApp.manualVerify('${p.from}', '${p.to}', ${p.amount})" class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-colors flex justify-center items-center gap-2 active:scale-95">
+                <button onclick="window.adminApp.manualVerify('${safeFrom}', '${safeTo}', ${p.amount})" class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-colors flex justify-center items-center gap-2 active:scale-95">
                     <i class="fa-solid fa-check-circle"></i> ยืนยันว่าจ่ายแล้ว
                 </button>
             `;
