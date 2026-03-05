@@ -2782,12 +2782,12 @@
                 }
 
                 // --- แยกรายการที่ยืนยันแล้ว และ ยังไม่ยืนยัน ---
-                const verifiedSettlements = this.data.settlements.filter(s => s.status === 'verified' && s.month === this.data.currentMonth);
+                const verifiedSettlements = this.data.settlements.filter(s => s.status === 'verified');
                 const finalPlan = [];
 
                 plan.forEach(p => {
                     const paid = verifiedSettlements
-                        .filter(s => s.from === p.from && s.to === p.to)
+                        .filter(s => s.from === p.from && s.to === p.to && (!s.month || s.month === this.data.currentMonth))
                         .reduce((sum, s) => Number(sum) + Number(s.amount), 0);
 
                     if (paid > 0) {
