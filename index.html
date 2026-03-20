@@ -3557,7 +3557,6 @@
                 }
                 // Toggle empty state
                 const emptyState = document.getElementById('split-empty-state');
-                const participantList = document.getElementById('split-participants');
                 if (emptyState) {
                     if (total === 0) {
                         emptyState.classList.remove('hidden');
@@ -3567,14 +3566,11 @@
                 }
             },
 
-            toggleParticipant(name) {
-                const cb = document.querySelector(`.participant-check[value="${name}"]`);
-                if (!cb) return;
-                cb.checked = !cb.checked;
-                // Update row style
-                const row = cb.closest('.participant-row');
+            // Called by native checkbox onchange (from label click)
+            onParticipantToggle(checkbox) {
+                const row = checkbox.closest('.participant-row');
                 if (row) {
-                    if (cb.checked) {
+                    if (checkbox.checked) {
                         row.classList.add('split-selected');
                         row.classList.remove('split-unselected');
                     } else {
@@ -3593,45 +3589,48 @@
                 const getAvatar = (name) => {
                     const member = (this.data.rawMembers || []).find(m => (m.name || '').toUpperCase() === name.toUpperCase());
                     if (member && member.pictureUrl) {
-                        return `<img src="${member.pictureUrl}" class="w-9 h-9 rounded-full object-cover border-2 border-transparent shrink-0 shadow-sm pointer-events-none">`;
+                        return `<img src="${member.pictureUrl}" class="w-9 h-9 rounded-full object-cover border-2 border-transparent shrink-0 shadow-sm">`;
                     }
                     // Fallback: initial letter avatar
                     const colors = ['bg-indigo-500/30 text-indigo-300', 'bg-purple-500/30 text-purple-300', 'bg-sky-500/30 text-sky-300', 'bg-emerald-500/30 text-emerald-300', 'bg-amber-500/30 text-amber-300', 'bg-rose-500/30 text-rose-300'];
                     const colorIdx = name.charCodeAt(0) % colors.length;
-                    return `<div class="w-9 h-9 rounded-full ${colors[colorIdx]} flex items-center justify-center font-bold text-sm shrink-0 border-2 border-transparent shadow-sm pointer-events-none">${name.charAt(0)}</div>`;
+                    return `<div class="w-9 h-9 rounded-full ${colors[colorIdx]} flex items-center justify-center font-bold text-sm shrink-0 border-2 border-transparent shadow-sm">${name.charAt(0)}</div>`;
                 };
 
-                container.innerHTML = this.data.members.map(m => {
+                container.innerHTML = this.data.members.map((m, idx) => {
                     // Check logic: if editing → check if in list. If new → default unchecked.
                     const isChecked = this.data.editingId ? involvedMembers.includes(m) : false;
                     const selectedClass = isChecked ? 'split-selected' : 'split-unselected';
+                    const checkId = `split-chk-${idx}`;
 
                     let customInput = '';
                     if (this.data.splitMode === 'custom') {
                         customInput = `
                             <input type="number" step="0.01" data-member="${m}"
                                 oninput="window.app.onCustomAmountInput(this)"
+                                onclick="event.stopPropagation()"
                                 class="participant-amount w-20 p-1.5 bg-white/5 border border-white/10 rounded-xl text-right text-xs text-white font-bold outline-none focus:border-indigo-500 focus:bg-indigo-500/5 transition-all placeholder-slate-600"
                                 placeholder="Auto">`;
                     }
 
                     return `
-                    <div class="participant-row ${selectedClass} flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer select-none transition-all duration-200 hover:bg-white/5 active:scale-[0.98] border border-transparent"
-                         onclick="window.app.toggleParticipant('${m}')">
-                        <!-- Custom Checkbox -->
-                        <div class="split-checkbox-visual w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all duration-200 pointer-events-none ${isChecked ? 'bg-indigo-600 border-indigo-500' : 'bg-transparent border-slate-600'}">
-                            <i class="fa-solid fa-check text-[10px] text-white pointer-events-none ${isChecked ? '' : 'hidden'}"></i>
-                        </div>
-                        <input type="checkbox" ${isChecked ? 'checked' : ''} value="${m}"
-                            class="participant-check hidden">
-                        <!-- Avatar -->
-                        ${getAvatar(m)}
-                        <!-- Name -->
-                        <span class="text-sm font-bold text-white flex-1 truncate pointer-events-none">${m}</span>
-                        <!-- Custom Amount (only in custom mode) -->
-                        <div onclick="event.stopPropagation()">
-                            ${customInput}
-                        </div>
+                    <div class="participant-row ${selectedClass} flex items-center rounded-2xl transition-all duration-200 hover:bg-white/5 border border-transparent">
+                        <label for="${checkId}" class="flex items-center gap-3 px-3 py-2.5 flex-1 cursor-pointer select-none active:scale-[0.98] transition-transform">
+                            <!-- Custom Checkbox Visual -->
+                            <div class="split-checkbox-visual w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${isChecked ? 'bg-indigo-600 border-indigo-500' : 'bg-transparent border-slate-600'}">
+                                <i class="fa-solid fa-check text-[10px] text-white ${isChecked ? '' : 'hidden'}"></i>
+                            </div>
+                            <!-- Hidden native checkbox -->
+                            <input type="checkbox" id="${checkId}" ${isChecked ? 'checked' : ''} value="${m}"
+                                onchange="window.app.onParticipantToggle(this)"
+                                class="participant-check hidden">
+                            <!-- Avatar -->
+                            ${getAvatar(m)}
+                            <!-- Name -->
+                            <span class="text-sm font-bold text-white flex-1 truncate">${m}</span>
+                        </label>
+                        <!-- Custom Amount (only in custom mode, outside label) -->
+                        ${customInput ? '<div class="pr-3 shrink-0">' + customInput + '</div>' : ''}
                     </div>`;
                 }).join('');
 
