@@ -3595,16 +3595,22 @@
             renderSplitParticipants(involvedMembers = []) {
                 const container = document.getElementById('split-participants');
 
-                // Helper: get profile picture
                 const getAvatar = (name) => {
                     const member = (this.data.rawMembers || []).find(m => (m.name || '').toUpperCase() === name.toUpperCase());
-                    if (member && member.pictureUrl) {
-                        return `<img src="${member.pictureUrl}" class="w-9 h-9 rounded-full object-cover border-2 border-transparent shrink-0 shadow-sm">`;
-                    }
-                    // Fallback: initial letter avatar
+                    
                     const colors = ['bg-indigo-500/30 text-indigo-300', 'bg-purple-500/30 text-purple-300', 'bg-sky-500/30 text-sky-300', 'bg-emerald-500/30 text-emerald-300', 'bg-amber-500/30 text-amber-300', 'bg-rose-500/30 text-rose-300'];
                     const colorIdx = name.charCodeAt(0) % colors.length;
-                    return `<div class="w-9 h-9 rounded-full ${colors[colorIdx]} flex items-center justify-center font-bold text-sm shrink-0 border-2 border-transparent shadow-sm">${name.charAt(0)}</div>`;
+                    const letter = name.charAt(0);
+                    // ป้องกัน Single/Double quotes พังใน onerror
+                    const safeLetter = letter.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                    
+                    const fallbackHtml = `<div class="w-9 h-9 rounded-full ${colors[colorIdx]} flex items-center justify-center font-bold text-sm shrink-0 border-2 border-transparent shadow-sm">${safeLetter}</div>`;
+                    
+                    if (member && member.pictureUrl) {
+                        return `<img src="${member.pictureUrl}" onerror="this.outerHTML=this.dataset.fallback" data-fallback="${fallbackHtml.replace(/"/g, '&quot;')}" class="w-9 h-9 rounded-full object-cover border-2 border-transparent shrink-0 shadow-sm">`;
+                    }
+                    // Fallback: initial letter avatar
+                    return fallbackHtml;
                 };
 
                 container.innerHTML = this.data.members.map((m, idx) => {
