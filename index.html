@@ -1,4 +1,4 @@
-﻿<!-- 
+<!-- 
     Mobile-First Expense Tracker (V57 - Fix Init Error)
     Project: deptmoney-6682a
     Updates:
@@ -636,6 +636,38 @@
         #login-screen p,
         #login-screen .text-white {
             color: #ffffff !important;
+        }
+
+        /* --- Split Participant Row States --- */
+        .participant-row.split-selected {
+            background-color: rgba(79, 70, 229, 0.08);
+            border-color: rgba(99, 102, 241, 0.15) !important;
+        }
+
+        .participant-row.split-unselected {
+            opacity: 0.55;
+        }
+
+        .participant-row.split-unselected:hover {
+            opacity: 0.85;
+        }
+
+        .participant-row.split-selected .split-checkbox-visual {
+            background-color: #4f46e5 !important;
+            border-color: #6366f1 !important;
+        }
+
+        .participant-row.split-selected .split-checkbox-visual i {
+            display: inline !important;
+        }
+
+        .participant-row.split-unselected .split-checkbox-visual {
+            background-color: transparent !important;
+            border-color: #475569 !important;
+        }
+
+        .participant-row.split-unselected .split-checkbox-visual i {
+            display: none !important;
         }
     </style>
 </head>
@@ -1415,18 +1447,31 @@
 
                     <!-- split section -->
                     <div class="bg-[#2C2C2E] p-4 rounded-[20px] border border-white/5 shadow-sm relative mb-6">
+                        <!-- Header Row -->
                         <div class="flex justify-between items-center mb-3 border-b border-white/5 pb-3">
-                            <span
-                                class="text-[11px] font-bold text-white/50 uppercase tracking-wide flex items-center gap-1.5"><i
-                                    class="fa-solid fa-users text-indigo-400"></i> คนหาร (Split)</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] font-bold text-white/50 uppercase tracking-wide flex items-center gap-1.5"><i class="fa-solid fa-users text-indigo-400"></i> คนหาร</span>
+                                <span id="split-counter" class="text-[10px] font-bold bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/30">0/0 คน</span>
+                            </div>
                             <div class="flex bg-black/30 rounded-lg p-1 border border-white/5 shadow-inner">
                                 <button onclick="window.app.setSplitMode('equal')" id="btn-split-equal"
-                                    class="px-3 py-1 rounded-md text-[10px] font-bold bg-[#3A3A3C] text-indigo-300 shadow-sm transition-all border border-white/10">หารเท่า</button>
+                                    class="px-3 py-1 rounded-md text-[10px] font-bold bg-indigo-600 text-white shadow-sm transition-all border border-indigo-500/30">หารเท่า</button>
                                 <button onclick="window.app.setSplitMode('custom')" id="btn-split-custom"
                                     class="px-3 py-1 rounded-md text-[10px] font-bold text-white/50 hover:text-white/80 transition-all">ระบุเอง</button>
                             </div>
                         </div>
-                        <div id="split-participants" class="space-y-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                        <!-- Quick Actions -->
+                        <div class="flex items-center gap-2 mb-3">
+                            <button onclick="window.app.toggleAllParticipants(true)" class="text-[10px] font-bold text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg border border-indigo-500/20 transition-all active:scale-95"><i class="fa-solid fa-check-double mr-1"></i>ทุกคน</button>
+                            <button onclick="window.app.toggleAllParticipants(false)" class="text-[10px] font-bold text-slate-400 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-lg border border-white/10 transition-all active:scale-95"><i class="fa-solid fa-xmark mr-1"></i>ล้าง</button>
+                        </div>
+                        <!-- Participant List -->
+                        <div id="split-participants" class="space-y-1 max-h-52 overflow-y-auto pr-1 custom-scrollbar">
+                        </div>
+                        <!-- Empty State -->
+                        <div id="split-empty-state" class="hidden py-4 text-center">
+                            <i class="fa-solid fa-user-plus text-slate-600 text-lg mb-2"></i>
+                            <p class="text-[11px] text-slate-500 font-medium">กรุณาเลือกผู้ร่วมจ่าย</p>
                         </div>
                     </div>
                 </div>
@@ -3470,42 +3515,136 @@
 
             setSplitMode(m) {
                 this.data.splitMode = m;
-                document.getElementById('btn-split-equal').className = m === 'equal' ? 'px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-800 text-white transition-all' : 'px-3 py-1.5 rounded-md text-[10px] font-bold text-slate-400 transition-all';
-                document.getElementById('btn-split-custom').className = m === 'custom' ? 'px-3 py-1.5 rounded-md text-[10px] font-bold bg-slate-800 text-white transition-all' : 'px-3 py-1.5 rounded-md text-[10px] font-bold text-slate-400 transition-all';
+                document.getElementById('btn-split-equal').className = m === 'equal'
+                    ? 'px-3 py-1 rounded-md text-[10px] font-bold bg-indigo-600 text-white shadow-sm transition-all border border-indigo-500/30'
+                    : 'px-3 py-1 rounded-md text-[10px] font-bold text-white/50 hover:text-white/80 transition-all';
+                document.getElementById('btn-split-custom').className = m === 'custom'
+                    ? 'px-3 py-1 rounded-md text-[10px] font-bold bg-indigo-600 text-white shadow-sm transition-all border border-indigo-500/30'
+                    : 'px-3 py-1 rounded-md text-[10px] font-bold text-white/50 hover:text-white/80 transition-all';
                 this.renderSplitParticipants();
+            },
+
+            toggleAllParticipants(state) {
+                document.querySelectorAll('.participant-check').forEach(cb => {
+                    cb.checked = state;
+                });
+                // Update row styles
+                document.querySelectorAll('.participant-row').forEach(row => {
+                    if (state) {
+                        row.classList.add('split-selected');
+                        row.classList.remove('split-unselected');
+                    } else {
+                        row.classList.remove('split-selected');
+                        row.classList.add('split-unselected');
+                    }
+                });
+                this.updateParticipantCounter();
+                this.recalculateCustomSplits('checkbox');
+            },
+
+            updateParticipantCounter() {
+                const total = document.querySelectorAll('.participant-check').length;
+                const checked = document.querySelectorAll('.participant-check:checked').length;
+                const counter = document.getElementById('split-counter');
+                if (counter) {
+                    counter.textContent = `${checked}/${total} คน`;
+                    // Glow when at least 1 selected
+                    if (checked > 0) {
+                        counter.className = 'text-[10px] font-bold bg-indigo-500/25 text-indigo-300 px-2 py-0.5 rounded-full border border-indigo-500/40';
+                    } else {
+                        counter.className = 'text-[10px] font-bold bg-white/5 text-slate-500 px-2 py-0.5 rounded-full border border-white/10';
+                    }
+                }
+                // Toggle empty state
+                const emptyState = document.getElementById('split-empty-state');
+                const participantList = document.getElementById('split-participants');
+                if (emptyState) {
+                    if (total === 0) {
+                        emptyState.classList.remove('hidden');
+                    } else {
+                        emptyState.classList.add('hidden');
+                    }
+                }
+            },
+
+            toggleParticipant(name) {
+                const cb = document.querySelector(`.participant-check[value="${name}"]`);
+                if (!cb) return;
+                cb.checked = !cb.checked;
+                // Update row style
+                const row = cb.closest('.participant-row');
+                if (row) {
+                    if (cb.checked) {
+                        row.classList.add('split-selected');
+                        row.classList.remove('split-unselected');
+                    } else {
+                        row.classList.remove('split-selected');
+                        row.classList.add('split-unselected');
+                    }
+                }
+                this.updateParticipantCounter();
+                this.recalculateCustomSplits('checkbox');
             },
 
             renderSplitParticipants(involvedMembers = []) {
                 const container = document.getElementById('split-participants');
-                container.innerHTML = this.data.members.map(m => {
-                    // Check logic: if editing (involvedMembers passed), check if in list. If new, check all.
-                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : true; // Default checked for all
-                    return `
-            <div class="flex items-center justify-between text-xs py-2 border-b border-slate-100 last:border-0">
-                <label class="flex items-center gap-3 cursor-pointer select-none">
-                    <input type="checkbox" ${isChecked ? 'checked' : ''} value="${m}"
-                        onchange="window.app.recalculateCustomSplits('checkbox')"
-                        class="participant-check rounded text-slate-800 w-4 h-4 focus:ring-slate-800">
-                        <span class="text-slate-700 font-bold">${m}</span>
-                </label>
-                        ${this.data.splitMode === 'custom' ? `
-                            <input type="number" step="0.01" data-member="${m}" 
-                                oninput="window.app.onCustomAmountInput(this)"
-                                class="participant-amount w-24 p-1.5 border border-slate-200 rounded-lg text-right text-xs focus:ring-2 focus:ring-blue-100 outline-none transition-colors placeholder-slate-300" 
-                                placeholder="Auto">
-                        ` : ''
-                        }
-                    </div>
-            `}).join('');
 
-                // Initial calculation
+                // Helper: get profile picture
+                const getAvatar = (name) => {
+                    const member = (this.data.rawMembers || []).find(m => (m.name || '').toUpperCase() === name.toUpperCase());
+                    if (member && member.pictureUrl) {
+                        return `<img src="${member.pictureUrl}" class="w-9 h-9 rounded-full object-cover border-2 border-transparent shrink-0 shadow-sm">`;
+                    }
+                    // Fallback: initial letter avatar
+                    const colors = ['bg-indigo-500/30 text-indigo-300', 'bg-purple-500/30 text-purple-300', 'bg-sky-500/30 text-sky-300', 'bg-emerald-500/30 text-emerald-300', 'bg-amber-500/30 text-amber-300', 'bg-rose-500/30 text-rose-300'];
+                    const colorIdx = name.charCodeAt(0) % colors.length;
+                    return `<div class="w-9 h-9 rounded-full ${colors[colorIdx]} flex items-center justify-center font-bold text-sm shrink-0 border-2 border-transparent shadow-sm">${name.charAt(0)}</div>`;
+                };
+
+                container.innerHTML = this.data.members.map(m => {
+                    // Check logic: if editing → check if in list. If new → default unchecked.
+                    const isChecked = this.data.editingId ? involvedMembers.includes(m) : false;
+                    const selectedClass = isChecked ? 'split-selected' : 'split-unselected';
+
+                    let customInput = '';
+                    if (this.data.splitMode === 'custom') {
+                        customInput = `
+                            <input type="number" step="0.01" data-member="${m}"
+                                oninput="window.app.onCustomAmountInput(this)"
+                                class="participant-amount w-20 p-1.5 bg-white/5 border border-white/10 rounded-xl text-right text-xs text-white font-bold outline-none focus:border-indigo-500 focus:bg-indigo-500/5 transition-all placeholder-slate-600"
+                                placeholder="Auto">`;
+                    }
+
+                    return `
+                    <div class="participant-row ${selectedClass} flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer select-none transition-all duration-200 hover:bg-white/5 active:scale-[0.98] border border-transparent"
+                         onclick="window.app.toggleParticipant('${m}')">
+                        <!-- Custom Checkbox -->
+                        <div class="split-checkbox-visual w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all duration-200 ${isChecked ? 'bg-indigo-600 border-indigo-500' : 'bg-transparent border-slate-600'}">
+                            <i class="fa-solid fa-check text-[10px] text-white ${isChecked ? '' : 'hidden'}"></i>
+                        </div>
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} value="${m}"
+                            class="participant-check hidden">
+                        <!-- Avatar -->
+                        ${getAvatar(m)}
+                        <!-- Name -->
+                        <span class="text-sm font-bold text-white flex-1 truncate">${m}</span>
+                        <!-- Custom Amount (only in custom mode) -->
+                        <div onclick="event.stopPropagation()">
+                            ${customInput}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                // Update counter
+                this.updateParticipantCounter();
+
+                // Initial calculation for custom mode
                 if (this.data.splitMode === 'custom') {
-                    // If editing, fill existing values
                     if (this.data.editingId) {
                         const t = this.data.transactions.find(x => x.id === this.data.editingId);
                         if (t && t.splits) {
                             Object.entries(t.splits).forEach(([name, amount]) => {
-                                const input = document.querySelector(`.participant - amount[data - member="${name}"]`);
+                                const input = document.querySelector(`.participant-amount[data-member="${name}"]`);
                                 if (input) {
                                     input.value = amount;
                                     input.dataset.userSet = 'true';
@@ -3588,11 +3727,11 @@
                 // Mark this input as manually set by user
                 if (input.value && input.value.trim() !== '') {
                     input.dataset.userSet = 'true';
-                    input.classList.add('font-bold', 'text-slate-800', 'bg-white');
-                    input.classList.remove('text-slate-500', 'bg-slate-50');
+                    input.classList.add('font-bold', '!text-white', '!bg-indigo-500/10', '!border-indigo-500/30');
+                    input.classList.remove('text-slate-400');
                 } else {
                     delete input.dataset.userSet; // If cleared, go back to auto
-                    input.classList.remove('font-bold', 'text-slate-800', 'bg-white');
+                    input.classList.remove('font-bold', '!text-white', '!bg-indigo-500/10', '!border-indigo-500/30');
                 }
                 this.recalculateCustomSplits('input');
             },
@@ -3614,13 +3753,13 @@
                     if (!checkbox.checked) {
                         input.value = '';
                         input.disabled = true;
-                        input.classList.add('opacity-30', 'bg-slate-100');
+                        input.classList.add('opacity-30');
                         delete input.dataset.userSet;
                         return;
                     }
 
                     input.disabled = false;
-                    input.classList.remove('opacity-30', 'bg-slate-100');
+                    input.classList.remove('opacity-30');
 
                     // If user set this value or currently typing
                     if (input.dataset.userSet === 'true') {
@@ -3639,8 +3778,8 @@
                 if (autoCandidates.length > 0) {
                     // Reset styles for auto inputs
                     autoCandidates.forEach(input => {
-                        input.classList.add('text-slate-500', 'bg-slate-50');
-                        input.classList.remove('font-bold', 'text-slate-800', 'bg-white');
+                        input.classList.add('text-slate-400');
+                        input.classList.remove('font-bold', '!text-white', '!bg-indigo-500/10', '!border-indigo-500/30');
                     });
 
                     if (remaining < 0) {
@@ -3687,6 +3826,9 @@
 
                 const splits = {};
                 const checked = Array.from(document.querySelectorAll('.participant-check:checked')).map(c => c.value);
+                if (checked.length === 0) {
+                    return alert('กรุณาเลือกผู้ร่วมจ่ายอย่างน้อย 1 คน');
+                }
                 if (this.data.splitMode === 'equal') {
                     const share = amount / checked.length;
                     checked.forEach(m => splits[m] = share);
