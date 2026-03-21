@@ -2884,8 +2884,8 @@
                                 <div class="font-bold text-white text-sm flex items-center gap-2">
                                     ${t.desc}
                                 </div>
-                                <div class="text-[10px] text-slate-400 mt-0.5">
-                                    ${t.payer} จ่ายให้
+                                <div class="text-[10px] text-slate-400 mt-0.5 line-clamp-1">
+                                    ${t.payer} จ่ายให้ ${t.splits ? Object.keys(t.splits).join(', ') : ''}
                                 </div>
                             </div>
                         </div>
