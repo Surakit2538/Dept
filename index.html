@@ -3491,15 +3491,36 @@
                         </div>
                     `;
                 } else {
+                    const grouped = {};
                     filtered.forEach(t => {
-                        let myShare = 0;
-                        const matchKey = Object.keys(t.splits || {}).find(k => k.toUpperCase() === target);
-                        if (matchKey) myShare = Number(t.splits[matchKey]);
-                        totalSpent += myShare;
-                        const isPayer = (t.payer || "").toUpperCase() === target;
-                        const myShareStr = myShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        const fullAmtStr = Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center gap-2"><div class="flex flex-col flex-1 min-w-0"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5 truncate">${t.desc}</span><span class="text-[9px] text-slate-400">${isPayer ? 'คุณจ่ายเอง' : 'คนจ่ายคือ ' + t.payer} | ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center shrink-0"><div class="text-sm font-bold text-white">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div>`;
+                        const payerName = (t.payer || "N/A").toUpperCase();
+                        if (!grouped[payerName]) {
+                            grouped[payerName] = [];
+                        }
+                        grouped[payerName].push(t);
+                    });
+                    
+                    const payers = Object.keys(grouped).sort((a, b) => {
+                        if (a === target) return -1;
+                        if (b === target) return 1;
+                        return a.localeCompare(b);
+                    });
+
+                    payers.forEach(payer => {
+                        const isMe = payer === target;
+                        const headerTitle = isMe ? 'รายการที่คุณจ่ายเอง' : `รายการที่ ${payer} จ่ายให้`;
+                        
+                        list.innerHTML += `<div class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider mb-2 mt-4 px-1 flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full ${isMe ? 'bg-emerald-400' : 'bg-indigo-400'}"></div>${headerTitle}</div>`;
+                        
+                        grouped[payer].forEach(t => {
+                            let myShare = 0;
+                            const matchKey = Object.keys(t.splits || {}).find(k => k.toUpperCase() === target);
+                            if (matchKey) myShare = Number(t.splits[matchKey]);
+                            totalSpent += myShare;
+                            const fullAmtStr = Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            const myShareStr = myShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                            list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center gap-2 mb-2"><div class="flex flex-col flex-1 min-w-0"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5 truncate">${t.desc}</span><span class="text-[9px] text-slate-400">ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center shrink-0"><div class="text-sm font-bold text-emerald-400">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div>`;
+                        });
                     });
                 }
                 document.getElementById('member-detail-title').textContent = `รายละเอียด ${target} `;
