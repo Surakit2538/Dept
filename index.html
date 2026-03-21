@@ -4011,57 +4011,41 @@
                 const t = this.data.transactions.find(x => x.id === id);
                 if (!t) return;
                 this.data.editingId = id;
-                this.data.selectedGroupId = t.groupId || null;
+                
+                // ไม่ทำ Group Edit แล้ว เพื่อให้แก้ไขแยกแต่ละงวดได้เลยตามตรง ลดความสับสนของ User
+                this.data.selectedGroupId = null;
 
-                let displayAmount = t.amount;
-                let displaySplits = t.splits ? { ...t.splits } : {};
-
-                if (t.groupId && t.paymentType === 'installment') {
-                    const groupItems = this.data.transactions.filter(x => x.groupId === t.groupId);
-                    displayAmount = groupItems.reduce((sum, item) => sum + item.amount, 0);
-                    
-                    const totalSplits = {};
-                    groupItems.forEach(item => {
-                        if (item.splits) {
-                            for (const [member, val] of Object.entries(item.splits)) {
-                                totalSplits[member] = (totalSplits[member] || 0) + val;
-                            }
-                        }
-                    });
-                    displaySplits = totalSplits;
-                    document.getElementById('t-installments').value = groupItems.length;
-                    document.getElementById('t-installments').disabled = true;
-                } else {
-                    document.getElementById('t-installments').value = '';
-                    document.getElementById('t-installments').disabled = false;
-                }
-
-                document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการ (ผ่อนชำระ)" : "แก้ไขรายการ";
+                document.getElementById('modal-title').textContent = "แก้ไขรายการ";
                 document.getElementById('t-date').value = t.date;
                 document.getElementById('t-payment-type').value = t.paymentType || 'normal';
-                document.getElementById('t-desc').value = t.desc.split(' (')[0].trim();
-                document.getElementById('t-amount').value = displayAmount;
+                // แสดงชื่อเดิมทั้งหมด (รวม (1/3) เข้าไปด้วย)
+                document.getElementById('t-desc').value = t.desc;
+                document.getElementById('t-amount').value = t.amount;
                 document.getElementById('t-payer').value = t.payer;
                 this.selectIcon(t.icon || 'fa-utensils');
                 this.toggleInstallment();
 
                 if (t.groupId) {
                     document.getElementById('t-payment-type').disabled = true;
+                    document.getElementById('t-installments').disabled = true;
+                    document.getElementById('t-installments').value = '';
                 } else {
                     document.getElementById('t-payment-type').disabled = false;
+                    document.getElementById('t-installments').disabled = false;
+                    document.getElementById('t-installments').value = '';
                 }
 
                 document.getElementById('transaction-modal').classList.remove('hidden');
 
-                const existingParticipants = Object.keys(displaySplits);
+                const existingParticipants = t.splits ? Object.keys(t.splits) : [];
                 this.renderSplitParticipants(existingParticipants);
 
                 // Detect and set split mode
                 let isEqual = true;
                 if (existingParticipants.length > 0) {
-                    const firstShare = displayAmount / existingParticipants.length;
+                    const firstShare = t.amount / existingParticipants.length;
                     for (const p of existingParticipants) {
-                        if (Math.abs(displaySplits[p] - firstShare) > 0.1) {
+                        if (Math.abs(t.splits[p] - firstShare) > 0.1) {
                             isEqual = false;
                             break;
                         }
@@ -4077,8 +4061,8 @@
                     // Populate inputs
                     document.querySelectorAll('.participant-amount').forEach(input => {
                         const member = input.dataset.member;
-                        if (displaySplits[member]) {
-                            input.value = displaySplits[member].toFixed(2);
+                        if (t.splits[member]) {
+                            input.value = t.splits[member].toFixed(2);
                             input.dataset.userSet = 'true';
                         }
                     });
