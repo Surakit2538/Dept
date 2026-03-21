@@ -886,7 +886,7 @@
                 <span id="mobile-role-badge"
                     class="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold text-slate-500 border border-slate-200">GUEST</span>
                 <img id="mobile-profile-pic" src="" alt="Profile"
-                    class="w-7 h-7 rounded-full object-cover hidden border border-slate-200 shadow-sm">
+                    class="w-7 h-7 rounded-full object-cover hidden border border-slate-200 shadow-sm" onerror="this.style.display='none'">
                 <button onclick="window.app.logout()"
                     class="text-red-400 hover:text-red-600 ml-1 p-1 active:scale-90 transition-transform">
                     <i class="fa-solid fa-right-from-bracket text-sm"></i>
@@ -934,7 +934,7 @@
         <div class="p-4 border-t">
             <div id="desktop-profile-container" class="flex items-center gap-3 mb-4 px-2 hidden">
                 <img id="desktop-profile-pic" src=""
-                    class="w-8 h-8 rounded-full border border-slate-200 shadow-sm object-cover">
+                    class="w-8 h-8 rounded-full border border-slate-200 shadow-sm object-cover" onerror="this.style.display='none'">
                 <div class="flex flex-col truncate">
                     <span id="desktop-user-name" class="text-sm font-bold text-slate-800 truncate">User</span>
                 </div>
@@ -2117,15 +2117,23 @@
                 const dtContainer = document.getElementById('desktop-profile-container');
                 if (dtContainer) dtContainer.classList.remove('hidden');
 
-                if (pictureUrl) {
-                    const mobilePic = document.getElementById('mobile-profile-pic');
-                    if (mobilePic) {
+                const mobilePic = document.getElementById('mobile-profile-pic');
+                if (mobilePic) {
+                    if (pictureUrl) {
                         mobilePic.src = pictureUrl;
                         mobilePic.classList.remove('hidden');
+                    } else {
+                        mobilePic.classList.add('hidden');
                     }
-                    const desktopPic = document.getElementById('desktop-profile-pic');
-                    if (desktopPic) {
+                }
+                
+                const desktopPic = document.getElementById('desktop-profile-pic');
+                if (desktopPic) {
+                    if (pictureUrl) {
                         desktopPic.src = pictureUrl;
+                        desktopPic.style.display = 'block';
+                    } else {
+                        desktopPic.style.display = 'none';
                     }
                 }
 
@@ -2877,15 +2885,16 @@
 
                     let html = `
                         <div class="flex items-center gap-4">
-                            <div class="flex flex-col items-center justify-center bg-white/5 rounded-full w-12 h-12 text-white border border-white/10 shrink-0">
-                                <i class="fa-solid ${iconClass} text-lg"></i>
+                            <div onclick="window.app.openEditIconOnlyModal('${t.id}', '${iconClass}')" title="คลิกเพื่อแก้ไอคอน" class="flex flex-col items-center justify-center bg-white/5 rounded-full w-12 h-12 text-white border border-white/10 shrink-0 cursor-pointer hover:bg-white/10 hover:shadow-lg transition-all group">
+                                <i class="fa-solid ${iconClass} text-lg group-hover:scale-110 transition-transform"></i>
                             </div>
                             <div>
                                 <div class="font-bold text-white text-sm flex items-center gap-2">
                                     ${t.desc}
                                 </div>
-                                <div class="text-[10px] text-slate-400 mt-0.5">
-                                    ${t.payer} จ่ายให้
+                                <div class="text-[10px] text-slate-400 mt-1 flex flex-col gap-0.5">
+                                    <span><span class="text-emerald-400 font-bold">คนจ่าย:</span> <span class="text-slate-200">${t.payer}</span></span>
+                                    <span><span class="text-indigo-400 font-bold">ของ:</span> <span class="text-slate-200">${t.splits ? Object.keys(t.splits).join(', ') : '-'}</span></span>
                                 </div>
                             </div>
                         </div>
@@ -3708,9 +3717,12 @@
                             <div class="w-10 h-10 rounded-[14px] bg-white/5 flex items-center justify-center text-lg shrink-0 border border-white/5">
                                 <span class="font-emoji">${emoji}</span>
                             </div>
-                            <div class="flex flex-col min-w-0">
+                            <div class="flex flex-col min-w-0 flex-1">
                                 <span class="text-sm font-bold text-white truncate max-w-[160px]">${t.desc || 'ไม่ระบุ'}</span>
-                                <span class="text-[10px] text-slate-500">${t.payer} · ${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span>
+                                <span class="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
+                                    <span><span class="text-emerald-400 font-bold">จ่าย:</span> <span class="text-slate-300">${t.payer}</span></span>
+                                    <span class="truncate max-w-[160px]"><span class="text-indigo-400 font-bold">ของ:</span> <span class="text-slate-300">${t.splits ? Object.keys(t.splits).join(', ') : '-'}</span></span>
+                                </span>
                             </div>
                         </div>
                         <span class="font-bold text-white text-sm shrink-0">-${amtStr} ฿</span>
@@ -4290,6 +4302,57 @@
                     alert("เกิดข้อผิดพลาด: " + e.message);
                 }
                 // document.getElementById('loading-overlay').classList.add('hidden');
+            },
+
+            openEditIconOnlyModal(txId, currentIcon) {
+                let modal = document.getElementById('edit-icon-only-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'edit-icon-only-modal';
+                    modal.className = 'hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4';
+                    modal.innerHTML = `
+                        <div class="bg-[#1c1c1e] w-full max-w-md rounded-t-[32px] md:rounded-[32px] shadow-2xl p-6 border border-white/10 transform transition-all translate-y-0">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-lg font-bold text-white">แก้ไขไอคอน</h3>
+                                <button onclick="document.getElementById('edit-icon-only-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-colors">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div class="flex flex-wrap gap-3 justify-center max-h-[50vh] overflow-y-auto custom-scrollbar p-2" id="edit-icon-container"></div>
+                        </div>
+                    `;
+                    document.body.appendChild(modal);
+                }
+                
+                const container = document.getElementById('edit-icon-container');
+                container.innerHTML = '';
+                
+                const iconDictLocal = window.iconDict || [];
+                const allIcons = iconDictLocal.map(d => ({iconId: d.iconId, emoji: d.emoji}));
+                
+                allIcons.forEach(iconObj => {
+                    const isSelected = iconObj.iconId === currentIcon;
+                    const btn = document.createElement('button');
+                    btn.className = `w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-sm text-2xl font-emoji ${isSelected ? 'bg-indigo-500 border-2 border-white' : 'bg-white/5 hover:bg-white/10 border border-transparent'}`;
+                    btn.textContent = iconObj.emoji;
+                    btn.onclick = () => window.app.saveIconOnly(txId, iconObj.iconId);
+                    container.appendChild(btn);
+                });
+                
+                modal.classList.remove('hidden');
+            },
+            
+            async saveIconOnly(txId, newIconId) {
+                try {
+                    await updateDoc(doc(db, "transactions", txId), {
+                        icon: newIconId
+                    });
+                    this.showToast('✅ แก้ไขไอคอนเรียบร้อย');
+                    document.getElementById('edit-icon-only-modal').classList.add('hidden');
+                } catch (e) {
+                    console.error('Error saving icon', e);
+                    alert('เกิดข้อผิดพลาด: ' + e.message);
+                }
             },
 
             async deleteTransaction(id) {
