@@ -2894,17 +2894,12 @@
                             <div class="flex gap-2">
                     `;
 
-                    // Edit Icon
-                    // Edit button removed - แก้ปัญหาการแจ้งเตือนซ้ำเมื่อแก้ไขรายการที่มีสลิปแล้ว
-                    // html += `
-                    // <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
-                    //     <i class="fa-solid fa-pen"></i>
-                    // </button>
-                    // `;
-
-                    // Delete Icon (Admin Only)
+                    // Edit and Delete Icons (Admin Only)
                     if (this.data.userRole === 'admin') {
                         html += `
+                            <button onclick="window.app.editTransaction('${t.id}')" class="text-xs text-blue-300 hover:text-blue-500 p-1">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
                             <button onclick="window.app.deleteTransaction('${t.id}')" class="text-xs text-red-300 hover:text-red-500 p-1">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
@@ -4007,11 +4002,12 @@
                 }
             },
 
-            // editTransaction - DISABLED to prevent settlement issues
-            // When user edits a transaction after slip verification, it causes notification issues
-            // Kept for reference, can be re-enabled if needed in the future
-            /*
+            // editTransaction - ปลดล็อคให้ Admin ใช้งาน
             editTransaction(id) {
+                if (this.data.userRole !== 'admin') {
+                    alert('เฉพาะ Admin เท่านั้นที่สามารถแก้ไขรายการได้');
+                    return;
+                }
                 const t = this.data.transactions.find(x => x.id === id);
                 if (!t) return;
                 this.data.editingId = id;
@@ -4039,13 +4035,8 @@
                 const existingParticipants = t.splits ? Object.keys(t.splits) : [];
                 this.renderSplitParticipants(existingParticipants);
 
-                // Set split mode
-                // TODO: Store split mode in transaction? For now guess strictly
-                // If it was custom, we expect precise splits. But let's verify.
-                // Assuming default is equal unless proven otherwise.
-                // Or user can switch manually.
+                // Set split mode (Assuming default is equal unless user switches manually later)
             },
-            */
 
             async deleteTransaction(id) {
                 if (!confirm('ต้องการลบรายการนี้ใช่ไหม?')) return;
@@ -4193,8 +4184,11 @@
                 const batch = writeBatch(db);
 
                 if (this.data.editingId) {
+                    let transactionIdsToCheck = [];
+
                     if (this.data.selectedGroupId) {
                         const groupItems = this.data.transactions.filter(item => item.groupId === this.data.selectedGroupId);
+                        transactionIdsToCheck = groupItems.map(item => item.id);
                         groupItems.forEach(item => {
                             let newDesc = desc;
                             const suffixMatch = item.desc.match(/\(\d+\/\d+\)$/);
@@ -4202,7 +4196,31 @@
                             batch.update(doc(db, "transactions", item.id), { desc: newDesc, payer, icon, splits });
                         });
                     } else {
+                        transactionIdsToCheck = [this.data.editingId];
                         batch.update(doc(db, "transactions", this.data.editingId), { desc, payer, amount, splits, date, icon });
+                    }
+
+                    // ลบ verified settlements ที่เกี่ยวกับ transaction นี้ (ถ้ามี)
+                    // เพื่อบังคับให้ระบบคำนวณยอดที่ค้างและตั้งเป็น Pending ใหม่อีกครั้ง
+                    if (transactionIdsToCheck.length > 0) {
+                        try {
+                            const settlementsQuery = query(
+                                collection(db, 'settlements'),
+                                where('status', '==', 'verified')
+                            );
+                            const settlementsSnapshot = await getDocs(settlementsQuery);
+                            settlementsSnapshot.forEach(docSnap => {
+                                const settlement = docSnap.data();
+                                const hasGroupTransaction = settlement.transactionIds?.some(
+                                    tId => transactionIdsToCheck.includes(tId)
+                                );
+                                if (hasGroupTransaction) {
+                                    batch.delete(docSnap.ref);
+                                }
+                            });
+                        } catch (e) {
+                            console.error("Error clearing settlements upon edit:", e);
+                        }
                     }
                 } else {
                     // สร้างรายการใหม่
