@@ -3508,9 +3508,37 @@
 
                     payers.forEach(payer => {
                         const isMe = payer === target;
-                        const headerTitle = isMe ? 'รายการที่คุณจ่ายเอง' : `รายการที่ ${payer} จ่ายให้`;
                         
-                        list.innerHTML += `<div class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider mb-2 mt-4 px-1 flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full ${isMe ? 'bg-emerald-400' : 'bg-indigo-400'}"></div>${headerTitle}</div>`;
+                        let groupTotal = 0;
+                        grouped[payer].forEach(t => {
+                            const matchKey = Object.keys(t.splits || {}).find(k => k.toUpperCase() === target);
+                            if (matchKey) groupTotal += Number(t.splits[matchKey]);
+                        });
+                        const groupTotalStr = groupTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+                        const memberData = (this.data.rawMembers || []).find(m => (m.name || "").toUpperCase() === payer);
+                        let avatarHtml = `<div class="w-5 h-5 rounded-full ${isMe ? 'bg-emerald-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-[9px] font-bold shadow-sm shrink-0">${payer.charAt(0)}</div>`;
+                        if (memberData && memberData.pictureUrl) {
+                            // Wrapper with relative position. If image loads, it covers the div. If it fails, image is hidden revealing the div underneath.
+                            avatarHtml = `
+                                <div class="relative w-5 h-5 shrink-0">
+                                    <div class="absolute inset-0 rounded-full ${isMe ? 'bg-emerald-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-[9px] font-bold shadow-sm">${payer.charAt(0)}</div>
+                                    <img src="${memberData.pictureUrl}" class="absolute inset-0 w-5 h-5 rounded-full object-cover shadow-sm border border-white/10" onerror="this.style.display='none'">
+                                </div>
+                            `;
+                        }
+                        
+                        const headerTitle = isMe ? 'คุณจ่ายเอง' : `${payer} จ่ายให้`;
+                        
+                        list.innerHTML += `<div class="flex flex-wrap items-center justify-between gap-2 mb-2 mt-4 px-1">
+                            <div class="flex items-center gap-1.5">
+                                ${avatarHtml}
+                                <span class="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">${headerTitle}</span>
+                            </div>
+                            <div class="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 px-2.5 py-1 rounded-full border border-emerald-400/20 shadow-sm shrink-0">
+                                รวม ฿${groupTotalStr}
+                            </div>
+                        </div>`;
                         
                         grouped[payer].forEach(t => {
                             let myShare = 0;
