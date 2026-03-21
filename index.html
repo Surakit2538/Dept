@@ -2743,17 +2743,30 @@
                 btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> กำลังตรวจสอบ...';
 
                 try {
-                    const formData = new FormData();
-                    formData.append('settlementId', 'temp-' + Date.now()); // TODO: Use real settlement ID
-                    formData.append('from', from);
-                    formData.append('to', to);
-                    formData.append('amount', amount);
-                    formData.append('month', this.data.currentMonth);
-                    formData.append('file', this.data.selectedSlipFile);
+                    // แปลงไฟล์ภาพเป็น Base64
+                    const getBase64 = (file) => new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(file);
+                        reader.onload = () => resolve(reader.result.split(',')[1]);
+                        reader.onerror = error => reject(error);
+                    });
+
+                    const base64Image = await getBase64(this.data.selectedSlipFile);
+
+                    const payload = {
+                        from: from,
+                        to: to,
+                        amount: amount,
+                        month: this.data.currentMonth,
+                        base64Image: base64Image
+                    };
 
                     const response = await fetch('/api/verify-settlement-slip', {
                         method: 'POST',
-                        body: formData
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
                     });
 
                     const result = await response.json();
