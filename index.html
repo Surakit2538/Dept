@@ -1598,6 +1598,27 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: QUICK ICON EDIT -->
+    <div id="quick-icon-modal"
+        class="hidden fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4 animate-fade-in">
+        <div class="bg-[#1C1C1E] w-full max-w-md max-h-[80vh] rounded-t-[32px] md:rounded-[32px] flex flex-col shadow-2xl overflow-hidden border border-white/10">
+            <div class="p-4 border-b border-white/5 flex justify-between items-center bg-[#2C2C2E]/50">
+                <span class="font-bold text-white text-lg ml-2">เปลี่ยนไอคอน</span>
+                <button onclick="window.app.closeModal('quick-icon-modal')"
+                    class="w-8 h-8 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-6 overflow-y-auto custom-scrollbar">
+                <div class="flex flex-wrap gap-3 justify-center" id="quick-icon-list">
+                    <!-- Icons injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
 
             <!-- Footer Action Buttons -->
             <div
@@ -2877,8 +2898,8 @@
 
                     let html = `
                         <div class="flex items-center gap-4">
-                            <div class="flex flex-col items-center justify-center bg-white/5 rounded-full w-12 h-12 text-white border border-white/10 shrink-0">
-                                <i class="fa-solid ${iconClass} text-lg"></i>
+                            <div onclick="window.app.openQuickIconEditor('${t.id}')" class="flex flex-col items-center justify-center bg-white/5 rounded-full w-12 h-12 text-white border border-white/10 shrink-0 cursor-pointer hover:bg-white/20 transition-all active:scale-95">
+                                <i class="fa-solid ${iconClass} text-lg pointer-events-none"></i>
                             </div>
                             <div>
                                 <div class="font-bold text-white text-sm flex items-center gap-2">
@@ -3700,8 +3721,8 @@
                     div.className = 'recent-tx-item';
                     div.innerHTML = `
                         <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-[14px] bg-white/5 flex items-center justify-center text-lg shrink-0 border border-white/5">
-                                <span class="font-emoji">${emoji}</span>
+                            <div onclick="window.app.openQuickIconEditor('${t.id}')" class="w-10 h-10 rounded-[14px] bg-white/5 flex items-center justify-center text-lg shrink-0 border border-white/5 cursor-pointer hover:bg-white/20 transition-all active:scale-95">
+                                <span class="font-emoji pointer-events-none">${emoji}</span>
                             </div>
                             <div class="flex flex-col min-w-0">
                                 <span class="text-sm font-bold text-white truncate max-w-[160px]">${t.desc || 'ไม่ระบุ'}</span>
@@ -3830,6 +3851,35 @@
             },
 
             closeModal(id) { document.getElementById(id).classList.add('hidden'); },
+
+            openQuickIconEditor(transactionId) {
+                this.data.quickIconEditId = transactionId;
+                const container = document.getElementById('quick-icon-list');
+                
+                let html = '';
+                if (window.iconDict) {
+                    window.iconDict.forEach(cat => {
+                        const colorClass = cat.color || 'blue';
+                        html += `<button type="button" onclick="window.app.saveQuickIcon('${cat.iconId}')" 
+                            class="w-12 h-12 rounded-2xl bg-${colorClass}-500/10 flex items-center justify-center hover:bg-${colorClass}-500/30 hover:scale-110 active:scale-95 transition-all font-emoji text-2xl shadow-sm border border-${colorClass}-500/20">
+                            ${cat.emoji}</button>`;
+                    });
+                }
+                container.innerHTML = html;
+                document.getElementById('quick-icon-modal').classList.remove('hidden');
+            },
+
+            async saveQuickIcon(iconId) {
+                if (!this.data.quickIconEditId) return;
+                
+                try {
+                    await updateDoc(doc(db, "transactions", this.data.quickIconEditId), { icon: iconId });
+                    this.closeModal('quick-icon-modal');
+                } catch (e) {
+                    console.error("Error updating icon:", e);
+                    alert('บันทึกไม่สำเร็จ: ' + e.message);
+                }
+            },
 
             toggleInstallment() {
                 const type = document.getElementById('t-payment-type').value;
