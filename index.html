@@ -4013,16 +4013,38 @@
                 this.data.editingId = id;
                 this.data.selectedGroupId = t.groupId || null;
 
+                let displayAmount = t.amount;
+                let displaySplits = t.splits ? { ...t.splits } : {};
+
+                if (t.groupId && t.paymentType === 'installment') {
+                    const groupItems = this.data.transactions.filter(x => x.groupId === t.groupId);
+                    displayAmount = groupItems.reduce((sum, item) => sum + item.amount, 0);
+                    
+                    const totalSplits = {};
+                    groupItems.forEach(item => {
+                        if (item.splits) {
+                            for (const [member, val] of Object.entries(item.splits)) {
+                                totalSplits[member] = (totalSplits[member] || 0) + val;
+                            }
+                        }
+                    });
+                    displaySplits = totalSplits;
+                    document.getElementById('t-installments').value = groupItems.length;
+                    document.getElementById('t-installments').disabled = true;
+                } else {
+                    document.getElementById('t-installments').value = '';
+                    document.getElementById('t-installments').disabled = false;
+                }
+
                 document.getElementById('modal-title').textContent = t.groupId ? "แก้ไขรายการ (ผ่อนชำระ)" : "แก้ไขรายการ";
                 document.getElementById('t-date').value = t.date;
                 document.getElementById('t-payment-type').value = t.paymentType || 'normal';
-                document.getElementById('t-desc').value = t.desc.split(' (')[0]; // Remove installment count text if any
-                document.getElementById('t-amount').value = t.amount;
+                document.getElementById('t-desc').value = t.desc.split(' (')[0].trim();
+                document.getElementById('t-amount').value = displayAmount;
                 document.getElementById('t-payer').value = t.payer;
                 this.selectIcon(t.icon || 'fa-utensils');
                 this.toggleInstallment();
 
-                // If editing installment, disable payment type change (too complex to switch back and forth)
                 if (t.groupId) {
                     document.getElementById('t-payment-type').disabled = true;
                 } else {
@@ -4031,11 +4053,38 @@
 
                 document.getElementById('transaction-modal').classList.remove('hidden');
 
-                // Pass existing participants to renderSplitParticipants
-                const existingParticipants = t.splits ? Object.keys(t.splits) : [];
+                const existingParticipants = Object.keys(displaySplits);
                 this.renderSplitParticipants(existingParticipants);
 
-                // Set split mode (Assuming default is equal unless user switches manually later)
+                // Detect and set split mode
+                let isEqual = true;
+                if (existingParticipants.length > 0) {
+                    const firstShare = displayAmount / existingParticipants.length;
+                    for (const p of existingParticipants) {
+                        if (Math.abs(displaySplits[p] - firstShare) > 0.1) {
+                            isEqual = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (isEqual) {
+                    this.data.splitMode = 'equal';
+                    document.querySelector('input[name="split-mode"][value="equal"]').checked = true;
+                } else {
+                    this.data.splitMode = 'custom';
+                    document.querySelector('input[name="split-mode"][value="custom"]').checked = true;
+                    // Populate inputs
+                    document.querySelectorAll('.participant-amount').forEach(input => {
+                        const member = input.dataset.member;
+                        if (displaySplits[member]) {
+                            input.value = displaySplits[member].toFixed(2);
+                            input.dataset.userSet = 'true';
+                        }
+                    });
+                }
+                
+                this.recalculateCustomSplits('init');
             },
 
             async deleteTransaction(id) {
@@ -4189,12 +4238,42 @@
                     if (this.data.selectedGroupId) {
                         const groupItems = this.data.transactions.filter(item => item.groupId === this.data.selectedGroupId);
                         transactionIdsToCheck = groupItems.map(item => item.id);
-                        groupItems.forEach(item => {
-                            let newDesc = desc;
-                            const suffixMatch = item.desc.match(/\(\d+\/\d+\)$/);
-                            if (suffixMatch) newDesc += ` ${suffixMatch[0]} `;
-                            batch.update(doc(db, "transactions", item.id), { desc: newDesc, payer, icon, splits });
-                        });
+                        
+                        const isInstallment = groupItems.length > 0 && groupItems[0].paymentType === 'installment';
+                        
+                        if (isInstallment) {
+                            const n = groupItems.length;
+                            const singleAmount = amount / n;
+                            const singleSplits = Object.fromEntries(Object.entries(splits).map(([k, v]) => [k, v / n]));
+                            
+                            groupItems.forEach(item => {
+                                let newDesc = desc;
+                                const suffixMatch = item.desc.match(/\(\d+\/\d+\)$/);
+                                if (suffixMatch) newDesc += ` ${suffixMatch[0]}`;
+                                
+                                batch.update(doc(db, "transactions", item.id), { 
+                                    desc: newDesc, 
+                                    payer, 
+                                    icon, 
+                                    amount: singleAmount, 
+                                    splits: singleSplits 
+                                });
+                            });
+                        } else {
+                            groupItems.forEach(item => {
+                                let newDesc = desc;
+                                const suffixMatch = item.desc.match(/\(\d+\/\d+\)$/);
+                                if (suffixMatch) newDesc += ` ${suffixMatch[0]}`;
+                                
+                                batch.update(doc(db, "transactions", item.id), { 
+                                    desc: newDesc, 
+                                    payer, 
+                                    icon, 
+                                    amount: amount, 
+                                    splits: splits 
+                                });
+                            });
+                        }
                     } else {
                         transactionIdsToCheck = [this.data.editingId];
                         batch.update(doc(db, "transactions", this.data.editingId), { desc, payer, amount, splits, date, icon });
