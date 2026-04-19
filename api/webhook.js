@@ -724,10 +724,6 @@ async function generateMemberReport(replyToken, memberName) {
             if (b > 1) creditors.push({ name: m, amount: b });
         });
 
-        // Sort to optimize matching (Optional: Largest First)
-        debtors.sort((a, b) => b.amount - a.amount);
-        creditors.sort((a, b) => b.amount - a.amount);
-
         const myDebts = []; // List of people I owe
 
         let i = 0, j = 0;
