@@ -20,17 +20,18 @@ export async function getMemberByLineId(db, lineUserId) {
     };
 }
 
-// Get member by name
+// Get member by name (case-insensitive)
 export async function getMemberByName(db, name) {
-    const querySnapshot = await getDocs(
-        query(collection(db, 'members'), where('name', '==', name))
+    const querySnapshot = await getDocs(collection(db, 'members'));
+    const upperName = (name || '').toUpperCase();
+    const memberDoc = querySnapshot.docs.find(
+        d => (d.data().name || '').toUpperCase() === upperName
     );
 
-    if (querySnapshot.empty) {
+    if (!memberDoc) {
         return null;
     }
 
-    const memberDoc = querySnapshot.docs[0];
     return {
         id: memberDoc.id,
         ...memberDoc.data(),
@@ -50,13 +51,15 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
     const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
     const membersSnapshot = await getDocs(collection(db, 'members'));
 
-    const members = membersSnapshot.docs.map(d => d.data().name);
+    const members = membersSnapshot.docs.map(d => (d.data().name || '').toUpperCase());
     const transactions = transactionsSnapshot.docs
         .map(d => ({ id: d.id, ...d.data() }))
         .filter(t => t.date && t.date.startsWith(month));
 
     console.log('  📊 Found', transactions.length, 'transactions for month', month);
     console.log('  👥 Members:', members);
+
+    const normalizedFromName = (fromName || '').toUpperCase();
 
     // Calculate balances
     const balances = {};
@@ -94,7 +97,7 @@ export async function findMatchingSettlement(db, fromName, amount, month) {
         console.log(`  🔄 Checking: ${d.name} → ${c.name} = ${pay} บาท (looking for ${amount})`);
 
         // Check if this matches the slip
-        if (d.name === fromName && Math.abs(pay - amount) < 1) {
+        if (d.name === normalizedFromName && Math.abs(pay - amount) < 1) {
             console.log('  ✅ MATCH FOUND!');
             return {
                 from: d.name,
@@ -124,7 +127,8 @@ export async function findMatchingSettlementSmart(db, fromName, amount) {
     const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
     const membersSnapshot = await getDocs(collection(db, 'members'));
 
-    const members = membersSnapshot.docs.map(d => d.data().name);
+    const members = membersSnapshot.docs.map(d => (d.data().name || '').toUpperCase());
+    const normalizedFromName = (fromName || '').toUpperCase();
     const allTransactions = transactionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
     // Group transactions by month
@@ -196,7 +200,7 @@ export async function findMatchingSettlementSmart(db, fromName, amount) {
             const isVerified = verifiedSettlements[key];
 
             // Check if this matches the slip AND not verified yet
-            if (d.name === fromName && Math.abs(pay - amount) < 1 && !isVerified) {
+            if (d.name === normalizedFromName && Math.abs(pay - amount) < 1 && !isVerified) {
                 console.log(`  ✅ MATCH FOUND in month ${month}!`);
                 return {
                     from: d.name,
