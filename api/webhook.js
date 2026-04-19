@@ -703,6 +703,18 @@ async function generateMemberReport(replyToken, memberName) {
             }
         });
 
+        // หัก verified settlements ออกจาก balances (เหมือนที่เว็บทำ)
+        const verifiedSnap = await getDocs(
+            query(collection(db, 'settlements'),
+                where('month', '==', currentMonth),
+                where('status', '==', 'verified'))
+        );
+        verifiedSnap.forEach(vDoc => {
+            const s = vDoc.data();
+            if (balances[s.from] !== undefined) balances[s.from] += Number(s.amount);
+            if (balances[s.to] !== undefined) balances[s.to] -= Number(s.amount);
+        });
+
         // 3. Match Debts (Settlement Algorithm)
         const debtors = [];
         const creditors = [];
