@@ -3411,13 +3411,7 @@
                     const c = creditors[j];
                     const pay = Math.min(d.amount, c.amount);
 
-                    // เช็คว่า settlement นี้ verified แล้วหรือยัง
-                    const isVerified = verifiedSettlements.some(
-                        vs => vs.from === d.name && vs.to === c.name && Math.abs(vs.amount - pay) < 1
-                    );
-
-                    // ถ้ายังไม่ verified ถึงจะแสดง
-                    if (!isVerified) {
+                    if (pay > 0) {
                         this.data.settlementPlan.push({ from: d.name, to: c.name, amount: pay, status: 'pending' });
 
                         // สร้าง Settlement Item Card

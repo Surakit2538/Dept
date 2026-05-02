@@ -90,7 +90,11 @@ const app = {
     startListeners() {
         onSnapshot(collection(db, "members"), (snap) => {
             this.data.rawMembers = snap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref }));
-            this.data.members = this.data.rawMembers.map(m => (m.name || "").toUpperCase());
+            this.data.members = this.data.rawMembers.map(m => (m.name || "").toUpperCase()).sort((a, b) => {
+                if (a === 'GAME') return -1;
+                if (b === 'GAME') return 1;
+                return a.localeCompare(b);
+            });
             this.renderAdminsList();
         });
 
@@ -194,23 +198,27 @@ const app = {
             const payer = t.payer;
             if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
             if (t.splits) {
-                Object.entries(t.splits).forEach(([name, amount]) => {
-                    if (balances[name] !== undefined) balances[name] -= Number(amount);
+                Object.keys(t.splits).forEach(k => {
+                    const memberKey = k.toUpperCase();
+                    if (balances[memberKey] !== undefined) balances[memberKey] -= Number(t.splits[k]);
                 });
             }
         });
 
-        const debtors = [], creditors = [];
-        Object.entries(balances).forEach(([name, amount]) => {
-            const val = Math.round(amount * 100) / 100;
-            if (val < -1) debtors.push({ name, amount: Math.abs(val) });
-            if (val > 1) creditors.push({ name, amount: val });
+        // หักยอดที่ verified แล้วออกจาก balances เหมือนใน index.html
+        verifiedSettlements.forEach(s => {
+            if (balances[s.from] !== undefined) balances[s.from] += Number(s.amount);
+            if (balances[s.to] !== undefined) balances[s.to] -= Number(s.amount);
         });
 
-        debtors.sort((a, b) => b.amount - a.amount);
-        creditors.sort((a, b) => b.amount - a.amount);
+        const debtors = [], creditors = [];
+        this.data.members.forEach(m => {
+            const b = Math.round(balances[m]);
+            if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
+            if (b > 1) creditors.push({ name: m, amount: b });
+        });
 
-        const plan = [];
+        const pendingPlan = [];
         let i = 0, j = 0;
 
         while (i < debtors.length && j < creditors.length) {
@@ -219,7 +227,7 @@ const app = {
             const amount = Math.min(debtor.amount, creditor.amount);
 
             if (amount > 0) {
-                plan.push({ from: debtor.name, to: creditor.name, amount });
+                pendingPlan.push({ from: debtor.name, to: creditor.name, amount });
             }
 
             debtor.amount -= amount;
@@ -228,13 +236,6 @@ const app = {
             if (debtor.amount < 0.01) i++;
             if (creditor.amount < 0.01) j++;
         }
-
-        // ตัดยอดที่ชำระไปแล้ว
-        const pendingPlan = plan.filter(p => {
-            // Check if there is an exact match verified
-            const existing = verifiedSettlements.find(vs => vs.from === p.from && vs.to === p.to && Math.abs(vs.amount - p.amount) < 1);
-            return !existing;
-        });
 
         if (pendingPlan.length === 0) {
             listContainer.innerHTML = `
