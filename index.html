@@ -1908,7 +1908,8 @@
                     const superAdminId = 'U0d739eea39c312e11c487e22861920d1';
                     this.data.rawMembers = snap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref }));
 
-                    this.data.members = this.data.rawMembers.map(m => (m.name || "").toUpperCase()).sort((a, b) => {
+                    const uniqueNames = [...new Set(this.data.rawMembers.map(m => (m.name || "").toUpperCase()))];
+                    this.data.members = uniqueNames.sort((a, b) => {
                         if (a === 'GAME') return -1;
                         if (b === 'GAME') return 1;
                         return a.localeCompare(b);
@@ -2008,6 +2009,11 @@
             },
 
             async handleLineLoginSuccess(profile) {
+                if (this.data.isLoggingIn) {
+                    console.log("Login process already in progress, skipping...");
+                    return;
+                }
+                this.data.isLoggingIn = true;
                 try {
                     this.updateDebug("Got Profile: " + profile.displayName);
                     // document.getElementById('loading-overlay').classList.remove('hidden');
@@ -2077,6 +2083,7 @@
                         }
                     }
                 } catch (e) {
+                    this.data.isLoggingIn = false;
                     console.error(e);
                     this.updateDebug("Login Error: " + e.message);
                     alert("Login failed: " + e.message);
@@ -2086,6 +2093,7 @@
 
             async completeLogin(role, name, pictureUrl = '') {
                 console.log('🔐 completeLogin called with:', { role, name, pictureUrl });
+                this.data.isLoggingIn = false;
 
                 this.data.userRole = role;
                 this.data.currentUser = name; // Store current user

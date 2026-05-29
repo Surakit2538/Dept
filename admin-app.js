@@ -90,7 +90,8 @@ const app = {
     startListeners() {
         onSnapshot(collection(db, "members"), (snap) => {
             this.data.rawMembers = snap.docs.map(d => ({ ...d.data(), id: d.id, ref: d.ref }));
-            this.data.members = this.data.rawMembers.map(m => (m.name || "").toUpperCase()).sort((a, b) => {
+            const uniqueNames = [...new Set(this.data.rawMembers.map(m => (m.name || "").toUpperCase()))];
+            this.data.members = uniqueNames.sort((a, b) => {
                 if (a === 'GAME') return -1;
                 if (b === 'GAME') return 1;
                 return a.localeCompare(b);
