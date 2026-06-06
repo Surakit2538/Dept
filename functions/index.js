@@ -8,6 +8,42 @@ const logger = require("firebase-functions/logger");
 admin.initializeApp();
 const db = admin.firestore();
 
+/**
+ * Helper to get YYYY-MM in Asia/Bangkok timezone.
+ * @param {Date} date
+ * @return {string}
+ */
+function getBangkokMonthString(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const y = parts.find((p) => p.type === "year").value;
+  const m = parts.find((p) => p.type === "month").value;
+  return `${y}-${m}`;
+}
+
+/**
+ * Helper to get YYYY-MM-DD in Asia/Bangkok timezone.
+ * @param {Date} date
+ * @return {string}
+ */
+function getBangkokDateString(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const y = parts.find((p) => p.type === "year").value;
+  const m = parts.find((p) => p.type === "month").value;
+  const d = parts.find((p) => p.type === "day").value;
+  return `${y}-${m}-${d}`;
+}
+
 // Cloud Function ที่รันทุกวันที่ 1 เวลา 02:00
 exports.createMonthlySubscriptions = onSchedule({
   schedule: "0 2 1 * *", // ทุกวันที่ 1 เวลา 02:00 AM
@@ -18,7 +54,7 @@ exports.createMonthlySubscriptions = onSchedule({
   logger.info("🔄 Starting monthly subscription generation...");
 
   const today = new Date();
-  const currentMonth = today.toISOString().slice(0, 7); // "2026-03"
+  const currentMonth = getBangkokMonthString(today); // "2026-03"
 
   try {
     // 1. ดึง subscription templates ที่ active
@@ -51,7 +87,7 @@ exports.createMonthlySubscriptions = onSchedule({
 
       // สร้าง transaction ใหม่
       const newTransaction = {
-        date: today.toISOString().slice(0, 10),
+        date: getBangkokDateString(today),
         desc: `${template.desc} 📅`,
         amount: template.amount,
         payer: template.payer,

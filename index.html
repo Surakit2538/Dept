@@ -1863,6 +1863,32 @@
         const fApp = initializeApp(firebaseConfig);
         const db = getFirestore(fApp);
 
+        function getBangkokDateString(date = new Date()) {
+            const formatter = new Intl.DateTimeFormat("en-US", {
+                timeZone: "Asia/Bangkok",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit"
+            });
+            const parts = formatter.formatToParts(date);
+            const y = parts.find(p => p.type === "year").value;
+            const m = parts.find(p => p.type === "month").value;
+            const d = parts.find(p => p.type === "day").value;
+            return `${y}-${m}-${d}`;
+        }
+
+        function getBangkokMonthString(date = new Date()) {
+            const formatter = new Intl.DateTimeFormat("en-US", {
+                timeZone: "Asia/Bangkok",
+                year: "numeric",
+                month: "2-digit"
+            });
+            const parts = formatter.formatToParts(date);
+            const y = parts.find(p => p.type === "year").value;
+            const m = parts.find(p => p.type === "month").value;
+            return `${y}-${m}`;
+        }
+
         const app = {
             data: {
                 userRole: 'guest',
@@ -1870,7 +1896,7 @@
                 transactions: [],
                 splitMode: 'equal',
                 currentView: 'dashboard',
-                currentMonth: new Date().toISOString().slice(0, 7),
+                currentMonth: getBangkokMonthString(),
                 editingId: null,
                 selectedGroupId: null,
                 settlementPlan: [],
@@ -3081,10 +3107,10 @@
 
             populateMonthSelectors() {
                 const date = new Date();
-                const currentMonthVal = date.toISOString().slice(0, 7);
+                const currentMonthVal = getBangkokMonthString(date);
                 let html = "";
                 for (let i = 0; i < 12; i++) {
-                    const val = date.toISOString().slice(0, 7);
+                    const val = getBangkokMonthString(date);
                     let label = date.toLocaleString('th-TH', { month: 'long', year: 'numeric' });
                     if (val === currentMonthVal) {
                         label = "เดือนปัจจุบัน";
@@ -3105,7 +3131,7 @@
                 console.log('changeMonth called with delta:', delta);
                 const date = new Date(this.data.currentMonth + '-01');
                 date.setMonth(date.getMonth() + delta);
-                const newMonth = date.toISOString().slice(0, 7);
+                const newMonth = getBangkokMonthString(date);
                 console.log('New month:', newMonth);
                 this.setMonth(newMonth);
             },
@@ -3114,7 +3140,7 @@
                 console.log('updateMonthDisplay called, currentMonth:', this.data.currentMonth);
                 const selectedDate = new Date(this.data.currentMonth + '-01');
                 const currentDate = new Date();
-                const currentMonth = currentDate.toISOString().slice(0, 7);
+                const currentMonth = getBangkokMonthString(currentDate);
 
                 let displayText;
 
@@ -3722,7 +3748,7 @@
                 // Get previous month totals for comparison
                 const prevDate = new Date(this.data.currentMonth + '-01');
                 prevDate.setMonth(prevDate.getMonth() - 1);
-                const prevMonth = prevDate.toISOString().slice(0, 7);
+                const prevMonth = getBangkokMonthString(prevDate);
                 const prevFiltered = this.data.transactions.filter(t => t.date.startsWith(prevMonth));
 
                 const prevCategoryTotals = {};
@@ -3821,7 +3847,7 @@
                 for (let i = 5; i >= 0; i--) {
                     const d = new Date(selectedDate);
                     d.setMonth(selectedDate.getMonth() - i);
-                    const key = d.toISOString().slice(0, 7);
+                    const key = getBangkokMonthString(d);
                     months.push(thaiMonthNames[d.getMonth()]);
                     const total = this.data.transactions
                         .filter(t => t.date.startsWith(key))
@@ -3915,7 +3941,7 @@
                 document.getElementById('t-desc').value = "";
                 document.getElementById('t-payment-type').value = "normal";
                 // Set default date to today
-                document.getElementById('t-date').value = new Date().toISOString().slice(0, 10);
+                document.getElementById('t-date').value = getBangkokDateString();
                 // Set default payer to current user
                 document.getElementById('t-payer').value = this.data.currentUser || '';
                 this.toggleInstallment();
@@ -4305,7 +4331,7 @@
                             const currentInstallmentDate = new Date(baseDate);
                             currentInstallmentDate.setMonth(baseDate.getMonth() + i);
                             const txn = {
-                                date: currentInstallmentDate.toISOString().slice(0, 10),
+                                date: getBangkokDateString(currentInstallmentDate),
                                 desc: `${desc} (${i + 1}/${installments})`,
                                 amount: amount / installments,
                                 payer,
@@ -4580,7 +4606,7 @@
                 const today = new Date();
                 const twoMonthsAgo = new Date(today);
                 twoMonthsAgo.setMonth(today.getMonth() - 2);
-                const cutoffMonth = twoMonthsAgo.toISOString().slice(0, 7); // "2025-11"
+                const cutoffMonth = getBangkokMonthString(twoMonthsAgo); // "2025-11"
 
                 // นับจำนวนข้อมูลที่จะลบ
                 const oldTransactions = this.data.transactions.filter(t => t.date < `${cutoffMonth}-01`);
@@ -4664,7 +4690,7 @@
                 const encodedUri = encodeURI(csvContent);
                 const link = document.createElement("a");
                 link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `dept_money_export_${new Date().toISOString().slice(0, 10)}.csv`);
+                link.setAttribute("download", `dept_money_export_${getBangkokDateString()}.csv`);
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);

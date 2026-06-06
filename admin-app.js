@@ -14,6 +14,33 @@ const fApp = initializeApp(firebaseConfig);
 const db = getFirestore(fApp);
 const liffId = "2008948704-db2goT00";
 
+// --- TIMEZONE HELPERS ---
+function getBangkokDateString(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    });
+    const parts = formatter.formatToParts(date);
+    const y = parts.find(p => p.type === "year").value;
+    const m = parts.find(p => p.type === "month").value;
+    const d = parts.find(p => p.type === "day").value;
+    return `${y}-${m}-${d}`;
+}
+
+function getBangkokMonthString(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit"
+    });
+    const parts = formatter.formatToParts(date);
+    const y = parts.find(p => p.type === "year").value;
+    const m = parts.find(p => p.type === "month").value;
+    return `${y}-${m}`;
+}
+
 const app = {
     data: {
         rawMembers: [],
@@ -21,7 +48,7 @@ const app = {
         transactions: [],
         settlements: [],
         currentUser: null,
-        currentMonth: new Date().toISOString().slice(0, 7),
+        currentMonth: getBangkokMonthString(),
         isSuperAdmin: false
     },
 
@@ -162,7 +189,7 @@ const app = {
         sel.innerHTML = '';
         const d = new Date();
         for (let i = 0; i < 12; i++) {
-            const val = d.toISOString().slice(0, 7);
+            const val = getBangkokMonthString(d);
             const label = d.toLocaleString('th-TH', { month: 'long', year: 'numeric' });
             const opt = document.createElement('option');
             opt.value = val;
@@ -365,7 +392,7 @@ const app = {
         const d = new Date();
         let html = '';
         for (let i = 0; i < 6; i++) {
-            const val = d.toISOString().slice(0, 7);
+            const val = getBangkokMonthString(d);
             html += `<option value="${val}">เปลี่ยนเป็น ${val}</option>`;
             d.setMonth(d.getMonth() - 1);
         }

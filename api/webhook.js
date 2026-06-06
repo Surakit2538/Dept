@@ -1,4 +1,4 @@
-﻿import { initializeApp } from "firebase/app";
+import { initializeApp } from "firebase/app";
 import {
     getFirestore, doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
@@ -33,6 +33,33 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+
+// --- TIMEZONE HELPERS ---
+function getBangkokDateString(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+    });
+    const parts = formatter.formatToParts(date);
+    const y = parts.find(p => p.type === "year").value;
+    const m = parts.find(p => p.type === "month").value;
+    const d = parts.find(p => p.type === "day").value;
+    return `${y}-${m}-${d}`;
+}
+
+function getBangkokMonthString(date = new Date()) {
+    const formatter = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Bangkok",
+        year: "numeric",
+        month: "2-digit"
+    });
+    const parts = formatter.formatToParts(date);
+    const y = parts.find(p => p.type === "year").value;
+    const m = parts.find(p => p.type === "month").value;
+    return `${y}-${m}`;
+}
 
 // --- MAIN HANDLER ---
 export default async function handler(req, res) {
@@ -268,7 +295,7 @@ async function handleImageMessage(event) {
 
         // 5. หา Settlement ที่ตรงกับยอดเงินในสลิป
         // ใช้เดือนปัจจุบัน (YYYY-MM format)
-        const currentMonth = new Date().toISOString().slice(0, 7);
+        const currentMonth = getBangkokMonthString();
         console.log('🔍 Finding settlement for:', userMember.name, 'amount:', slipAmount, 'month:', currentMonth);
 
         const matchingSettlement = await findMatchingSettlement(db, userMember.name, slipAmount, currentMonth);
@@ -540,7 +567,7 @@ async function saveTransaction(replyToken, userId, finalData) {
             for (let i = 0; i < finalData.installments; i++) {
                 const nextDate = new Date(); nextDate.setMonth(today.getMonth() + i);
                 batch.set(doc(collection(db, "transactions")), {
-                    date: nextDate.toISOString().slice(0, 10),
+                    date: getBangkokDateString(nextDate),
                     desc: `${finalData.desc} (${i + 1}/${finalData.installments})`,
                     amount: amountPerMonth, payer: finalData.payer, splits: monthlySplits,
                     paymentType: 'installment', installments: finalData.installments,
@@ -553,14 +580,14 @@ async function saveTransaction(replyToken, userId, finalData) {
 
             // สร้างรายการเดือนปัจจุบัน
             batch.set(doc(collection(db, "transactions")), {
-                date: today.toISOString().slice(0, 10),
+                date: getBangkokDateString(today),
                 desc: `${finalData.desc} 📅`,
                 amount: finalData.amount,
                 payer: finalData.payer,
                 splits: splits,
                 paymentType: 'subscription',
                 subscriptionRecurring: true,
-                subscriptionStartDate: today.toISOString().slice(0, 10),
+                subscriptionStartDate: getBangkokDateString(today),
                 groupId: groupId,
                 icon: icon,
                 timestamp: Date.now()
@@ -579,12 +606,12 @@ async function saveTransaction(replyToken, userId, finalData) {
                 active: true,
                 createdAt: today,
                 createdBy: finalData.payer,
-                lastGeneratedMonth: today.toISOString().slice(0, 7) // "2026-02"
+                lastGeneratedMonth: getBangkokMonthString(today) // "2026-02"
             });
         } else {
             // จ่ายเต็ม (normal)
             batch.set(doc(collection(db, "transactions")), {
-                date: today.toISOString().slice(0, 10),
+                date: getBangkokDateString(today),
                 desc: finalData.desc, amount: finalData.amount, payer: finalData.payer,
                 splits: splits, paymentType: 'normal', timestamp: Date.now(), icon: icon
             });
@@ -646,7 +673,7 @@ async function saveTransaction(replyToken, userId, finalData) {
 async function generateMemberReport(replyToken, memberName) {
     try {
         const date = new Date();
-        const currentMonth = date.toISOString().slice(0, 7);
+        const currentMonth = getBangkokMonthString(date);
 
         // 1. Fetch Transactions
         const q = query(collection(db, "transactions"),
