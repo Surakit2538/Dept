@@ -4459,12 +4459,135 @@
                 }
             },
 
+            openDeleteSubscriptionModal(id, t) {
+                let modal = document.getElementById('delete-subscription-modal');
+                if (!modal) {
+                    modal = document.createElement('div');
+                    modal.id = 'delete-subscription-modal';
+                    modal.className = 'hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-end md:items-center justify-center p-0 md:p-4';
+                    document.body.appendChild(modal);
+                }
+
+                modal.innerHTML = `
+                    <div class="bg-[#1c1c1e] w-full max-w-md rounded-t-[32px] md:rounded-[32px] shadow-2xl p-6 border border-white/10 transform transition-all translate-y-0">
+                        <div class="w-12 h-12 rounded-full bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500 text-xl mx-auto mb-4">
+                            <i class="fa-solid fa-trash-can"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-white text-center mb-2">ลบรายการ Subscription</h3>
+                        <p class="text-sm text-slate-400 text-center mb-6">
+                            รายการ <strong class="text-white">"${t.desc.split(' 📅')[0]}"</strong> เป็นแบบจ่ายรายเดือนอัตโนมัติ คุณต้องการลบแบบใด?
+                        </p>
+                        
+                        <button id="btn-delete-only-month" class="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-xl border border-white/10 transition-colors mb-3 flex items-center justify-center gap-2 active:scale-98">
+                            🗑️ ลบเฉพาะเดือนนี้เท่านั้น
+                        </button>
+                        
+                        <button id="btn-delete-and-cancel-recurring" class="w-full py-3 px-4 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold rounded-xl border border-amber-500/20 transition-colors mb-3 flex items-center justify-center gap-2 active:scale-98">
+                            🛑 ลบเดือนนี้ + ยกเลิกหักเงินในอนาคต
+                        </button>
+                        
+                        <button id="btn-delete-all-months" class="w-full py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl shadow-lg transition-colors mb-4 flex items-center justify-center gap-2 active:scale-98">
+                            💥 ลบประวัติทุกเดือน (ทั้งชุด)
+                        </button>
+                        
+                        <button id="btn-delete-sub-cancel" class="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-400 font-bold rounded-xl transition-colors flex items-center justify-center active:scale-98">
+                            ยกเลิก
+                        </button>
+                    </div>
+                `;
+
+                // Add button click listeners
+                modal.querySelector('#btn-delete-only-month').onclick = async () => {
+                    modal.classList.add('hidden');
+                    try {
+                        await deleteDoc(doc(db, "transactions", id.trim()));
+                        this.showToast('🗑️ ลบรายการเฉพาะเดือนนี้แล้ว');
+                    } catch (e) {
+                        alert('เกิดข้อผิดพลาด: ' + e.message);
+                    }
+                };
+
+                modal.querySelector('#btn-delete-and-cancel-recurring').onclick = async () => {
+                    modal.classList.add('hidden');
+                    if (!confirm('ยืนยันลบรายการเดือนนี้ และหยุดการหักรายเดือนในอนาคตหรือไม่?')) return;
+                    try {
+                        const batch = writeBatch(db);
+                        batch.delete(doc(db, "transactions", id.trim()));
+                        
+                        const qTemplates = query(collection(db, "subscription_templates"), where("groupId", "==", t.groupId));
+                        const snapTemplates = await getDocs(qTemplates);
+                        snapTemplates.forEach(docSnap => {
+                            batch.update(docSnap.ref, { active: false });
+                        });
+                        
+                        await batch.commit();
+                        this.showToast('🛑 ลบเดือนนี้และยกเลิก Subscription แล้ว');
+                    } catch (e) {
+                        alert('เกิดข้อผิดพลาด: ' + e.message);
+                    }
+                };
+
+                modal.querySelector('#btn-delete-all-months').onclick = async () => {
+                    modal.classList.add('hidden');
+                    if (!confirm('ยืนยันลบประวัติของรายการนี้ทั้งหมดในทุกๆ เดือนหรือไม่? (ไม่สามารถกู้คืนได้)')) return;
+                    try {
+                        const batch = writeBatch(db);
+                        const groupItems = this.data.transactions.filter(item => item.groupId === t.groupId);
+                        groupItems.forEach(item => batch.delete(doc(db, "transactions", item.id.trim())));
+                        
+                        await batch.commit();
+
+                        const groupTransactionIds = groupItems.map(item => item.id);
+                        const settlementsQuery = query(
+                            collection(db, 'settlements'),
+                            where('status', '==', 'verified')
+                        );
+
+                        const settlementsSnapshot = await getDocs(settlementsQuery);
+                        const settlementBatch = writeBatch(db);
+                        let deletedCount = 0;
+
+                        settlementsSnapshot.forEach(doc => {
+                            const settlement = doc.data();
+                            const hasGroupTransaction = settlement.transactionIds?.some(
+                                tId => groupTransactionIds.includes(tId)
+                            );
+                            if (hasGroupTransaction) {
+                                settlementBatch.delete(doc.ref);
+                                deletedCount++;
+                            }
+                        });
+
+                        if (deletedCount > 0) {
+                            await settlementBatch.commit();
+                            console.log(`Deleted ${deletedCount} related settlements`);
+                        }
+
+                        this.showToast('💥 ลบประวัติรายการทั้งหมดสำเร็จ');
+                    } catch (e) {
+                        alert('เกิดข้อผิดพลาด: ' + e.message);
+                    }
+                };
+
+                modal.querySelector('#btn-delete-sub-cancel').onclick = () => {
+                    modal.classList.add('hidden');
+                };
+
+                modal.classList.remove('hidden');
+            },
+
             async deleteTransaction(id) {
                 if (this.data.userRole !== 'admin') return;
                 const t = this.data.transactions.find(x => x.id === id);
                 if (!t) return;
 
                 if (t.groupId) {
+                    // Check if it is a subscription
+                    if (t.paymentType === 'subscription' || t.groupId.startsWith('sub_')) {
+                        this.openDeleteSubscriptionModal(id, t);
+                        return;
+                    }
+
                     const deleteChoice = confirm('ยืนยันต้องการลบรายการที่เกี่ยวข้องทั้งหมดหรือไม่?\n\nOK: ลบทั้งหมด\nCancel: ยกเลิก');
                     if (!deleteChoice) return;
 
