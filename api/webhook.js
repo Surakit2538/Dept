@@ -485,7 +485,7 @@ async function getImageContent(messageId) {
 async function parseExpenseWithGemini(text, membersList) {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-pro" });
         
         const prompt = `
 คุณเป็นผู้ช่วยจดบันทึกรายจ่ายสำหรับกลุ่มเพื่อน 
