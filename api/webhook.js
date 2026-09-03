@@ -85,37 +85,39 @@ async function handleTextMessage(event) {
     const text = event.message.text.trim();
     const replyToken = event.replyToken;
 
-    // คำสั่งยกเลิก
+    // คำสั่งยกเลิก (Global)
     if (['ยกเลิก', 'cancel', 'เริ่มใหม่', 'reset', 'พอ'].includes(text.toLowerCase())) {
         await deleteDoc(doc(db, 'user_sessions', userId));
         return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
     }
 
     const sessionRef = doc(db, 'user_sessions', userId);
+    
+    // 1. คำสั่งเริ่มจดบันทึก (Global)
+    if (text === "เริ่มต้นจดบันทึก") {
+        await setDoc(sessionRef, {
+            step: 'ASK_DESC_START',
+            timestamp: serverTimestamp()
+        });
+        return replyText(replyToken, "📝 เริ่มบันทึกรายการ\nกรุณาพิมพ์ชื่อรายการครับ");
+    }
+
+    // 2. คำสั่งดูค่าใช้จ่าย (Global)
+    if (text === "ต้องการดูค่าใช้จ่ายของเดือนนี้") {
+        await deleteDoc(sessionRef); // Clear active session to avoid trapping
+        const memberName = await getMemberNameByLineId(userId);
+        if (!memberName) {
+            return replyText(replyToken, "❌ ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
+        }
+        await generateMemberReport(replyToken, memberName);
+        return;
+    }
+
     const sessionSnap = await getDoc(sessionRef);
     let session = sessionSnap.exists() ? sessionSnap.data() : null;
 
     // --- STEP 0: จุดเริ่มต้น (ไม่มี Session ค้าง) ---
     if (!session) {
-        // 1. คำสั่งเริ่มจดบันทึก
-        if (text === "เริ่มต้นจดบันทึก") {
-            await setDoc(sessionRef, {
-                step: 'ASK_DESC_START',
-                timestamp: serverTimestamp()
-            });
-            return replyText(replyToken, "📝 เริ่มบันทึกรายการ\nกรุณาพิมพ์ชื่อรายการครับ");
-        }
-
-        // 2. คำสั่งดูค่าใช้จ่าย - ดึงจาก userId โดยอัตโนมัติ
-        if (text === "ต้องการดูค่าใช้จ่ายของเดือนนี้") {
-            const memberName = await getMemberNameByLineId(userId);
-            if (!memberName) {
-                return replyText(replyToken, "❌ ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
-            }
-            await generateMemberReport(replyToken, memberName);
-            return;
-        }
-
         // 3. AI Expense Parsing (Feature F) - ถ้าข้อความยาวพอและมี API KEY
         if (text.length > 5 && process.env.GEMINI_API_KEY && !text.includes('://')) { 
             const members = await getMemberNames();
@@ -1033,7 +1035,7 @@ async function generateMemberReport(replyToken, memberName) {
 
     } catch (e) {
         console.error(e);
-        await replyText(replyToken, "❌ เกิดข้อผิดพลาดในการดึงข้อมูลครับ");
+        await replyText(replyToken, "❌ เกิดข้อผิดพลาดในการดึงข้อมูล: " + e.message);
     }
 }
 
