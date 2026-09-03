@@ -245,14 +245,21 @@ async function handleTextMessage(event) {
     // STEP AI 2: รับคนจ่าย (จากที่ AI หาไม่ได้)
     if (currentStep === 'AI_ASK_PAYER') {
         let finalPayer = text.toUpperCase();
+        const members = await getMemberNames();
+        
         if (["ฉัน", "ผม", "หนู", "เรา", "พี่", "น้อง"].includes(finalPayer)) {
             const memberName = await getMemberNameByLineId(userId);
             if (memberName) finalPayer = memberName;
+        } else {
+            // ใช้ AI ช่วยวิเคราะห์ชื่อที่พิมพ์มาว่าตรงกับใครในระบบ
+            const mappedNames = await mapNamesWithGemini(text, members);
+            if (mappedNames && mappedNames.length > 0) {
+                finalPayer = mappedNames[0];
+            }
         }
         
-        const members = await getMemberNames();
         if (!members.includes(finalPayer)) {
-             return replyText(replyToken, `🤖 ไม่พบชื่อ "${text}" ในระบบครับ\nกรุณาพิมพ์ชื่อคนจ่ายให้ตรงกับในระบบ (${members.join(', ')})`);
+             return replyText(replyToken, `🤖 ไม่พบชื่อใกล้เคียงกับ "${text}" ในระบบครับ\nกรุณาพิมพ์ชื่อคนจ่ายให้ตรงกับในระบบ (${members.join(', ')})`);
         }
         
         data.payer = finalPayer;
@@ -284,11 +291,8 @@ async function handleTextMessage(event) {
         if (text.includes("ทุกคน")) {
             finalParticipants = members;
         } else {
-            // ลองตัดคำด้วยช่องว่าง หรือ comma
-            let names = text.split(/[\s,]+/);
-            finalParticipants = names
-                .map(p => p.toUpperCase())
-                .filter(p => members.includes(p));
+            // ใช้ AI ช่วยแปลงชื่อเล่น/ชื่อย่อ ให้ตรงกับชื่อเต็มในระบบ
+            finalParticipants = await mapNamesWithGemini(text, members);
         }
         
         if (finalParticipants.length > 0) {
@@ -634,6 +638,34 @@ Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount":
             payer: "ERROR_AI", 
             error_msg: `[GoogleGenerativeAI Error]: ${errorMsg}` 
         };
+    }
+}
+
+async function mapNamesWithGemini(text, membersList) {
+    if (!process.env.GEMINI_API_KEY) return [];
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+        
+        const prompt = `
+คุณมีหน้าที่แปลงรายชื่อที่ผู้ใช้พิมพ์แบบไม่เป็นทางการ (ภาษาไทย, ชื่อย่อ) ให้ตรงกับรายชื่อทางการในระบบเป๊ะๆ
+
+รายชื่อทางการในระบบ: ${membersList.join(', ')}
+
+ข้อความที่ผู้ใช้พิมพ์มา: "${text}"
+
+จงส่งคืนผลลัพธ์เป็น JSON Array ของชื่อทางการที่แมตช์ได้ (เช่น ["G A M E 👾", "CARE 🦖"]) 
+ห้ามตอบข้อความอื่นนอกจาก JSON Array
+ถ้าหาไม่เจอเลย หรือไม่แน่ใจ ให้ตอบ []`;
+
+        const result = await model.generateContent(prompt);
+        let responseText = result.response.text();
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        return JSON.parse(responseText);
+    } catch (error) {
+        console.error("Gemini Name Mapping Error:", error);
+        return []; // Fallback
     }
 }
 
