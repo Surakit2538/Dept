@@ -171,9 +171,16 @@ async function handleTextMessage(event) {
                         const summary = `รายการ: ${parsedExpense.desc}\nราคา: ${parsedExpense.amount.toLocaleString()} ฿\nคนจ่าย: ${finalPayer}\nคนหาร: ${finalParticipants.join(', ')}`;
                         const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
                         return replyQuickReply(replyToken, flex, actions);
+                    } else {
+                        return replyText(replyToken, `🤖 ระบบวิเคราะห์ว่าเป็นรายจ่าย แต่ไม่พบชื่อคนหารในระบบ\n(AI พบชื่อ: ${parsedExpense.participants?.join(', ') || 'ไม่มี'})\nกรุณาระบุชื่อคนหารให้ตรงกับในระบบ (${members.join(', ')})`);
                     }
+                } else {
+                    return replyText(replyToken, `🤖 ระบบวิเคราะห์ว่าเป็นรายจ่าย แต่ไม่พบชื่อคนจ่ายในระบบ\n(AI พบชื่อ: ${parsedExpense.payer || 'ไม่มี'})\nกรุณาระบุชื่อให้ตรงกับระบบ (${members.join(', ')}) หรือพิมพ์ 'เราจ่าย'\n(Error Detail: ${parsedExpense.error_msg || 'None'})`);
                 }
             }
+        } else if (text.length > 5 && (text.includes('จ่าย') || text.includes('บาท')) && !process.env.GEMINI_API_KEY) {
+            // กรณีพิมพ์เหมือนรายจ่าย แต่ยังไม่ได้ตั้งค่า API Key
+            return replyText(replyToken, "⚠️ ระบบ AI ยังไม่พร้อมใช้งาน กรุณาตั้งค่า GEMINI_API_KEY ใน Vercel Environment Variables และกด Redeploy");
         }
 
         // ถ้าพิมพ์อย่างอื่นมา ให้ปล่อยผ่าน (Ignore)
@@ -508,7 +515,7 @@ Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount":
         return JSON.parse(responseText);
     } catch (error) {
         console.error("Gemini API Error:", error);
-        return null;
+        return { is_expense: true, payer: "ERROR_AI", error_msg: error.message };
     }
 }
 
