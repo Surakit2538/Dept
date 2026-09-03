@@ -145,8 +145,6 @@ async function handleTextMessage(event) {
                 } else if (members.includes(finalPayer)) {
                     validPayer = true;
                 }
-                
-                if (finalPayer) {
                 // ข้อมูลเบื้องต้นที่ดึงได้
                 let partialData = {
                     desc: parsedExpense.desc,
@@ -209,6 +207,7 @@ async function handleTextMessage(event) {
                 } else {
                     return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบ\n(AI พบชื่อ: ${partialData.participants.join(', ') || 'ไม่มี'})\nกรุณาระบุชื่อให้ตรงกับในระบบ (${members.join(', ')})`);
                 }
+            }
         } else if (text.length > 5 && (text.includes('จ่าย') || text.includes('บาท')) && !process.env.GEMINI_API_KEY) {
             // กรณีพิมพ์เหมือนรายจ่าย แต่ยังไม่ได้ตั้งค่า API Key
             return replyText(replyToken, "⚠️ ระบบ AI ยังไม่พร้อมใช้งาน กรุณาตั้งค่า GEMINI_API_KEY ใน Vercel Environment Variables และกด Redeploy");
