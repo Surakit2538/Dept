@@ -147,48 +147,68 @@ async function handleTextMessage(event) {
                 }
                 
                 if (finalPayer) {
-                    let finalParticipants = [];
-                    if (!parsedExpense.participants || parsedExpense.participants.length === 0) {
-                        return replyText(replyToken, `🤖 ข้อมูลไม่ครบครับ! รบกวนพิมพ์ใหม่โดยระบุว่า "หารกับใครบ้าง"\n(ถ้าหารทุกคนให้ระบุว่า "หารทุกคน" ต่อท้ายประโยคได้เลย)\n\n💡 ตัวอย่าง: ${text} หารทุกคน`);
-                    } else if (parsedExpense.participants.includes("ทุกคน")) {
-                        finalParticipants = members;
-                    } else {
-                        // กรองเฉพาะชื่อที่มีในระบบ
-                        finalParticipants = parsedExpense.participants
-                            .map(p => p.toUpperCase())
-                            .filter(p => members.includes(p));
-                    }
-                    
-                    if (finalParticipants.length > 0) {
-                        // ข้อมูลสมบูรณ์ สร้าง Session ถามยืนยัน
-                        await setDoc(sessionRef, {
-                            step: 'CONFIRM_AI_EXPENSE',
-                            data: {
-                                desc: parsedExpense.desc,
-                                amount: parsedExpense.amount,
-                                payer: finalPayer,
-                                participants: finalParticipants,
-                                paymentType: 'normal',
-                                splitMethod: 'equal'
-                            },
-                            timestamp: serverTimestamp()
-                        });
-                        
-                        const actions = [
-                            { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
-                            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
-                        ];
-                        
-                        const summary = `รายการ: ${parsedExpense.desc}\nราคา: ${parsedExpense.amount.toLocaleString()} ฿\nคนจ่าย: ${finalPayer}\nคนหาร: ${finalParticipants.join(', ')}`;
-                        const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
-                        return replyQuickReply(replyToken, flex, actions);
-                    } else {
-                        return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบ\n(AI พบชื่อ: ${parsedExpense.participants?.join(', ') || 'ไม่มี'})\nกรุณาระบุชื่อคนหารให้ตรงกับในระบบ (${members.join(', ')})`);
-                    }
-                } else {
-                    return replyText(replyToken, `🤖 ข้อมูลไม่ครบครับ! รบกวนพิมพ์ใหม่โดยระบุว่า "ใครเป็นคนจ่าย"\n\n💡 ตัวอย่าง: ${text} เราจ่าย`);
+                // ข้อมูลเบื้องต้นที่ดึงได้
+                let partialData = {
+                    desc: parsedExpense.desc,
+                    amount: parsedExpense.amount,
+                    participants: parsedExpense.participants || [],
+                    payer: finalPayer
+                };
+
+                if (!finalPayer) {
+                    await setDoc(sessionRef, {
+                        step: 'AI_ASK_PAYER',
+                        data: partialData,
+                        timestamp: serverTimestamp()
+                    });
+                    const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
+                    const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${parsedExpense.amount.toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
+                    return replyQuickReply(replyToken, flex, actions);
                 }
-            }
+                
+                if (!partialData.participants || partialData.participants.length === 0) {
+                    await setDoc(sessionRef, {
+                        step: 'AI_ASK_PARTICIPANTS',
+                        data: partialData,
+                        timestamp: serverTimestamp()
+                    });
+                    return replyText(replyToken, `🤖 ข้อมูลเกือบครบแล้วครับ! ขาดแค่ "หารกับใครบ้าง"...\nรบกวนพิมพ์ชื่อคนหาร (เช่น: เกม แคร์) หรือพิมพ์ว่า "ทุกคน" ครับ`);
+                }
+
+                // ข้อมูลสมบูรณ์ จัดเตรียม finalParticipants
+                let finalParticipants = [];
+                if (partialData.participants.includes("ทุกคน")) {
+                    finalParticipants = members;
+                } else {
+                    finalParticipants = partialData.participants
+                        .map(p => p.toUpperCase())
+                        .filter(p => members.includes(p));
+                }
+                
+                if (finalParticipants.length > 0) {
+                    partialData.participants = finalParticipants;
+                    // ข้อมูลสมบูรณ์ สร้าง Session ถามยืนยัน
+                    await setDoc(sessionRef, {
+                        step: 'CONFIRM_AI_EXPENSE',
+                        data: {
+                            ...partialData,
+                            paymentType: 'normal',
+                            splitMethod: 'equal'
+                        },
+                        timestamp: serverTimestamp()
+                    });
+                    
+                    const actions = [
+                        { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
+                        { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+                    ];
+                    
+                    const summary = `รายการ: ${partialData.desc}\nราคา: ${partialData.amount.toLocaleString()} ฿\nคนจ่าย: ${partialData.payer}\nคนหาร: ${finalParticipants.join(', ')}`;
+                    const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
+                    return replyQuickReply(replyToken, flex, actions);
+                } else {
+                    return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบ\n(AI พบชื่อ: ${partialData.participants.join(', ') || 'ไม่มี'})\nกรุณาระบุชื่อให้ตรงกับในระบบ (${members.join(', ')})`);
+                }
         } else if (text.length > 5 && (text.includes('จ่าย') || text.includes('บาท')) && !process.env.GEMINI_API_KEY) {
             // กรณีพิมพ์เหมือนรายจ่าย แต่ยังไม่ได้ตั้งค่า API Key
             return replyText(replyToken, "⚠️ ระบบ AI ยังไม่พร้อมใช้งาน กรุณาตั้งค่า GEMINI_API_KEY ใน Vercel Environment Variables และกด Redeploy");
@@ -220,6 +240,72 @@ async function handleTextMessage(event) {
         } else {
             await deleteDoc(sessionRef);
             return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
+        }
+    }
+
+    // STEP AI 2: รับคนจ่าย (จากที่ AI หาไม่ได้)
+    if (currentStep === 'AI_ASK_PAYER') {
+        let finalPayer = text.toUpperCase();
+        if (["ฉัน", "ผม", "หนู", "เรา", "พี่", "น้อง"].includes(finalPayer)) {
+            const memberName = await getMemberNameByLineId(userId);
+            if (memberName) finalPayer = memberName;
+        }
+        
+        const members = await getMemberNames();
+        if (!members.includes(finalPayer)) {
+             return replyText(replyToken, `🤖 ไม่พบชื่อ "${text}" ในระบบครับ\nกรุณาพิมพ์ชื่อคนจ่ายให้ตรงกับในระบบ (${members.join(', ')})`);
+        }
+        
+        data.payer = finalPayer;
+        
+        // ถ้ายังขาดคนหาร
+        if (!data.participants || data.participants.length === 0) {
+            await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
+            return replyText(replyToken, `🤖 รับทราบครับ คนจ่ายคือ ${finalPayer}\n\nแล้วรายการนี้ "หารกับใครบ้าง" ครับ?\n(รบกวนพิมพ์ชื่อคนหาร เช่น: เกม แคร์ หรือพิมพ์ว่า "ทุกคน")`);
+        }
+        
+        // ครบแล้ว ไปยืนยัน
+        data.paymentType = 'normal';
+        data.splitMethod = 'equal';
+        await setDoc(sessionRef, { step: 'CONFIRM_AI_EXPENSE', data: data, timestamp: serverTimestamp() });
+        const actions = [
+            { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
+            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+        ];
+        const summary = `รายการ: ${data.desc}\nราคา: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
+        const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
+        return replyQuickReply(replyToken, flex, actions);
+    }
+    
+    // STEP AI 3: รับคนหาร (จากที่ AI หาไม่ได้)
+    if (currentStep === 'AI_ASK_PARTICIPANTS') {
+        const members = await getMemberNames();
+        let finalParticipants = [];
+        
+        if (text.includes("ทุกคน")) {
+            finalParticipants = members;
+        } else {
+            // ลองตัดคำด้วยช่องว่าง หรือ comma
+            let names = text.split(/[\s,]+/);
+            finalParticipants = names
+                .map(p => p.toUpperCase())
+                .filter(p => members.includes(p));
+        }
+        
+        if (finalParticipants.length > 0) {
+            data.participants = finalParticipants;
+            data.paymentType = 'normal';
+            data.splitMethod = 'equal';
+            await setDoc(sessionRef, { step: 'CONFIRM_AI_EXPENSE', data: data, timestamp: serverTimestamp() });
+            const actions = [
+                { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
+                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            ];
+            const summary = `รายการ: ${data.desc}\nราคา: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
+            const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
+            return replyQuickReply(replyToken, flex, actions);
+        } else {
+            return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบครับ\n(ข้อมูลที่พิมพ์: ${text})\nกรุณาระบุชื่อคนหารให้ตรงกับในระบบ (${members.join(', ')})`);
         }
     }
 
