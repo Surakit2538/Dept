@@ -128,11 +128,6 @@ async function handleTextMessage(event) {
             }
             
             if (parsedExpense && parsedExpense.is_expense) {
-                if (!parsedExpense.desc || !parsedExpense.amount) {
-                     return replyText(replyToken, `🤖 ระบบวิเคราะห์ว่าเป็นรายจ่าย แต่ข้อมูลไม่ครบถ้วน\n(ไม่พบชื่อรายการหรือจำนวนเงิน)\nกรุณาลองพิมพ์ใหม่ครับ`);
-                }
-                
-                let validPayer = false;
                 let finalPayer = (parsedExpense.payer || "").toUpperCase();
                 
                 // ถ้าระบุคนจ่ายเป็นสรรพนามบุรุษที่ 1
@@ -152,6 +147,24 @@ async function handleTextMessage(event) {
                     participants: parsedExpense.participants || [],
                     payer: finalPayer
                 };
+
+                if (!partialData.desc) {
+                     await setDoc(sessionRef, {
+                         step: 'AI_ASK_DESC',
+                         data: partialData,
+                         timestamp: serverTimestamp()
+                     });
+                     return replyText(replyToken, `🤖 ขาดชื่อรายการครับ ค่าใช้จ่ายนี้คือค่าอะไรครับ?`);
+                }
+
+                if (!partialData.amount) {
+                     await setDoc(sessionRef, {
+                         step: 'AI_ASK_AMOUNT',
+                         data: partialData,
+                         timestamp: serverTimestamp()
+                     });
+                     return replyText(replyToken, `🤖 ขาดจำนวนเงินครับ ยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข)`);
+                }
 
                 if (!finalPayer) {
                     await setDoc(sessionRef, {
@@ -242,6 +255,50 @@ async function handleTextMessage(event) {
         }
     }
 
+    // STEP AI 1.1: รับชื่อรายการที่ขาด
+    if (currentStep === 'AI_ASK_DESC') {
+        data.desc = text;
+        if (!data.amount) {
+             await setDoc(sessionRef, { step: 'AI_ASK_AMOUNT', data: data, timestamp: serverTimestamp() });
+             return replyText(replyToken, `🤖 ยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข)`);
+        }
+        if (!data.payer) {
+            await setDoc(sessionRef, { step: 'AI_ASK_PAYER', data: data, timestamp: serverTimestamp() });
+            const members = await getMemberNames();
+            const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
+            const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${data.amount.toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
+            return replyQuickReply(replyToken, flex, actions);
+        }
+        if (!data.participants || data.participants.length === 0) {
+            await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
+            return replyText(replyToken, `🤖 ข้อมูลเกือบครบแล้วครับ! ขาดแค่ "หารกับใครบ้าง"...\nรบกวนพิมพ์ชื่อคนหาร (เช่น: เกม แคร์) หรือพิมพ์ว่า "ทุกคน" ครับ`);
+        }
+        // ถ้าครบแล้ว ไปยืนยัน
+        return proceedToAIConfirm(replyToken, sessionRef, data, members);
+    }
+
+    // STEP AI 1.2: รับจำนวนเงินที่ขาด
+    if (currentStep === 'AI_ASK_AMOUNT') {
+        const amount = parseFloat(text);
+        if (isNaN(amount) || amount <= 0) {
+            return replyText(replyToken, "❌ กรุณาพิมพ์จำนวนเงินเป็นตัวเลขที่ถูกต้องครับ");
+        }
+        data.amount = amount;
+        if (!data.payer) {
+            await setDoc(sessionRef, { step: 'AI_ASK_PAYER', data: data, timestamp: serverTimestamp() });
+            const members = await getMemberNames();
+            const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
+            const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${data.amount.toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
+            return replyQuickReply(replyToken, flex, actions);
+        }
+        if (!data.participants || data.participants.length === 0) {
+            await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
+            return replyText(replyToken, `🤖 ข้อมูลเกือบครบแล้วครับ! ขาดแค่ "หารกับใครบ้าง"...\nรบกวนพิมพ์ชื่อคนหาร (เช่น: เกม แคร์) หรือพิมพ์ว่า "ทุกคน" ครับ`);
+        }
+        // ถ้าครบแล้ว ไปยืนยัน
+        return proceedToAIConfirm(replyToken, sessionRef, data, members);
+    }
+
     // STEP AI 2: รับคนจ่าย (จากที่ AI หาไม่ได้)
     if (currentStep === 'AI_ASK_PAYER') {
         let finalPayer = text.toUpperCase();
@@ -271,16 +328,7 @@ async function handleTextMessage(event) {
         }
         
         // ครบแล้ว ไปยืนยัน
-        data.paymentType = 'normal';
-        data.splitMethod = 'equal';
-        await setDoc(sessionRef, { step: 'CONFIRM_AI_EXPENSE', data: data, timestamp: serverTimestamp() });
-        const actions = [
-            { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
-            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
-        ];
-        const summary = `รายการ: ${data.desc}\nราคา: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
-        const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
-        return replyQuickReply(replyToken, flex, actions);
+        return proceedToAIConfirm(replyToken, sessionRef, data, members);
     }
     
     // STEP AI 3: รับคนหาร (จากที่ AI หาไม่ได้)
@@ -297,16 +345,7 @@ async function handleTextMessage(event) {
         
         if (finalParticipants.length > 0) {
             data.participants = finalParticipants;
-            data.paymentType = 'normal';
-            data.splitMethod = 'equal';
-            await setDoc(sessionRef, { step: 'CONFIRM_AI_EXPENSE', data: data, timestamp: serverTimestamp() });
-            const actions = [
-                { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
-                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
-            ];
-            const summary = `รายการ: ${data.desc}\nราคา: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
-            const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
-            return replyQuickReply(replyToken, flex, actions);
+            return proceedToAIConfirm(replyToken, sessionRef, data, members);
         } else {
             return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบครับ\n(ข้อมูลที่พิมพ์: ${text})\nกรุณาระบุชื่อคนหารให้ตรงกับในระบบ (${members.join(', ')})`);
         }
@@ -577,7 +616,7 @@ async function getImageContent(messageId) {
 async function parseExpenseWithGemini(text, membersList) {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
         const prompt = `
 คุณเป็นผู้ช่วยจดบันทึกรายจ่ายสำหรับกลุ่มเพื่อน 
@@ -615,37 +654,33 @@ Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount":
         return JSON.parse(responseText);
     } catch (error) {
         console.error("Gemini API Error:", error);
-        let errorMsg = error.message;
-        
-        // If it's a 404 model not found, try to fetch the available models
-        if (errorMsg.includes('404') && errorMsg.includes('is not found')) {
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
-                const data = await response.json();
-                if (data.models) {
-                    const modelNames = data.models.map(m => m.name.replace('models/', '')).join(', ');
-                    errorMsg += `\n\nโมเดลที่คุณใช้งานได้: ${modelNames}`;
-                } else {
-                    errorMsg += `\n\nไม่พบข้อมูลโมเดลจาก API Key นี้ (อาจจะเป็น Key จากระบบอื่น)`;
-                }
-            } catch (e) {
-                // Ignore errors from the diagnostic fetch
-            }
-        }
-        
         return { 
             is_expense: true, 
             payer: "ERROR_AI", 
-            error_msg: `[GoogleGenerativeAI Error]: ${errorMsg}` 
+            error_msg: `[GoogleGenerativeAI Error]: ${error.message}` 
         };
     }
+}
+
+async function proceedToAIConfirm(replyToken, sessionRef, data, members) {
+    data.paymentType = 'normal';
+    data.splitMethod = 'equal';
+    await setDoc(sessionRef, { step: 'CONFIRM_AI_EXPENSE', data: data, timestamp: serverTimestamp() });
+    
+    const actions = [
+        { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
+        { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+    ];
+    const summary = `รายการ: ${data.desc}\nราคา: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
+    const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
+    return replyQuickReply(replyToken, flex, actions);
 }
 
 async function mapNamesWithGemini(text, membersList) {
     if (!process.env.GEMINI_API_KEY) return [];
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-3.6-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
         const prompt = `
 คุณมีหน้าที่แปลงรายชื่อที่ผู้ใช้พิมพ์แบบไม่เป็นทางการ (ภาษาไทย, ชื่อย่อ) ให้ตรงกับรายชื่อทางการในระบบเป๊ะๆ
@@ -1005,13 +1040,14 @@ async function generateMemberReport(replyToken, memberName) {
         // หัก verified settlements ออกจาก balances (หักทุกเดือนที่ผ่านมา)
         const verifiedSnap = await getDocs(
             query(collection(db, 'settlements'),
-                where('month', '<=', currentMonth),
-                where('status', '==', 'verified'))
+                where('month', '<=', currentMonth))
         );
         verifiedSnap.forEach(vDoc => {
             const s = vDoc.data();
-            if (balances[s.from] !== undefined) balances[s.from] += Number(s.amount);
-            if (balances[s.to] !== undefined) balances[s.to] -= Number(s.amount);
+            if (s.status === 'verified') {
+                if (balances[s.from] !== undefined) balances[s.from] += Number(s.amount);
+                if (balances[s.to] !== undefined) balances[s.to] -= Number(s.amount);
+            }
         });
 
         // 3. Match Debts (Settlement Algorithm)
