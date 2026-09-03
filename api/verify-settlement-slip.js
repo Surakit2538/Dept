@@ -3,7 +3,7 @@ import { getFirestore } from "firebase/firestore";
 import { verifySlipWithSlipOK, matchReceiverName, getSlipErrorMessage } from './slipok-helpers.js';
 import { 
     getMemberByName as getMemberByNameHelper, 
-    findMatchingSettlement, 
+    findMatchingSettlementSmart, 
     checkDuplicateSlip, 
     saveVerifiedSettlement, 
     sendSlipVerifiedNotification 
@@ -56,7 +56,7 @@ export default async function handler(req, res) {
         }
 
         // 4. หา Settlement ที่ตรงประเด็น (ยอด และ ผู้โอน และ เดือน)
-        const matchingSettlement = await findMatchingSettlement(db, from, slipAmount, month);
+        const matchingSettlement = await findMatchingSettlementSmart(db, from, slipAmount);
 
         if (!matchingSettlement) {
             return res.status(400).json({

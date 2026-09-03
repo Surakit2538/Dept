@@ -15,7 +15,7 @@ import {
 import {
     getMemberByLineId as getMemberByLineIdHelper,
     getMemberByName as getMemberByNameHelper,
-    findMatchingSettlement,
+    findMatchingSettlementSmart,
     checkDuplicateSlip,
     saveVerifiedSettlement,
     sendSlipVerifiedNotification
@@ -116,6 +116,66 @@ async function handleTextMessage(event) {
             return;
         }
 
+        // 3. AI Expense Parsing (Feature F) - ถ้าข้อความยาวพอและมี API KEY
+        if (text.length > 5 && process.env.GEMINI_API_KEY && !text.includes('://')) { 
+            const parsedExpense = await parseExpenseWithGemini(text);
+            
+            if (parsedExpense && parsedExpense.is_expense && parsedExpense.desc && parsedExpense.amount > 0) {
+                const members = await getMemberNames();
+                let validPayer = false;
+                let finalPayer = (parsedExpense.payer || "").toUpperCase();
+                
+                // ถ้าระบุคนจ่ายเป็นสรรพนามบุรุษที่ 1
+                if (["ฉัน", "ผม", "หนู", "เรา", "พี่", "น้อง"].includes(finalPayer) || !finalPayer) {
+                    const memberName = await getMemberNameByLineId(userId);
+                    if (memberName) {
+                        validPayer = true;
+                        finalPayer = memberName;
+                    }
+                } else if (members.includes(finalPayer)) {
+                    validPayer = true;
+                }
+                
+                if (validPayer) {
+                    let finalParticipants = [];
+                    // กรณีระบุ "ทุกคน" หรือไม่ได้ระบุ
+                    if (!parsedExpense.participants || parsedExpense.participants.length === 0 || parsedExpense.participants.includes("ทุกคน")) {
+                        finalParticipants = members;
+                    } else {
+                        // กรองเฉพาะชื่อที่มีในระบบ
+                        finalParticipants = parsedExpense.participants
+                            .map(p => p.toUpperCase())
+                            .filter(p => members.includes(p));
+                    }
+                    
+                    if (finalParticipants.length > 0) {
+                        // ข้อมูลสมบูรณ์ สร้าง Session ถามยืนยัน
+                        await setDoc(sessionRef, {
+                            step: 'CONFIRM_AI_EXPENSE',
+                            data: {
+                                desc: parsedExpense.desc,
+                                amount: parsedExpense.amount,
+                                payer: finalPayer,
+                                participants: finalParticipants,
+                                paymentType: 'normal',
+                                splitMethod: 'equal'
+                            },
+                            timestamp: serverTimestamp()
+                        });
+                        
+                        const actions = [
+                            { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
+                            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+                        ];
+                        
+                        const summary = `รายการ: ${parsedExpense.desc}\nราคา: ${parsedExpense.amount.toLocaleString()} ฿\nคนจ่าย: ${finalPayer}\nคนหาร: ${finalParticipants.join(', ')}`;
+                        const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
+                        return replyQuickReply(replyToken, flex, actions);
+                    }
+                }
+            }
+        }
+
         // ถ้าพิมพ์อย่างอื่นมา ให้ปล่อยผ่าน (Ignore)
         return;
     }
@@ -133,6 +193,16 @@ async function handleTextMessage(event) {
         });
         const flex = createInteractiveCard("ระบุราคา", `รายการ: ${text}`, "ระบุราคาเป็นจำนวนเงิน (ใส่เฉพาะตัวเลขไม่ต้องมี บาท) ครับ");
         return replyFlex(replyToken, "ระบุราคา", flex);
+    }
+
+    // STEP AI: รับการยืนยันจาก AI
+    if (currentStep === 'CONFIRM_AI_EXPENSE') {
+        if (text === 'ยืนยัน' || text === '✅ ตกลง' || text === 'บันทึก') {
+            return await saveTransaction(replyToken, userId, data);
+        } else {
+            await deleteDoc(sessionRef);
+            return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
+        }
     }
 
     // STEP 2: รับราคา -> ถามคนจ่าย
@@ -294,11 +364,10 @@ async function handleImageMessage(event) {
         console.log('✅ Slip amount validated:', slipAmount);
 
         // 5. หา Settlement ที่ตรงกับยอดเงินในสลิป
-        // ใช้เดือนปัจจุบัน (YYYY-MM format)
-        const currentMonth = getBangkokMonthString();
-        console.log('🔍 Finding settlement for:', userMember.name, 'amount:', slipAmount, 'month:', currentMonth);
+        // ใช้เดือนปัจจุบัน (YYYY-MM format) (ถูกค้นหาย้อนหลังด้วย Smart search)
+        console.log('🔍 Finding settlement for:', userMember.name, 'amount:', slipAmount);
 
-        const matchingSettlement = await findMatchingSettlement(db, userMember.name, slipAmount, currentMonth);
+        const matchingSettlement = await findMatchingSettlementSmart(db, userMember.name, slipAmount);
 
         console.log('Settlement found:', matchingSettlement ? 'YES' : 'NO');
         if (matchingSettlement) {
@@ -393,6 +462,49 @@ async function getImageContent(messageId) {
         return Buffer.from(arrayBuffer);
     } catch (error) {
         console.error('Error getting image content:', error);
+        return null;
+    }
+}
+
+// --- AI HELPER ---
+async function parseExpenseWithGemini(text) {
+    try {
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        
+        const prompt = `
+คุณเป็นผู้ช่วยจดบันทึกรายจ่ายสำหรับกลุ่มเพื่อน 
+หน้าที่ของคุณคือวิเคราะห์ข้อความ แล้วสกัดข้อมูลรายจ่ายให้อยู่ในรูปแบบ JSON เท่านั้น ห้ามตอบข้อความอื่นๆ 
+ถ้าข้อความดูไม่ใช่การจดบันทึกรายจ่าย ให้ตอบ {"is_expense": false}
+
+JSON Format ที่ต้องการ:
+{
+  "is_expense": true,
+  "desc": "ชื่อรายการ (สั้นๆ กระชับ)",
+  "amount": จำนวนเงิน (ตัวเลขเท่านั้น),
+  "payer": "ชื่อคนจ่าย (ถ้าไม่มีระบุให้ตอบ null)",
+  "participants": ["ชื่อคนหาร1", "ชื่อคนหาร2"] (ถ้าระบุว่าทุกคน หรือไม่ได้ระบุ ให้ตอบ ["ทุกคน"])
+}
+
+ตัวอย่าง 1:
+Input: "กินข้าว 450 GAME จ่าย"
+Output: {"is_expense": true, "desc": "กินข้าว", "amount": 450, "payer": "GAME", "participants": ["ทุกคน"]}
+
+ตัวอย่าง 2:
+Input: "ค่าแท็กซี่ 200 เราจ่าย หารกับ JAY และ WIN"
+Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount": 200, "payer": "เรา", "participants": ["JAY", "WIN"]}
+
+ข้อความที่ต้องวิเคราะห์: "${text}"`;
+
+        const result = await model.generateContent(prompt);
+        let responseText = result.response.text();
+        
+        // Clean JSON string (remove markdown format if any)
+        responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
+        
+        return JSON.parse(responseText);
+    } catch (error) {
+        console.error("Gemini API Error:", error);
         return null;
     }
 }
@@ -675,9 +787,8 @@ async function generateMemberReport(replyToken, memberName) {
         const date = new Date();
         const currentMonth = getBangkokMonthString(date);
 
-        // 1. Fetch Transactions
+        // 1. Fetch Transactions (Carry forward - Get all up to current month end)
         const q = query(collection(db, "transactions"),
-            where("date", ">=", `${currentMonth}-01`),
             where("date", "<=", `${currentMonth}-31`)
         );
 
@@ -700,26 +811,27 @@ async function generateMemberReport(replyToken, memberName) {
         // 2. Calculate Balances & Stats
         snapshot.forEach(doc => {
             const t = doc.data();
-            if (!t.date.startsWith(currentMonth)) return;
 
-            // Stats for Report
-            let involved = false;
-            if (t.payer === memberName) {
-                totalPaid += Number(t.amount);
-                involved = true;
-            }
-            if (t.splits && t.splits[memberName]) {
-                totalShare += Number(t.splits[memberName]);
-                involved = true;
-            }
-            if (involved) {
-                recentItems.push({
-                    desc: t.desc, amount: t.amount, myShare: t.splits[memberName] || 0,
-                    isPayer: t.payer === memberName, date: t.date
-                });
+            // Stats for Report (Only for current month)
+            if (t.date.startsWith(currentMonth)) {
+                let involved = false;
+                if (t.payer === memberName) {
+                    totalPaid += Number(t.amount);
+                    involved = true;
+                }
+                if (t.splits && t.splits[memberName]) {
+                    totalShare += Number(t.splits[memberName]);
+                    involved = true;
+                }
+                if (involved) {
+                    recentItems.push({
+                        desc: t.desc, amount: t.amount, myShare: t.splits[memberName] || 0,
+                        isPayer: t.payer === memberName, date: t.date
+                    });
+                }
             }
 
-            // Calculation for Settlement
+            // Calculation for Settlement (All months up to current)
             const payer = t.payer;
             if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
 
@@ -730,10 +842,10 @@ async function generateMemberReport(replyToken, memberName) {
             }
         });
 
-        // หัก verified settlements ออกจาก balances (เหมือนที่เว็บทำ)
+        // หัก verified settlements ออกจาก balances (หักทุกเดือนที่ผ่านมา)
         const verifiedSnap = await getDocs(
             query(collection(db, 'settlements'),
-                where('month', '==', currentMonth),
+                where('month', '<=', currentMonth),
                 where('status', '==', 'verified'))
         );
         verifiedSnap.forEach(vDoc => {

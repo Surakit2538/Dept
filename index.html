@@ -1053,6 +1053,32 @@
                             class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
                             <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
                         </button>
+
+                        <!-- Search Toggle Button -->
+                        <button onclick="window.app.toggleHistorySearch()"
+                            id="btn-history-search"
+                            class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-all active:scale-95 border border-white/5">
+                            <i class="fa-solid fa-magnifying-glass text-slate-300 text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Bar (hidden by default) -->
+                <div id="history-search-container" class="overflow-hidden transition-all duration-300 ease-out" style="max-height: 0; opacity: 0;">
+                    <div class="mt-3 px-1">
+                        <div class="relative">
+                            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-[#8e8e93] text-xs"></i>
+                            <input id="history-search-input" type="text"
+                                placeholder="ค้นหารายการ, คนจ่าย, คนหาร..."
+                                oninput="window.app.onHistorySearchInput(this.value)"
+                                class="w-full bg-[#2c2c2e] border border-white/10 rounded-xl text-white text-xs placeholder-[#8e8e93] pl-8 pr-8 py-2.5 outline-none focus:border-[#4B6CB7] focus:ring-1 focus:ring-[#4B6CB7]/30 transition-all">
+                            <button onclick="window.app.clearHistorySearch()"
+                                id="btn-clear-search"
+                                class="absolute right-2 top-1/2 -translate-y-1/2 text-[#8e8e93] hover:text-white text-xs p-1 hidden">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div id="history-search-count" class="text-[10px] text-[#8e8e93] mt-1.5 px-1 hidden"></div>
                     </div>
                 </div>
             </div>
@@ -1101,12 +1127,36 @@
             <h3 class="font-bold text-slate-700 text-sm border-b pb-2 mt-6">แผนการโอนเงิน</h3>
             <div id="settlement-plan" class="space-y-2"></div>
 
-            <div id="settlement-admin-actions" class="hidden mt-8 pt-4 border-t border-slate-200">
+            <div id="settlement-admin-actions" class="hidden mt-8 pt-4 border-t border-white/10">
+                <!-- Member Checklist for targeted sending -->
+                <div class="mb-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="text-xs font-bold text-slate-300"><i class="fa-solid fa-paper-plane mr-1"></i> ส่ง LINE แจ้งเตือนเฉพาะคน</h4>
+                        <div class="flex gap-2">
+                            <button onclick="window.app.selectAllLineTargets(true)" class="text-[10px] text-[#4B6CB7] hover:underline">เลือกทั้งหมด</button>
+                            <button onclick="window.app.selectAllLineTargets(false)" class="text-[10px] text-slate-400 hover:underline">ล้าง</button>
+                        </div>
+                    </div>
+                    <div id="line-target-checklist" class="grid grid-cols-2 gap-2 mb-3"></div>
+                    <div id="line-target-count" class="text-[10px] text-slate-400 mb-2 text-center"></div>
+                </div>
                 <button onclick="window.app.sendLineMessage()"
                     class="w-full bg-[#06C755] text-white py-3 rounded-xl font-bold flex justify-center items-center gap-2 shadow-lg hover:bg-[#05b34c] active:scale-[0.98] transition-all">
                     <i class="fa-brands fa-line text-2xl"></i> ส่ง Flex Message เข้า LINE
                 </button>
-                <p class="text-center text-[10px] text-slate-400 mt-2">* ใช้ Custom API (/api/send-line)</p>
+                <p class="text-center text-[10px] text-slate-400 mt-2">* ส่งเฉพาะคนที่เลือก หรือส่งทั้งกลุ่มถ้าไม่เลือกใคร</p>
+            </div>
+
+            <!-- Settlement History Section (visible to all members) -->
+            <div id="settlement-history-section" class="mt-6">
+                <h3 class="font-bold text-white/80 text-sm border-b border-white/10 pb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-clock-rotate-left"></i> ประวัติการชำระเงินเดือนนี้
+                </h3>
+                <div id="settlement-history-list" class="space-y-2 mt-3"></div>
+                <div id="settlement-history-empty" class="hidden py-6 text-center text-[#8e8e93] text-sm">
+                    <i class="fa-regular fa-circle-check text-2xl mb-2 block opacity-40"></i>
+                    ยังไม่มีรายการชำระ
+                </div>
             </div>
         </section>
 
@@ -2877,14 +2927,78 @@
                 return `${day} ${thaiMonths[month - 1]} ${year + 543}`;
             },
 
+            // --- Search History Helpers ---
+            _historySearchQuery: '',
+            _historySearchTimer: null,
+
+            toggleHistorySearch() {
+                const container = document.getElementById('history-search-container');
+                const btn = document.getElementById('btn-history-search');
+                const isOpen = container.style.maxHeight !== '0px' && container.style.maxHeight !== '';
+                if (isOpen) {
+                    container.style.maxHeight = '0';
+                    container.style.opacity = '0';
+                    btn.classList.remove('bg-[#4B6CB7]/20');
+                    this.clearHistorySearch();
+                } else {
+                    container.style.maxHeight = '80px';
+                    container.style.opacity = '1';
+                    btn.classList.add('bg-[#4B6CB7]/20');
+                    setTimeout(() => document.getElementById('history-search-input')?.focus(), 300);
+                }
+            },
+
+            onHistorySearchInput(value) {
+                clearTimeout(this._historySearchTimer);
+                this._historySearchTimer = setTimeout(() => {
+                    this._historySearchQuery = value.trim().toLowerCase();
+                    const clearBtn = document.getElementById('btn-clear-search');
+                    if (clearBtn) clearBtn.classList.toggle('hidden', !value.trim());
+                    this.renderHistory();
+                }, 300);
+            },
+
+            clearHistorySearch() {
+                this._historySearchQuery = '';
+                const input = document.getElementById('history-search-input');
+                const clearBtn = document.getElementById('btn-clear-search');
+                const countEl = document.getElementById('history-search-count');
+                if (input) input.value = '';
+                if (clearBtn) clearBtn.classList.add('hidden');
+                if (countEl) countEl.classList.add('hidden');
+                this.renderHistory();
+            },
+
             renderHistory() {
                 const list = document.getElementById('transaction-list-mobile');
                 const empty = document.getElementById('empty-state');
                 list.innerHTML = "";
 
-                const filtered = this.data.transactions
+                let filtered = this.data.transactions
                     .filter(t => t.date.startsWith(this.data.currentMonth))
                     .sort((a, b) => new Date(b.date) - new Date(a.date) || (b.timestamp || 0) - (a.timestamp || 0));
+
+                // Apply search filter
+                const q = this._historySearchQuery || '';
+                if (q) {
+                    filtered = filtered.filter(t => {
+                        const desc = (t.desc || '').toLowerCase();
+                        const payer = (t.payer || '').toLowerCase();
+                        const splitNames = t.splits ? Object.keys(t.splits).join(' ').toLowerCase() : '';
+                        return desc.includes(q) || payer.includes(q) || splitNames.includes(q);
+                    });
+                }
+
+                // Show search result count
+                const countEl = document.getElementById('history-search-count');
+                if (countEl) {
+                    if (q) {
+                        countEl.textContent = `พบ ${filtered.length} รายการ`;
+                        countEl.classList.remove('hidden');
+                    } else {
+                        countEl.classList.add('hidden');
+                    }
+                }
 
                 if (filtered.length === 0) {
                     empty.classList.remove('hidden');
@@ -3225,11 +3339,13 @@
             },
 
             async calculateSettlement() {
-                const filtered = this.data.transactions.filter(t => t.date.startsWith(this.data.currentMonth));
+                // Feature C: Carry Forward Debt Logic
+                // Calculate Running Balances from ALL history up to current month
+                const allPastAndCurrentTransactions = this.data.transactions.filter(t => t.date <= this.data.currentMonth + '-31');
                 const balances = {};
                 this.data.members.forEach(m => balances[m] = 0);
 
-                filtered.forEach(t => {
+                allPastAndCurrentTransactions.forEach(t => {
                     const payer = (t.payer || "").toUpperCase();
                     if (balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
                     if (t.splits) {
@@ -3240,27 +3356,19 @@
                     }
                 });
 
-                // Fetch verified settlements (ใช้ครั้งเดียวสำหรับทั้ง balance และ display)
-                const verifiedSnapshot = await getDocs(
-                    query(collection(db, 'settlements'),
-                        where('month', '==', this.data.currentMonth),
-                        where('status', '==', 'verified'))
-                );
-
+                // Get verified settlements from local state up to current month
+                const allVerifiedSettlements = (this.data.settlements || []).filter(s => s.status === 'verified' && s.month <= this.data.currentMonth);
                 const verifiedSettlements = [];
-                verifiedSnapshot.forEach(doc => {
-                    const s = doc.data();
-                    verifiedSettlements.push({
-                        from: s.from,
-                        to: s.to,
-                        amount: s.amount,
-                        status: 'verified',
-                        slip: s.slip
-                    });
 
-                    // หัก verified settlements ออกจาก balances
+                allVerifiedSettlements.forEach(s => {
+                    // หักล้างยอดสำหรับทุก settlement ที่ผ่านมาและเดือนปัจจุบัน (Carry Forward)
                     if (balances.hasOwnProperty(s.from)) balances[s.from] += s.amount;
                     if (balances.hasOwnProperty(s.to)) balances[s.to] -= s.amount;
+
+                    // เก็บเฉพาะเดือนปัจจุบันไว้แสดงผลใน UI
+                    if (s.month === this.data.currentMonth) {
+                        verifiedSettlements.push(s);
+                    }
                 });
 
                 // Render member status grid
@@ -3414,30 +3522,39 @@
                 const planContainer = document.getElementById('settlement-plan');
                 planContainer.innerHTML = "";
 
-                // Verified settlements — dark theme card with green accent
-                verifiedSettlements.forEach(vs => {
-                    const item = document.createElement('div');
-                    item.className = 'bg-[#1c1c1e] p-4 rounded-[20px] border border-emerald-500/25 shadow-sm';
-                    item.innerHTML = `
-                        <div class="flex items-center justify-between mb-3">
-                            <div class="flex items-center gap-2 font-bold text-white">
-                                ${getPic(vs.from)} <span class="text-sm">${vs.from}</span>
-                                <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i>
-                                ${getPic(vs.to)} <span class="text-sm">${vs.to}</span>
+                // Verified settlements — move to History section
+                const historyContainer = document.getElementById('settlement-history-list');
+                const historyEmpty = document.getElementById('settlement-history-empty');
+                if (historyContainer) historyContainer.innerHTML = "";
+
+                if (verifiedSettlements.length > 0) {
+                    if (historyEmpty) historyEmpty.classList.add('hidden');
+                    verifiedSettlements.forEach(vs => {
+                        const item = document.createElement('div');
+                        item.className = 'bg-[#1c1c1e] p-4 rounded-[20px] border border-white/5 shadow-sm';
+                        item.innerHTML = `
+                            <div class="flex items-center justify-between mb-3">
+                                <div class="flex items-center gap-2 font-bold text-white">
+                                    ${getPic(vs.from)} <span class="text-sm">${vs.from}</span>
+                                    <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i>
+                                    ${getPic(vs.to)} <span class="text-sm">${vs.to}</span>
+                                </div>
+                                <div class="font-extrabold text-emerald-400 text-sm">${vs.amount.toLocaleString()} ฿</div>
                             </div>
-                            <div class="font-extrabold text-emerald-400 text-sm">${vs.amount.toLocaleString()} ฿</div>
-                        </div>
-                        <div class="flex items-center justify-between">
-                            <span class="text-[11px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
-                                <i class="fa-solid fa-circle-check"></i> ยืนยันแล้ว
-                            </span>
-                            <span class="text-[11px] text-slate-500 flex items-center gap-1">
-                                <i class="fa-solid fa-calendar-check"></i> ${vs.slip && vs.slip.transDate ? this.formatSlipDate(vs.slip.transDate) : (vs.verifiedByAdmin ? 'ยืนยันโดย Admin' : '-')}
-                            </span>
-                        </div>
-                    `;
-                    planContainer.appendChild(item);
-                });
+                            <div class="flex items-center justify-between">
+                                <span class="text-[11px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                                    <i class="fa-solid fa-circle-check"></i> ยืนยันแล้ว
+                                </span>
+                                <span class="text-[11px] text-slate-500 flex items-center gap-1">
+                                    <i class="fa-solid fa-calendar-check"></i> ${vs.slip && vs.slip.transDate ? this.formatSlipDate(vs.slip.transDate) : (vs.verifiedByAdmin ? 'ยืนยันโดย Admin' : '-')}
+                                </span>
+                            </div>
+                        `;
+                        historyContainer.appendChild(item);
+                    });
+                } else {
+                    if (historyEmpty) historyEmpty.classList.remove('hidden');
+                }
 
                 let i = 0, j = 0;
                 while (i < debtors.length && j < creditors.length) {
@@ -3495,6 +3612,60 @@
                 if (!planContainer.innerHTML) {
                     planContainer.innerHTML = `<div class="text-center py-4 text-slate-300 text-xs italic"> ไม่มีมียอดค้างชำระ</div> `;
                 }
+
+                // Render Member Checklist for LINE push
+                this.renderLineTargetChecklist();
+            },
+
+            renderLineTargetChecklist() {
+                const container = document.getElementById('line-target-checklist');
+                if (!container) return;
+                
+                // Get unique debtors from pending plan
+                const debtors = [...new Set(this.data.settlementPlan.map(d => d.from))];
+                
+                if (debtors.length === 0) {
+                    container.innerHTML = '<div class="col-span-2 text-center text-[10px] text-slate-500 py-2">ไม่มีผู้ค้างชำระ</div>';
+                    document.getElementById('line-target-count').textContent = 'เลือก 0 คน';
+                    return;
+                }
+
+                let html = '';
+                debtors.forEach(debtorName => {
+                    // Try to find if user has lineUserId
+                    const memberInfo = this.data.members.find(m => m.name === debtorName);
+                    const hasLineId = memberInfo && memberInfo.lineUserId;
+                    
+                    html += `
+                        <label class="flex items-center gap-2 bg-[#2c2c2e] p-2 rounded-lg border border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${!hasLineId ? 'opacity-50' : ''}">
+                            <input type="checkbox" name="line_targets" value="${debtorName}" class="rounded border-slate-600 text-[#4B6CB7] focus:ring-[#4B6CB7] bg-[#1c1c1e]" checked ${!hasLineId ? 'disabled' : ''}>
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold text-white">${debtorName}</span>
+                                ${!hasLineId ? '<span class="text-[8px] text-red-400">ยังไม่ผูก LINE</span>' : ''}
+                            </div>
+                        </label>
+                    `;
+                });
+                container.innerHTML = html;
+                this.updateLineTargetCount();
+                
+                // Add event listeners to checkboxes
+                container.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    cb.addEventListener('change', () => this.updateLineTargetCount());
+                });
+            },
+
+            updateLineTargetCount() {
+                const count = document.querySelectorAll('input[name="line_targets"]:checked').length;
+                const countEl = document.getElementById('line-target-count');
+                if (countEl) countEl.textContent = `เลือก ${count} คน`;
+            },
+
+            selectAllLineTargets(select) {
+                document.querySelectorAll('input[name="line_targets"]:not(:disabled)').forEach(cb => {
+                    cb.checked = select;
+                });
+                this.updateLineTargetCount();
             },
 
             showMemberDetails(member) {
@@ -4836,6 +5007,16 @@
                     return alert("ไม่พบข้อมูลหนี้ที่ต้องเคลียร์ กรุณาตรวจสอบอีกครั้ง");
                 }
 
+                // Gather target users from checked checkboxes
+                const targetUsers = [];
+                document.querySelectorAll('input[name="line_targets"]:checked').forEach(cb => {
+                    const memberName = cb.value;
+                    const memberInfo = this.data.members.find(m => m.name === memberName);
+                    if (memberInfo && memberInfo.lineUserId) {
+                        targetUsers.push({ name: memberName, userId: memberInfo.lineUserId });
+                    }
+                });
+
                 const apiUrl = this.data.apiEndpoint; // e.g. /api/send-line or full URL
                 const monthName = new Date(this.data.currentMonth).toLocaleString('th-TH', { month: 'long', year: 'numeric' });
 
@@ -4846,7 +5027,8 @@
                     // Create payload matching your backend requirement
                     const payload = {
                         month: monthName,
-                        debts: this.data.settlementPlan // array of {from, to, amount}
+                        debts: this.data.settlementPlan, // array of {from, to, amount}
+                        targetUsers: targetUsers.length > 0 ? targetUsers : undefined
                     };
 
                     const response = await fetch(apiUrl, {
