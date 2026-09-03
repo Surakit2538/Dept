@@ -523,7 +523,29 @@ Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount":
         return JSON.parse(responseText);
     } catch (error) {
         console.error("Gemini API Error:", error);
-        return { is_expense: true, payer: "ERROR_AI", error_msg: error.message };
+        let errorMsg = error.message;
+        
+        // If it's a 404 model not found, try to fetch the available models
+        if (errorMsg.includes('404') && errorMsg.includes('is not found')) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`);
+                const data = await response.json();
+                if (data.models) {
+                    const modelNames = data.models.map(m => m.name.replace('models/', '')).join(', ');
+                    errorMsg += `\n\nโมเดลที่คุณใช้งานได้: ${modelNames}`;
+                } else {
+                    errorMsg += `\n\nไม่พบข้อมูลโมเดลจาก API Key นี้ (อาจจะเป็น Key จากระบบอื่น)`;
+                }
+            } catch (e) {
+                // Ignore errors from the diagnostic fetch
+            }
+        }
+        
+        return { 
+            is_expense: true, 
+            payer: "ERROR_AI", 
+            error_msg: `[GoogleGenerativeAI Error]: ${errorMsg}` 
+        };
     }
 }
 
