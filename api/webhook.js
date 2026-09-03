@@ -121,7 +121,15 @@ async function handleTextMessage(event) {
             const members = await getMemberNames();
             const parsedExpense = await parseExpenseWithGemini(text, members);
             
-            if (parsedExpense && parsedExpense.is_expense && parsedExpense.desc && parsedExpense.amount > 0) {
+            if (parsedExpense && parsedExpense.error_msg) {
+                return replyText(replyToken, `❌ ข้อผิดพลาดจาก AI: ${parsedExpense.error_msg}\n(เช็ค API Key หรือโควต้าของ Gemini)`);
+            }
+            
+            if (parsedExpense && parsedExpense.is_expense) {
+                if (!parsedExpense.desc || !parsedExpense.amount) {
+                     return replyText(replyToken, `🤖 ระบบวิเคราะห์ว่าเป็นรายจ่าย แต่ข้อมูลไม่ครบถ้วน\n(ไม่พบชื่อรายการหรือจำนวนเงิน)\nกรุณาลองพิมพ์ใหม่ครับ`);
+                }
+                
                 let validPayer = false;
                 let finalPayer = (parsedExpense.payer || "").toUpperCase();
                 
