@@ -118,10 +118,10 @@ async function handleTextMessage(event) {
 
         // 3. AI Expense Parsing (Feature F) - ถ้าข้อความยาวพอและมี API KEY
         if (text.length > 5 && process.env.GEMINI_API_KEY && !text.includes('://')) { 
-            const parsedExpense = await parseExpenseWithGemini(text);
+            const members = await getMemberNames();
+            const parsedExpense = await parseExpenseWithGemini(text, members);
             
             if (parsedExpense && parsedExpense.is_expense && parsedExpense.desc && parsedExpense.amount > 0) {
-                const members = await getMemberNames();
                 let validPayer = false;
                 let finalPayer = (parsedExpense.payer || "").toUpperCase();
                 
@@ -467,7 +467,7 @@ async function getImageContent(messageId) {
 }
 
 // --- AI HELPER ---
-async function parseExpenseWithGemini(text) {
+async function parseExpenseWithGemini(text, membersList) {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
@@ -477,12 +477,15 @@ async function parseExpenseWithGemini(text) {
 หน้าที่ของคุณคือวิเคราะห์ข้อความ แล้วสกัดข้อมูลรายจ่ายให้อยู่ในรูปแบบ JSON เท่านั้น ห้ามตอบข้อความอื่นๆ 
 ถ้าข้อความดูไม่ใช่การจดบันทึกรายจ่าย ให้ตอบ {"is_expense": false}
 
+รายชื่อสมาชิกในระบบที่มีอยู่: ${membersList.join(', ')}
+(หากผู้ใช้สะกดชื่อเป็นภาษาไทย เช่น "เกม", "เจ", "วิน" ให้พยายามแปลงและเทียบเคียงเสียงเป็นชื่อภาษาอังกฤษที่มีในระบบให้ถูกต้องที่สุด)
+
 JSON Format ที่ต้องการ:
 {
   "is_expense": true,
   "desc": "ชื่อรายการ (สั้นๆ กระชับ)",
   "amount": จำนวนเงิน (ตัวเลขเท่านั้น),
-  "payer": "ชื่อคนจ่าย (ถ้าไม่มีระบุให้ตอบ null)",
+  "payer": "ชื่อคนจ่าย (ต้องเป็นภาษาอังกฤษตามที่มีในระบบ หรือถ้าไม่มีให้ตอบ null, ถ้าระบุสรรพนามบุรุษที่ 1 เช่น 'ฉัน', 'เรา' ให้ตอบ 'ฉัน')",
   "participants": ["ชื่อคนหาร1", "ชื่อคนหาร2"] (ถ้าระบุว่าทุกคน หรือไม่ได้ระบุ ให้ตอบ ["ทุกคน"])
 }
 
@@ -491,8 +494,8 @@ Input: "กินข้าว 450 GAME จ่าย"
 Output: {"is_expense": true, "desc": "กินข้าว", "amount": 450, "payer": "GAME", "participants": ["ทุกคน"]}
 
 ตัวอย่าง 2:
-Input: "ค่าแท็กซี่ 200 เราจ่าย หารกับ JAY และ WIN"
-Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount": 200, "payer": "เรา", "participants": ["JAY", "WIN"]}
+Input: "ค่าแท็กซี่ 200 เราจ่าย หารกับ เจ และ WIN"
+Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount": 200, "payer": "ฉัน", "participants": ["JAY", "WIN"]}
 
 ข้อความที่ต้องวิเคราะห์: "${text}"`;
 
