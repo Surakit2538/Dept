@@ -173,7 +173,7 @@ async function handleTextMessage(event) {
                         timestamp: serverTimestamp()
                     });
                     const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-                    const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${parsedExpense.amount.toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
+                    const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${(partialData.amount || 0).toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
                     return replyQuickReply(replyToken, flex, actions);
                 }
                 
@@ -214,7 +214,7 @@ async function handleTextMessage(event) {
                         { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
                     ];
                     
-                    const summary = `รายการ: ${partialData.desc}\nราคา: ${partialData.amount.toLocaleString()} ฿\nคนจ่าย: ${partialData.payer}\nคนหาร: ${finalParticipants.join(', ')}`;
+                    const summary = `รายการ: ${partialData.desc}\nราคา: ${(partialData.amount || 0).toLocaleString()} ฿\nคนจ่าย: ${partialData.payer}\nคนหาร: ${finalParticipants.join(', ')}`;
                     const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
                     return replyQuickReply(replyToken, flex, actions);
                 } else {
@@ -257,6 +257,7 @@ async function handleTextMessage(event) {
 
     // STEP AI 1.1: รับชื่อรายการที่ขาด
     if (currentStep === 'AI_ASK_DESC') {
+        const members = await getMemberNames();
         data.desc = text;
         if (!data.amount) {
              await setDoc(sessionRef, { step: 'AI_ASK_AMOUNT', data: data, timestamp: serverTimestamp() });
@@ -264,9 +265,8 @@ async function handleTextMessage(event) {
         }
         if (!data.payer) {
             await setDoc(sessionRef, { step: 'AI_ASK_PAYER', data: data, timestamp: serverTimestamp() });
-            const members = await getMemberNames();
             const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-            const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${data.amount.toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
+            const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${(data.amount || 0).toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
             return replyQuickReply(replyToken, flex, actions);
         }
         if (!data.participants || data.participants.length === 0) {
@@ -279,6 +279,7 @@ async function handleTextMessage(event) {
 
     // STEP AI 1.2: รับจำนวนเงินที่ขาด
     if (currentStep === 'AI_ASK_AMOUNT') {
+        const members = await getMemberNames();
         const amount = parseFloat(text);
         if (isNaN(amount) || amount <= 0) {
             return replyText(replyToken, "❌ กรุณาพิมพ์จำนวนเงินเป็นตัวเลขที่ถูกต้องครับ");
@@ -286,7 +287,6 @@ async function handleTextMessage(event) {
         data.amount = amount;
         if (!data.payer) {
             await setDoc(sessionRef, { step: 'AI_ASK_PAYER', data: data, timestamp: serverTimestamp() });
-            const members = await getMemberNames();
             const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
             const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${data.amount.toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
             return replyQuickReply(replyToken, flex, actions);
@@ -613,10 +613,81 @@ async function getImageContent(messageId) {
 }
 
 // --- AI HELPER ---
+let resolvedGeminiModel = null;
+
+async function getAvailableGeminiModel() {
+    if (resolvedGeminiModel) return resolvedGeminiModel;
+    try {
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) return "gemini-pro";
+        
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const data = await res.json();
+        
+        if (data.models && Array.isArray(data.models)) {
+            const available = data.models
+                .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"))
+                .map(m => m.name.replace(/^models\//, ''));
+            
+            console.log("Supported Gemini models for key:", available);
+            const candidates = [
+                "gemini-1.5-flash",
+                "gemini-1.5-flash-latest",
+                "gemini-1.5-flash-001",
+                "gemini-1.5-flash-002",
+                "gemini-2.0-flash",
+                "gemini-2.0-flash-exp",
+                "gemini-pro"
+            ];
+            for (const cand of candidates) {
+                if (available.includes(cand)) {
+                    resolvedGeminiModel = cand;
+                    console.log("Selected Gemini model:", resolvedGeminiModel);
+                    return resolvedGeminiModel;
+                }
+            }
+            if (available.length > 0) {
+                resolvedGeminiModel = available[0];
+                return resolvedGeminiModel;
+            }
+        }
+    } catch (e) {
+        console.error("Failed to query available Gemini models:", e);
+    }
+    resolvedGeminiModel = "gemini-pro";
+    return resolvedGeminiModel;
+}
+
+async function generateContentWithFallback(genAI, prompt) {
+    let modelName = await getAvailableGeminiModel();
+    try {
+        const model = genAI.getGenerativeModel({ model: modelName });
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+    } catch (err) {
+        console.warn(`Gemini call failed with model '${modelName}':`, err.message);
+        // Fallback models if primary model failed (e.g. 404 or 503)
+        const fallbacks = ["gemini-pro", "gemini-1.5-flash-latest", "gemini-1.5-flash-001"];
+        for (const fb of fallbacks) {
+            if (fb !== modelName) {
+                try {
+                    console.log(`Retrying Gemini with fallback model '${fb}'...`);
+                    const fallbackModel = genAI.getGenerativeModel({ model: fb });
+                    const result = await fallbackModel.generateContent(prompt);
+                    resolvedGeminiModel = fb; // update cache to working model
+                    return result.response.text();
+                } catch (fbErr) {
+                    console.warn(`Fallback '${fb}' also failed:`, fbErr.message);
+                }
+            }
+        }
+        throw err;
+    }
+}
+
 async function parseExpenseWithGemini(text, membersList) {
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
         const prompt = `
 คุณเป็นผู้ช่วยจดบันทึกรายจ่ายสำหรับกลุ่มเพื่อน 
@@ -645,8 +716,7 @@ Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount":
 
 ข้อความที่ต้องวิเคราะห์: "${text}"`;
 
-        const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
+        let responseText = await generateContentWithFallback(genAI, prompt);
         
         // Clean JSON string (remove markdown format if any)
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -671,7 +741,7 @@ async function proceedToAIConfirm(replyToken, sessionRef, data, members) {
         { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
         { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
     ];
-    const summary = `รายการ: ${data.desc}\nราคา: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
+    const summary = `รายการ: ${data.desc}\nราคา: ${(data.amount || 0).toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
     const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
     return replyQuickReply(replyToken, flex, actions);
 }
@@ -680,7 +750,6 @@ async function mapNamesWithGemini(text, membersList) {
     if (!process.env.GEMINI_API_KEY) return [];
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         
         const prompt = `
 คุณมีหน้าที่แปลงรายชื่อที่ผู้ใช้พิมพ์แบบไม่เป็นทางการ (ภาษาไทย, ชื่อย่อ) ให้ตรงกับรายชื่อทางการในระบบเป๊ะๆ
@@ -693,8 +762,7 @@ async function mapNamesWithGemini(text, membersList) {
 ห้ามตอบข้อความอื่นนอกจาก JSON Array
 ถ้าหาไม่เจอเลย หรือไม่แน่ใจ ให้ตอบ []`;
 
-        const result = await model.generateContent(prompt);
-        let responseText = result.response.text();
+        let responseText = await generateContentWithFallback(genAI, prompt);
         responseText = responseText.replace(/```json/g, '').replace(/```/g, '').trim();
         
         return JSON.parse(responseText);
@@ -982,8 +1050,9 @@ async function generateMemberReport(replyToken, memberName) {
         const date = new Date();
         const currentMonth = getBangkokMonthString(date);
 
-        // 1. Fetch Transactions (Carry forward - Get all up to current month end)
+        // 1. Fetch Transactions for current month only
         const q = query(collection(db, "transactions"),
+            where("date", ">=", `${currentMonth}-01`),
             where("date", "<=", `${currentMonth}-31`)
         );
 
@@ -1002,51 +1071,60 @@ async function generateMemberReport(replyToken, memberName) {
         let totalPaid = 0;
         let totalShare = 0;
         let recentItems = [];
+        const upperMember = memberName.toUpperCase();
 
-        // 2. Calculate Balances & Stats
+        // 2. Calculate Balances & Stats for current month
         snapshot.forEach(doc => {
             const t = doc.data();
+            const payer = (t.payer || "").toUpperCase();
 
-            // Stats for Report (Only for current month)
-            if (t.date.startsWith(currentMonth)) {
-                let involved = false;
-                if (t.payer === memberName) {
-                    totalPaid += Number(t.amount);
-                    involved = true;
-                }
-                if (t.splits && t.splits[memberName]) {
-                    totalShare += Number(t.splits[memberName]);
-                    involved = true;
-                }
-                if (involved) {
-                    recentItems.push({
-                        desc: t.desc, amount: t.amount, myShare: t.splits[memberName] || 0,
-                        isPayer: t.payer === memberName, date: t.date
-                    });
-                }
+            let involved = false;
+            if (payer === upperMember) {
+                totalPaid += Number(t.amount);
+                involved = true;
+            }
+            if (t.splits) {
+                Object.entries(t.splits).forEach(([debtor, amt]) => {
+                    const debtorKey = (debtor || "").toUpperCase();
+                    if (debtorKey === upperMember) {
+                        totalShare += Number(amt);
+                        involved = true;
+                    }
+                });
+            }
+            if (involved) {
+                recentItems.push({
+                    desc: t.desc, 
+                    amount: t.amount, 
+                    myShare: (t.splits && (t.splits[memberName] || t.splits[upperMember])) || 0,
+                    isPayer: payer === upperMember, 
+                    date: t.date
+                });
             }
 
-            // Calculation for Settlement (All months up to current)
-            const payer = t.payer;
+            // Calculation for Settlement (Current month)
             if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
 
             if (t.splits) {
                 Object.entries(t.splits).forEach(([debtor, amount]) => {
-                    if (balances[debtor] !== undefined) balances[debtor] -= Number(amount);
+                    const debtorKey = (debtor || "").toUpperCase();
+                    if (balances[debtorKey] !== undefined) balances[debtorKey] -= Number(amount);
                 });
             }
         });
 
-        // หัก verified settlements ออกจาก balances (หักทุกเดือนที่ผ่านมา)
+        // หัก verified settlements ของเดือนปัจจุบัน
         const verifiedSnap = await getDocs(
             query(collection(db, 'settlements'),
-                where('month', '<=', currentMonth))
+                where('month', '==', currentMonth))
         );
         verifiedSnap.forEach(vDoc => {
             const s = vDoc.data();
             if (s.status === 'verified') {
-                if (balances[s.from] !== undefined) balances[s.from] += Number(s.amount);
-                if (balances[s.to] !== undefined) balances[s.to] -= Number(s.amount);
+                const fromKey = (s.from || "").toUpperCase();
+                const toKey = (s.to || "").toUpperCase();
+                if (balances[fromKey] !== undefined) balances[fromKey] += Number(s.amount);
+                if (balances[toKey] !== undefined) balances[toKey] -= Number(s.amount);
             }
         });
 
@@ -1067,7 +1145,7 @@ async function generateMemberReport(replyToken, memberName) {
             const creditor = creditors[j];
             const pay = Math.min(debtor.amount, creditor.amount);
 
-            if (debtor.name === memberName) {
+            if (debtor.name === upperMember) {
                 myDebts.push({ to: creditor.name, amount: pay });
             }
 
@@ -1079,7 +1157,7 @@ async function generateMemberReport(replyToken, memberName) {
         }
 
         // 4. Generate Flex Message
-        const balance = totalPaid - totalShare;
+        const balance = balances[upperMember] !== undefined ? balances[upperMember] : (totalPaid - totalShare);
         recentItems.sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // Items Rows

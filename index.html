@@ -3339,13 +3339,12 @@
             },
 
             async calculateSettlement() {
-                // Feature C: Carry Forward Debt Logic
-                // Calculate Running Balances from ALL history up to current month
-                const allPastAndCurrentTransactions = this.data.transactions.filter(t => t.date <= this.data.currentMonth + '-31');
+                // คำนวณยอดเฉพาะเดือนที่เลือก (Selected Month)
+                const currentMonthTransactions = this.data.transactions.filter(t => t.date && t.date.startsWith(this.data.currentMonth));
                 const balances = {};
                 this.data.members.forEach(m => balances[m] = 0);
 
-                allPastAndCurrentTransactions.forEach(t => {
+                currentMonthTransactions.forEach(t => {
                     const payer = (t.payer || "").toUpperCase();
                     if (balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
                     if (t.splits) {
@@ -3356,19 +3355,14 @@
                     }
                 });
 
-                // Get verified settlements from local state up to current month
-                const allVerifiedSettlements = (this.data.settlements || []).filter(s => s.status === 'verified' && s.month <= this.data.currentMonth);
-                const verifiedSettlements = [];
+                // Get verified settlements for current month
+                const verifiedSettlements = (this.data.settlements || []).filter(s => s.status === 'verified' && s.month === this.data.currentMonth);
 
-                allVerifiedSettlements.forEach(s => {
-                    // หักล้างยอดสำหรับทุก settlement ที่ผ่านมาและเดือนปัจจุบัน (Carry Forward)
-                    if (balances.hasOwnProperty(s.from)) balances[s.from] += s.amount;
-                    if (balances.hasOwnProperty(s.to)) balances[s.to] -= s.amount;
-
-                    // เก็บเฉพาะเดือนปัจจุบันไว้แสดงผลใน UI
-                    if (s.month === this.data.currentMonth) {
-                        verifiedSettlements.push(s);
-                    }
+                verifiedSettlements.forEach(s => {
+                    const fromUpper = (s.from || "").toUpperCase();
+                    const toUpper = (s.to || "").toUpperCase();
+                    if (balances.hasOwnProperty(fromUpper)) balances[fromUpper] += Number(s.amount);
+                    if (balances.hasOwnProperty(toUpper)) balances[toUpper] -= Number(s.amount);
                 });
 
                 // Render member status grid
