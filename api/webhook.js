@@ -144,10 +144,11 @@ async function handleTextMessage(event) {
                     validPayer = true;
                 }
                 
-                if (validPayer) {
+                if (finalPayer) {
                     let finalParticipants = [];
-                    // กรณีระบุ "ทุกคน" หรือไม่ได้ระบุ
-                    if (!parsedExpense.participants || parsedExpense.participants.length === 0 || parsedExpense.participants.includes("ทุกคน")) {
+                    if (!parsedExpense.participants || parsedExpense.participants.length === 0) {
+                        return replyText(replyToken, `🤖 ข้อมูลไม่ครบครับ! รบกวนพิมพ์ใหม่โดยระบุว่า "หารกับใครบ้าง"\n(ถ้าหารทุกคนให้ระบุว่า "หารทุกคน" ต่อท้ายประโยคได้เลย)\n\n💡 ตัวอย่าง: ${text} หารทุกคน`);
+                    } else if (parsedExpense.participants.includes("ทุกคน")) {
                         finalParticipants = members;
                     } else {
                         // กรองเฉพาะชื่อที่มีในระบบ
@@ -180,10 +181,10 @@ async function handleTextMessage(event) {
                         const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
                         return replyQuickReply(replyToken, flex, actions);
                     } else {
-                        return replyText(replyToken, `🤖 ระบบวิเคราะห์ว่าเป็นรายจ่าย แต่ไม่พบชื่อคนหารในระบบ\n(AI พบชื่อ: ${parsedExpense.participants?.join(', ') || 'ไม่มี'})\nกรุณาระบุชื่อคนหารให้ตรงกับในระบบ (${members.join(', ')})`);
+                        return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบ\n(AI พบชื่อ: ${parsedExpense.participants?.join(', ') || 'ไม่มี'})\nกรุณาระบุชื่อคนหารให้ตรงกับในระบบ (${members.join(', ')})`);
                     }
                 } else {
-                    return replyText(replyToken, `🤖 ระบบวิเคราะห์ว่าเป็นรายจ่าย แต่ไม่พบชื่อคนจ่ายในระบบ\n(AI พบชื่อ: ${parsedExpense.payer || 'ไม่มี'})\nกรุณาระบุชื่อให้ตรงกับระบบ (${members.join(', ')}) หรือพิมพ์ 'เราจ่าย'\n(Error Detail: ${parsedExpense.error_msg || 'None'})`);
+                    return replyText(replyToken, `🤖 ข้อมูลไม่ครบครับ! รบกวนพิมพ์ใหม่โดยระบุว่า "ใครเป็นคนจ่าย"\n\n💡 ตัวอย่าง: ${text} เราจ่าย`);
                 }
             }
         } else if (text.length > 5 && (text.includes('จ่าย') || text.includes('บาท')) && !process.env.GEMINI_API_KEY) {
@@ -500,12 +501,12 @@ JSON Format ที่ต้องการ:
   "is_expense": true,
   "desc": "ชื่อรายการ (สั้นๆ กระชับ)",
   "amount": จำนวนเงิน (ตัวเลขเท่านั้น),
-  "payer": "ชื่อคนจ่าย (ต้องเป็นภาษาอังกฤษตามที่มีในระบบ หรือถ้าไม่มีให้ตอบ null, ถ้าระบุสรรพนามบุรุษที่ 1 เช่น 'ฉัน', 'เรา' ให้ตอบ 'ฉัน')",
-  "participants": ["ชื่อคนหาร1", "ชื่อคนหาร2"] (ถ้าระบุว่าทุกคน หรือไม่ได้ระบุ ให้ตอบ ["ทุกคน"])
+  "payer": "ชื่อคนจ่าย (ต้องเป็นภาษาอังกฤษตามที่มีในระบบ หรือถ้าไม่ได้ระบุให้ตอบ null, ถ้าระบุสรรพนามบุรุษที่ 1 เช่น 'ฉัน', 'เรา' ให้ตอบ 'ฉัน')",
+  "participants": ["ชื่อคนหาร1", "ชื่อคนหาร2"] (หากในข้อความไม่ได้ระบุว่าหารกับใคร ห้ามคิดไปเองว่าทุกคน ให้ตอบ null, แต่ถ้าระบุว่าทุกคน ให้ตอบ ["ทุกคน"])
 }
 
 ตัวอย่าง 1:
-Input: "กินข้าว 450 GAME จ่าย"
+Input: "กินข้าว 450 GAME จ่าย หารทุกคน"
 Output: {"is_expense": true, "desc": "กินข้าว", "amount": 450, "payer": "GAME", "participants": ["ทุกคน"]}
 
 ตัวอย่าง 2:
