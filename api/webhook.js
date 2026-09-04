@@ -153,92 +153,33 @@ async function handleTextMessage(event) {
 
                 // ข้อมูลเบื้องต้นที่ดึงได้
                 let partialData = {
-                    desc: parsedExpense.desc,
-                    amount: parsedExpense.amount,
+                    desc: parsedExpense.desc || null,
+                    amount: parsedExpense.amount ? parseFloat(parsedExpense.amount) : null,
                     participants: parsedExpense.participants || [],
-                    payer: members.includes(finalPayer) ? finalPayer : null
+                    payer: members.includes(finalPayer) ? finalPayer : null,
+                    paymentType: parsedExpense.payment_type || null,
+                    installments: parsedExpense.installments ? parseInt(parsedExpense.installments) : null,
+                    splitMethod: parsedExpense.split_method || null
                 };
 
-                if (!partialData.desc) {
-                     await setDoc(sessionRef, {
-                         step: 'AI_ASK_DESC',
-                         data: partialData,
-                         timestamp: serverTimestamp()
-                     });
-                     return replyText(replyToken, `🤖 ขาดชื่อรายการครับ ค่าใช้จ่ายนี้คือค่าอะไรครับ?`);
-                }
-
-                if (!partialData.amount) {
-                     await setDoc(sessionRef, {
-                         step: 'AI_ASK_AMOUNT',
-                         data: partialData,
-                         timestamp: serverTimestamp()
-                     });
-                     return replyText(replyToken, `🤖 ขาดจำนวนเงินครับ ยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข)`);
-                }
-
-                if (!partialData.payer) {
-                    await setDoc(sessionRef, {
-                        step: 'AI_ASK_PAYER',
-                        data: partialData,
-                        timestamp: serverTimestamp()
-                    });
-                    const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-                    const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${(partialData.amount || 0).toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
-                    return replyQuickReply(replyToken, flex, actions);
-                }
-                
-                if (!partialData.participants || partialData.participants.length === 0) {
-                    await setDoc(sessionRef, {
-                        step: 'AI_ASK_PARTICIPANTS',
-                        data: partialData,
-                        timestamp: serverTimestamp()
-                    });
-                    return replyText(replyToken, `🤖 ข้อมูลเกือบครบแล้วครับ! ขาดแค่ "หารกับใครบ้าง"...\nรบกวนพิมพ์ชื่อคนหาร (เช่น: เกม แคร์) หรือพิมพ์ว่า "ทุกคน" ครับ`);
-                }
-
-                // ข้อมูลสมบูรณ์ จัดเตรียม finalParticipants
-                let finalParticipants = [];
-                if (partialData.participants.includes("ทุกคน")) {
-                    finalParticipants = members;
-                } else if (Array.isArray(partialData.participants) && partialData.participants.length > 0) {
-                    finalParticipants = partialData.participants
-                        .map(p => p.toUpperCase())
-                        .filter(p => members.includes(p));
-                    
-                    // ถ้ายัง match ไม่เจอ ลองใช้ AI map ชื่อ
-                    if (finalParticipants.length === 0) {
-                        const mapped = await mapNamesWithGemini(partialData.participants.join(' '), members);
-                        if (mapped && mapped.length > 0) {
-                            finalParticipants = mapped;
+                // ถ้ามีชื่อผู้หาร ให้ map/validate ทันที
+                if (partialData.participants && partialData.participants.length > 0) {
+                    if (partialData.participants.includes("ทุกคน")) {
+                        partialData.participants = members;
+                    } else {
+                        let validated = partialData.participants
+                            .map(p => p.toUpperCase())
+                            .filter(p => members.includes(p));
+                        if (validated.length === 0) {
+                            const mapped = await mapNamesWithGemini(partialData.participants.join(' '), members);
+                            if (mapped && mapped.length > 0) validated = mapped;
                         }
+                        partialData.participants = validated;
                     }
                 }
-                
-                if (finalParticipants.length > 0) {
-                    partialData.participants = finalParticipants;
-                    // ข้อมูลสมบูรณ์ สร้าง Session ถามยืนยัน
-                    await setDoc(sessionRef, {
-                        step: 'CONFIRM_AI_EXPENSE',
-                        data: {
-                            ...partialData,
-                            paymentType: 'normal',
-                            splitMethod: 'equal'
-                        },
-                        timestamp: serverTimestamp()
-                    });
-                    
-                    const actions = [
-                        { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
-                        { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
-                    ];
-                    
-                    const summary = `รายการ: ${partialData.desc}\nราคา: ${(partialData.amount || 0).toLocaleString()} ฿\nคนจ่าย: ${partialData.payer}\nคนหาร: ${finalParticipants.join(', ')}`;
-                    const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
-                    return replyQuickReply(replyToken, flex, actions);
-                } else {
-                    return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบ\n(AI พบชื่อ: ${partialData.participants.join(', ') || 'ไม่มี'})\nกรุณาระบุชื่อให้ตรงกับในระบบ (${members.join(', ')})`);
-                }
+
+                // ดำเนินการเช็คข้อมูลและถามทีละสเต็ป (แบบมีปุ่ม Quick Reply และพิมพ์ได้)
+                return await checkNextStepAndAsk(replyToken, sessionRef, partialData, members, userId);
             }
         } else if (text.length > 5 && (text.includes('จ่าย') || text.includes('บาท')) && !process.env.GEMINI_API_KEY) {
             // กรณีพิมพ์เหมือนรายจ่าย แต่ยังไม่ได้ตั้งค่า API Key
@@ -253,7 +194,13 @@ async function handleTextMessage(event) {
     const currentStep = session.step;
     const data = session.data || {};
 
-    // STEP 0.5: รับชื่อรายการ
+    // คำสั่งยกเลิกที่พิมพ์มาเมื่อไหร่ก็ได้
+    if (text === 'ยกเลิก' || text === '❌ ยกเลิก' || text === 'cancel') {
+        await deleteDoc(sessionRef);
+        return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
+    }
+
+    // STEP 0.5: รับชื่อรายการ (แบบแมนนวล "เริ่มต้นจดบันทึก")
     if (currentStep === 'ASK_DESC_START') {
         await setDoc(sessionRef, {
             step: 'ASK_AMOUNT',
@@ -266,7 +213,7 @@ async function handleTextMessage(event) {
 
     // STEP AI: รับการยืนยันจาก AI
     if (currentStep === 'CONFIRM_AI_EXPENSE') {
-        if (text === 'ยืนยัน' || text === '✅ ตกลง' || text === 'บันทึก') {
+        if (text === 'ยืนยัน' || text === '✅ บันทึก' || text === '✅ ตกลง' || text === 'บันทึก') {
             return await saveTransaction(replyToken, userId, data);
         } else {
             await deleteDoc(sessionRef);
@@ -277,57 +224,32 @@ async function handleTextMessage(event) {
     // STEP AI 1.1: รับชื่อรายการที่ขาด
     if (currentStep === 'AI_ASK_DESC') {
         const members = await getMemberNames();
-        data.desc = text;
-        if (!data.amount) {
-             await setDoc(sessionRef, { step: 'AI_ASK_AMOUNT', data: data, timestamp: serverTimestamp() });
-             return replyText(replyToken, `🤖 ยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข)`);
-        }
-        if (!data.payer) {
-            await setDoc(sessionRef, { step: 'AI_ASK_PAYER', data: data, timestamp: serverTimestamp() });
-            const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-            const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${(data.amount || 0).toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
-            return replyQuickReply(replyToken, flex, actions);
-        }
-        if (!data.participants || data.participants.length === 0) {
-            await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
-            return replyText(replyToken, `🤖 ข้อมูลเกือบครบแล้วครับ! ขาดแค่ "หารกับใครบ้าง"...\nรบกวนพิมพ์ชื่อคนหาร (เช่น: เกม แคร์) หรือพิมพ์ว่า "ทุกคน" ครับ`);
-        }
-        // ถ้าครบแล้ว ไปยืนยัน
-        return proceedToAIConfirm(replyToken, sessionRef, data, members);
+        data.desc = text.trim();
+        return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
     }
 
     // STEP AI 1.2: รับจำนวนเงินที่ขาด
     if (currentStep === 'AI_ASK_AMOUNT') {
         const members = await getMemberNames();
-        const amount = parseFloat(text);
+        const cleaned = text.replace(/,/g, '').replace(/บาท/g, '').trim();
+        const amount = parseFloat(cleaned);
         if (isNaN(amount) || amount <= 0) {
-            return replyText(replyToken, "❌ กรุณาพิมพ์จำนวนเงินเป็นตัวเลขที่ถูกต้องครับ");
+            return replyText(replyToken, "❌ กรุณาพิมพ์จำนวนเงินเป็นตัวเลขที่ถูกต้องครับ (เช่น 350 หรือ 1200)");
         }
         data.amount = amount;
-        if (!data.payer) {
-            await setDoc(sessionRef, { step: 'AI_ASK_PAYER', data: data, timestamp: serverTimestamp() });
-            const actions = members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } }));
-            const flex = createInteractiveCard("ขาดข้อมูลคนจ่าย", `ยอดเงิน: ${data.amount.toLocaleString()} ฿\nใครเป็นคนออกเงินรายการนี้ครับ?`);
-            return replyQuickReply(replyToken, flex, actions);
-        }
-        if (!data.participants || data.participants.length === 0) {
-            await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
-            return replyText(replyToken, `🤖 ข้อมูลเกือบครบแล้วครับ! ขาดแค่ "หารกับใครบ้าง"...\nรบกวนพิมพ์ชื่อคนหาร (เช่น: เกม แคร์) หรือพิมพ์ว่า "ทุกคน" ครับ`);
-        }
-        // ถ้าครบแล้ว ไปยืนยัน
-        return proceedToAIConfirm(replyToken, sessionRef, data, members);
+        return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
     }
 
-    // STEP AI 2: รับคนจ่าย (จากที่ AI หาไม่ได้)
+    // STEP AI 2: รับคนจ่าย (จากปุ่มหรือพิมพ์)
     if (currentStep === 'AI_ASK_PAYER') {
-        let finalPayer = text.toUpperCase();
         const members = await getMemberNames();
+        let finalPayer = text.trim().toUpperCase();
         
         if (["ฉัน", "ผม", "หนู", "เรา", "พี่", "น้อง"].includes(finalPayer)) {
             const memberName = await getMemberNameByLineId(userId);
             if (memberName) finalPayer = memberName;
-        } else {
-            // ใช้ AI ช่วยวิเคราะห์ชื่อที่พิมพ์มาว่าตรงกับใครในระบบ
+        } else if (!members.includes(finalPayer)) {
+            // ลองใช้ AI ช่วย map ชื่อ
             const mappedNames = await mapNamesWithGemini(text, members);
             if (mappedNames && mappedNames.length > 0) {
                 finalPayer = mappedNames[0];
@@ -335,42 +257,167 @@ async function handleTextMessage(event) {
         }
         
         if (!members.includes(finalPayer)) {
-             return replyText(replyToken, `🤖 ไม่พบชื่อใกล้เคียงกับ "${text}" ในระบบครับ\nกรุณาพิมพ์ชื่อคนจ่ายให้ตรงกับในระบบ (${members.join(', ')})`);
+            const actions = [
+                ...members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } })),
+                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            ];
+            const flex = createInteractiveCard("ไม่พบชื่อในระบบ", `คุณพิมพ์: "${text}"\nกรุณาแตะเลือกชื่อคนจ่ายจากปุ่มด้านล่าง หรือพิมพ์ให้ตรงกับ: ${members.join(', ')}`);
+            return replyQuickReply(replyToken, flex, actions);
         }
         
         data.payer = finalPayer;
-        
-        // ถ้ายังขาดคนหาร
-        if (!data.participants || data.participants.length === 0) {
-            await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
-            return replyText(replyToken, `🤖 รับทราบครับ คนจ่ายคือ ${finalPayer}\n\nแล้วรายการนี้ "หารกับใครบ้าง" ครับ?\n(รบกวนพิมพ์ชื่อคนหาร เช่น: เกม แคร์ หรือพิมพ์ว่า "ทุกคน")`);
-        }
-        
-        // ครบแล้ว ไปยืนยัน
-        return proceedToAIConfirm(replyToken, sessionRef, data, members);
+        return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
     }
     
-    // STEP AI 3: รับคนหาร (จากที่ AI หาไม่ได้)
+    // STEP AI 3: รับคนหาร (เลือกจากปุ่มหรือพิมพ์)
     if (currentStep === 'AI_ASK_PARTICIPANTS') {
         const members = await getMemberNames();
-        let finalParticipants = [];
-        
-        if (text.includes("ทุกคน")) {
-            finalParticipants = members;
-        } else {
-            // ใช้ AI ช่วยแปลงชื่อเล่น/ชื่อย่อ ให้ตรงกับชื่อเต็มในระบบ
-            finalParticipants = await mapNamesWithGemini(text, members);
+        let currentList = data.participants || [];
+
+        if (text === 'ยืนยันรายชื่อ' || text === '✅ ยืนยัน' || text === 'ยืนยัน') {
+            if (currentList.length === 0) {
+                return replyText(replyToken, "⚠️ กรุณาเลือกคนหารอย่างน้อย 1 คน หรือกดเลือกทุกคนครับ");
+            }
+            data.participants = currentList;
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
         }
-        
-        if (finalParticipants.length > 0) {
-            data.participants = finalParticipants;
-            return proceedToAIConfirm(replyToken, sessionRef, data, members);
+
+        if (text === 'ทุกคน' || text === '👥 ทุกคน') {
+            data.participants = members;
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+        }
+
+        // เช็คว่ากดปุ่มชื่อสมาชิก หรือพิมพ์ชื่อเข้ามา
+        const inputUpper = text.trim().toUpperCase();
+        if (members.includes(inputUpper)) {
+            // สลับสถานะ (toggle)
+            if (currentList.includes(inputUpper)) {
+                currentList = currentList.filter(m => m !== inputUpper);
+            } else {
+                currentList = [...currentList, inputUpper];
+            }
+            data.participants = currentList;
+            await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
+            
+            const actions = [
+                { type: "action", action: { type: "message", label: "✅ ยืนยันรายชื่อ", text: "ยืนยันรายชื่อ" } },
+                { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
+                ...members.slice(0, 10).map(m => ({
+                    type: "action",
+                    action: { type: "message", label: (currentList.includes(m) ? `✅ ${m}` : m), text: m }
+                })),
+                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            ];
+            const flex = createInteractiveCard(
+                "เลือกคนหารเงิน",
+                `รายการ: ${data.desc}\nยอด: ${data.amount ? data.amount.toLocaleString() : 0} ฿\n\nเลือกแล้ว (${currentList.length} คน): ${currentList.length > 0 ? currentList.join(', ') : 'ยังไม่ได้เลือก'}`,
+                "แตะที่ชื่อเพื่อเลือก/เอาออก เมื่อครบแล้วกด 'ยืนยันรายชื่อ' (หรือพิมพ์ชื่อได้)"
+            );
+            return replyQuickReply(replyToken, flex, actions);
+        }
+
+        // กรณีพิมพ์หลายชื่อมาพร้อมกัน เช่น "เกม แคร์" หรือ "GAME, CARE"
+        const mapped = await mapNamesWithGemini(text, members);
+        if (mapped && mapped.length > 0) {
+            data.participants = mapped;
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+        }
+
+        return replyText(replyToken, `🤖 ไม่พบชื่อ "${text}" ในระบบครับ\nกรุณาแตะปุ่มเลือก หรือพิมพ์ชื่อให้ตรงกับ: ${members.join(', ')} (หรือพิมพ์ว่า "ทุกคน")`);
+    }
+
+    // STEP AI 4: รับรูปแบบการชำระ (จ่ายเต็ม / ผ่อนชำระ / Subscription)
+    if (currentStep === 'AI_ASK_PAYMENT_TYPE') {
+        const members = await getMemberNames();
+        const lower = text.toLowerCase();
+        if (lower.includes("ผ่อน") || lower.includes("installment")) {
+            data.paymentType = 'installment';
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+        } else if (lower.includes("sub") || lower.includes("รายเดือน") || text.includes("💳")) {
+            data.paymentType = 'subscription';
+            data.installments = 1;
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+        } else if (lower.includes("เต็ม") || lower.includes("normal") || text.includes("จ่ายเต็ม")) {
+            data.paymentType = 'normal';
+            data.installments = 1;
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
         } else {
-            return replyText(replyToken, `🤖 ไม่พบชื่อคนหารในระบบครับ\n(ข้อมูลที่พิมพ์: ${text})\nกรุณาระบุชื่อคนหารให้ตรงกับในระบบ (${members.join(', ')})`);
+            const actions = [
+                { type: "action", action: { type: "message", label: "🟢 จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
+                { type: "action", action: { type: "message", label: "🟡 ผ่อนชำระ", text: "ผ่อนชำระ" } },
+                { type: "action", action: { type: "message", label: "💳 Subscription", text: "Subscription" } },
+                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            ];
+            const flex = createInteractiveCard("เลือกรูปแบบการชำระ", `รายการ: ${data.desc}\nยอดเงิน: ${(data.amount || 0).toLocaleString()} ฿\n\nโปรดแตะเลือกจากปุ่มด้านล่าง หรือพิมพ์ "จ่ายเต็ม" / "ผ่อนชำระ" / "Subscription"`);
+            return replyQuickReply(replyToken, flex, actions);
         }
     }
 
-    // STEP 2: รับราคา -> ถามคนจ่าย
+    // STEP AI 4.5: รับจำนวนงวดผ่อนชำระ
+    if (currentStep === 'AI_ASK_INSTALLMENTS') {
+        const members = await getMemberNames();
+        const cleanNumber = text.replace(/[^0-9]/g, '');
+        let installments = parseInt(cleanNumber);
+        if (isNaN(installments) || installments < 2 || installments > 60) {
+            const actions = [
+                { type: "action", action: { type: "message", label: "3 งวด", text: "3" } },
+                { type: "action", action: { type: "message", label: "6 งวด", text: "6" } },
+                { type: "action", action: { type: "message", label: "10 งวด", text: "10" } },
+                { type: "action", action: { type: "message", label: "12 งวด", text: "12" } }
+            ];
+            const flex = createInteractiveCard("ระบุจำนวนงวดผ่อน", `ยอดรวม: ${(data.amount || 0).toLocaleString()} ฿\nต้องการผ่อนกี่เดือนครับ? (2-60 เดือน)`, "แตะเลือกงวด หรือพิมพ์ตัวเลขได้เลยครับ");
+            return replyQuickReply(replyToken, flex, actions);
+        }
+        data.installments = installments;
+        return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+    }
+
+    // STEP AI 5: รับวิธีหาร (หารเท่า / กำหนดเอง)
+    if (currentStep === 'AI_ASK_SPLIT_METHOD') {
+        const members = await getMemberNames();
+        if (text.includes("กำหนด") || text.includes("แยก") || text.includes("เอง") || text.includes("custom")) {
+            data.splitMethod = 'custom';
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+        } else if (text.includes("เท่า") || text.includes("equal") || text.includes("หารเท่า")) {
+            data.splitMethod = 'equal';
+            return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+        } else {
+            const perPerson = Math.round(((data.amount || 0) / (data.participants?.length || 1)) * 100) / 100;
+            const actions = [
+                { type: "action", action: { type: "message", label: `⚖️ หารเท่า (~${perPerson}฿)`, text: "หารเท่า" } },
+                { type: "action", action: { type: "message", label: "✏️ กำหนดเอง", text: "กำหนดเอง" } },
+                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            ];
+            const flex = createInteractiveCard("วิธีหารเงิน", `ยอดรวม: ${(data.amount || 0).toLocaleString()} ฿ (${data.participants?.length || 0} คน)\n\nแตะเลือกหารเท่ากัน หรือระบุยอดแยกรายคน`);
+            return replyQuickReply(replyToken, flex, actions);
+        }
+    }
+
+    // STEP AI 6: รับยอดระบุเอง (Custom amounts)
+    if (currentStep === 'AI_ASK_CUSTOM_AMOUNTS') {
+        const members = await getMemberNames();
+        // ตรวจสอบ format: ชื่อ=จำนวน
+        const parts = text.split(/[\s,]+/);
+        let sum = 0;
+        let valid = false;
+        parts.forEach(p => {
+            const [name, val] = p.split('=');
+            if (name && val && !isNaN(parseFloat(val))) {
+                valid = true;
+                sum += parseFloat(val);
+            }
+        });
+
+        if (!valid) {
+            const example = (data.participants || members.slice(0, 2)).map((p, idx) => `${p}=${(idx + 1) * 100}`).join(' ');
+            return replyText(replyToken, `⚠️ รูปแบบไม่ถูกต้องครับ\nกรุณาพิมพ์ตามรูปแบบ "ชื่อ=จำนวน"\nตัวอย่าง: ${example}`);
+        }
+
+        data.customAmountStr = text.trim();
+        return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
+    }
+
+    // STEP 2: รับราคา -> ถามคนจ่าย (โหมดเริ่มต้นจดบันทึกแบบเดิม)
     if (currentStep === 'ASK_AMOUNT') {
         const amount = parseFloat(text.replace(/,/g, ''));
         if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ โปรดระบุราคาเป็นตัวเลขครับ");
@@ -749,16 +796,23 @@ JSON Format ที่ต้องการ:
   "desc": "ชื่อรายการ (สั้นๆ กระชับ)",
   "amount": จำนวนเงิน (ตัวเลขเท่านั้น),
   "payer": "ชื่อคนจ่าย (ต้องเป็นภาษาอังกฤษตามที่มีในระบบ หรือถ้าไม่ได้ระบุให้ตอบ null, ถ้าระบุสรรพนามบุรุษที่ 1 เช่น 'ฉัน', 'เรา' ให้ตอบ 'ฉัน')",
-  "participants": ["ชื่อคนหาร1", "ชื่อคนหาร2"] (หากในข้อความไม่ได้ระบุว่าหารกับใคร ห้ามคิดไปเองว่าทุกคน ให้ตอบ null, แต่ถ้าระบุว่าทุกคน ให้ตอบ ["ทุกคน"])
+  "participants": ["ชื่อคนหาร1", "ชื่อคนหาร2"] (หากในข้อความไม่ได้ระบุว่าหารกับใคร ห้ามคิดไปเองว่าทุกคน ให้ตอบ null, แต่ถ้าระบุว่าทุกคน ให้ตอบ ["ทุกคน"]),
+  "payment_type": "normal" หรือ "installment" หรือ "subscription" (ถ้าไม่ระบุให้ตอบ null, ถ้ามีคำว่า 'ผ่อน' ให้ตอบ 'installment', ถ้ามีคำว่า 'รายเดือน' หรือ 'subscription' ให้ตอบ 'subscription', ถ้ามีคำว่า 'จ่ายเต็ม' ให้ตอบ 'normal'),
+  "installments": จำนวนงวด (ตัวเลขเท่านั้น เช่น 3, 6, 10, 12 ถ้าไม่ใช่ผ่อนชำระให้ตอบ null),
+  "split_method": "equal" หรือ "custom" (ถ้าไม่ระบุให้ตอบ null, ถ้ามีคำว่า 'หารเท่า' ให้ตอบ 'equal', ถ้ามีการระบุยอดรายคนแยกกัน ให้ตอบ 'custom')
 }
 
 ตัวอย่าง 1:
 Input: "กินข้าว 450 GAME จ่าย หารทุกคน"
-Output: {"is_expense": true, "desc": "กินข้าว", "amount": 450, "payer": "GAME", "participants": ["ทุกคน"]}
+Output: {"is_expense": true, "desc": "กินข้าว", "amount": 450, "payer": "GAME", "participants": ["ทุกคน"], "payment_type": "normal", "installments": null, "split_method": "equal"}
 
 ตัวอย่าง 2:
-Input: "ค่าแท็กซี่ 200 เราจ่าย หารกับ เจ และ WIN"
-Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount": 200, "payer": "ฉัน", "participants": ["JAY", "WIN"]}
+Input: "ผ่อนตู้เย็น 12000 6 งวด เราจ่าย หารกับ เจ"
+Output: {"is_expense": true, "desc": "ตู้เย็น", "amount": 12000, "payer": "ฉัน", "participants": ["JAY"], "payment_type": "installment", "installments": 6, "split_method": "equal"}
+
+ตัวอย่าง 3:
+Input: "เน็ตบ้าน 800 subscription หารทุกคน"
+Output: {"is_expense": true, "desc": "เน็ตบ้าน", "amount": 800, "payer": null, "participants": ["ทุกคน"], "payment_type": "subscription", "installments": null, "split_method": "equal"}
 
 ข้อความที่ต้องวิเคราะห์: "${text}"`;
 
@@ -778,17 +832,173 @@ Output: {"is_expense": true, "desc": "ค่าแท็กซี่", "amount":
     }
 }
 
-async function proceedToAIConfirm(replyToken, sessionRef, data, members) {
-    data.paymentType = 'normal';
-    data.splitMethod = 'equal';
-    await setDoc(sessionRef, { step: 'CONFIRM_AI_EXPENSE', data: data, timestamp: serverTimestamp() });
-    
+async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId) {
+    // 1. เช็คชื่อรายการ
+    if (!data.desc) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_DESC',
+            data: data,
+            timestamp: serverTimestamp()
+        });
+        return replyText(replyToken, `🤖 ขาดชื่อรายการครับ ค่าใช้จ่ายนี้คือค่าอะไรครับ? (พิมพ์ชื่อรายการได้เลย)`);
+    }
+
+    // 2. เช็คจำนวนเงิน
+    if (!data.amount || data.amount <= 0) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_AMOUNT',
+            data: data,
+            timestamp: serverTimestamp()
+        });
+        return replyText(replyToken, `🤖 ขาดจำนวนเงินสำหรับ "${data.desc}" ครับ\nยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข เช่น 350 หรือ 1200)`);
+    }
+
+    // 3. เช็คคนจ่าย
+    if (!data.payer || !members.includes(data.payer)) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_PAYER',
+            data: data,
+            timestamp: serverTimestamp()
+        });
+        const actions = [
+            ...members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } })),
+            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+        ];
+        const flex = createInteractiveCard(
+            "ใครเป็นคนจ่ายเงิน?",
+            `รายการ: ${data.desc}\nยอดเงิน: ${data.amount.toLocaleString()} ฿\n\nแตะเลือกชื่อคนออกเงินจากปุ่ม หรือพิมพ์ชื่อได้ครับ`
+        );
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    // 4. เช็คคนหาร
+    if (!data.participants || !Array.isArray(data.participants) || data.participants.length === 0) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_PARTICIPANTS',
+            data: { ...data, participants: [] },
+            timestamp: serverTimestamp()
+        });
+        const actions = [
+            { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
+            ...members.slice(0, 10).map(m => ({
+                type: "action",
+                action: { type: "message", label: m, text: m }
+            })),
+            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+        ];
+        const flex = createInteractiveCard(
+            "หารกับใครบ้าง?",
+            `รายการ: ${data.desc}\nยอดเงิน: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\n\nแตะเลือกชื่อคนหาร หรือแตะ "ทุกคน" หรือพิมพ์ชื่อได้เลยครับ`
+        );
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    // 5. เช็ครูปแบบการชำระ (จ่ายเต็ม / ผ่อนชำระ / Subscription)
+    if (!data.paymentType) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_PAYMENT_TYPE',
+            data: data,
+            timestamp: serverTimestamp()
+        });
+        const actions = [
+            { type: "action", action: { type: "message", label: "🟢 จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
+            { type: "action", action: { type: "message", label: "🟡 ผ่อนชำระ", text: "ผ่อนชำระ" } },
+            { type: "action", action: { type: "message", label: "💳 Subscription", text: "Subscription" } },
+            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+        ];
+        const flex = createInteractiveCard(
+            "เลือกรูปแบบการชำระ",
+            `รายการ: ${data.desc}\nยอดเงิน: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}\n\nโปรดเลือกรูปแบบการชำระ`
+        );
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    // 5.1 ถ้าเป็นผ่อนชำระ -> เช็คจำนวนงวด
+    if (data.paymentType === 'installment' && (!data.installments || data.installments < 2)) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_INSTALLMENTS',
+            data: data,
+            timestamp: serverTimestamp()
+        });
+        const actions = [
+            { type: "action", action: { type: "message", label: "3 งวด", text: "3" } },
+            { type: "action", action: { type: "message", label: "6 งวด", text: "6" } },
+            { type: "action", action: { type: "message", label: "10 งวด", text: "10" } },
+            { type: "action", action: { type: "message", label: "12 งวด", text: "12" } }
+        ];
+        const flex = createInteractiveCard(
+            "ระบุจำนวนงวดผ่อน",
+            `รายการ: ${data.desc}\nยอดรวม: ${data.amount.toLocaleString()} ฿\n\nต้องการผ่อนชำระกี่เดือนครับ? (2-60 เดือน)`
+        );
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    // 6. เช็ควรรวมวิธีหาร (ถ้าคนหาร > 1 คน และยังไม่ระบุวิธีหาร)
+    if (data.participants.length > 1 && !data.splitMethod) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_SPLIT_METHOD',
+            data: data,
+            timestamp: serverTimestamp()
+        });
+        const perPerson = Math.round((data.amount / data.participants.length) * 100) / 100;
+        const actions = [
+            { type: "action", action: { type: "message", label: `⚖️ หารเท่า (~${perPerson}฿)`, text: "หารเท่า" } },
+            { type: "action", action: { type: "message", label: "✏️ กำหนดเอง", text: "กำหนดเอง" } },
+            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+        ];
+        const flex = createInteractiveCard(
+            "เลือกวิธีหารเงิน",
+            `ยอดรวม: ${data.amount.toLocaleString()} ฿ (${data.participants.length} คน)\n\nแตะเลือกหารเท่ากัน หรือระบุยอดแยกรายคน`
+        );
+        return replyQuickReply(replyToken, flex, actions);
+    }
+
+    // 6.1 ถ้าเลือกแบบ custom แต่ยังไม่มี customAmountStr
+    if (data.splitMethod === 'custom' && !data.customAmountStr) {
+        await setDoc(sessionRef, {
+            step: 'AI_ASK_CUSTOM_AMOUNTS',
+            data: data,
+            timestamp: serverTimestamp()
+        });
+        const example = data.participants.map((p, idx) => `${p}=${(idx + 1) * 100}`).join(' ');
+        const flex = createInteractiveCard(
+            "ระบุยอดแยกรายคน",
+            `ยอดรวมทั้งหมด: ${data.amount.toLocaleString()} ฿\nคนหาร: ${data.participants.join(', ')}\n\nตัวอย่าง: ${example}`,
+            "พิมพ์ตามรูปแบบ 'ชื่อ=จำนวน' ได้เลยครับ"
+        );
+        return replyFlex(replyToken, "ระบุยอดแยก", flex);
+    }
+
+    // Default splitMethod สำหรับคนเดียว
+    if (data.participants.length === 1 && !data.splitMethod) {
+        data.splitMethod = 'equal';
+    }
+
+    // 7. ข้อมูลครบทุกอย่างแล้ว -> แสดงสรุปและปุ่มกดยืนยันบันทึก
+    await setDoc(sessionRef, {
+        step: 'CONFIRM_AI_EXPENSE',
+        data: data,
+        timestamp: serverTimestamp()
+    });
+
+    const paymentLabel = data.paymentType === 'installment'
+        ? `ผ่อนชำระ (${data.installments} งวด / ตกงวดละ ${(data.amount / data.installments).toLocaleString()} ฿)`
+        : data.paymentType === 'subscription'
+        ? `Subscription 💳 (สร้างซ้ำทุกเดือน)`
+        : `จ่ายเต็มจำนวน 🟢`;
+
+    const splitLabel = data.splitMethod === 'custom'
+        ? `กำหนดเอง (${data.customAmountStr})`
+        : `หารเท่ากัน (~${(data.amount / data.participants.length).toLocaleString()} ฿/คน)`;
+
+    const summary = `📝 รายการ: ${data.desc}\n💰 ยอดรวม: ${data.amount.toLocaleString()} ฿\n👤 คนจ่าย: ${data.payer}\n👥 คนหาร (${data.participants.length} คน): ${data.participants.join(', ')}\n💳 รูปแบบ: ${paymentLabel}\n⚖️ วิธีหาร: ${splitLabel}`;
+
     const actions = [
-        { type: "action", action: { type: "message", label: "✅ บันทึก", text: "ยืนยัน" } },
+        { type: "action", action: { type: "message", label: "✅ ยืนยันบันทึก", text: "ยืนยัน" } },
         { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
     ];
-    const summary = `รายการ: ${data.desc}\nราคา: ${(data.amount || 0).toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร: ${data.participants.join(', ')}`;
-    const flex = createInteractiveCard("🤖 ระบบ AI อ่านรายการ", summary, "กรุณาตรวจสอบความถูกต้องก่อนกดยืนยันครับ");
+
+    const flex = createInteractiveCard("🤖 ตรวจสอบและยืนยันบันทึก", summary, "แตะ 'ยืนยันบันทึก' เพื่อลงบัญชีทันที หรือ 'ยกเลิก' เพื่อเริ่มใหม่");
     return replyQuickReply(replyToken, flex, actions);
 }
 
@@ -968,10 +1178,19 @@ async function saveTransaction(replyToken, userId, finalData) {
         const splits = {};
 
         if (finalData.splitMethod === 'custom') {
-            finalData.customAmountStr.split(/[\s,]+/).forEach(p => {
-                const [name, val] = p.split('=');
-                if (name && val) splits[name.trim().toUpperCase()] = parseFloat(val);
-            });
+            const members = await getMemberNames();
+            const rawPairs = finalData.customAmountStr.split(/[\s,]+/);
+            for (const p of rawPairs) {
+                const [rawName, val] = p.split('=');
+                if (rawName && val) {
+                    let targetName = rawName.trim().toUpperCase();
+                    if (!members.includes(targetName)) {
+                        const mapped = await mapNamesWithGemini(rawName.trim(), members);
+                        if (mapped && mapped.length > 0) targetName = mapped[0];
+                    }
+                    splits[targetName] = parseFloat(val);
+                }
+            }
         } else {
             const share = finalData.amount / finalData.participants.length;
             finalData.participants.forEach(p => splits[p] = share);
