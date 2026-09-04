@@ -74,6 +74,13 @@ export default async function handler(req, res) {
             }
         } catch (err) {
             console.error("Handler Error:", err);
+            try {
+                if (event.replyToken) {
+                    await replyText(event.replyToken, `⚠️ เกิดข้อผิดพลาด: ${err.message}`);
+                }
+            } catch (replyErr) {
+                console.error("Reply Error:", replyErr);
+            }
         }
     }));
     return res.status(200).send('OK');
@@ -130,22 +137,26 @@ async function handleTextMessage(event) {
             if (parsedExpense && parsedExpense.is_expense) {
                 let finalPayer = (parsedExpense.payer || "").toUpperCase();
                 
-                // ถ้าระบุคนจ่ายเป็นสรรพนามบุรุษที่ 1
+                // ถ้าระบุคนจ่ายเป็นสรรพนามบุรุษที่ 1 หรือไม่ได้ระบุ
                 if (["ฉัน", "ผม", "หนู", "เรา", "พี่", "น้อง"].includes(finalPayer) || !finalPayer) {
                     const memberName = await getMemberNameByLineId(userId);
                     if (memberName) {
-                        validPayer = true;
                         finalPayer = memberName;
                     }
-                } else if (members.includes(finalPayer)) {
-                    validPayer = true;
+                } else if (!members.includes(finalPayer)) {
+                    // ใช้ AI ช่วย map ชื่อที่พิมพ์มา เช่น "เกม" -> "GAME"
+                    const mapped = await mapNamesWithGemini(finalPayer, members);
+                    if (mapped && mapped.length > 0) {
+                        finalPayer = mapped[0];
+                    }
                 }
+
                 // ข้อมูลเบื้องต้นที่ดึงได้
                 let partialData = {
                     desc: parsedExpense.desc,
                     amount: parsedExpense.amount,
                     participants: parsedExpense.participants || [],
-                    payer: finalPayer
+                    payer: members.includes(finalPayer) ? finalPayer : null
                 };
 
                 if (!partialData.desc) {
@@ -166,7 +177,7 @@ async function handleTextMessage(event) {
                      return replyText(replyToken, `🤖 ขาดจำนวนเงินครับ ยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข)`);
                 }
 
-                if (!finalPayer) {
+                if (!partialData.payer) {
                     await setDoc(sessionRef, {
                         step: 'AI_ASK_PAYER',
                         data: partialData,
@@ -190,10 +201,18 @@ async function handleTextMessage(event) {
                 let finalParticipants = [];
                 if (partialData.participants.includes("ทุกคน")) {
                     finalParticipants = members;
-                } else {
+                } else if (Array.isArray(partialData.participants) && partialData.participants.length > 0) {
                     finalParticipants = partialData.participants
                         .map(p => p.toUpperCase())
                         .filter(p => members.includes(p));
+                    
+                    // ถ้ายัง match ไม่เจอ ลองใช้ AI map ชื่อ
+                    if (finalParticipants.length === 0) {
+                        const mapped = await mapNamesWithGemini(partialData.participants.join(' '), members);
+                        if (mapped && mapped.length > 0) {
+                            finalParticipants = mapped;
+                        }
+                    }
                 }
                 
                 if (finalParticipants.length > 0) {
@@ -1165,6 +1184,7 @@ async function generateMemberReport(replyToken, memberName) {
         });
 
         const myDebts = []; // List of people I owe
+        const incomingDebts = []; // List of people who owe me
 
         let i = 0, j = 0;
         while (i < debtors.length && j < creditors.length) {
@@ -1174,6 +1194,9 @@ async function generateMemberReport(replyToken, memberName) {
 
             if (debtor.name === upperMember) {
                 myDebts.push({ to: creditor.name, amount: pay });
+            }
+            if (creditor.name === upperMember) {
+                incomingDebts.push({ from: debtor.name, amount: pay });
             }
 
             debtor.amount -= pay;
@@ -1197,11 +1220,28 @@ async function generateMemberReport(replyToken, memberName) {
             ]
         }));
 
-        // QR Code Section
+        // QR Code Section & Debts
         const debtRows = [];
+
+        // แสดงยอดที่คนอื่นต้องโอนให้เรา (กรณีเป็นเจ้าหนี้)
+        if (incomingDebts.length > 0) {
+            debtRows.push({ type: "separator", margin: "lg" });
+            debtRows.push({ type: "text", text: "🟢 ยอดที่คนอื่นต้องโอนให้คุณ", size: "sm", weight: "bold", color: "#16a34a", margin: "md" });
+
+            for (const inc of incomingDebts) {
+                debtRows.push({
+                    type: "box", layout: "horizontal", margin: "sm",
+                    contents: [
+                        { type: "text", text: `• ${inc.from}`, size: "xs", color: "#334155", flex: 7 },
+                        { type: "text", text: `+${inc.amount.toLocaleString()} ฿`, size: "xs", weight: "bold", color: "#16a34a", align: "end", flex: 3 }
+                    ]
+                });
+            }
+        }
+
         if (myDebts.length > 0) {
             debtRows.push({ type: "separator", margin: "lg" });
-            debtRows.push({ type: "text", text: "🔻 ที่ต้องโอนจ่าย", size: "sm", weight: "bold", color: "#ef4444", margin: "md" });
+            debtRows.push({ type: "text", text: "🔻 ที่คุณต้องโอนจ่าย", size: "sm", weight: "bold", color: "#ef4444", margin: "md" });
 
             for (const debt of myDebts) {
                 const creditor = membersData[debt.to];
