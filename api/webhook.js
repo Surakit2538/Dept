@@ -614,12 +614,13 @@ async function getImageContent(messageId) {
 
 // --- AI HELPER ---
 let resolvedGeminiModel = null;
+let allAvailableModels = [];
 
 async function getAvailableGeminiModel() {
     if (resolvedGeminiModel) return resolvedGeminiModel;
     try {
         const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) return "gemini-pro";
+        if (!apiKey) return "gemini-3.6-flash";
         
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
         const data = await res.json();
@@ -630,13 +631,15 @@ async function getAvailableGeminiModel() {
                 .map(m => m.name.replace(/^models\//, ''));
             
             console.log("Supported Gemini models for key:", available);
+            allAvailableModels = available;
+
+            // Prioritize Gemini 3.6 Flash (officially recommended by Google error response)
             const candidates = [
-                "gemini-1.5-flash",
-                "gemini-1.5-flash-latest",
-                "gemini-1.5-flash-001",
-                "gemini-1.5-flash-002",
+                "gemini-3.6-flash",
+                "gemini-3.6-flash-latest",
+                "gemini-3.6-pro",
                 "gemini-2.0-flash",
-                "gemini-2.0-flash-exp",
+                "gemini-1.5-flash",
                 "gemini-pro"
             ];
             for (const cand of candidates) {
@@ -646,39 +649,63 @@ async function getAvailableGeminiModel() {
                     return resolvedGeminiModel;
                 }
             }
-            if (available.length > 0) {
-                resolvedGeminiModel = available[0];
+            // Filter out deprecated models like 2.5
+            const valid = available.filter(m => !m.includes("2.5"));
+            if (valid.length > 0) {
+                resolvedGeminiModel = valid[0];
                 return resolvedGeminiModel;
             }
         }
     } catch (e) {
         console.error("Failed to query available Gemini models:", e);
     }
-    resolvedGeminiModel = "gemini-pro";
+    resolvedGeminiModel = "gemini-3.6-flash";
     return resolvedGeminiModel;
+}
+
+async function generateWithRetry(model, prompt, maxRetries = 2) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+            const result = await model.generateContent(prompt);
+            return result.response.text();
+        } catch (err) {
+            const is503OrOverload = err.message && (
+                err.message.includes("503") || 
+                err.message.includes("high demand") || 
+                err.message.includes("overloaded") || 
+                err.message.includes("Service Unavailable")
+            );
+            if (is503OrOverload && attempt < maxRetries) {
+                console.warn(`Gemini 503 high demand. Retrying in 1.5s (attempt ${attempt + 1}/${maxRetries})...`);
+                await new Promise(r => setTimeout(r, 1500));
+                continue;
+            }
+            throw err;
+        }
+    }
 }
 
 async function generateContentWithFallback(genAI, prompt) {
     let modelName = await getAvailableGeminiModel();
     try {
         const model = genAI.getGenerativeModel({ model: modelName });
-        const result = await model.generateContent(prompt);
-        return result.response.text();
+        return await generateWithRetry(model, prompt, 2);
     } catch (err) {
         console.warn(`Gemini call failed with model '${modelName}':`, err.message);
-        // Fallback models if primary model failed (e.g. 404 or 503)
-        const fallbacks = ["gemini-pro", "gemini-1.5-flash-latest", "gemini-1.5-flash-001"];
+        
+        // Build fallback list dynamically from candidates + available models (excluding deprecated)
+        const candidates = ["gemini-3.6-flash", "gemini-3.6-pro", "gemini-2.0-flash", "gemini-1.5-flash"];
+        const fallbacks = [...new Set([...candidates, ...allAvailableModels])].filter(m => m !== modelName && !m.includes("2.5"));
+        
         for (const fb of fallbacks) {
-            if (fb !== modelName) {
-                try {
-                    console.log(`Retrying Gemini with fallback model '${fb}'...`);
-                    const fallbackModel = genAI.getGenerativeModel({ model: fb });
-                    const result = await fallbackModel.generateContent(prompt);
-                    resolvedGeminiModel = fb; // update cache to working model
-                    return result.response.text();
-                } catch (fbErr) {
-                    console.warn(`Fallback '${fb}' also failed:`, fbErr.message);
-                }
+            try {
+                console.log(`Retrying Gemini with fallback model '${fb}'...`);
+                const fallbackModel = genAI.getGenerativeModel({ model: fb });
+                const text = await generateWithRetry(fallbackModel, prompt, 1);
+                resolvedGeminiModel = fb; // update cache to working model
+                return text;
+            } catch (fbErr) {
+                console.warn(`Fallback '${fb}' also failed:`, fbErr.message);
             }
         }
         throw err;
