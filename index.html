@@ -1964,6 +1964,7 @@
                 this.updateMonthDisplay();
                 this.selectIcon('fa-utensils');
                 this.initLiff();
+                this.checkAndGenerateSubscriptions();
 
                 // Refresh mobile nav indicator on resize
                 window.addEventListener('resize', () => {
@@ -3291,6 +3292,66 @@
                         console.warn(`Element ${id} not found`);
                     }
                 });
+            },
+
+            async checkAndGenerateSubscriptions(targetMonth) {
+                try {
+                    const month = targetMonth || this.data.currentMonth || getBangkokMonthString();
+                    const subTemplatesSnap = await getDocs(query(collection(db, "subscription_templates"), where("active", "==", true)));
+                    if (subTemplatesSnap.empty) return;
+
+                    const activeTemplates = subTemplatesSnap.docs.map(d => ({ id: d.id, ref: d.ref, ...d.data() }));
+                    const templatesToGenerate = activeTemplates.filter(t => t.lastGeneratedMonth !== month);
+                    if (templatesToGenerate.length === 0) return;
+
+                    const existingSnap = await getDocs(query(
+                        collection(db, "transactions"),
+                        where("date", ">=", `${month}-01`),
+                        where("date", "<=", `${month}-31`)
+                    ));
+                    const existingSubs = existingSnap.docs.map(d => d.data());
+
+                    const batch = writeBatch(db);
+                    let shouldCommit = false;
+
+                    for (const t of templatesToGenerate) {
+                        const cleanDesc = (t.desc || '').replace(/📅/g, '').trim();
+                        const alreadyExists = existingSubs.some(e => {
+                            const eClean = (e.desc || '').replace(/📅/g, '').trim();
+                            return (t.groupId && e.groupId && t.groupId.trim() === e.groupId.trim()) || eClean === cleanDesc;
+                        });
+
+                        if (!alreadyExists) {
+                            const cleanGroupId = (t.groupId || t.id).trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+                            const docId = `sub_${cleanGroupId}_${month}`;
+                            const newTxRef = doc(db, "transactions", docId);
+                            batch.set(newTxRef, {
+                                date: `${month}-01`,
+                                desc: `${cleanDesc} 📅`,
+                                amount: Number(t.amount),
+                                payer: t.payer,
+                                splits: t.splits,
+                                paymentType: "subscription",
+                                icon: t.icon || "fa-utensils",
+                                subscriptionRecurring: true,
+                                subscriptionStartDate: t.createdAt,
+                                groupId: t.groupId,
+                                timestamp: new Date(`${month}-01T02:00:00+07:00`).getTime()
+                            });
+                            shouldCommit = true;
+                        }
+
+                        batch.update(t.ref, { lastGeneratedMonth: month });
+                        shouldCommit = true;
+                    }
+
+                    if (shouldCommit) {
+                        await batch.commit();
+                        console.log(`Auto-generated subscriptions for ${month}`);
+                    }
+                } catch (err) {
+                    console.warn("Auto-generate subscriptions check:", err);
+                }
             },
 
             populatePayerSelector() {
