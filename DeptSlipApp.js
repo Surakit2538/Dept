@@ -58,7 +58,8 @@ function parseSlipData(text) {
     const amountRegexes = [
         /(?:จำนวนเงิน|ยอดเงิน|amount|THB|บาท)\s*[:]?\s*([0-9,]+\.[0-9]{2})/i,
         /฿\s*([0-9,]+\.[0-9]{2})/,
-        /([0-9,]+\.[0-9]{2})\s*บาท/
+        /([0-9,]+\.[0-9]{2})\s*บาท/,
+        /(?:จำนวนเงิน|ยอดเงิน)\s*[:]?\s*([0-9,]+)/
     ];
 
     for (const rx of amountRegexes) {
@@ -201,6 +202,11 @@ async function handleScanFromText(rawText) {
 
     if (!parsed.amount) {
         console.log("No valid transaction amount found in text.");
+        const notFound = new Alert();
+        notFound.title = "ไม่พบยอดเงินในรูปภาพ";
+        notFound.message = "รูปภาพล่าสุดอาจไม่ใช่สลิปโอนเงิน หรือรูปเบลอ กรุณาตรวจสอบรูปภาพล่าสุดในอัลบั้ม";
+        notFound.addAction("ตกลง");
+        await notFound.presentAlert();
         return;
     }
 
@@ -208,6 +214,11 @@ async function handleScanFromText(rawText) {
     const lastRef = getLocalLastRef();
     if (parsed.transRef && parsed.transRef === lastRef) {
         console.log("This slip was already processed locally.");
+        const dupAlert = new Alert();
+        dupAlert.title = "สลิปนี้เคยบันทึกไปแล้ว";
+        dupAlert.message = `รหัสอ้างอิง: ${parsed.transRef}\nระบบป้องกันการบันทึกซ้ำอัตโนมัติ`;
+        dupAlert.addAction("ตกลง");
+        await dupAlert.presentAlert();
         return;
     }
 
@@ -250,6 +261,7 @@ async function handleScanFromText(rawText) {
         const errorAlert = new Alert();
         errorAlert.title = "บันทึกไม่สำเร็จ";
         errorAlert.message = saveResult?.message || "เกิดข้อผิดพลาดในการบันทึก";
+        errorAlert.addAction("ตกลง");
         await errorAlert.presentAlert();
     }
 }
@@ -293,6 +305,8 @@ async function handleQuickAdd() {
     if (isNaN(amount) || amount <= 0) {
         const err = new Alert();
         err.title = "ยอดเงินไม่ถูกต้อง";
+        err.message = "กรุณากรอกตัวเลขยอดเงิน เช่น 150 หรือ 250.50";
+        err.addAction("ตกลง");
         await err.presentAlert();
         return;
     }
@@ -325,9 +339,16 @@ async function handleQuickAdd() {
 // 🚀 Main Runner
 // ==========================================
 async function run() {
-    const inputFromShortcut = args.shortcutParameter;
-    if (inputFromShortcut && typeof inputFromShortcut === 'string') {
-        await handleScanFromText(inputFromShortcut);
+    let inputFromShortcut = args.shortcutParameter;
+
+    if (Array.isArray(inputFromShortcut)) {
+        inputFromShortcut = inputFromShortcut.join("\n");
+    } else if (inputFromShortcut != null && typeof inputFromShortcut !== 'string') {
+        inputFromShortcut = String(inputFromShortcut);
+    }
+
+    if (inputFromShortcut && typeof inputFromShortcut === 'string' && inputFromShortcut.trim().length > 0) {
+        await handleScanFromText(inputFromShortcut.trim());
     } else {
         await showMainMenu();
     }
