@@ -111,6 +111,18 @@ export default async function handler(req, res) {
             );
             const personalSnap = await getDocs(personalQuery);
             allPersonal = personalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            // กระเป๋าใหม่ (wallet_entries): เฉพาะรายจ่ายส่วนตัวของเจ้าของ ไม่ซ้ำกับรายการเดิมที่ย้ายมา (id เดียวกัน)
+            const walletSnap = await getDocs(query(
+                collection(db, 'wallet_entries'),
+                where('date', '>=', `${currentMonthStr}-01`),
+                where('date', '<=', `${currentMonthStr}-31`)
+            ));
+            const seen = new Set(allPersonal.map(p => p.id));
+            walletSnap.docs.forEach(d => {
+                const w = d.data();
+                if (seen.has(d.id) || w.type === 'income') return;
+                allPersonal.push({ id: d.id, ...w });
+            });
         } catch (e) {
             // คอลเลกชันอาจยังไม่มีในเฟส 1
             allPersonal = [];

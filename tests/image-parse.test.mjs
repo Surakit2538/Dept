@@ -82,7 +82,7 @@ test("parse จากรูป → ok เก็บรายการรอบั
     assert.ok(db.has("pending_slips", "me"));
     const s = await call({ action: "save", splitType: "personal" });
     assert.equal(s.body.status, "saved");
-    assert.equal(db.all("personal_expenses")[0].transRef, "016314142312345678");
+    assert.equal(db.all("wallet_entries")[0].transRef, "016314142312345678");
     // สแกนรูปเดิมอีก → ซ้ำ
     assert.equal((await call({ action: "parse", imageBase64: "AAAA" })).body.status, "convert");
 });
