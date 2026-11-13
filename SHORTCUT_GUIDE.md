@@ -5,21 +5,20 @@
 
 ## ภาพรวมการทำงาน
 
+**วิธีหลัก (v2) ไม่ต้องสร้างคำสั่งลัด:** แตะไอคอน `DeptSlip` บนหน้าจอโฮม (สร้างจาก Scriptable → Add to Home Screen) หรือแชร์รูปสลิปเข้า Scriptable (`share-sheet-inputs: image`)
+
 ```
-[ปิดแอปธนาคาร] → Shortcut หารูปล่าสุด (ภายใน 5 นาที) → OCR (Live Text)
-   → POST /api/shortcut-transaction {action:"parse", text}      → ได้ message + เก็บ "รายการรอบันทึก" ไว้ที่ server
+[แตะไอคอน DeptSlip] → หยิบรูปล่าสุดในอัลบั้ม (หรือรูปที่แชร์) → ย่อ 1400px JPEG base64
+   → POST /api/shortcut-transaction {action:"parse", imageBase64}   → server ให้ Gemini อ่านสลิป → ได้ message + เก็บ "รายการรอบันทึก"
    → เมนู: 👤 ส่วนตัว / 👥 หารกับเพื่อน / ❌ ปิด
         ส่วนตัว  → POST {action:"save", splitType:"personal"}
         หาร      → GET /api/get-members?include_self=1 → เลือกหลายคน
                    → POST {action:"save", splitType:"equal", splitWith:"<ชื่อ ขึ้นบรรทัดใหม่>"}
 ```
 
-มี 2 แบบให้ผู้ใช้เลือก (ทั้งสองเรียก API ชุดเดียวกัน):
+ทางเลือก (ไม่บังคับ) เพื่อให้เด้งอัตโนมัติเมื่อปิดแอปธนาคาร: Shortcut 3 คำสั่ง (หารูปล่าสุด 5 นาที → ถ้ามี → Run Script `DeptSlip` ส่งรูปเป็น input) หรือแบบละเอียดที่เรียก API เองทั้งหมด (ไม่เปิด Scriptable แต่ต้องวางรหัสใน Shortcut) ดูขั้นตอนใน `shortcut-guide.html`
 
-- **แบบง่าย (แนะนำ):** Shortcut มี 5 คำสั่ง (หารูป → ถ้ามีรูป → OCR → Run Script `DeptSlip`) เมนูและเลือกเพื่อนอยู่ใน `scriptable/DeptSlip.js` รหัสอ่านจาก Keychain (`dept_token`) ที่ตัวติดตั้งเก็บไว้ จึงไม่ต้องวางรหัสในคำสั่งลัด ข้อเสีย: แอป Scriptable เด้งขึ้นมาบังหน้าจอชั่วคราว
-- **แบบละเอียด:** สร้างทุกขั้นใน Shortcut (เรียก API ด้วย Get Contents of URL เอง) ไม่เปิด Scriptable แต่ต้องวางรหัสใน Shortcut
-
-`DeptInstaller` (สร้างจากหน้าเว็บ `iphone-setup.js`) ติดตั้ง `DeptWidget.js` และ `DeptSlip.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง การแกะสลิปทำบน server จึงแก้ parser ได้โดยไม่ต้องให้ผู้ใช้คัดลอกโค้ดลงมือถือ
+`DeptInstaller` (สร้างจากหน้าเว็บ `iphone-setup.js`) ติดตั้ง `DeptWidget.js` และ `DeptSlip.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง รหัสอยู่ใน Keychain (`dept_token`)
 
 ## API
 
@@ -34,8 +33,8 @@
 
 ทุกคำตอบเป็น JSON ที่มี `success`, `status`, `message` เสมอ (Shortcut แสดง `message` ตรงๆ)
 
-### `action: "parse"` — body `{ text }`
-`status`: `ok` (เก็บ `pending_slips/<memberId>` อายุ 30 นาที) · `no_amount` · `duplicate` — กรณีไม่ใช่ `ok` จะล้างรายการรอบันทึกเก่าด้วย เพื่อไม่ให้กด "บันทึก" แล้วได้สลิปเก่า
+### `action: "parse"` — body `{ imageBase64, mimeType }` (หลัก, อ่านด้วย Gemini ผ่าน `lib/gemini-slip.mjs`, ต้องมี `GEMINI_API_KEY`) หรือ `{ text }` (OCR จากคำสั่งลัด, แกะด้วย regex)
+`status`: `ok` (เก็บ `pending_slips/<memberId>` อายุ 30 นาที) · `no_amount` · `duplicate` · `ocr_failed` · `too_large` — กรณีไม่ใช่ `ok` จะล้างรายการรอบันทึกเก่าด้วย เพื่อไม่ให้กด "บันทึก" แล้วได้สลิปเก่า
 
 ### `action: "save"` — body `{ splitType, splitWith?, desc? }`
 - `splitType: "personal"` → เก็บใน **`personal_expenses`** (ไม่มี `splits`, ไม่โผล่ในหน้ากลุ่ม/สรุป LINE, ไม่กระทบยอดหนี้)
@@ -53,8 +52,9 @@
 
 ## โครงสร้างโค้ด
 
-- `api/shortcut-transaction.js` — แค่เชื่อมต่อ (เพื่อไม่ให้จำนวนไฟล์ใน `api/` เกิน 12 ซึ่งเป็นเพดาน Serverless Function ของ Vercel Hobby)
-- `lib/slip-core.mjs` — parser และฟังก์ชันหาร (ไม่แตะ DB)
+- `api/shortcut-transaction.js` — แค่เชื่อมต่อ (`maxDuration` 30 วินาทีตั้งใน `vercel.json` เผื่อรอ AI) (เพื่อไม่ให้จำนวนไฟล์ใน `api/` เกิน 12 ซึ่งเป็นเพดาน Serverless Function ของ Vercel Hobby)
+- `lib/slip-core.mjs` — parser (regex) ตัวสร้างผลลัพธ์/dedupKey และฟังก์ชันหาร (ไม่แตะ DB)
+- `lib/gemini-slip.mjs` — อ่านรูปสลิปด้วย Gemini (ลองโมเดลตามลำดับ, คีย์ส่งผ่าน header ไม่ใส่ใน URL)
 - `lib/shortcut-service.mjs` — logic ทั้งหมด รับ DB เป็นพารามิเตอร์
 - `tests/` — ทดสอบด้วย `npm test` (ฐานข้อมูลจำลองใน `tests/fake-firestore.mjs`)
 

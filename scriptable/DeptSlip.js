@@ -1,16 +1,21 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: green; icon-glyph: receipt;
+// share-sheet-inputs: image;
 
 /**
- * Dept Money - สแกนสลิป (ตัวช่วยของคำสั่งลัด)
+ * Dept Money - สแกนสลิป
  * ติดตั้ง/อัปเดตอัตโนมัติด้วย DeptInstaller (จากหน้าเว็บ "ตั้งค่า iPhone")
- * คำสั่งลัดทำแค่: หารูปล่าสุด -> แยกข้อความจากรูป -> เรียกสคริปต์นี้
- * สคริปต์นี้: ส่งข้อความไปแกะที่เซิร์ฟเวอร์ -> ถามส่วนตัว/หาร -> บันทึก
- * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget) ไม่ต้องวางรหัสในคำสั่งลัด
+ *
+ * วิธีใช้ (ไม่ต้องสร้างคำสั่งลัด):
+ *   1) แตะไอคอน DeptSlip บนหน้าจอโฮม  -> ใช้รูปล่าสุดในอัลบั้ม (แคปสลิปไว้ก่อน)
+ *   2) หรือแชร์รูปสลิป -> Run Script -> DeptSlip
+ *   3) (ทางเลือก) คำสั่งลัดส่งข้อความที่แยกจากรูปมาให้ ก็รับได้
+ * สคริปต์ส่งรูปไปให้เซิร์ฟเวอร์อ่านสลิป -> ถามส่วนตัว/หาร -> บันทึก
+ * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
  */
 
-const SCRIPT_VERSION = "1.0.0";
+const SCRIPT_VERSION = "1.1.0";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ==========================================
@@ -31,7 +36,7 @@ async function callApi(method, path, body) {
     }
     const req = new Request(BASE_URL + path);
     req.method = method;
-    req.timeoutInterval = 20;
+    req.timeoutInterval = 45;
     req.headers = { "Authorization": "Bearer " + token, "Content-Type": "application/json" };
     if (body) req.body = JSON.stringify(body);
     try {
@@ -42,12 +47,37 @@ async function callApi(method, path, body) {
     }
 }
 
-/** รับข้อความจากคำสั่งลัด ไม่ว่าจะส่งมาทางช่อง Parameter หรือเป็น Input ของคำสั่ง */
+/** ข้อความจากคำสั่งลัด (ทางเลือก) ไม่ว่าจะส่งมาทางช่อง Parameter หรือเป็น Input ของคำสั่ง */
 function getInputText() {
     let t = args.shortcutParameter;
     if (Array.isArray(t)) t = t.join("\n");
     if (!t && args.plainTexts && args.plainTexts.length > 0) t = args.plainTexts.join("\n");
     return t == null ? "" : String(t);
+}
+
+/** ย่อรูปให้ไม่เกิน 1400px แล้วแปลงเป็น JPEG base64 (ให้ส่งเร็วและไม่เกินขนาดที่เซิร์ฟเวอร์รับ) */
+function toJpegBase64(img) {
+    const maxSide = 1400;
+    const w = img.size.width;
+    const h = img.size.height;
+    const scale = Math.min(1, maxSide / Math.max(w, h));
+    const nw = Math.max(1, Math.round(w * scale));
+    const nh = Math.max(1, Math.round(h * scale));
+    const dc = new DrawContext();
+    dc.size = new Size(nw, nh);
+    dc.respectScreenScale = false;
+    dc.drawImageInRect(img, new Rect(0, 0, nw, nh));
+    return Data.fromJPEG(dc.getImage(), 0.7).toBase64String();
+}
+
+/** หารูปสลิป: รูปที่แชร์เข้ามาก่อน ถ้าไม่มีใช้รูปล่าสุดในอัลบั้ม */
+async function getSlipImage() {
+    if (args.images && args.images.length > 0) return args.images[0];
+    try {
+        return await Photos.latestPhoto();
+    } catch (e) {
+        return null;
+    }
 }
 
 /** เลือกเพื่อนได้หลายคน: แตะชื่อเพื่อติ๊ก/ยกเลิก แล้วกด "เสร็จ" คืนค่า array ของชื่อ หรือ null ถ้ายกเลิก */
@@ -78,18 +108,28 @@ async function pickPeople(members) {
 // 🚀 เริ่มทำงาน
 // ==========================================
 async function main() {
+    // 1) เตรียมข้อมูลที่จะส่งไปให้เซิร์ฟเวอร์อ่าน
+    let payload;
     const text = getInputText();
-    if (!text.trim()) {
-        await showMessage("สแกนสลิป", "ไม่ได้รับข้อความจากคำสั่งลัด\nตรวจว่าคำสั่ง \"แยกข้อความจากรูปภาพ\" ส่งผลมายังสคริปต์นี้");
-        return;
+    if (text.trim()) {
+        payload = { action: "parse", text: text };
+    } else {
+        const img = await getSlipImage();
+        if (!img) {
+            await showMessage("สแกนสลิป", "ไม่พบรูปสลิป\nแคปหน้าจอสลิปไว้ก่อน แล้วเปิดใหม่\n(หรืออนุญาตให้ Scriptable เข้าถึงรูปภาพใน ตั้งค่า > Scriptable > รูปภาพ)");
+            return;
+        }
+        payload = { action: "parse", imageBase64: toJpegBase64(img), mimeType: "image/jpeg" };
     }
 
-    const parsed = await callApi("POST", "/api/shortcut-transaction", { action: "parse", text: text });
+    // 2) ให้เซิร์ฟเวอร์อ่านสลิป
+    const parsed = await callApi("POST", "/api/shortcut-transaction", payload);
     if (parsed.status !== "ok") {
         await showMessage("สแกนสลิป", String(parsed.message || "เกิดข้อผิดพลาด").replace(/\n\n\(กด ❌ ปิด เพื่อออก\)$/, ""));
         return;
     }
 
+    // 3) ถามว่าบันทึกแบบไหน
     const menu = new Alert();
     menu.title = "สแกนสลิป";
     menu.message = parsed.message;

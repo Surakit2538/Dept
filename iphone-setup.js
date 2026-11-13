@@ -148,27 +148,28 @@ if (failedFile) {
                         </button>
                     </div>
 
-                    <!-- Step 2: Shortcuts -->
+                    <!-- Step 2: ใช้งานสแกนสลิป -->
                     <div class="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
-                        <div class="flex items-center justify-between">
-                            <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                                <i class="fa-solid fa-bolt"></i> ขั้นที่ 2: รหัสสำหรับคำสั่งลัด
-                            </span>
-                        </div>
+                        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                            <i class="fa-solid fa-receipt"></i> ขั้นที่ 2: สแกนสลิป
+                        </span>
                         <p class="text-xs text-slate-300">
-                            ใช้สำหรับคำสั่งลัดสแกนสลิปอัตโนมัติ กดปุ่มคัดลอก แล้วนำไปวางในคำสั่งลัดตามคู่มือ (ปุ่มนี้คัดลอกในรูปแบบ <span class="font-mono">Bearer รหัส</span> ให้พร้อมใช้ ไม่ต้องพิมพ์เพิ่ม)
+                            หลังรันโค้ดติดตั้งสำเร็จ จะได้สคริปต์ <b>DeptSlip</b> เพิ่มมาด้วย ตั้งเป็นไอคอนบนหน้าจอโฮมแล้วแตะใช้ได้เลย ไม่ต้องสร้างคำสั่งลัด
                         </p>
-                        <div class="flex gap-2">
-                            <input type="password" id="iphone-token-display" readonly value="" class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 outline-none select-all" />
-                            <button onclick="window.iphoneSetup.copyRawToken()" id="btn-copy-token" class="bg-emerald-600 hover:bg-emerald-500 active:scale-[0.98] text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 shrink-0">
-                                <i class="fa-solid fa-key"></i>
-                                <span id="btn-copy-token-text">คัดลอกรหัส</span>
-                            </button>
-                        </div>
-                        <a href="/shortcut-guide.html" target="_blank" rel="noopener" class="block w-full text-center bg-white/5 hover:bg-white/10 border border-white/10 text-emerald-300 py-2.5 rounded-xl font-bold text-xs transition-colors">
-                            <i class="fa-solid fa-book-open mr-1"></i> เปิดคู่มือสร้างคำสั่งลัดสแกนสลิป
+                        <a href="/shortcut-guide.html" target="_blank" rel="noopener" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl font-bold text-xs transition-colors">
+                            <i class="fa-solid fa-book-open mr-1"></i> เปิดคู่มือการใช้งาน
                         </a>
-                        <p class="text-[11px] text-slate-400">รหัสแสดงเฉพาะตอนที่เพิ่งสร้างเท่านั้น หากปิดหน้านี้แล้วต้องการรหัสอีกครั้ง ให้กดสร้างรหัสใหม่ แล้วรันโค้ดติดตั้ง Widget ซ้ำ 1 ครั้ง</p>
+                        <details class="text-xs text-slate-400">
+                            <summary class="cursor-pointer">ขั้นสูง: รหัสสำหรับคำสั่งลัดแบบละเอียด</summary>
+                            <div class="flex gap-2 mt-2">
+                                <input type="password" id="iphone-token-display" readonly value="" class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 outline-none select-all" />
+                                <button onclick="window.iphoneSetup.copyRawToken()" id="btn-copy-token" class="bg-slate-600 hover:bg-slate-500 active:scale-[0.98] text-white px-4 py-2 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5 shrink-0">
+                                    <i class="fa-solid fa-key"></i>
+                                    <span id="btn-copy-token-text">คัดลอกรหัส</span>
+                                </button>
+                            </div>
+                            <p class="mt-1">คัดลอกในรูปแบบ <span class="font-mono">Bearer รหัส</span> พร้อมวางในคำสั่งลัด</p>
+                        </details>
                     </div>
 
                     <!-- Revoke Zone -->
@@ -253,7 +254,7 @@ if (failedFile) {
                 btnText.innerText = "🔄 สร้างรหัสใหม่อีกครั้ง";
 
                 // คัดลอกโค้ด Widget ให้อัตโนมัติเลยเพื่อความสะดวก
-                await this.copyInstallerCode();
+                await this.copyInstallerCode(true);
 
             } catch (err) {
                 console.error("Generate token error:", err);
@@ -264,19 +265,20 @@ if (failedFile) {
             }
         },
 
-        copyInstallerCode: async function () {
+        copyInstallerCode: async function (silent) {
             if (!currentToken) return;
             const script = getInstallerScript(currentToken, currentUserName);
+            const btnText = document.getElementById("btn-copy-installer-text");
             try {
                 await navigator.clipboard.writeText(script);
-                const btnText = document.getElementById("btn-copy-installer-text");
-                const oldText = btnText.innerText;
                 btnText.innerText = "คัดลอกโค้ดติดตั้งสำเร็จแล้ว! ✅";
                 setTimeout(() => {
-                    btnText.innerText = oldText;
+                    btnText.innerText = "คัดลอกโค้ดติดตั้งอีกครั้ง";
                 }, 3000);
             } catch (e) {
-                alert("ไม่สามารถคัดลอกอัตโนมัติได้ กรุณาลองใหม่อีกครั้ง");
+                // iOS ไม่ให้คัดลอกอัตโนมัติหลังรอเซิร์ฟเวอร์ (ต้องเป็นการแตะของผู้ใช้เอง) จึงให้แตะปุ่มแทน ไม่ต้องขึ้นข้อความผิดพลาด
+                btnText.innerText = "👆 แตะที่นี่เพื่อคัดลอกโค้ดติดตั้ง";
+                if (!silent) alert("ไม่สามารถคัดลอกได้ กรุณาแตะปุ่ม \"คัดลอกโค้ดติดตั้ง\" อีกครั้ง");
             }
         },
 
