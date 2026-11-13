@@ -120,7 +120,9 @@ async function handleTextMessage(event) {
     }
 
     // 2. คำสั่งดูค่าใช้จ่าย (Global)
-    if (text === "ต้องการดูค่าใช้จ่ายของเดือนนี้") {
+    // พิมพ์สั้นๆ ก็ได้ (เฉพาะแชทส่วนตัว ไม่ตอบในกลุ่มกันรบกวนเวลาเพื่อนคุยกันว่า "สรุป")
+    const REPORT_ALIASES = ["สรุป", "สรุปยอด", "ดูยอด", "ยอด"];
+    if (text === "ต้องการดูค่าใช้จ่ายของเดือนนี้" || (event.source.type === "user" && REPORT_ALIASES.includes(text))) {
         await deleteDoc(sessionRef); // Clear active session to avoid trapping
         const memberName = await getMemberNameByLineId(userId);
         if (!memberName) {

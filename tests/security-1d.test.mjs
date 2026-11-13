@@ -79,3 +79,9 @@ test("1g: ไม่มีคีย์ SlipOK ฝังในโค้ด ต้�
     assert.match(h, /process\.env\.SLIPOK_API_KEY/);
     assert.match(h, /process\.env\.SLIPOK_BRANCH_ID/);
 });
+
+test("LINE: พิมพ์ 'สรุป' สั้นๆ ดูรายงานได้เฉพาะแชทส่วนตัว (ไม่ตอบในกลุ่ม)", () => {
+    const h = read("api/webhook.js");
+    assert.match(h, /REPORT_ALIASES = \["สรุป"/);
+    assert.match(h, /event\.source\.type === "user" && REPORT_ALIASES\.includes\(text\)/);
+});
