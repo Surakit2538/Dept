@@ -1,4 +1,4 @@
-import * as fs from "firebase/firestore";
+import * as fs from "../../lib/fs-compat.mjs";
 import { getDbInstance } from "../auth-helpers.js";
 import { createSubscriptionJob } from "../../lib/subscriptions.mjs";
 

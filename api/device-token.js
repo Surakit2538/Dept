@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { collection, getDocs, query, where, updateDoc, addDoc } from "firebase/firestore";
+import { collection, getDocs, query, where, updateDoc, addDoc } from "../lib/fs-compat.mjs";
 import { getDbInstance, hashToken, verifyDeviceToken } from "./auth-helpers.js";
 
 const db = getDbInstance();

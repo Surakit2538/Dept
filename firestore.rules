@@ -1,0 +1,23 @@
+rules_version = '2';
+
+// กฎความปลอดภัย Firestore ของ Dept Money
+// - เซิร์ฟเวอร์ (Vercel) ใช้กุญแจแอดมิน (FIREBASE_SERVICE_ACCOUNT) ซึ่ง "ข้ามกฎนี้" จึงอ่าน/เขียนได้ทุกคอลเลกชัน
+// - หน้าเว็บ (เบราว์เซอร์) ใช้ได้เฉพาะคอลเลกชันข้อมูลกลุ่มที่ระบุชื่อไว้ด้านล่าง
+// - คอลเลกชันที่ไม่ได้ระบุ (wallet_entries, personal_expenses, device_tokens, pending_slips, user_sessions, reminder_logs ฯลฯ)
+//   ถูกปิดทั้งหมดโดยอัตโนมัติ ห้ามเพิ่มกฎแบบ match /{document=**} { allow ... } เด็ดขาด
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /members/{id} {
+      allow read, write: if true;
+    }
+    match /transactions/{id} {
+      allow read, write: if true;
+    }
+    match /settlements/{id} {
+      allow read, write: if true;
+    }
+    match /subscription_templates/{id} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,6 +1,6 @@
 // Firestore helper functions for Settlement Slip Verification
 
-import { doc, getDoc, getDocs, setDoc, collection, query, where } from "firebase/firestore";
+import { doc, getDoc, getDocs, setDoc, collection, query, where } from "../lib/fs-compat.mjs";
 import { matchSlipToDebt } from "../lib/settlement-match.mjs";
 import { normalizeName } from "../lib/ledger.mjs";
 import { matchReceiverName } from "./slipok-helpers.js";

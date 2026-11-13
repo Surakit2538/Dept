@@ -1,4 +1,4 @@
-import * as fs from "firebase/firestore";
+import * as fs from "../lib/fs-compat.mjs";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 import { createShortcutHandler } from "../lib/shortcut-service.mjs";
 import { createGeminiSlipReader } from "../lib/gemini-slip.mjs";
