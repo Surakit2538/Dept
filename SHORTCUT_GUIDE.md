@@ -1,95 +1,64 @@
-# 📱 คู่มือการตั้งค่า iPhone แบบ Copy & Paste (ง่ายที่สุดใน 3 นาที)
+# 📱 คำสั่งลัดสแกนสลิป (เวอร์ชัน A+)
 
-ระบบบันทึกค่าใช้จ่ายและ Widget สไตล์มินิมอล ทำงานอัตโนมัติเมื่อปิดแอปธนาคาร พร้อมระบบถามหารบิล และแจ้งเตือน Notification Center
+> **สำหรับผู้ใช้:** คู่มือสร้างคำสั่งลัดทีละขั้นอยู่ที่ **https://dept-game.vercel.app/shortcut-guide.html**
+> (เปิดจากปุ่ม "เปิดคู่มือสร้างคำสั่งลัดสแกนสลิป" ในหน้า "📱 ตั้งค่า iPhone" บนเว็บ) ไฟล์นี้สำหรับผู้พัฒนา
 
----
+## ภาพรวมการทำงาน
 
-## ⭐️ สิ่งที่คุณจะได้รับ
-
-1. **Widget สรุปยอด** สไตล์ Dark Mode บนหน้าจอ Home Screen (เหมือนภาพตัวอย่าง)
-2. **ระบบดักสลิปอัตโนมัติ** เมื่อปิดแอปธนาคาร (`K PLUS`, `SCB`, `ttb`, `UOB`, `Kept`, `Dime` ฯลฯ)
-3. **ป็อปอัปถามยืนยัน:** เลือกระหว่าง `👤 บันทึกส่วนตัว` หรือ `👥 หารกับเพื่อน`
-4. **โหมดจดสด (Quick Add):** แตะไอคอนแล้วพิมพ์แค่ยอดเงินเสร็จใน 2 วินาที
-
----
-
-## 🛠️ ขั้นตอนที่ 1: วางสคริปต์ในแอป Scriptable (Copy & Paste)
-
-1. ดาวน์โหลดแอป **Scriptable** จาก App Store บน iPhone (ฟรี)
-2. เปิดแอป Scriptable แล้วสร้างสคริปต์ 2 ตัว:
-
-### สคริปต์ที่ 1: `DeptWidget` (สำหรับวาด Widget หน้าจอหลัก)
-* กดปุ่ม **`+`** ด้านบนขวา > ตั้งชื่อสคริปต์ว่า: `DeptWidget`
-* คัดลอกโค้ดทั้งหมดจากไฟล์ **`DeptWidget.js`** มาวาง
-* แก้ไข 2 บรรทัดบนสุด:
-  ```javascript
-  const BASE_URL = "https://dept-game.vercel.app";
-  const DEFAULT_USER = "BANK"; // ชื่อของคุณในระบบ
-  ```
-* กด Done (เสร็จสิ้น)
-
-### สคริปต์ที่ 2: `DeptSlipApp` (สมองกลแกะสลิป & เมนู)
-* กดปุ่ม **`+`** ด้านบนขวา > ตั้งชื่อสคริปต์ว่า: `DeptSlipApp`
-* คัดลอกโค้ดทั้งหมดจากไฟล์ **`DeptSlipApp.js`** มาวาง
-* แก้ไข 2 บรรทัดบนสุดเช่นกัน:
-  ```javascript
-  const BASE_URL = "https://dept-game.vercel.app";
-  const DEFAULT_USER = "BANK"; // ชื่อของคุณในระบบ
-  ```
-* กด Done (เสร็จสิ้น)
-
----
-
-## ⚡️ ขั้นตอนที่ 2: สร้าง Shortcut สั้นๆ แค่ 3 คำสั่ง!
-
-เปิดแอป **คำสั่งลัด (Shortcuts)** บน iPhone > กด **`+`** สร้าง Shortcut ใหม่ ตั้งชื่อว่า `ScanSlipToApp` โดยเพิ่มคำสั่งเพียง 3 ตัวนี้:
-
-```text
-1. ค้นหารูปภาพ (Find Photos)
-   - อัลบั้ม (Album) คือ "ล่าสุด" (Recents)
-   - จัดเรียงตาม "วันที่สร้าง" (Creation Date)
-   - ลำดับ "ล่าสุดก่อน" (Latest First)
-   - เปิดสวิตช์ "จำกัด" -> รับ "1" รายการ
-
-2. แยกข้อความจากภาพ (Extract Text from Image)
-   - จาก: [รูปภาพจากขั้นตอนที่ 1]
-
-3. เรียกใช้สคริปต์ (Run Script) ของ Scriptable
-   - สคริปต์: เลือก "DeptSlipApp"
-   - ข้อความ/พารามิเตอร์: ใส่ [ข้อความจากขั้นตอนที่ 2]
 ```
-*(เพียง 3 บรรทัดนี้ Logic ฉลาดๆ ทั้งหมดจะถูกประมวลผลด้วย JavaScript ใน Scriptable อัตโนมัติทันที)*
+[ปิดแอปธนาคาร] → Shortcut หารูปล่าสุด (ภายใน 5 นาที) → OCR (Live Text)
+   → POST /api/shortcut-transaction {action:"parse", text}      → ได้ message + เก็บ "รายการรอบันทึก" ไว้ที่ server
+   → เมนู: 👤 ส่วนตัว / 👥 หารกับเพื่อน / ❌ ปิด
+        ส่วนตัว  → POST {action:"save", splitType:"personal"}
+        หาร      → GET /api/get-members?include_self=1 → เลือกหลายคน
+                   → POST {action:"save", splitType:"equal", splitWith:"<ชื่อ ขึ้นบรรทัดใหม่>"}
+```
 
----
+Scriptable ใช้แค่ `DeptWidget.js` (Widget) การแกะสลิปทำบน server จึงแก้ parser ได้โดยไม่ต้องให้ผู้ใช้คัดลอกโค้ดลงมือถือ
 
-## 🔄 ขั้นตอนที่ 3: ตั้งค่า Automation (ทำงานเมื่อปิดแอปธนาคาร)
+## API
 
-1. ในแอป Shortcuts ไปที่แท็บ **การทำงานอัตโนมัติ (Automation)**
-2. กด **`+`** > เลือก **แอป (App)**
-3. ตั้งค่า:
-   * **แอป:** แตะติ๊กเลือกแอปธนาคารทั้งหมดที่คุณใช้ (`K PLUS`, `SCB EASY`, `ttb touch`, `UOB TMRW`, `Dime!`, `Kept`, `MAKE`, ฯลฯ)
-   * ติ๊กถูกที่: **ถูกปิด (Is Closed)**
-   * ติ๊กเลือก: **รันทันที (Run Immediately)**
-   * ปิด: **แจ้งเตือนเมื่อทำงาน (Notify When Run)**
-4. เลือกให้รัน Shortcut: `ScanSlipToApp`
+ทุก endpoint ต้องมี `Authorization: Bearer <รหัสอุปกรณ์>` (ออกจากหน้าเว็บ "ตั้งค่า iPhone" → `/api/device-token`) ผู้จ่ายคือเจ้าของรหัสเสมอ ไม่รับ `payer` จาก body
 
----
+| Endpoint | หน้าที่ |
+|---|---|
+| `POST /api/shortcut-transaction` | `action=parse` / `action=save` (ดูด้านล่าง) |
+| `GET /api/get-members` | รายชื่อเพื่อน (ไม่รวมตัวเอง) · `?include_self=1` ใส่ `⭐ ชื่อ (ฉัน)` ไว้บนสุด |
+| `GET /api/widget-summary` | ข้อมูล Widget (รวม `personal_expenses`) |
+| `/api/device-token` | ออก/ตรวจ/ยกเลิกรหัส (ยืนยันด้วย LINE ID Token) |
 
-## 🖼️ ขั้นตอนที่ 4: นำ Widget มาวางบนหน้าจอโฮม
+ทุกคำตอบเป็น JSON ที่มี `success`, `status`, `message` เสมอ (Shortcut แสดง `message` ตรงๆ)
 
-1. ออกมาที่หน้าจอ Home Screen กดค้างที่พื้นที่ว่าง
-2. กด **`+`** ด้านบนซ้าย ค้นหา **Scriptable**
-3. เลือกขนาด **กลาง (Medium)** แล้ววางลงหน้าจอ
-4. แตะค้างที่ Widget > เลือก **แก้ไขวิดเจ็ต (Edit Widget)**:
-   * **Script:** เลือก `DeptWidget`
-   * **When Interacting:** Open URL (แตะแล้วจะเปิดเว็บ Dept Money)
-   * **Parameter:** ใส่ชื่อคุณ (เช่น `BANK`)
+### `action: "parse"` — body `{ text }`
+`status`: `ok` (เก็บ `pending_slips/<memberId>` อายุ 30 นาที) · `no_amount` · `duplicate` — กรณีไม่ใช่ `ok` จะล้างรายการรอบันทึกเก่าด้วย เพื่อไม่ให้กด "บันทึก" แล้วได้สลิปเก่า
 
----
+### `action: "save"` — body `{ splitType, splitWith?, desc? }`
+- `splitType: "personal"` → เก็บใน **`personal_expenses`** (ไม่มี `splits`, ไม่โผล่ในหน้ากลุ่ม/สรุป LINE, ไม่กระทบยอดหนี้)
+- `splitType: "equal"` → เก็บใน **`transactions`** หารเท่าตาม `splitWith` (ขึ้นบรรทัดใหม่คั่นชื่อ หรือเป็น array)
+  - `splitWith` **มีชื่อตัวเอง** → หารรวมตัวเอง (`splitMode: "equal"`)
+  - `splitWith` **ไม่มีชื่อตัวเอง** → จ่ายแทน ไม่มีส่วนของผู้จ่าย (`splitMode: "treat"`)
+  - ต้องมีเพื่อนอย่างน้อย 1 คน · ชื่อต้องมีใน `members` · เก็บชื่อเป็นตัวพิมพ์ใหญ่ตามที่เว็บใช้
+  - แจ้ง LINE กลุ่มผ่าน `LINE_CHANNEL_ACCESS_TOKEN` + `LINE_GROUP_ID` (ไม่ตั้ง = ข้าม)
 
-## 💳 เคล็ดลับสำหรับบัตรเครดิต (ไม่มี SMS)
+### กันบันทึกซ้ำ
+1. มี `transRef` (เลขอ้างอิงจากสลิป) → ซ้ำถ้ามีในทั้ง `transactions` และ `personal_expenses`
+2. ไม่มีเลขอ้างอิง → ใช้ `dedupKey` = hash(ยอด|ผู้รับ|วันที่ในสลิป|เวลาในสลิป)
+   - มีทั้งวันที่และเวลาในสลิป (strong) → ซ้ำตลอดไป
+   - ไม่มีวัน/เวลา (weak) → ซ้ำเฉพาะภายใน 10 นาที (กันบิลซ้ำจากการเปิด–ปิดแอปซ้ำ แต่ไม่บล็อกการซื้อของเดิมคนละวัน)
 
-* ทุกครั้งที่รูดบัตรเสร็จ ให้แคปหน้าจอ (Screenshot)
-* เข้าไปที่ `การตั้งค่า iPhone` > `การช่วยการเข้าถึง` > `สัมผัส` > `แตะด้านหลัง (Back Tap)`
-* เลือก **แตะสองครั้ง (Double Tap)** > ให้รัน Shortcut: `ScanSlipToApp`
-* แค่เคาะหลังเครื่อง 2 ครั้ง ระบบจะหยิบรูปแคปหน้าจอไปแกะยอดเงินและถามบันทึกทันที!
+## โครงสร้างโค้ด
+
+- `api/shortcut-transaction.js` — แค่เชื่อมต่อ (เพื่อไม่ให้จำนวนไฟล์ใน `api/` เกิน 12 ซึ่งเป็นเพดาน Serverless Function ของ Vercel Hobby)
+- `lib/slip-core.mjs` — parser และฟังก์ชันหาร (ไม่แตะ DB)
+- `lib/shortcut-service.mjs` — logic ทั้งหมด รับ DB เป็นพารามิเตอร์
+- `tests/` — ทดสอบด้วย `npm test` (ฐานข้อมูลจำลองใน `tests/fake-firestore.mjs`)
+
+> โค้ดช่วยอยู่ใน `lib/` (นามสกุล `.mjs`) ไม่ใช่ใน `api/` เพราะทุกไฟล์ใน `api/` ถูกนับเป็น function และตอนนี้มีครบ 12 ไฟล์แล้ว ห้ามเพิ่มไฟล์ใหม่ใน `api/` โดยไม่เช็คแผน Vercel ก่อน
+
+## ปรับปรุง parser เมื่อเจอสลิปจริงที่อ่านผิด
+
+1. คัดลอกข้อความ OCR ที่ Shortcut แสดง (ลบชื่อ/เลขบัญชีออก)
+2. เพิ่มเป็นเคสใน `tests/slip-core.test.mjs` ให้เห็นผลที่ผิดก่อน
+3. แก้ `lib/slip-core.mjs` จนผ่าน → `npm test` → deploy
+
+เคสตัวอย่างในไฟล์ทดสอบตอนนี้เป็นข้อความ **จำลอง** ตามรูปแบบสลิปทั่วไป ยังไม่ผ่านการทดสอบกับสลิปจริงของทุกธนาคาร

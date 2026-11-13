@@ -141,7 +141,7 @@ if (!code.includes("SCRIPT_VERSION") || !code.includes("Script.complete();") || 
                             </span>
                         </div>
                         <p class="text-xs text-slate-300">
-                            ใช้สำหรับคำสั่งลัดสแกนสลิปอัตโนมัติ
+                            ใช้สำหรับคำสั่งลัดสแกนสลิปอัตโนมัติ กดปุ่มคัดลอก แล้วนำไปวางในคำสั่งลัดตามคู่มือ (ปุ่มนี้คัดลอกในรูปแบบ <span class="font-mono">Bearer รหัส</span> ให้พร้อมใช้ ไม่ต้องพิมพ์เพิ่ม)
                         </p>
                         <div class="flex gap-2">
                             <input type="password" id="iphone-token-display" readonly value="" class="flex-1 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs font-mono text-slate-300 outline-none select-all" />
@@ -150,6 +150,10 @@ if (!code.includes("SCRIPT_VERSION") || !code.includes("Script.complete();") || 
                                 <span id="btn-copy-token-text">คัดลอกรหัส</span>
                             </button>
                         </div>
+                        <a href="/shortcut-guide.html" target="_blank" rel="noopener" class="block w-full text-center bg-white/5 hover:bg-white/10 border border-white/10 text-emerald-300 py-2.5 rounded-xl font-bold text-xs transition-colors">
+                            <i class="fa-solid fa-book-open mr-1"></i> เปิดคู่มือสร้างคำสั่งลัดสแกนสลิป
+                        </a>
+                        <p class="text-[11px] text-slate-400">รหัสแสดงเฉพาะตอนที่เพิ่งสร้างเท่านั้น หากปิดหน้านี้แล้วต้องการรหัสอีกครั้ง ให้กดสร้างรหัสใหม่ แล้วรันโค้ดติดตั้ง Widget ซ้ำ 1 ครั้ง</p>
                     </div>
 
                     <!-- Revoke Zone -->
@@ -264,7 +268,8 @@ if (!code.includes("SCRIPT_VERSION") || !code.includes("Script.complete();") || 
         copyRawToken: async function () {
             if (!currentToken) return;
             try {
-                await navigator.clipboard.writeText(currentToken);
+                // คัดลอกในรูปแบบที่คำสั่งลัดใช้ใน Header: Authorization = Bearer <รหัส>
+                await navigator.clipboard.writeText("Bearer " + currentToken);
                 const btnText = document.getElementById("btn-copy-token-text");
                 const oldText = btnText.innerText;
                 btnText.innerText = "คัดลอกแล้ว! ✅";

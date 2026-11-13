@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>คู่มือสร้างคำสั่งลัดสแกนสลิป</title>
+<style>
+  :root { --bg:#16181d; --card:#1f232b; --line:#2e343f; --text:#f1f5f9; --muted:#94a3b8; --accent:#34d399; --warn:#fbbf24; --chip:#0f172a; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.7 -apple-system, "Sarabun", "Noto Sans Thai", sans-serif; }
+  main { max-width: 680px; margin: 0 auto; padding: 20px 16px 64px; }
+  h1 { font-size: 28px; line-height: 1.3; margin: 8px 0 6px; }
+  h2 { font-size: 21px; line-height: 1.4; margin: 36px 0 10px; color: var(--accent); }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 12px 0; }
+  .warn { border-color: #7c5e10; background: #2a2412; color: #fde68a; }
+  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
+  ol.steps > li { counter-increment: s; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 12px 52px; margin: 10px 0; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 12px; top: 12px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #062; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  ol.steps > li.sub { margin-left: 18px; border-left: 3px solid var(--accent); }
+  ol.steps > li.sub2 { margin-left: 36px; border-left: 3px solid #38bdf8; }
+  .act { font-weight: 700; }
+  .en { color: var(--muted); font-weight: 400; font-size: 13px; }
+  code, .chip { font: 14px ui-monospace, Menlo, monospace; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; word-break: break-all; }
+  .chip { cursor: pointer; display: inline-block; margin: 2px 0; color: #7dd3fc; }
+  .chip::after { content: " ⧉"; color: var(--muted); }
+  .chip.done { color: var(--accent); }
+  .chip.done::after { content: " ✓ คัดลอกแล้ว"; color: var(--accent); }
+  ul { padding-left: 20px; margin: 6px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 14px; }
+  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
+  summary { cursor: pointer; font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <h1>📱 สร้างคำสั่งลัด "สแกนสลิป"</h1>
+  <p class="muted">ใช้เวลาประมาณ 10 นาที ทำครั้งเดียว ทำตามทีละข้อ แตะข้อความสีฟ้า <span class="chip" style="cursor:default">แบบนี้</span> เพื่อคัดลอกไปวางได้เลย</p>
+
+  <div class="card">
+    <b>ก่อนเริ่มต้องมี</b>
+    <ul>
+      <li>ติดตั้ง Widget เรียบร้อยแล้ว (ขั้นที่ 1 ในหน้า "ตั้งค่า iPhone")</li>
+      <li>กด <b>"คัดลอกรหัส"</b> ในหน้า "ตั้งค่า iPhone" ไว้แล้ว (รหัสจะอยู่ในคลิปบอร์ด ถ้าหายไปให้กลับไปกดสร้างรหัสใหม่ แล้วรันโค้ดติดตั้ง Widget ซ้ำ 1 ครั้ง)</li>
+    </ul>
+  </div>
+
+  <h2>ส่วนที่ 1: สร้างคำสั่งลัด</h2>
+  <p class="muted">เปิดแอป <b>คำสั่งลัด (Shortcuts)</b> → แตะ <b>+</b> → ตั้งชื่อว่า <b>สแกนสลิป</b> → แตะ "เพิ่มการทำงาน" แล้วค้นหาชื่อคำสั่งตามข้างล่าง (ถ้าค้นชื่อไทยไม่เจอ ให้ลองคำในวงเล็บ)</p>
+
+  <ol class="steps">
+    <li><span class="act">ข้อความ</span> <span class="en">(Text)</span><br>
+      แตะในช่องข้อความ แล้ววางรหัสที่คัดลอกมา จะเห็นเป็น <code>Bearer ตามด้วยตัวอักษรยาวๆ</code></li>
+
+    <li><span class="act">ตั้งค่าตัวแปร</span> <span class="en">(Set Variable)</span><br>
+      ตั้งชื่อตัวแปรว่า <span class="chip" data-copy="รหัส">รหัส</span></li>
+
+    <li><span class="act">ค้นหารูปภาพ</span> <span class="en">(Find Photos)</span><br>
+      แตะ "เพิ่มตัวกรอง" แล้วตั้งค่า:
+      <ul>
+        <li>วันที่สร้าง → <b>อยู่ใน</b> → <b>5</b> → <b>นาที</b> (ล่าสุด 5 นาที)</li>
+        <li>จัดเรียงตาม: <b>วันที่สร้าง</b> / ลำดับ: <b>ล่าสุดก่อน</b></li>
+        <li>เปิด <b>จำกัด</b> → <b>1</b> รายการ</li>
+      </ul>
+      <span class="muted">ทำไมต้อง 5 นาที: ถ้าไม่มีสลิปใหม่ คำสั่งลัดจะไม่ทำอะไร และไม่ถามซ้ำทุกครั้งที่เปิด–ปิดแอปธนาคาร</span></li>
+
+    <li><span class="act">ถ้า</span> <span class="en">(If)</span><br>
+      ตั้งเงื่อนไข: <b>รูปภาพ</b> (ผลลัพธ์จากขั้นที่ 3) → <b>มีค่าใดๆ</b> <span class="en">(has any value)</span><br>
+      <span class="muted">ขั้นที่ 5 ถึง 11 ต้องอยู่ "ภายใน" ถ้านี้ ทั้งหมด</span></li>
+
+    <li class="sub"><span class="act">แยกข้อความจากรูปภาพ</span> <span class="en">(Extract Text from Image)</span><br>
+      ข้อมูลนำเข้า: <b>รูปภาพ</b> จากขั้นที่ 3</li>
+
+    <li class="sub"><span class="act">รับเนื้อหาของ URL</span> <span class="en">(Get Contents of URL)</span><br>
+      <table>
+        <tr><th>ช่อง</th><th>ค่า</th></tr>
+        <tr><td>URL</td><td><span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span></td></tr>
+        <tr><td>วิธี</td><td>แตะ "แสดงเพิ่มเติม" → วิธี: <b>POST</b></td></tr>
+        <tr><td>ส่วนหัว</td><td>เพิ่มส่วนหัว: ชื่อ <span class="chip" data-copy="Authorization">Authorization</span> ค่า = ตัวแปร <b>รหัส</b> (แตะช่องค่า แล้วเลือกตัวแปร "รหัส")</td></tr>
+        <tr><td>เนื้อหาคำขอ</td><td><b>JSON</b> แล้วกด "เพิ่มช่องใหม่" 2 ช่อง (ชนิด <b>ข้อความ</b> ทั้งคู่):<br>
+          • คีย์ <span class="chip" data-copy="action">action</span> ค่า <span class="chip" data-copy="parse">parse</span><br>
+          • คีย์ <span class="chip" data-copy="text">text</span> ค่า = ตัวแปร <b>ข้อความจากรูปภาพ</b> (ผลจากขั้นที่ 5)</td></tr>
+      </table></li>
+
+    <li class="sub"><span class="act">รับค่าพจนานุกรม</span> <span class="en">(Get Dictionary Value)</span><br>
+      รับ <b>ค่า</b> สำหรับคีย์ <span class="chip" data-copy="message">message</span> ใน <b>เนื้อหาของ URL</b> (ผลจากขั้นที่ 6)</li>
+
+    <li class="sub"><span class="act">เลือกจากเมนู</span> <span class="en">(Choose from Menu)</span><br>
+      <ul>
+        <li>ข้อความแจ้ง (Prompt): แตะแล้วเลือกตัวแปร <b>ค่าพจนานุกรม</b> (ผลจากขั้นที่ 7)</li>
+        <li>ตัวเลือก 3 อัน ตั้งชื่อตามนี้: <span class="chip" data-copy="👤 ส่วนตัว">👤 ส่วนตัว</span> &nbsp; <span class="chip" data-copy="👥 หารกับเพื่อน">👥 หารกับเพื่อน</span> &nbsp; <span class="chip" data-copy="❌ ปิด">❌ ปิด</span></li>
+      </ul>
+      <span class="muted">หลังเพิ่มแล้ว จะมี 3 ช่องว่างให้ใส่คำสั่ง ทำตามขั้นที่ 9, 10, 11</span></li>
+
+    <li class="sub2"><b>ใต้ตัวเลือก "👤 ส่วนตัว"</b> — เพิ่ม 3 คำสั่งต่อไปนี้:<br>
+      ① <span class="act">รับเนื้อหาของ URL</span>: URL เดิม, วิธี POST, ส่วนหัว Authorization = <b>รหัส</b>, เนื้อหา JSON 2 ช่อง:<br>
+      &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
+      &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="personal">personal</span><br>
+      ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
+      ③ <span class="act">แสดงผลลัพธ์</span> <span class="en">(Show Result)</span></li>
+
+    <li class="sub2"><b>ใต้ตัวเลือก "👥 หารกับเพื่อน"</b> — เพิ่ม 6 คำสั่งต่อไปนี้:<br>
+      ① <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/get-members?include_self=1">https://dept-game.vercel.app/api/get-members?include_self=1</span> วิธี <b>GET</b> ส่วนหัว Authorization = <b>รหัส</b> (ไม่มีเนื้อหา)<br>
+      ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="members">members</span><br>
+      ③ <span class="act">เลือกจากรายการ</span> <span class="en">(Choose from List)</span>: เปิด <b>เลือกหลายรายการ</b> <span class="en">(Select Multiple)</span>, ข้อความแจ้ง: <span class="chip" data-copy="เลือกคนที่หารด้วย">เลือกคนที่หารด้วย</span><br>
+      ④ <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span> วิธี POST ส่วนหัว Authorization = <b>รหัส</b> เนื้อหา JSON 3 ช่อง (ชนิดข้อความ):<br>
+      &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
+      &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="equal">equal</span><br>
+      &nbsp;&nbsp;• <span class="chip" data-copy="splitWith">splitWith</span> = ตัวแปร <b>รายการที่เลือก</b> <span class="en">(Chosen Items)</span> จาก ③<br>
+      ⑤ <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
+      ⑥ <span class="act">แสดงผลลัพธ์</span></li>
+
+    <li class="sub2"><b>ใต้ตัวเลือก "❌ ปิด"</b> — ไม่ต้องเพิ่มอะไร</li>
+  </ol>
+
+  <div class="card">
+    <b>ถ้าตอนเลือกรายการ เห็นชื่อตัวเองอยู่บนสุดมีดาว ⭐ และ "(ฉัน)"</b>
+    <ul>
+      <li><b>ติ๊กชื่อตัวเอง</b> = หารรวมตัวเองด้วย (เช่น กินข้าวด้วยกัน)</li>
+      <li><b>ไม่ติ๊กชื่อตัวเอง</b> = จ่ายแทนเพื่อน (ไม่มีส่วนของตัวเอง เพื่อนที่เลือกค้างคุณคนละเท่าๆ กัน)</li>
+      <li>ต้องเลือกเพื่อนอย่างน้อย 1 คน</li>
+    </ul>
+  </div>
+
+  <p>เสร็จแล้วแตะ <b>เสร็จสิ้น</b> เพื่อบันทึกคำสั่งลัด</p>
+
+  <h2>ส่วนที่ 2: ทดสอบด้วยมือก่อน</h2>
+  <ol class="steps">
+    <li>แคปหน้าจอสลิปโอนเงินจริง (หรือกดบันทึกสลิปลงรูปภาพจากแอปธนาคาร)</li>
+    <li>เปิดแอปคำสั่งลัด แตะ <b>สแกนสลิป</b> ครั้งแรกจะมีป๊อปอัปขอสิทธิ์ ให้กด <b>อนุญาตเสมอ</b> (เข้าถึงรูปภาพ และเชื่อมต่อ dept-game.vercel.app)</li>
+    <li>ควรเห็นกล่องข้อความ <b>"🧾 พบบิล ฿xxx"</b> พร้อมปุ่มให้เลือก ลองกด <b>👤 ส่วนตัว</b> ก่อน → ต้องขึ้น <b>"✅ บันทึกส่วนตัวแล้ว"</b></li>
+    <li>เปิด Widget ดู ยอด "ใช้วันนี้" ควรเพิ่มขึ้น (Widget อาจรีเฟรชช้าได้ถึง 15–30 นาที)</li>
+  </ol>
+
+  <h2>ส่วนที่ 3: ให้ทำงานอัตโนมัติเมื่อปิดแอปธนาคาร</h2>
+  <ol class="steps">
+    <li>ในแอปคำสั่งลัด ไปแท็บ <b>การทำงานอัตโนมัติ</b> → <b>+</b> → <b>แอป</b></li>
+    <li>เลือกแอปธนาคารที่ใช้ (K PLUS, SCB EASY, ttb touch, Krungthai NEXT, UOB TMRW, Kept ฯลฯ) → ติ๊ก <b>ถูกปิด</b></li>
+    <li>เลือกคำสั่งลัด <b>สแกนสลิป</b> → เลือก <b>รันทันที</b> → ปิด <b>แจ้งเตือนเมื่อทำงาน</b></li>
+  </ol>
+  <div class="card">
+    <b>วิธีใช้งานจริง:</b> โอนเงินเสร็จ → แคปสลิปหรือบันทึกสลิปลงรูปภาพ → ปิดแอปธนาคาร → กล่องถามจะเด้งขึ้นมาเอง
+  </div>
+
+  <h2>แก้ปัญหา</h2>
+  <details><summary>ขึ้นว่า "รหัสไม่ถูกต้อง" หรือ "รหัสถูกยกเลิก"</summary>
+    <p>รหัสในคำสั่งลัดเก่าหรือถูกสร้างใหม่ทับ กลับไปหน้า "ตั้งค่า iPhone" กดสร้างรหัสใหม่ แล้วทำ 2 อย่าง: (1) รันโค้ดติดตั้ง Widget ซ้ำ (2) แก้ขั้นที่ 1 ในคำสั่งลัดให้เป็นรหัสใหม่</p></details>
+  <details><summary>ขึ้นว่า "ไม่พบยอดเงินในรูปล่าสุด"</summary>
+    <p>ระบบจะบอกว่าอ่านข้อความอะไรได้จากรูป ถ้าเป็นสลิปจริงแต่อ่านไม่ได้ ให้คัดลอกข้อความที่ขึ้นแสดง (ลบเลขบัญชีและชื่อออกก่อนก็ได้) ส่งให้ผู้พัฒนา เพื่อปรับให้อ่านสลิปธนาคารนั้นได้</p></details>
+  <details><summary>ขึ้นว่า "สลิปนี้เคยบันทึกแล้ว"</summary>
+    <p>เป็นปกติ ระบบกันบันทึกซ้ำ เมื่อเปิด–ปิดแอปธนาคารอีกครั้งภายใน 5 นาทีหลังบันทึก กดปุ่ม ❌ ปิด ได้เลย</p></details>
+  <details><summary>ไม่มีอะไรเด้งขึ้นมาเลยหลังปิดแอปธนาคาร</summary>
+    <p>เป็นปกติถ้าไม่มีรูปใหม่ภายใน 5 นาที ให้แคปสลิปหรือบันทึกสลิปลงรูปภาพก่อนปิดแอป และตรวจว่าการทำงานอัตโนมัติเลือกแอปธนาคารถูกตัว</p></details>
+  <details><summary>เมนูหารเพื่อนไม่เห็นชื่อเพื่อน</summary>
+    <p>ตรวจว่าขั้นที่ 10 ① ใช้ URL ที่ลงท้ายด้วย <code>?include_self=1</code> และส่วนหัว Authorization ใช้ตัวแปร "รหัส"</p></details>
+</main>
+
+<script>
+  // แตะข้อความสีฟ้าเพื่อคัดลอก
+  document.querySelectorAll('.chip[data-copy]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      var text = el.getAttribute('data-copy');
+      var done = function () {
+        el.classList.add('done');
+        setTimeout(function () { el.classList.remove('done'); }, 2000);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { window.prompt('คัดลอกข้อความนี้', text); });
+      } else {
+        window.prompt('คัดลอกข้อความนี้', text);
+      }
+    });
+  });
+</script>
+</body>
+</html>

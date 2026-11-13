@@ -13,3 +13,6 @@ api/UPDATED-handleImageMessage.js
 functions/
 .firebaserc
 firebase.json
+
+# Tests (ไม่ต้อง deploy)
+tests/
