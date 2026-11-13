@@ -1,9 +1,9 @@
-// 2e: ตัวกลางฐานข้อมูล (lib/fs-compat.mjs) ต้องทำงานเหมือนกันทั้งแบบ client และแบบ firebase-admin
+// 2e: ตัวกลางฐานข้อมูล (api/auth-helpers.js) ต้องทำงานเหมือนกันทั้งแบบ client และแบบ firebase-admin
 // แบบ admin ทดสอบด้วยของจำลองที่มีหน้าตา API เหมือน firebase-admin (exists เป็นค่า, doc().get(), batch() ฯลฯ)
 import test from "node:test";
 import assert from "node:assert/strict";
 import fsNode from "node:fs";
-import * as compat from "../lib/fs-compat.mjs";
+import * as compat from "../api/auth-helpers.js";
 import { parseServiceAccount } from "../api/auth-helpers.js";
 import { createShortcutHandler } from "../lib/shortcut-service.mjs";
 import { createSubscriptionJob } from "../lib/subscriptions.mjs";
@@ -122,6 +122,16 @@ test("parseServiceAccount: JSON ตรงๆ / base64 / ผิดรูปแบ
     assert.equal(parseServiceAccount(""), null);
     assert.throws(() => parseServiceAccount(JSON.stringify({ client_email: "x" })));
     assert.throws(() => parseServiceAccount("not json"));
+});
+
+test("lib/ ห้าม import แพ็กเกจ npm ตรงๆ (Vercel หาแพ็กเกจจาก api/ เท่านั้น — เคยทำให้ทุก API ล่ม)", () => {
+    const dir = new URL("../lib/", import.meta.url);
+    for (const f of fsNode.readdirSync(dir)) {
+        if (!f.endsWith(".mjs")) continue;
+        const s = fsNode.readFileSync(new URL(f, dir), "utf8");
+        const bad = [...s.matchAll(/^\s*import[^\n]*from\s+["']([^."'][^"']*)["']/gm)].map((m) => m[1]).filter((m) => !m.startsWith("node:") && m !== "crypto");
+        assert.deepEqual(bad, [], `lib/${f} import แพ็กเกจ: ${bad.join(", ")}`);
+    }
 });
 
 test("ไฟล์ฝั่งเซิร์ฟเวอร์ไม่เรียก firebase/firestore ตรงๆ อีก (ผ่านตัวกลางทั้งหมด)", () => {

@@ -1,9 +1,7 @@
 import crypto from "crypto";
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { initializeApp as initAdminApp, getApps as getAdminApps, cert } from "firebase-admin/app";
-import { getFirestore as getAdminFirestore, FieldValue } from "firebase-admin/firestore";
-import { collection, getDocs, query, where, updateDoc, registerAdminFieldValue } from "../lib/fs-compat.mjs";
+const { getFirestore } = client;
+import * as client from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -25,6 +23,12 @@ export function parseServiceAccount(raw) {
 }
 
 let cachedDb = null;
+// โหลด firebase-admin แบบ dynamic เฉพาะเมื่อตั้ง FIREBASE_SERVICE_ACCOUNT
+const adminLib = process.env.FIREBASE_SERVICE_ACCOUNT
+    ? await Promise.all([import("firebase-admin/app"), import("firebase-admin/firestore")])
+        .then(([a, f]) => ({ initAdminApp: a.initializeApp, getAdminApps: a.getApps, cert: a.cert, getAdminFirestore: f.getFirestore, FieldValue: f.FieldValue }))
+        .catch((e) => { console.error("[db] โหลด firebase-admin ไม่ได้ กลับไปใช้แบบเดิม:", e.message); return null; })
+    : null;
 
 /**
  * ถ้าตั้ง FIREBASE_SERVICE_ACCOUNT บน Vercel จะใช้ firebase-admin (ข้ามกฎความปลอดภัย จึงปิดกฎให้เบราว์เซอร์ได้)
@@ -32,9 +36,10 @@ let cachedDb = null;
  */
 export function getDbInstance() {
     if (cachedDb) return cachedDb;
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    if (adminLib) {
         try {
             const sa = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT);
+            const { initAdminApp, getAdminApps, cert, getAdminFirestore, FieldValue } = adminLib;
             const existing = getAdminApps();
             const adminApp = existing.length ? existing[0] : initAdminApp({ credential: cert(sa) });
             const adb = getAdminFirestore(adminApp);
@@ -50,6 +55,75 @@ export function getDbInstance() {
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
     cachedDb = getFirestore(app);
     return cachedDb;
+}
+
+// ============================================================
+// ตัวกลางเรียกฐานข้อมูล: ใช้ชุดฟังก์ชันเดียว (collection, doc, query, ...) ได้ทั้งแบบ client และ firebase-admin
+// (อยู่ในไฟล์นี้เพราะโฟลเดอร์ lib/ ต้องไม่ import แพ็กเกจ npm โดยตรง — Vercel หาแพ็กเกจจากโฟลเดอร์ api/)
+// db ของแอดมินมีเมธอด .collection จึงสลับโหมดอัตโนมัติ ไม่ต้องแก้โค้ดที่เรียกใช้
+// ============================================================
+let adminFieldValue = null;
+
+/** เรียกครั้งเดียวตอนสร้าง db แบบแอดมิน เพื่อให้ serverTimestamp() ใช้ชนิดของแอดมิน */
+function registerAdminFieldValue(FieldValue) {
+    adminFieldValue = FieldValue;
+}
+
+const isClientObj = (o) => Boolean(o) && typeof o.type === "string" && (o.type === "document" || o.type === "collection" || o.type === "query");
+const isAdminDb = (db) => Boolean(db) && typeof db.collection === "function" && typeof db.batch === "function";
+
+export function collection(db, name) {
+    return isAdminDb(db) ? db.collection(name) : client.collection(db, name);
+}
+
+export function doc(a, ...rest) {
+    if (isAdminDb(a)) return a.collection(rest[0]).doc(rest[1]);
+    if (a && !isClientObj(a) && typeof a.doc === "function") return a.doc(); // collection ของแอดมิน → รหัสสุ่ม
+    return client.doc(a, ...rest);
+}
+
+export function where(field, op, value) {
+    return { __where: [field, op, value] };
+}
+
+export function query(ref, ...constraints) {
+    if (isClientObj(ref)) return client.query(ref, ...constraints.map((c) => client.where(...c.__where)));
+    return constraints.reduce((q, c) => q.where(...c.__where), ref);
+}
+
+export async function getDocs(q) {
+    return isClientObj(q) ? client.getDocs(q) : q.get();
+}
+
+export async function getDoc(ref) {
+    if (isClientObj(ref)) return client.getDoc(ref);
+    const s = await ref.get();
+    // ของแอดมิน exists เป็นค่า ไม่ใช่ฟังก์ชัน ทำให้เหมือนของเดิม
+    return { id: s.id, ref: s.ref, exists: () => s.exists, data: () => s.data() };
+}
+
+export async function setDoc(ref, data, options) {
+    return isClientObj(ref) ? client.setDoc(ref, data, options) : ref.set(data, options || {});
+}
+
+export async function addDoc(colRef, data) {
+    return isClientObj(colRef) ? client.addDoc(colRef, data) : colRef.add(data);
+}
+
+export async function updateDoc(ref, data) {
+    return isClientObj(ref) ? client.updateDoc(ref, data) : ref.update(data);
+}
+
+export async function deleteDoc(ref) {
+    return isClientObj(ref) ? client.deleteDoc(ref) : ref.delete();
+}
+
+export function writeBatch(db) {
+    return isAdminDb(db) ? db.batch() : client.writeBatch(db);
+}
+
+export function serverTimestamp() {
+    return adminFieldValue ? adminFieldValue.serverTimestamp() : client.serverTimestamp();
 }
 
 export function hashToken(rawToken) {

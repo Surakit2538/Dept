@@ -1,5 +1,5 @@
 import { getDbInstance } from "./auth-helpers.js";
-import * as fsModule from "../lib/fs-compat.mjs";
+import * as fsModule from "./auth-helpers.js";
 import { createLineIdAuthenticator } from "../lib/line-auth.mjs";
 import { verifySlipWithSlipOK, matchReceiverName, getSlipErrorMessage } from './slipok-helpers.js';
 import { 

@@ -1,4 +1,4 @@
-import { collection, getDocs } from "../lib/fs-compat.mjs";
+import { collection, getDocs } from "./auth-helpers.js";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 
 const db = getDbInstance();

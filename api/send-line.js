@@ -1,4 +1,4 @@
-import * as fs from "../lib/fs-compat.mjs";
+import * as fs from "./auth-helpers.js";
 import { getDbInstance } from "./auth-helpers.js";
 import { createLineIdAuthenticator } from "../lib/line-auth.mjs";
 

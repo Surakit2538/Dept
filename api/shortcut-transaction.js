@@ -1,4 +1,4 @@
-import * as fs from "../lib/fs-compat.mjs";
+import * as fs from "./auth-helpers.js";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 import { createShortcutHandler } from "../lib/shortcut-service.mjs";
 import { createGeminiSlipReader } from "../lib/gemini-slip.mjs";

@@ -4,7 +4,7 @@ import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
 import {
     doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
-} from "../lib/fs-compat.mjs";
+} from "./auth-helpers.js";
 import { getDbInstance } from "./auth-helpers.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 // Import SlipOK helpers

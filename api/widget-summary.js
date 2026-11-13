@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where } from "../lib/fs-compat.mjs";
+import { collection, getDocs, query, where } from "./auth-helpers.js";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 import { memberMonthSummary, displayBaht } from "../lib/ledger.mjs";
 

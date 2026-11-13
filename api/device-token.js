@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import { collection, getDocs, query, where, updateDoc, addDoc } from "../lib/fs-compat.mjs";
+import { collection, getDocs, query, where, updateDoc, addDoc } from "./auth-helpers.js";
 import { getDbInstance, hashToken, verifyDeviceToken } from "./auth-helpers.js";
 
 const db = getDbInstance();
