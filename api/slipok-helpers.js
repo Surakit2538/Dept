@@ -1,4 +1,5 @@
 // Helper functions for SlipOK API integration
+import { nameMatches } from '../lib/names.mjs';
 
 // ค่าลับอ่านจาก Environment Variables บน Vercel เท่านั้น (SLIPOK_API_KEY, SLIPOK_BRANCH_ID) ห้ามฝังในโค้ด
 function getSlipOkConfig() {
@@ -131,14 +132,22 @@ export function matchReceiverName(slipReceiver, realName) {
 
     // Try displayName
     const displayNameNorm = normalize(slipReceiver.displayName);
-    if (displayNameNorm.includes(realNameNorm) || realNameNorm.includes(displayNameNorm)) {
+    if (displayNameNorm && realNameNorm && (displayNameNorm.includes(realNameNorm) || realNameNorm.includes(displayNameNorm))) {
         return { matched: true, field: 'displayName', confidence: 0.95, debug: { slip: displayNameNorm, db: realNameNorm } };
     }
 
     // Try name
     const nameNorm = normalize(slipReceiver.name);
-    if (nameNorm.includes(realNameNorm) || realNameNorm.includes(nameNorm)) {
+    if (nameNorm && realNameNorm && (nameNorm.includes(realNameNorm) || realNameNorm.includes(nameNorm))) {
         return { matched: true, field: 'name', confidence: 0.90, debug: { slip: nameNorm, db: realNameNorm } };
+    }
+
+    // ตัวสำรอง: เทียบแบบยืดหยุ่น (ย่อนามสกุล เช่น 'สุรกิจ พ' กับ 'สุรกิจ พัฒนเธียรสกุล')
+    for (const [field, value] of [['displayName', slipReceiver.displayName], ['name', slipReceiver.name]]) {
+        const loose = nameMatches(value, realName);
+        if (loose.matched && loose.confidence >= 0.85) {
+            return { matched: true, field, confidence: 0.8, debug: { slip: normalize(value), db: realNameNorm, loose: true } };
+        }
     }
 
     // No match

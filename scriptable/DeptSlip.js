@@ -12,7 +12,7 @@
  * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
  */
 
-const SCRIPT_VERSION = "1.3.0";
+const SCRIPT_VERSION = "1.4.0";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ค่าเริ่มต้น false: รูปสลิปไม่ออกจากเครื่อง ใช้ Live Text ของ iPhone อ่านแล้วส่งแต่ข้อความ
@@ -170,6 +170,11 @@ async function main() {
         }
         menu.addAction(isConvert ? "👥 เปลี่ยนเป็นหารกับเพื่อน" : "👥 หารกับเพื่อน");
         keys.push("split");
+        if (!isConvert) {
+            // รายรับ: เงินเข้าบัญชีเรา (เพื่อนโอนคืนหนี้ไม่ใช่รายรับ) ระบบบอกคำแนะนำไว้ในข้อความด้านบนแล้ว
+            menu.addAction("💰 รายรับ");
+            keys.push("income");
+        }
         if (text.trim()) {
             menu.addAction("🔍 ดูข้อความที่อ่านได้");
             keys.push("raw");
@@ -187,6 +192,12 @@ async function main() {
 
     if (choiceKey === "personal") {
         const saved = await callApi("POST", "/api/shortcut-transaction", { action: "save", splitType: "personal" });
+        await showMessage("สแกนสลิป", String(saved.message || "เกิดข้อผิดพลาด"));
+        return;
+    }
+
+    if (choiceKey === "income") {
+        const saved = await callApi("POST", "/api/shortcut-transaction", { action: "save", splitType: "income" });
         await showMessage("สแกนสลิป", String(saved.message || "เกิดข้อผิดพลาด"));
         return;
     }
