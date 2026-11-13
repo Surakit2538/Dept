@@ -1271,8 +1271,8 @@ async function saveTransaction(replyToken, userId, finalData) {
                 timestamp: Date.now()
             });
 
-            // บันทึก template สำหรับ Cloud Functions
-            const billingDay = today.getDate();
+            // บันทึก template ให้ Vercel Cron สร้างรายการเดือนถัดไป
+            const billingDay = Number(getBangkokDateString(today).slice(8, 10)) || 1;
             batch.set(doc(collection(db, "subscription_templates")), {
                 desc: finalData.desc,
                 amount: finalData.amount,

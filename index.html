@@ -4690,9 +4690,9 @@
 
                         batch.set(doc(collection(db, "transactions")), txn);
 
-                        // บันทึก template สำหรับ Cloud Functions (ถ้าเปิดใช้)
+                        // บันทึก template ให้ Vercel Cron (api/cron/generate-subscriptions) สร้างรายการเดือนถัดไป
                         if (recurring) {
-                            const billingDay = new Date(date).getDate();
+                            const billingDay = Number(String(date).slice(8, 10)) || 1;
                             const subRef = doc(collection(db, "subscription_templates"));
                             batch.set(subRef, {
                                 desc,
