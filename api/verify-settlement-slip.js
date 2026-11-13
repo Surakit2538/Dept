@@ -3,7 +3,7 @@ import { getFirestore } from "firebase/firestore";
 import { verifySlipWithSlipOK, matchReceiverName, getSlipErrorMessage } from './slipok-helpers.js';
 import { 
     getMemberByName as getMemberByNameHelper, 
-    findMatchingSettlementSmart, 
+    findSettlementForSlip,
     checkDuplicateSlip, 
     saveVerifiedSettlement, 
     sendSlipVerifiedNotification 
@@ -56,13 +56,14 @@ export default async function handler(req, res) {
         }
 
         // 4. หา Settlement ที่ตรงประเด็น (ยอด และ ผู้โอน และ เดือน)
-        const matchingSettlement = await findMatchingSettlementSmart(db, from, slipAmount);
+        const matchOutcome = await findSettlementForSlip(db, from, slipAmount, slip.receiver);
+        const matchingSettlement = matchOutcome.ok ? matchOutcome.settlement : null;
 
         if (!matchingSettlement) {
-            return res.status(400).json({
-                success: false,
-                message: `⚠️ ยอดเงินในสลิป (${slipAmount}) ไม่ถูกจับคู่กับรายการค้างชำระของ ${from} ในเดือน ${month}`
-            });
+            let message = `⚠️ ยอดเงินในสลิป (${slipAmount}) ไม่ถูกจับคู่กับรายการค้างชำระของ ${from}`;
+            if (matchOutcome.reason === 'no_debt') message = `ℹ️ ${from} ไม่มียอดค้างชำระที่ต้องโอนให้เพื่อนในตอนนี้`;
+            if (matchOutcome.reason === 'overpay') message = `⚠️ ยอดในสลิป (${slipAmount} บาท) มากกว่ายอดที่ ${from} ค้างชำระ (สูงสุด ${matchOutcome.owed} บาท)`;
+            return res.status(400).json({ success: false, message });
         }
 
         // 5. ตรวจสอบชื่อผู้รับโอนบัญชี
@@ -105,7 +106,9 @@ export default async function handler(req, res) {
         // 9. สำเร็จ คืนค่าไปให้หน้าเว็บแสดงผล Modal ล้ำๆ
         return res.status(200).json({
             success: true,
-            slip: slip
+            slip: slip,
+            partial: Boolean(matchingSettlement.partial),
+            remaining: matchingSettlement.partial ? matchingSettlement.remaining : 0
         });
 
     } catch (error) {

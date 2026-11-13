@@ -15,7 +15,7 @@ import {
 import {
     getMemberByLineId as getMemberByLineIdHelper,
     getMemberByName as getMemberByNameHelper,
-    findMatchingSettlementSmart,
+    findSettlementForSlip,
     checkDuplicateSlip,
     saveVerifiedSettlement,
     sendSlipVerifiedNotification
@@ -579,7 +579,8 @@ async function handleImageMessage(event) {
         // ใช้เดือนปัจจุบัน (YYYY-MM format) (ถูกค้นหาย้อนหลังด้วย Smart search)
         console.log('🔍 Finding settlement for:', userMember.name, 'amount:', slipAmount);
 
-        const matchingSettlement = await findMatchingSettlementSmart(db, userMember.name, slipAmount);
+        const matchOutcome = await findSettlementForSlip(db, userMember.name, slipAmount, slip.receiver);
+        const matchingSettlement = matchOutcome.ok ? matchOutcome.settlement : null;
 
         console.log('Settlement found:', matchingSettlement ? 'YES' : 'NO');
         if (matchingSettlement) {
@@ -587,12 +588,21 @@ async function handleImageMessage(event) {
         }
 
         if (!matchingSettlement) {
+            if (matchOutcome.reason === 'no_debt') {
+                return pushMessage(userId,
+                    `ℹ️ ตอนนี้คุณไม่มียอดค้างชำระที่ต้องโอนให้เพื่อน\n\n` +
+                    `ถ้าคิดว่ายังมียอดค้าง ให้ตรวจสอบในหน้าเคลียร์หนี้ของเว็บ`
+                );
+            }
+            if (matchOutcome.reason === 'overpay') {
+                return pushMessage(userId,
+                    `⚠️ ยอดในสลิป ${slipAmount.toLocaleString()} บาท มากกว่ายอดที่คุณค้างชำระ (สูงสุด ${matchOutcome.owed.toLocaleString()} บาท)\n\n` +
+                    `ระบบยังไม่ได้บันทึกการเคลียร์หนี้ กรุณาตรวจสอบยอดในหน้าเคลียร์หนี้แล้วแจ้งผู้ดูแลถ้าต้องการให้บันทึกเอง`
+                );
+            }
             return pushMessage(userId,
-                `⚠️ ไม่พบรายการ Settlement ที่ตรงกับจำนวนเงิน ${slipAmount.toLocaleString()} บาท\n\n` +
-                `กรุณาตรวจสอบยอดในหน้า Settlement แล้วลองใหม่อีกครั้ง\n\n` +
-                `💡 ตรวจสอบว่า:\n` +
-                `- มี Transaction ในเดือนนี้หรือไม่\n` +
-                `- ยอดคงเหลือที่ต้องจ่ายตรงกับ ${slipAmount} บาทหรือไม่`
+                `⚠️ ไม่พบรายการค้างชำระที่ตรงกับจำนวนเงิน ${slipAmount.toLocaleString()} บาท\n\n` +
+                `กรุณาตรวจสอบยอดในหน้าเคลียร์หนี้ แล้วลองใหม่อีกครั้ง`
             );
         }
 
@@ -649,7 +659,14 @@ async function handleImageMessage(event) {
 
         // 9. ส่งข้อความยืนยันกลับไปหาผู้ส่ง
         const successFlex = createSlipSuccessMessage(slip, matchingSettlement);
-        return pushFlex(userId, "✅ ยืนยันการโอนเงินสำเร็จ", successFlex);
+        await pushFlex(userId, "✅ ยืนยันการโอนเงินสำเร็จ", successFlex);
+        if (matchingSettlement.partial) {
+            return pushMessage(userId,
+                `ℹ️ นี่เป็นการชำระบางส่วน ${slipAmount.toLocaleString()} บาท\n` +
+                `ยังเหลือค้างให้ ${matchingSettlement.to} อีก ${matchingSettlement.remaining.toLocaleString()} บาท`
+            );
+        }
+        return;
 
     } catch (error) {
         console.error("Error in handleImageMessage:", error);

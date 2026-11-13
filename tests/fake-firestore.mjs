@@ -19,8 +19,15 @@ export function createFakeFirestore() {
             let docs = [...col(name).entries()].map(([id, data]) => wrap(name, id, data));
             if (q.type === "query") {
                 for (const c of q.constraints) {
-                    if (c.op !== "==") throw new Error("fake firestore: unsupported op " + c.op);
-                    docs = docs.filter((d) => d.data()[c.field] === c.value);
+                    const test = {
+                        "==": (a, b) => a === b,
+                        ">=": (a, b) => a !== undefined && a >= b,
+                        "<=": (a, b) => a !== undefined && a <= b,
+                        ">": (a, b) => a !== undefined && a > b,
+                        "<": (a, b) => a !== undefined && a < b
+                    }[c.op];
+                    if (!test) throw new Error("fake firestore: unsupported op " + c.op);
+                    docs = docs.filter((d) => test(d.data()[c.field], c.value));
                 }
             }
             return { docs, empty: docs.length === 0, forEach: (fn) => docs.forEach(fn) };

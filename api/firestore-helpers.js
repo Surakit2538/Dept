@@ -1,6 +1,9 @@
 // Firestore helper functions for Settlement Slip Verification
 
 import { doc, getDoc, getDocs, setDoc, collection, query, where } from "firebase/firestore";
+import { matchSlipToDebt } from "../lib/settlement-match.mjs";
+import { normalizeName } from "../lib/ledger.mjs";
+import { matchReceiverName } from "./slipok-helpers.js";
 
 // Get member by LINE user ID
 export async function getMemberByLineId(db, lineUserId) {
@@ -39,188 +42,47 @@ export async function getMemberByName(db, name) {
     };
 }
 
-// Find matching settlement for the user
-export async function findMatchingSettlement(db, fromName, amount, month) {
-    console.log('🔍 [findMatchingSettlement] Starting...');
-    console.log('  fromName:', fromName);
-    console.log('  amount:', amount);
-    console.log('  month:', month);
+// หาหนี้ที่ตรงกับสลิป (ใช้ lib/settlement-match.mjs: คิดหนี้หลังหักที่เคลียร์แล้ว รองรับจ่ายบางส่วน)
+// คืน { ok, settlement?, reason?, owed? } — reason: 'no_debt' | 'overpay'
+// slipReceiver (ถ้ามี) ใช้เลือกเจ้าหนี้ที่ชื่อบัญชีผู้รับตรงกับสลิป
+export async function findSettlementForSlip(db, fromName, amount, slipReceiver = null) {
+    const [txSnap, memberSnap, setSnap] = await Promise.all([
+        getDocs(collection(db, 'transactions')),
+        getDocs(collection(db, 'members')),
+        getDocs(collection(db, 'settlements'))
+    ]);
 
-    // Calculate settlements based on transactions
-    // This is a simplified version - in production, you'd want to cache this
-    const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
-    const membersSnapshot = await getDocs(collection(db, 'members'));
-
-    const members = membersSnapshot.docs.map(d => (d.data().name || '').toUpperCase());
-    const transactions = transactionsSnapshot.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(t => t.date && t.date.startsWith(month));
-
-    console.log('  📊 Found', transactions.length, 'transactions for month', month);
-    console.log('  👥 Members:', members);
-
-    const normalizedFromName = (fromName || '').toUpperCase();
-
-    // Calculate balances
-    const balances = {};
-    members.forEach(m => balances[m] = 0);
-
-    transactions.forEach(t => {
-        const payer = t.payer || "";
-        if (balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
-        if (t.splits) {
-            Object.keys(t.splits).forEach(k => {
-                if (balances.hasOwnProperty(k)) balances[k] -= Number(t.splits[k]);
-            });
-        }
+    const memberNames = new Set();
+    const realNames = {};
+    memberSnap.docs.forEach(d => {
+        const data = d.data();
+        const key = normalizeName(data.name);
+        if (!key) return;
+        memberNames.add(key);
+        if (data.realName && !realNames[key]) realNames[key] = data.realName;
     });
 
-    console.log('  💰 Balances:', balances);
-
-    // Generate settlement plan
-    const debtors = [], creditors = [];
-    Object.keys(balances).forEach(m => {
-        const b = Math.round(balances[m]);
-        if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-        if (b > 1) creditors.push({ name: m, amount: b });
-    });
-
-    console.log('  📉 Debtors (owe money):', debtors);
-    console.log('  📈 Creditors (should receive):', creditors);
-
-    let i = 0, j = 0;
-    while (i < debtors.length && j < creditors.length) {
-        const d = debtors[i];
-        const c = creditors[j];
-        const pay = Math.min(d.amount, c.amount);
-
-        console.log(`  🔄 Checking: ${d.name} → ${c.name} = ${pay} บาท (looking for ${amount})`);
-
-        // Check if this matches the slip
-        if (d.name === normalizedFromName && Math.abs(pay - amount) < 1) {
-            console.log('  ✅ MATCH FOUND!');
-            return {
-                from: d.name,
-                to: c.name,
-                amount: pay,
-                month: month,
-                transactionIds: transactions.map(t => t.id) // เก็บ transaction IDs ที่เกี่ยวข้อง
-            };
+    const receiverMatches = slipReceiver
+        ? (toName) => {
+            const real = realNames[normalizeName(toName)];
+            return Boolean(real) && matchReceiverName(slipReceiver, real).matched;
         }
+        : null;
 
-        d.amount -= pay;
-        c.amount -= pay;
-
-        if (d.amount <= 0.01) i++;
-        if (c.amount <= 0.01) j++;
-    }
-
+    return matchSlipToDebt({
+        memberNames: [...memberNames],
+        transactions: txSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        settlements: setSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+        fromName,
+        amount,
+        receiverMatches
+    });
 }
 
-// Find matching settlement (Smart Search - ค้นหาย้อนหลังทุกเดือนที่ค้างชำระ)
-export async function findMatchingSettlementSmart(db, fromName, amount) {
-    console.log('🔍 [findMatchingSettlementSmart] Starting SMART SEARCH...');
-    console.log('  fromName:', fromName);
-    console.log('  amount:', amount);
-
-    // Step 1: หาเดือนที่มี transaction
-    const transactionsSnapshot = await getDocs(collection(db, 'transactions'));
-    const membersSnapshot = await getDocs(collection(db, 'members'));
-
-    const members = membersSnapshot.docs.map(d => (d.data().name || '').toUpperCase());
-    const normalizedFromName = (fromName || '').toUpperCase();
-    const allTransactions = transactionsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    // Group transactions by month
-    const monthsWithTransactions = {};
-    allTransactions.forEach(t => {
-        if (t.date) {
-            const month = t.date.slice(0, 7); // "2026-02"
-            if (!monthsWithTransactions[month]) {
-                monthsWithTransactions[month] = [];
-            }
-            monthsWithTransactions[month].push(t);
-        }
-    });
-
-    // Sort months (newest first)
-    const months = Object.keys(monthsWithTransactions).sort().reverse();
-    console.log('  📅 Found transactions in months:', months);
-
-    // Step 2: ตรวจสอบแต่ละเดือน (เดือนล่าสุดก่อน)
-    const settlementsSnapshot = await getDocs(collection(db, 'settlements'));
-    const verifiedSettlements = {};
-
-    settlementsSnapshot.docs.forEach(d => {
-        const settlement = d.data();
-        if (settlement.status === 'verified' && settlement.month) {
-            const key = `${settlement.from}-${settlement.to}-${settlement.month}`;
-            verifiedSettlements[key] = true;
-        }
-    });
-
-    console.log('  ✅ Verified settlements:', Object.keys(verifiedSettlements).length);
-
-    // Step 3: ค้นหาในแต่ละเดือนที่ยังไม่ได้ชำระ
-    for (const month of months) {
-        console.log(`  🔍 Checking month: ${month}`);
-
-        const transactions = monthsWithTransactions[month];
-
-        // calculatebalances for this month
-        const balances = {};
-        members.forEach(m => balances[m] = 0);
-
-        transactions.forEach(t => {
-            const payer = t.payer || "";
-            if (balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
-            if (t.splits) {
-                Object.keys(t.splits).forEach(k => {
-                    if (balances.hasOwnProperty(k)) balances[k] -= Number(t.splits[k]);
-                });
-            }
-        });
-
-        // Generate settlement plan
-        const debtors = [], creditors = [];
-        Object.keys(balances).forEach(m => {
-            const b = Math.round(balances[m]);
-            if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-            if (b > 1) creditors.push({ name: m, amount: b });
-        });
-
-        let i = 0, j = 0;
-        while (i < debtors.length && j < creditors.length) {
-            const d = debtors[i];
-            const c = creditors[j];
-            const pay = Math.min(d.amount, c.amount);
-
-            // Check if verified already
-            const key = `${d.name}-${c.name}-${month}`;
-            const isVerified = verifiedSettlements[key];
-
-            // Check if this matches the slip AND not verified yet
-            if (d.name === normalizedFromName && Math.abs(pay - amount) < 1 && !isVerified) {
-                console.log(`  ✅ MATCH FOUND in month ${month}!`);
-                return {
-                    from: d.name,
-                    to: c.name,
-                    amount: pay,
-                    month: month,
-                    transactionIds: transactions.map(t => t.id)
-                };
-            }
-
-            d.amount -= pay;
-            c.amount -= pay;
-
-            if (d.amount <= 0.01) i++;
-            if (c.amount <= 0.01) j++;
-        }
-    }
-
-    console.log('  ❌ No matching settlement found in any month');
-    return null;
+// เข้ากันได้กับโค้ดเดิม: คืน settlement หรือ null
+export async function findMatchingSettlementSmart(db, fromName, amount, slipReceiver = null) {
+    const result = await findSettlementForSlip(db, fromName, amount, slipReceiver);
+    return result.ok ? result.settlement : null;
 }
 
 // Check duplicate slip
@@ -243,6 +105,7 @@ export async function saveVerifiedSettlement(db, settlement, slip, uploadedBy, m
         from: settlement.from,
         to: settlement.to,
         amount: settlement.amount,
+        partial: Boolean(settlement.partial),
         status: 'verified',
 
         slip: {
