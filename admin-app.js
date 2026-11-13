@@ -29,6 +29,21 @@ function getBangkokDateString(date = new Date()) {
     return `${y}-${m}-${d}`;
 }
 
+function escapeHtml(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// รูปโปรไฟล์: ยอมรับเฉพาะ https (กัน javascript: / data: ) แล้ว escape ก่อนใส่ใน src
+function safeImgUrl(u) {
+    const v = String(u ?? '').trim();
+    return /^https:\/\//i.test(v) ? escapeHtml(v) : '';
+}
+
+// ใส่ค่าข้อความลงใน onclick="fn(...)" อย่างปลอดภัย (JSON แล้ว escape HTML)
+function jsArg(s) {
+    return escapeHtml(JSON.stringify(String(s ?? '')));
+}
+
 function getBangkokMonthString(date = new Date()) {
     const formatter = new Intl.DateTimeFormat("en-US", {
         timeZone: "Asia/Bangkok",
@@ -281,22 +296,19 @@ const app = {
             const div = document.createElement('div');
             div.className = 'bg-[#1c1c1e] p-5 rounded-2xl border border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-500/30 transition-colors shadow-sm';
 
-            const safeFrom = p.from.replace(/'/g, "\\'");
-            const safeTo = p.to.replace(/'/g, "\\'");
-
             div.innerHTML = `
                 <div class="flex items-center gap-4">
                     <div class="flex flex-col items-center justify-center min-w-[3rem]">
-                        <span class="font-bold text-red-400">${p.from}</span>
+                        <span class="font-bold text-red-400">${escapeHtml(p.from)}</span>
                         <i class="fa-solid fa-arrow-down text-slate-500 text-xs my-1"></i>
-                        <span class="font-bold text-emerald-400">${p.to}</span>
+                        <span class="font-bold text-emerald-400">${escapeHtml(p.to)}</span>
                     </div>
                     <div>
                         <span class="text-2xl font-bold text-white">${p.amount.toLocaleString()} ฿</span>
                         <div class="text-[10px] text-slate-400 mt-1"><i class="fa-solid fa-clock text-amber-500"></i> รอการยืนยัน</div>
                     </div>
                 </div>
-                <button onclick="window.adminApp.manualVerify('${safeFrom}', '${safeTo}', ${p.amount})" class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-colors flex justify-center items-center gap-2 active:scale-95">
+                <button onclick="window.adminApp.manualVerify(${jsArg(p.from)}, ${jsArg(p.to)}, ${Number(p.amount) || 0})" class="w-full md:w-auto px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-lg transition-colors flex justify-center items-center gap-2 active:scale-95">
                     <i class="fa-solid fa-check-circle"></i> ยืนยันว่าจ่ายแล้ว
                 </button>
             `;
@@ -360,8 +372,8 @@ const app = {
             const isManual = s.verifiedByAdmin ? '<span class="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-[10px] rounded-sm ml-2">Manual</span>' : '';
 
             // Build the select dropdown for month
-            let selectHtml = `<select class="edit-month-btn bg-black/30 border border-white/20 text-white text-xs px-2 py-1 rounded-md outline-none focus:border-indigo-500" onchange="window.adminApp.editSettlementMonth('${s.id}', this.value)">`;
-            selectHtml += `<option value="${s.month}" selected disabled>${s.month}</option>`; // Current default
+            let selectHtml = `<select class="edit-month-btn bg-black/30 border border-white/20 text-white text-xs px-2 py-1 rounded-md outline-none focus:border-indigo-500" onchange="window.adminApp.editSettlementMonth(${jsArg(s.id)}, this.value)">`;
+            selectHtml += `<option value="${escapeHtml(s.month)}" selected disabled>${escapeHtml(s.month)}</option>`; // Current default
             selectHtml += monthsOptions;
             selectHtml += `</select>`;
 
@@ -372,7 +384,7 @@ const app = {
                     </div>
                     <div class="flex-1">
                         <div class="text-sm font-bold text-white mb-1">
-                            ${s.from} <i class="fa-solid fa-arrow-right text-slate-500 mx-1 text-[10px]"></i> ${s.to} ${isManual}
+                            ${escapeHtml(s.from)} <i class="fa-solid fa-arrow-right text-slate-500 mx-1 text-[10px]"></i> ${escapeHtml(s.to)} ${isManual}
                         </div>
                         <div class="flex items-center gap-2">
                             <span class="text-lg font-bold text-emerald-400">${Number(s.amount).toLocaleString()} ฿</span>
@@ -382,7 +394,7 @@ const app = {
                     </div>
                 </div>
                 
-                <button onclick="window.adminApp.deleteSettlement('${s.id}')" class="absolute top-4 right-4 md:static md:mt-0 w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 flex justify-center items-center transition-colors">
+                <button onclick="window.adminApp.deleteSettlement(${jsArg(s.id)})" class="absolute top-4 right-4 md:static md:mt-0 w-8 h-8 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 flex justify-center items-center transition-colors">
                     <i class="fa-solid fa-trash"></i>
                 </button>
             `;
@@ -449,7 +461,7 @@ const app = {
             } else {
                 toggleHtml = `
                     <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" class="sr-only peer" ${isAdmin ? 'checked' : ''} onchange="window.adminApp.toggleAdminRole('${m.id}', this.checked)">
+                        <input type="checkbox" class="sr-only peer" ${isAdmin ? 'checked' : ''} onchange="window.adminApp.toggleAdminRole(${jsArg(m.id)}, this.checked)">
                         <div class="w-9 h-5 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
                     </label>
                 `;
@@ -458,11 +470,11 @@ const app = {
             div.innerHTML = `
                 <div class="col-span-8 md:col-span-6 flex items-center gap-3">
                     <div class="w-8 h-8 rounded-full bg-slate-800 border border-white/10 flex items-center justify-center overflow-hidden">
-                        ${m.pictureUrl ? `<img src="${m.pictureUrl}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-user text-slate-500 text-xs"></i>`}
+                        ${safeImgUrl(m.pictureUrl) ? `<img src="${safeImgUrl(m.pictureUrl)}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-user text-slate-500 text-xs"></i>`}
                     </div>
                     <div>
-                        <div class="font-bold text-white text-sm">${m.name}</div>
-                        <div class="text-[10px] text-slate-500">${m.lineDisplayName || 'No LINE Link'}</div>
+                        <div class="font-bold text-white text-sm">${escapeHtml(m.name)}</div>
+                        <div class="text-[10px] text-slate-500">${escapeHtml(m.lineDisplayName || 'No LINE Link')}</div>
                     </div>
                 </div>
                 <div class="col-span-4 md:col-span-3 flex justify-center items-center">

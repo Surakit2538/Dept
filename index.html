@@ -1975,6 +1975,16 @@
             return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
+        function safeImgUrl(u) {
+            const v = String(u ?? '').trim();
+            return /^https:\/\//i.test(v) ? escapeHtml(v) : '';
+        }
+
+        // ใส่ค่าข้อความลงใน onclick="fn(...)" อย่างปลอดภัย (JSON แล้ว escape HTML)
+        function jsArg(s) {
+            return escapeHtml(JSON.stringify(String(s ?? '')));
+        }
+
         function getBangkokMonthString(date = new Date()) {
             const formatter = new Intl.DateTimeFormat("en-US", {
                 timeZone: "Asia/Bangkok",
@@ -2944,11 +2954,11 @@
                     title.textContent = 'ยืนยันสำเร็จ!';
                     message.innerHTML = `
                         <div class="text-left space-y-1 mt-4">
-                            <p><strong>ผู้โอน:</strong> ${slip.sender.displayName}</p>
-                            <p><strong>ผู้รับ:</strong> ${slip.receiver.displayName}</p>
+                            <p><strong>ผู้โอน:</strong> ${escapeHtml(slip.sender.displayName)}</p>
+                            <p><strong>ผู้รับ:</strong> ${escapeHtml(slip.receiver.displayName)}</p>
                             <p><strong>จำนวนเงิน:</strong> ${slip.amount.toLocaleString()} บาท</p>
                             <p><strong>วันที่:</strong> ${this.formatSlipDate(slip.transDate)}</p>
-                            <p><strong>เวลา:</strong> ${slip.transTime}</p>
+                            <p><strong>เวลา:</strong> ${escapeHtml(slip.transTime)}</p>
                         </div>
                     `;
                 } else {
@@ -3085,11 +3095,11 @@
                             </div>
                             <div>
                                 <div class="font-bold text-white text-sm flex items-center gap-2">
-                                    ${t.desc}
+                                    ${escapeHtml(t.desc)}
                                 </div>
                                 <div class="text-[10px] text-slate-400 mt-1 flex flex-col gap-0.5">
-                                    <span><span class="text-emerald-400 font-bold">คนจ่าย:</span> <span class="text-slate-200">${t.payer}</span></span>
-                                    <span><span class="text-indigo-400 font-bold">ของ:</span> <span class="text-slate-200">${t.splits ? Object.keys(t.splits).join(', ') : '-'}</span></span>
+                                    <span><span class="text-emerald-400 font-bold">คนจ่าย:</span> <span class="text-slate-200">${escapeHtml(t.payer)}</span></span>
+                                    <span><span class="text-indigo-400 font-bold">ของ:</span> <span class="text-slate-200">${t.splits ? Object.keys(t.splits).map(escapeHtml).join(', ') : '-'}</span></span>
                                 </div>
                             </div>
                         </div>
@@ -3404,7 +3414,7 @@
 
             populatePayerSelector() {
                 const sel = document.getElementById('t-payer');
-                sel.innerHTML = this.data.members.map(m => `<option value="${m}">${m}</option>`).join('');
+                sel.innerHTML = this.data.members.map(m => `<option value="${escapeHtml(m)}">${escapeHtml(m)}</option>`).join('');
             },
 
             renderMemberList() {
@@ -3516,8 +3526,8 @@
                 // Helper for Profile Pic
                 const getPic = (name, size = "w-6 h-6", text = "text-[10px]") => {
                     const member = this.data.rawMembers.find(m => m.name === name);
-                    if (member && member.pictureUrl) return `<img src="${member.pictureUrl}" class="${size} rounded-full object-cover border border-white/10 shadow-sm shrink-0">`;
-                    return `<div class="${size} rounded-full bg-slate-700 text-white flex items-center justify-center font-bold ${text} border border-white/10 shadow-sm shrink-0">${name.substring(0, 1)}</div>`;
+                    if (member && safeImgUrl(member.pictureUrl)) return `<img src="${safeImgUrl(member.pictureUrl)}" class="${size} rounded-full object-cover border border-white/10 shadow-sm shrink-0">`;
+                    return `<div class="${size} rounded-full bg-slate-700 text-white flex items-center justify-center font-bold ${text} border border-white/10 shadow-sm shrink-0">${escapeHtml(name.substring(0, 1))}</div>`;
                 };
 
                 // Sort members: Always Current User first, expand in place
@@ -3568,7 +3578,7 @@
                         <div class="flex items-center justify-between relative z-10">
                             <div class="flex items-center gap-2">
                                 ${getPic(name, 'w-8 h-8', 'text-sm')}
-                                <span class="text-xs font-extrabold text-white">${name}</span>
+                                <span class="text-xs font-extrabold text-white">${escapeHtml(name)}</span>
                             </div>
                             ${badgeHtml}
                         </div>
@@ -3673,9 +3683,9 @@
                         item.innerHTML = `
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center gap-2 font-bold text-white">
-                                    ${getPic(vs.from)} <span class="text-sm">${vs.from}</span>
+                                    ${getPic(vs.from)} <span class="text-sm">${escapeHtml(vs.from)}</span>
                                     <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i>
-                                    ${getPic(vs.to)} <span class="text-sm">${vs.to}</span>
+                                    ${getPic(vs.to)} <span class="text-sm">${escapeHtml(vs.to)}</span>
                                 </div>
                                 <div class="font-extrabold text-emerald-400 text-sm">${vs.amount.toLocaleString()} ฿</div>
                             </div>
@@ -3723,12 +3733,12 @@
                                     <i class="fa-solid fa-clock"></i> รอโอนเงิน
                                 </span>
                                 <div class="flex gap-2">
-                                    <button onclick="window.app.showPromptPayQR(${pay}, '${c.name}')"
+                                    <button onclick="window.app.showPromptPayQR(${pay}, ${jsArg(c.name)})"
                                         class="text-[11px] bg-white/8 text-slate-300 border border-white/10 px-3 py-1 rounded-lg font-bold hover:bg-white/15 transition-colors flex items-center gap-1 active:scale-95">
                                         <i class="fa-solid fa-qrcode"></i> Scan
                                     </button>
                                     ${isCurrentUserPayer ? `
-                                    <button onclick="window.app.openSlipUploadModal('${d.name}', '${c.name}', ${pay})"
+                                    <button onclick="window.app.openSlipUploadModal(${jsArg(d.name)}, ${jsArg(c.name)}, ${pay})"
                                         class="text-[11px] bg-indigo-600 text-white px-3 py-1 rounded-lg font-bold hover:bg-indigo-700 transition-colors flex items-center gap-1 active:scale-95">
                                         <i class="fa-solid fa-cloud-arrow-up"></i> อัปโหลด
                                     </button>` : ''}
@@ -3852,18 +3862,18 @@
                         const groupTotalStr = groupTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
                         const memberData = (this.data.rawMembers || []).find(m => (m.name || "").toUpperCase() === payer);
-                        let avatarHtml = `<div class="w-5 h-5 rounded-full ${isMe ? 'bg-emerald-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-[9px] font-bold shadow-sm shrink-0">${payer.charAt(0)}</div>`;
-                        if (memberData && memberData.pictureUrl) {
+                        let avatarHtml = `<div class="w-5 h-5 rounded-full ${isMe ? 'bg-emerald-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-[9px] font-bold shadow-sm shrink-0">${escapeHtml(payer.charAt(0))}</div>`;
+                        if (memberData && safeImgUrl(memberData.pictureUrl)) {
                             // Wrapper with relative position. If image loads, it covers the div. If it fails, image is hidden revealing the div underneath.
                             avatarHtml = `
                                 <div class="relative w-5 h-5 shrink-0">
-                                    <div class="absolute inset-0 rounded-full ${isMe ? 'bg-emerald-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-[9px] font-bold shadow-sm">${payer.charAt(0)}</div>
-                                    <img src="${memberData.pictureUrl}" class="absolute inset-0 w-5 h-5 rounded-full object-cover shadow-sm border border-white/10" onerror="this.style.display='none'">
+                                    <div class="absolute inset-0 rounded-full ${isMe ? 'bg-emerald-500' : 'bg-indigo-500'} flex items-center justify-center text-white text-[9px] font-bold shadow-sm">${escapeHtml(payer.charAt(0))}</div>
+                                    <img src="${safeImgUrl(memberData.pictureUrl)}" class="absolute inset-0 w-5 h-5 rounded-full object-cover shadow-sm border border-white/10" onerror="this.style.display='none'">
                                 </div>
                             `;
                         }
                         
-                        const headerTitle = isMe ? 'คุณจ่ายเอง' : `${payer} จ่ายให้`;
+                        const headerTitle = isMe ? 'คุณจ่ายเอง' : `${escapeHtml(payer)} จ่ายให้`;
                         
                         list.innerHTML += `<div class="flex flex-wrap items-center justify-between gap-2 mb-2 mt-4 px-1">
                             <div class="flex items-center gap-1.5">
@@ -3882,7 +3892,7 @@
                             totalSpent += myShare;
                             const fullAmtStr = Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
                             const myShareStr = myShare.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                            list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center gap-2 mb-2"><div class="flex flex-col flex-1 min-w-0"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5 truncate">${t.desc}</span><span class="text-[9px] text-slate-400">ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center shrink-0"><div class="text-sm font-bold text-emerald-400">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div>`;
+                            list.innerHTML += `<div class="bg-[#2c2c2e] p-3 rounded-xl border border-white/5 flex justify-between items-center gap-2 mb-2"><div class="flex flex-col flex-1 min-w-0"><span class="text-[10px] font-bold text-slate-400 uppercase">${new Date(t.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}</span><span class="text-xs font-bold text-white mb-0.5 truncate">${escapeHtml(t.desc)}</span><span class="text-[9px] text-slate-400">ยอดเต็ม ${fullAmtStr} ฿</span></div><div class="text-right flex flex-col justify-center shrink-0"><div class="text-sm font-bold text-emerald-400">-${myShareStr} ฿</div><div class="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mt-1">ส่วนของคุณ</div></div></div>`;
                         });
                     });
                 }
@@ -4131,10 +4141,10 @@
                                 <span class="font-emoji">${emoji}</span>
                             </div>
                             <div class="flex flex-col min-w-0 flex-1">
-                                <span class="text-sm font-bold text-white truncate max-w-[160px]">${t.desc || 'ไม่ระบุ'}</span>
+                                <span class="text-sm font-bold text-white truncate max-w-[160px]">${escapeHtml(t.desc || 'ไม่ระบุ')}</span>
                                 <span class="text-[10px] text-slate-500 mt-1 flex flex-col gap-0.5">
-                                    <span><span class="text-emerald-400 font-bold">จ่าย:</span> <span class="text-slate-300">${t.payer}</span></span>
-                                    <span class="truncate max-w-[160px]"><span class="text-indigo-400 font-bold">ของ:</span> <span class="text-slate-300">${t.splits ? Object.keys(t.splits).join(', ') : '-'}</span></span>
+                                    <span><span class="text-emerald-400 font-bold">จ่าย:</span> <span class="text-slate-300">${escapeHtml(t.payer)}</span></span>
+                                    <span class="truncate max-w-[160px]"><span class="text-indigo-400 font-bold">ของ:</span> <span class="text-slate-300">${t.splits ? Object.keys(t.splits).map(escapeHtml).join(', ') : '-'}</span></span>
                                 </span>
                             </div>
                         </div>
@@ -4218,7 +4228,7 @@
                     <div class="flex items-center justify-between">
                         <div class="flex items-center gap-2">
                             <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background:${colors[i % colors.length]}"></span>
-                            <span class="text-xs font-semibold text-slate-300 truncate max-w-[90px]">${name}</span>
+                            <span class="text-xs font-semibold text-slate-300 truncate max-w-[90px]">${escapeHtml(name)}</span>
                         </div>
                         <span class="text-xs font-bold text-white">${val.toLocaleString()} ฿</span>
                     </div>
@@ -4367,8 +4377,8 @@
                     
                     const fallbackHtml = `<div class="w-9 h-9 rounded-full ${colors[colorIdx]} flex items-center justify-center font-bold text-sm shrink-0 border-2 border-transparent shadow-sm">${safeLetter}</div>`;
                     
-                    if (member && member.pictureUrl) {
-                        return `<img src="${member.pictureUrl}" onerror="this.outerHTML=this.dataset.fallback" data-fallback="${fallbackHtml.replace(/"/g, '&quot;')}" class="w-9 h-9 rounded-full object-cover border-2 border-transparent shrink-0 shadow-sm">`;
+                    if (member && safeImgUrl(member.pictureUrl)) {
+                        return `<img src="${safeImgUrl(member.pictureUrl)}" onerror="this.outerHTML=this.dataset.fallback" data-fallback="${fallbackHtml.replace(/"/g, '&quot;')}" class="w-9 h-9 rounded-full object-cover border-2 border-transparent shrink-0 shadow-sm">`;
                     }
                     // Fallback: initial letter avatar
                     return fallbackHtml;
@@ -4383,7 +4393,7 @@
                     let customInput = '';
                     if (this.data.splitMode === 'custom') {
                         customInput = `
-                            <input type="number" step="0.01" data-member="${m}"
+                            <input type="number" step="0.01" data-member="${escapeHtml(m)}"
                                 oninput="window.app.onCustomAmountInput(this)"
                                 onclick="event.stopPropagation()"
                                 class="participant-amount w-20 p-1.5 bg-white/5 border border-white/10 rounded-xl text-right text-xs text-white font-bold outline-none focus:border-indigo-500 focus:bg-indigo-500/5 transition-all placeholder-slate-600"
@@ -4398,13 +4408,13 @@
                                 <i class="fa-solid fa-check text-[10px] text-white ${isChecked ? '' : 'hidden'}"></i>
                             </div>
                             <!-- Hidden native checkbox -->
-                            <input type="checkbox" id="${checkId}" ${isChecked ? 'checked' : ''} value="${m}"
+                            <input type="checkbox" id="${checkId}" ${isChecked ? 'checked' : ''} value="${escapeHtml(m)}"
                                 onchange="window.app.onParticipantToggle(this)"
                                 class="participant-check hidden">
                             <!-- Avatar -->
                             ${getAvatar(m)}
                             <!-- Name -->
-                            <span class="text-sm font-bold text-white flex-1 truncate">${m}</span>
+                            <span class="text-sm font-bold text-white flex-1 truncate">${escapeHtml(m)}</span>
                         </label>
                         <!-- Custom Amount (only in custom mode, outside label) -->
                         ${customInput ? '<div class="pr-3 shrink-0">' + customInput + '</div>' : ''}
@@ -4420,7 +4430,7 @@
                         const t = this.data.transactions.find(x => x.id === this.data.editingId);
                         if (t && t.splits) {
                             Object.entries(t.splits).forEach(([name, amount]) => {
-                                const input = document.querySelector(`.participant-amount[data-member="${name}"]`);
+                                const input = document.querySelector(`.participant-amount[data-member="${String(name).replace(/["\\]/g, '\\$&')}"]`);
                                 if (input) {
                                     input.value = amount;
                                     input.dataset.userSet = 'true';
