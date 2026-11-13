@@ -155,3 +155,76 @@ export function lastMonths(endMonth, n) {
 export function monthShort(month) {
     return TH_MONTHS[Number(month.slice(5, 7)) - 1];
 }
+
+/* ---------- หน้าเคลียร์เงิน ---------- */
+export function maskPromptpay(n) {
+    const d = String(n || "").replace(/[^0-9]/g, "");
+    if (d.length === 10) return d.slice(0, 6) + "XXXX";
+    if (d.length === 13) return "X-XXXX-XXXXX-" + d.slice(11, 13) + "-X";
+    return d;
+}
+
+export function validPromptpay(n) {
+    const d = String(n || "").replace(/[^0-9]/g, "");
+    return d.length === 10 || d.length === 13 ? d : "";
+}
+
+/** ลิงก์รูป QR พร้อมเพย์ (ใช้บริการเดียวกับหน้าเดิม) */
+export function promptpayQrUrl(promptpay, amount) {
+    const d = validPromptpay(promptpay);
+    if (!d || !(Number(amount) > 0)) return "";
+    return `https://promptpay.io/${d}/${Number(amount).toFixed(2)}`;
+}
+
+/** แผนโอนของเดือน: เรียงรายการของฉันก่อน แยกว่าฉันต้องโอน (pay) / รอรับ (receive) / ของคนอื่น (other) */
+export function buildClearModel({ name, month, members, transactions, settlements }) {
+    const me = normalizeName(name);
+    const ledger = computeMonthLedger({ memberNames: members, transactions, settlements, month });
+    const lines = toDisplayPlan(ledger.plan).map((l) => ({
+        from: l.from, to: l.to, amount: l.amount,
+        role: l.from === me ? "pay" : l.to === me ? "receive" : "other"
+    }));
+    const order = { pay: 0, receive: 1, other: 2 };
+    lines.sort((a, b) => order[a.role] - order[b.role] || b.amount - a.amount);
+    const history = (settlements || [])
+        .filter((s) => s && s.status === "verified" && s.month === month)
+        .map((s) => ({ id: s.id, from: s.from, to: s.to, amount: Number(s.amount) || 0, manual: Boolean(s.verifiedByAdmin), createdAt: s.createdAt || "" }))
+        .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    return { lines, history, mineToPay: lines.filter((l) => l.role === "pay"), mineToReceive: lines.filter((l) => l.role === "receive"), cleared: lines.length === 0 };
+}
+
+/* ---------- หน้ากระเป๋า ---------- */
+export function buildWalletModel({ name, month, walletItems, transactions, settlements }) {
+    const me = normalizeName(name);
+    const w = walletMonth({
+        name: me, month,
+        walletEntries: walletItems.map((x) => ({ ownerName: me, type: x.type, amount: x.amount, date: x.date })),
+        transactions, settlements
+    });
+    const items = walletItems
+        .filter((x) => String(x.date).startsWith(month))
+        .sort((a, b) => b.date.localeCompare(a.date) || (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0))
+        .map((x) => ({ id: x.id, type: x.type === "income" ? "income" : "expense", desc: x.desc || "", amount: Number(x.amount) || 0, date: x.date, icon: x.icon || "" }));
+    return {
+        incomeSat: w.income, personalSat: w.personalExpense, groupShareSat: w.groupShare, spentSat: w.expenseTotal,
+        netSat: w.net, receivedBackSat: w.receivedBack, paidBackSat: w.paidBack, items
+    };
+}
+
+/* ---------- หน้าบิล ---------- */
+export function buildBillsModel({ name, month, transactions, search = "" }) {
+    const me = normalizeName(name);
+    const q = String(search || "").trim().toUpperCase();
+    const list = transactions
+        .filter((t) => t && String(t.date || "").startsWith(month))
+        .map((t) => ({
+            id: t.id, desc: t.desc || "", date: t.date, icon: t.icon || "", payer: t.payer || "",
+            amountSat: toSat(t.amount), myShareSat: shareOf(t, me), iPaid: normalizeName(t.payer) === me,
+            people: Object.keys(t.splits || {}), type: t.paymentType || "normal", ts: Number(t.timestamp) || 0
+        }))
+        .filter((b) => !q || b.desc.toUpperCase().includes(q) || normalizeName(b.payer).includes(q))
+        .sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts);
+    const mine = list.filter((b) => b.myShareSat > 0 || b.iPaid);
+    return { all: list, mine, totalSat: list.reduce((a, b) => a + b.amountSat, 0), myShareSat: mine.reduce((a, b) => a + b.myShareSat, 0) };
+}
+const toSat = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) : 0; };

@@ -2,8 +2,13 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Icon, Mark, iconFor } from "./icons.jsx";
-import { signIn, loadMembers, loadPastMonth, watchMonth, loadWallet, addWallet, bangkokToday, clearCache } from "./data.js";
-import { buildHomeModel, buildMonthly, lastMonths, shiftMonth, monthLabel, monthShort, baht } from "./model.js";
+import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWallet, addWallet, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, lastMonths, shiftMonth, monthLabel, monthShort, baht } from "./model.js";
+import { MonthPicker, SectionTitle } from "./ui.jsx";
+import { ClearPage } from "./pages/ClearPage.jsx";
+import { WalletPage } from "./pages/WalletPage.jsx";
+import { BillsPage } from "./pages/BillsPage.jsx";
+import { MePage } from "./pages/MePage.jsx";
 
 const TABS = [
     { key: "home", label: "หน้าแรก", icon: "home" },
@@ -15,16 +20,6 @@ const TABS = [
 const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", other: "dots" };
 const MONTHS_BACK = 12; // โหลดย้อนหลังกี่เดือน
 const CHART_MONTHS = 6; // กราฟรายเดือนแสดงกี่เดือน
-
-function MonthPicker({ month, onChange, min, max }) {
-    return (
-        <div class="month" role="group" aria-label="เลือกเดือน">
-            <button type="button" aria-label="เดือนก่อนหน้า" disabled={month <= min} onClick={() => onChange(shiftMonth(month, -1))}><Icon name="left" size={16} /></button>
-            <span class="num">{monthLabel(month)}</span>
-            <button type="button" aria-label="เดือนถัดไป" disabled={month >= max} onClick={() => onChange(shiftMonth(month, 1))}><Icon name="right" size={16} /></button>
-        </div>
-    );
-}
 
 /* ---------- วงแหวน: ใช้ไปกี่เปอร์เซ็นต์ของรายรับ ---------- */
 function Ring({ percent }) {
@@ -63,15 +58,6 @@ function Hero({ m }) {
                 <div class="hint"><Icon name="wallet" size={22} />ยังไม่ได้บันทึกรายรับ<br />กดปุ่ม &ldquo;บันทึก&rdquo; เพื่อเพิ่ม</div>
             )}
         </section>
-    );
-}
-
-function SectionTitle({ icon, title, note }) {
-    return (
-        <div class="sec-t">
-            <span class="ico"><Icon name={icon} /></span>
-            <div><h3>{title}</h3>{note && <p>{note}</p>}</div>
-        </div>
     );
 }
 
@@ -291,6 +277,8 @@ function App() {
     const [members, setMembers] = useState(null);
     const [byMonth, setByMonth] = useState({}); // { "2026-11": { transactions, settlements, wallet } }
     const [loadError, setLoadError] = useState(false);
+    const [profiles, setProfiles] = useState(null);
+    const [search, setSearch] = useState("");
     const [sheet, setSheet] = useState(false);
     const [toast, setToast] = useState("");
     const [reload, setReload] = useState(0);
@@ -310,6 +298,11 @@ function App() {
         if (auth.state !== "ok") return;
         loadMembers().then(setMembers).catch(() => setLoadError(true));
     }, [auth.state, reload]);
+    // โปรไฟล์สมาชิก (พร้อมเพย์/ชื่อจริง): โหลดเมื่อเปิดหน้าที่ต้องใช้เท่านั้น (อ่าน 14 ครั้ง จำไว้ 10 นาที)
+    useEffect(() => {
+        if (auth.state !== "ok" || !["clear", "me"].includes(tab) || profiles) return;
+        loadProfiles().then(setProfiles).catch(() => setLoadError(true));
+    }, [auth.state, tab, profiles]);
     // เดือนนี้: ฟังแบบสด (อ่านเฉพาะรายการที่เปลี่ยน)
     useEffect(() => {
         if (auth.state !== "ok") return undefined;
@@ -344,6 +337,15 @@ function App() {
     }, [monthsReady, byMonth]);
     const model = useMemo(() => (all ? buildHomeModel({ name: auth.user.name, month, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, auth, members, month, today]);
     const series = useMemo(() => (all ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : []), [all, auth, nowMonth]);
+    const clearM = useMemo(() => (all ? buildClearModel({ name: auth.user.name, month, members, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, members, month]);
+    const walletM = useMemo(() => (all ? buildWalletModel({ name: auth.user.name, month, walletItems: all.wallet, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, month]);
+    const billsM = useMemo(() => (all ? buildBillsModel({ name: auth.user.name, month, transactions: all.transactions, search }) : null), [all, auth, month, search]);
+    // หลังแก้ข้อมูล: ล้างที่จำไว้ของเดือนนั้นแล้วโหลดใหม่ (เดือนนี้บิลอัปเดตสดอยู่แล้ว โหลดเฉพาะกระเป๋าใหม่)
+    const changed = (m = month) => {
+        invalidateMonth(m);
+        if (m === nowMonth) setReload((n) => n + 1);
+        else setByMonth((cur) => { const c = { ...cur }; delete c[m]; return c; });
+    };
     const refreshAll = () => { clearCache(); setByMonth({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
 
     if (auth.state === "loading") return <div class="app"><div class="center"><Mark size={64} /><div>กำลังเข้าสู่ระบบ</div></div></div>;
@@ -365,13 +367,14 @@ function App() {
                 <div class="top">
                     <div class="brand mobile-only"><Mark size={24} />Dept Money</div>
                     <h1 class="page-title">{TABS.find((t) => t.key === tab)?.label}</h1>
-                    {tab === "home" && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}
+                    {["home", "bills", "clear", "wallet"].includes(tab) && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}
                 </div>
                 {tab === "home" && (loadError ? <div class="card" role="alert">โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชหน้านี้ <button type="button" class="btn sm ghost" onClick={refreshAll}>ลองใหม่</button></div> : model ? <Home model={model} series={series} month={month} onMonth={setMonth} daily={model.daily} onRefresh={refreshAll} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
-                {tab === "bills" && <Stub title="บิล" note="หน้านี้กำลังสร้าง ใช้หน้าเดิมไปก่อน" href="/index.html#history" />}
-                {tab === "clear" && <Stub title="เคลียร์เงิน" note="หน้านี้กำลังสร้าง ใช้หน้าเดิมไปก่อน (QR และอัปโหลดสลิปอยู่ที่นั่น)" href="/index.html#clear" />}
-                {tab === "wallet" && <Stub title="กระเป๋า" note="หน้านี้กำลังสร้าง ตอนนี้ดูสรุปได้ที่หน้าแรก และบันทึกรายรับ/รายจ่ายได้จากปุ่มบันทึก" href="#home" />}
-                {tab === "me" && <Stub title="ฉัน" note="หน้านี้กำลังสร้าง ตั้งค่าโปรไฟล์และสมาชิกใช้หน้าเดิมไปก่อน" href="/index.html#profile" />}
+                {tab !== "home" && tab !== "me" && loadError && <div class="card" role="alert">โหลดข้อมูลไม่สำเร็จ <button type="button" class="btn sm ghost" onClick={refreshAll}>ลองใหม่</button></div>}
+                {tab === "bills" && !loadError && (billsM ? <BillsPage model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
+                {tab === "clear" && !loadError && (clearM && profiles ? <ClearPage model={clearM} profiles={profiles} month={month} onChanged={() => changed()} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
+                {tab === "wallet" && !loadError && (walletM ? <WalletPage model={walletM} onChanged={() => changed()} onError={setToast} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
+                {tab === "me" && (profiles ? <MePage auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
             </main>
             <button type="button" class="fab" onClick={() => setSheet(true)} aria-label="บันทึกรายการ"><Icon name="plus" />บันทึก</button>
             <nav class="tabbar" aria-label="เมนูหลัก"><div class="tabbar-in">

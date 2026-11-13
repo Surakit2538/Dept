@@ -82,3 +82,37 @@ test("buildMonthly / lastMonths: ใช้ไปและรายรับร�
     const r = buildMonthly({ name: "GAME", months: ["2026-10", "2026-11"], transactions, settlements, walletItems });
     assert.deepEqual(r.map((x) => [x.month, x.spentSat, x.incomeSat]), [["2026-10", 2500, 0], ["2026-11", 18500, 100000]]);
 });
+
+import { buildClearModel, buildWalletModel, buildBillsModel, maskPromptpay, validPromptpay, promptpayQrUrl } from "../web/src/model.js";
+test("buildClearModel: เรียงรายการของฉันก่อน และมีประวัติ", () => {
+    const m = buildClearModel({ name: "CARE", month: "2026-11", members, transactions, settlements: [] });
+    assert.equal(m.lines[0].role, "pay");
+    assert.equal(m.lines[0].from, "CARE");
+    assert.equal(m.mineToPay.length, 1);
+    const g = buildClearModel({ name: "GAME", month: "2026-11", members, transactions, settlements: [] });
+    assert.equal(g.mineToReceive.length >= 1, true);
+    assert.equal(buildClearModel({ name: "GAME", month: "2026-11", members, transactions, settlements }).history.length, 1);
+    assert.equal(buildClearModel({ name: "GAME", month: "2026-09", members, transactions: [], settlements: [] }).cleared, true);
+});
+test("buildWalletModel: สรุปกระเป๋า + รายการเรียงใหม่ไปเก่า", () => {
+    const w = buildWalletModel({ name: "GAME", month: "2026-11", walletItems, transactions, settlements });
+    assert.equal(w.netSat, 81500);
+    assert.deepEqual(w.items.map((i) => i.id), ["w2", "w1"]);
+    assert.equal(w.receivedBackSat, 10000);
+});
+test("buildBillsModel: ค้นหา และส่วนของฉัน", () => {
+    const b = buildBillsModel({ name: "GAME", month: "2026-11", transactions });
+    assert.equal(b.all.length, 2);
+    assert.equal(b.myShareSat, 14500);
+    assert.equal(buildBillsModel({ name: "GAME", month: "2026-11", transactions, search: "t" }).all.length, 0);
+    assert.equal(buildBillsModel({ name: "AOY", month: "2026-11", transactions }).mine.length, 1);
+});
+test("พร้อมเพย์: ตรวจรูปแบบ ปิดบางส่วน และสร้างลิงก์ QR", () => {
+    assert.equal(maskPromptpay("081-234-5678"), "081234XXXX");
+    assert.equal(validPromptpay("081 234 5678"), "0812345678");
+    assert.equal(validPromptpay("12345"), "");
+    assert.equal(promptpayQrUrl("0812345678", 500.5), "https://promptpay.io/0812345678/500.50");
+    assert.equal(promptpayQrUrl("123", 5), "");
+    assert.equal(promptpayQrUrl("0812345678", 0), "");
+    assert.equal(maskPromptpay("1234567890123"), "X-XXXX-XXXXX-23-X");
+});

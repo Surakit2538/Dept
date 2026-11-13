@@ -1,6 +1,6 @@
 // การเชื่อมต่อ: LINE (LIFF), Firestore (เฉพาะคอลเลกชันข้อมูลกลุ่มที่กฎอนุญาต) และ API ของเรา (กระเป๋า)
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -137,4 +137,69 @@ export async function loadWallet(month, { current = false } = {}) {
 
 export async function addWallet(entry) {
     return api("/api/shortcut-transaction", { action: "wallet-add", ...entry, source: "web" });
+}
+
+/** ข้อมูลสมาชิกทั้งกลุ่ม (ชื่อ พร้อมเพย์ ชื่อจริง) ใช้ทำ QR และหน้าโปรไฟล์ จำไว้ 10 นาที */
+export async function loadProfiles() {
+    const hit = cacheGet("profiles", TTL_MEMBERS);
+    if (hit) return hit;
+    const s = await getDocs(collection(db, "members"));
+    const byName = new Map();
+    s.docs.forEach((d) => {
+        const x = d.data();
+        const name = upName(x.name);
+        if (!name) return;
+        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId) };
+        const cur = byName.get(name);
+        if (!cur || (!cur.hasLine && p.hasLine) || (!cur.promptpay && p.promptpay)) byName.set(name, p);
+    });
+    const list = [...byName.values()];
+    cacheSet("profiles", list);
+    return list;
+}
+
+/** ล้างข้อมูลที่จำไว้ของเดือนหนึ่ง (หลังมีการแก้ไข) */
+export function invalidateMonth(month) {
+    try { localStorage.removeItem(KEY + "m:" + month); localStorage.removeItem(KEY + "w:" + month); } catch (e) { /* ไม่มีอะไร */ }
+}
+export function invalidateProfiles() {
+    try { localStorage.removeItem(KEY + "profiles"); localStorage.removeItem(KEY + "members"); } catch (e) { /* ไม่มีอะไร */ }
+}
+
+export async function deleteWalletEntry(id) {
+    return api("/api/shortcut-transaction", { action: "wallet-delete", id });
+}
+
+export async function deleteBill(id) {
+    await deleteDoc(doc(db, "transactions", String(id)));
+}
+
+export async function saveMyProfile(memberId, fields) {
+    await updateDoc(doc(db, "members", String(memberId)), { ...fields, realNameUpdatedAt: new Date(), promptpayUpdatedAt: new Date() });
+    invalidateProfiles();
+}
+
+/** ส่งสลิปให้เซิร์ฟเวอร์ตรวจ (ผู้โอนคือผู้ล็อกอินเสมอ เซิร์ฟเวอร์ไม่เชื่อชื่อจากหน้าเว็บ) */
+export async function verifySlip(file, { to, amount, month }) {
+    const base64Image = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result).split(",")[1]);
+        r.onerror = () => reject(new Error("อ่านไฟล์รูปไม่สำเร็จ"));
+        r.readAsDataURL(file);
+    });
+    const idToken = liff.getIDToken();
+    const res = await fetch("/api/verify-settlement-slip", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, to, amount, month, base64Image })
+    });
+    let json = {};
+    try { json = await res.json(); } catch (e) { /* ไม่ใช่ JSON */ }
+    return { ok: res.ok && json.success === true, json, status: res.status };
+}
+
+export function logout() {
+    try { liff.logout(); } catch (e) { /* ไม่มีอะไร */ }
+    clearCache();
+    location.href = "/app/";
 }
