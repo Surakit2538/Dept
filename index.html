@@ -925,6 +925,11 @@
                 id="nav-settings">
                 <i class="fa-solid fa-users-gear w-5"></i> ตั้งค่า
             </button>
+            <button onclick="window.iphoneSetup && window.iphoneSetup.openModal()"
+                class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50 text-indigo-600"
+                id="nav-iphone-setup">
+                <i class="fa-solid fa-mobile-screen-button w-5"></i> 📱 ตั้งค่า iPhone
+            </button>
             <button onclick="window.location.href='admin.html'"
                 class="admin-only-btn hidden w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200 mt-2"
                 id="nav-admin">
@@ -1163,6 +1168,23 @@
         <!-- SETTINGS -->
         <section id="view-settings" class="hidden p-4 md:p-8 max-w-5xl mx-auto space-y-6">
             <h2 class="text-xl font-bold text-slate-800">ตั้งค่าระบบ</h2>
+
+            <!-- ปุ่มตั้งค่า iPhone -->
+            <div class="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 border border-indigo-500/20 rounded-2xl p-4 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
+                        <i class="fa-solid fa-mobile-screen-button"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">📱 ตั้งค่า iPhone</h4>
+                        <p class="text-xs text-slate-500">ติดตั้ง Widget บนหน้าจอโฮม</p>
+                    </div>
+                </div>
+                <button onclick="window.iphoneSetup && window.iphoneSetup.openModal()"
+                    class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+                    เปิดตั้งค่า
+                </button>
+            </div>
 
             <!-- ข้อมูลส่วนตัว -->
             <div class="bg-white rounded-xl p-4 shadow-sm border border-slate-100">
@@ -5135,6 +5157,9 @@
 
     <!-- 3D Login Enhancement Script -->
     <script src="login-assets/login-3d.js"></script>
+
+    <!-- iPhone Setup Script -->
+    <script src="iphone-setup.js"></script>
 </body>
 
 
