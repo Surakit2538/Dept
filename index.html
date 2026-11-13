@@ -2172,6 +2172,12 @@
                         if (!snap.empty) existingById = { ...snap.docs[0].data(), id: snap.docs[0].id, ref: snap.docs[0].ref };
                     }
 
+                    if (!existingById && usedCache) {
+                        this.updateDebug("Not in cache. Checking DB...");
+                        const snapId = await getDocs(query(collection(db, "members"), where("lineUserId", "==", userId)));
+                        if (!snapId.empty) existingById = { ...snapId.docs[0].data(), id: snapId.docs[0].id, ref: snapId.docs[0].ref };
+                    }
+
                     if (existingById) {
                         this.updateDebug("User Found (" + (usedCache ? "Cache" : "DB") + ")");
                         const ref = existingById.ref || doc(db, "members", existingById.id);
@@ -2189,7 +2195,7 @@
                     } else {
                         this.updateDebug("ID Not Found. Checking Name...");
                         let existingByName = (this.data.rawMembers || []).find(m => m.name === displayName);
-                        if (!usedCache && !existingByName) {
+                        if (!existingByName) {
                             const qName = query(collection(db, "members"), where("name", "==", displayName));
                             const snapName = await getDocs(qName);
                             if (!snapName.empty) existingByName = { ...snapName.docs[0].data(), id: snapName.docs[0].id, ref: snapName.docs[0].ref };
@@ -2214,6 +2220,11 @@
                                 this.showAccountLinkingModal(unlinkedMembers);
                             } else {
                                 this.updateDebug("Creating New User...");
+                                const dupCheck = await getDocs(query(collection(db, "members"), where("lineUserId", "==", userId)));
+                                if (!dupCheck.empty) {
+                                    this.completeLogin(isSuperAdmin ? 'admin' : 'member', displayName, profile.pictureUrl);
+                                    return;
+                                }
                                 await addDoc(collection(db, "members"), { name: displayName, lineUserId: userId, pictureUrl: profile.pictureUrl || '', role: 'member', joinedAt: new Date().toISOString() });
                                 this.completeLogin(isSuperAdmin ? 'admin' : 'member', displayName, profile.pictureUrl);
                             }
@@ -2544,8 +2555,9 @@
                     const displayName = profile.displayName.toUpperCase().trim();
                     const userId = profile.userId;
 
-                    // Create new user as usual
-                    await addDoc(collection(db, "members"), {
+                    // Create new user as usual (ถ้ามีรหัส LINE นี้อยู่แล้วไม่สร้างซ้ำ)
+                    const dupCheck = await getDocs(query(collection(db, "members"), where("lineUserId", "==", userId)));
+                    if (dupCheck.empty) await addDoc(collection(db, "members"), {
                         name: displayName,
                         lineUserId: userId,
                         pictureUrl: profile.pictureUrl || '',

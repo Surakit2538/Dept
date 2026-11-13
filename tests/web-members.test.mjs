@@ -102,3 +102,9 @@ test("ไม่เหลือการเรียกฟังก์ชัน�
     assert.ok(!html.includes("this.loadTransactions"));
     assert.ok(!html.includes("deleteMember('${m}')"));
 });
+
+test("ล็อกอิน: ไม่สร้างสมาชิกซ้ำ (ตรวจฐานข้อมูลจริงก่อนสร้างเสมอ)", () => {
+    assert.match(html, /Not in cache\. Checking DB/);
+    assert.ok(!html.includes("if (!usedCache && !existingByName)"));
+    assert.equal((html.match(/const dupCheck = await getDocs\(query\(collection\(db, "members"\), where\("lineUserId", "==", userId\)\)\)/g) || []).length, 2);
+});
