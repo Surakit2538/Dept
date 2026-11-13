@@ -33,7 +33,7 @@ function createFakeAdminDb() {
         get: async () => {
             let ids = [...col(name).keys()];
             for (const [f, op, v] of cs) {
-                const t = { "==": (a, b) => a === b, ">=": (a, b) => a !== undefined && a >= b, "<=": (a, b) => a !== undefined && a <= b }[op];
+                const t = { "==": (a, b) => a === b, ">=": (a, b) => a !== undefined && a >= b, "<=": (a, b) => a !== undefined && a <= b, "in": (a, b) => b.includes(a) }[op];
                 ids = ids.filter((id) => t(col(name).get(id)[f], v));
             }
             const docs = ids.map((id) => snapOf(name, id));

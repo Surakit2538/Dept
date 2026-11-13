@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Icon, Mark, iconFor } from "./icons.jsx";
-import { signIn, watchGroup, loadWallet, addWallet, bangkokToday } from "./data.js";
+import { signIn, loadMembers, loadPastMonth, watchMonth, loadWallet, addWallet, bangkokToday, clearCache } from "./data.js";
 import { buildHomeModel, buildMonthly, lastMonths, shiftMonth, monthLabel, monthShort, baht } from "./model.js";
 
 const TABS = [
@@ -189,7 +189,7 @@ function Recent({ items }) {
     );
 }
 
-function Home({ model, series, month, onMonth, daily }) {
+function Home({ model, series, month, onMonth, daily, onRefresh }) {
     return (
         <div class="home-grid">
             <div class="col">
@@ -203,6 +203,7 @@ function Home({ model, series, month, onMonth, daily }) {
             <div class="col">
                 <Debts m={model} />
                 <Recent items={model.recent} />
+                <button type="button" class="btn sm ghost" style={{ alignSelf: "flex-start" }} onClick={onRefresh}>รีเฟรชข้อมูลย้อนหลัง</button>
             </div>
         </div>
     );
@@ -287,11 +288,14 @@ function App() {
     const nowMonth = today.slice(0, 7);
     const since = useMemo(() => shiftMonth(nowMonth, -(MONTHS_BACK - 1)), [nowMonth]);
     const [month, setMonth] = useState(nowMonth);
-    const [group, setGroup] = useState(null);
-    const [wallet, setWallet] = useState([]);
+    const [members, setMembers] = useState(null);
+    const [byMonth, setByMonth] = useState({}); // { "2026-11": { transactions, settlements, wallet } }
+    const [loadError, setLoadError] = useState(false);
     const [sheet, setSheet] = useState(false);
     const [toast, setToast] = useState("");
     const [reload, setReload] = useState(0);
+
+    const patchMonth = (m, part) => setByMonth((cur) => ({ ...cur, [m]: { ...(cur[m] || {}), ...part } }));
 
     useEffect(() => {
         signIn().then((u) => { if (u) setAuth({ state: "ok", user: u }); }).catch((e) => setAuth({ state: "error", message: e.message }));
@@ -301,19 +305,46 @@ function App() {
         addEventListener("hashchange", h);
         return () => removeEventListener("hashchange", h);
     }, []);
-    useEffect(() => {
-        if (auth.state !== "ok") return undefined;
-        return watchGroup(since, (d) => setGroup(d));
-    }, [auth.state, since]);
+    // สมาชิก: อ่านครั้งเดียว (จำไว้ 10 นาที)
     useEffect(() => {
         if (auth.state !== "ok") return;
-        loadWallet(since).then(setWallet).catch((e) => setToast(e.message));
-    }, [auth.state, since, reload]);
+        loadMembers().then(setMembers).catch(() => setLoadError(true));
+    }, [auth.state, reload]);
+    // เดือนนี้: ฟังแบบสด (อ่านเฉพาะรายการที่เปลี่ยน)
+    useEffect(() => {
+        if (auth.state !== "ok") return undefined;
+        return watchMonth(nowMonth, (d) => { if (d.error) setLoadError(true); else patchMonth(nowMonth, d); });
+    }, [auth.state, nowMonth]);
+    useEffect(() => {
+        if (auth.state !== "ok") return;
+        loadWallet(nowMonth, { current: true }).then((w) => patchMonth(nowMonth, { wallet: w })).catch((e) => setToast(e.message));
+    }, [auth.state, nowMonth, reload]);
+    // เดือนที่ผ่านมาแล้ว (สำหรับกราฟรายเดือน และเดือนที่เลือกดู): อ่านครั้งเดียวแล้วจำไว้ 1 วัน
+    const wantedMonths = useMemo(() => [...new Set([...lastMonths(nowMonth, CHART_MONTHS), month])].filter((m) => m !== nowMonth), [nowMonth, month]);
+    useEffect(() => {
+        if (auth.state !== "ok") return;
+        wantedMonths.forEach((m) => {
+            if (byMonth[m] && byMonth[m].transactions && byMonth[m].wallet) return;
+            Promise.all([loadPastMonth(m), loadWallet(m)])
+                .then(([g, w]) => patchMonth(m, { transactions: g.transactions, settlements: g.settlements, wallet: w }))
+                .catch(() => setLoadError(true));
+        });
+    }, [auth.state, wantedMonths]);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
 
-    const ready = auth.state === "ok" && group && !group.error;
-    const model = useMemo(() => (ready ? buildHomeModel({ name: auth.user.name, month, today, members: group.members, transactions: group.transactions, settlements: group.settlements, walletItems: wallet }) : null), [ready, auth, group, wallet, month, today]);
-    const series = useMemo(() => (ready ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: group.transactions, settlements: group.settlements, walletItems: wallet }) : []), [ready, auth, group, wallet, nowMonth]);
+    const monthsReady = auth.state === "ok" && members && wantedMonths.every((m) => byMonth[m] && byMonth[m].transactions && byMonth[m].wallet) && byMonth[nowMonth] && byMonth[nowMonth].transactions && byMonth[nowMonth].settlements && byMonth[nowMonth].wallet;
+    const all = useMemo(() => {
+        if (!monthsReady) return null;
+        const vals = Object.values(byMonth);
+        return {
+            transactions: vals.flatMap((v) => v.transactions || []),
+            settlements: vals.flatMap((v) => v.settlements || []),
+            wallet: vals.flatMap((v) => v.wallet || [])
+        };
+    }, [monthsReady, byMonth]);
+    const model = useMemo(() => (all ? buildHomeModel({ name: auth.user.name, month, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, auth, members, month, today]);
+    const series = useMemo(() => (all ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : []), [all, auth, nowMonth]);
+    const refreshAll = () => { clearCache(); setByMonth({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
 
     if (auth.state === "loading") return <div class="app"><div class="center"><Mark size={64} /><div>กำลังเข้าสู่ระบบ</div></div></div>;
     if (auth.state === "error") return <div class="app"><div class="center"><Mark size={64} /><div role="alert">{auth.message}</div><a class="btn" href="/index.html">ไปหน้าเดิม</a></div></div>;
@@ -336,7 +367,7 @@ function App() {
                     <h1 class="page-title">{TABS.find((t) => t.key === tab)?.label}</h1>
                     {tab === "home" && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}
                 </div>
-                {tab === "home" && (group && group.error ? <div class="card" role="alert">โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชหน้านี้</div> : model ? <Home model={model} series={series} month={month} onMonth={setMonth} daily={model.daily} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
+                {tab === "home" && (loadError ? <div class="card" role="alert">โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชหน้านี้ <button type="button" class="btn sm ghost" onClick={refreshAll}>ลองใหม่</button></div> : model ? <Home model={model} series={series} month={month} onMonth={setMonth} daily={model.daily} onRefresh={refreshAll} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
                 {tab === "bills" && <Stub title="บิล" note="หน้านี้กำลังสร้าง ใช้หน้าเดิมไปก่อน" href="/index.html#history" />}
                 {tab === "clear" && <Stub title="เคลียร์เงิน" note="หน้านี้กำลังสร้าง ใช้หน้าเดิมไปก่อน (QR และอัปโหลดสลิปอยู่ที่นั่น)" href="/index.html#clear" />}
                 {tab === "wallet" && <Stub title="กระเป๋า" note="หน้านี้กำลังสร้าง ตอนนี้ดูสรุปได้ที่หน้าแรก และบันทึกรายรับ/รายจ่ายได้จากปุ่มบันทึก" href="#home" />}

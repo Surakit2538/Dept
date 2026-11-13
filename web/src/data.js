@@ -40,21 +40,62 @@ export async function signIn() {
     };
 }
 
-/** ฟังข้อมูลกลุ่มตั้งแต่เดือน since เป็นต้นไปแบบสด + รายชื่อสมาชิก + ประวัติเคลียร์เงินทั้งหมด คืนฟังก์ชันยกเลิก */
-export function watchGroup(since, onData) {
-    const state = { members: null, transactions: null, settlements: null };
-    const emit = () => { if (state.members && state.transactions && state.settlements) onData({ ...state }); };
+// ---------- แคชในเครื่อง: ประหยัดโควต้าอ่านของ Firestore (ฟรี 50,000 ครั้ง/วัน) ----------
+const TTL_PAST = 24 * 60 * 60 * 1000; // เดือนที่ผ่านมาแล้วแทบไม่เปลี่ยน จำไว้ 1 วัน
+const TTL_MEMBERS = 10 * 60 * 1000;
+const KEY = "dm:v2:";
+
+function cacheGet(key, ttl) {
+    try {
+        const raw = localStorage.getItem(KEY + key);
+        if (!raw) return null;
+        const { t, v } = JSON.parse(raw);
+        return Date.now() - t < ttl ? v : null;
+    } catch (e) { return null; }
+}
+function cacheSet(key, v) {
+    try { localStorage.setItem(KEY + key, JSON.stringify({ t: Date.now(), v })); } catch (e) { /* เต็มหรือถูกปิด ไม่เป็นไร */ }
+}
+export function clearCache() {
+    try { Object.keys(localStorage).filter((k) => k.startsWith(KEY)).forEach((k) => localStorage.removeItem(k)); } catch (e) { /* ไม่มีอะไร */ }
+}
+
+const upName = (n) => String(n || "").replace(/\s+/g, " ").trim().toUpperCase();
+
+/** รายชื่อสมาชิก (อ่านครั้งเดียว จำไว้ 10 นาที) */
+export async function loadMembers() {
+    const hit = cacheGet("members", TTL_MEMBERS);
+    if (hit) return hit;
+    const s = await getDocs(collection(db, "members"));
+    const names = [...new Set(s.docs.map((d) => upName(d.data().name)).filter(Boolean))];
+    cacheSet("members", names);
+    return names;
+}
+
+/** บิลและประวัติเคลียร์เงินของเดือนที่ผ่านมาแล้ว อ่านครั้งเดียวแล้วจำไว้ */
+export async function loadPastMonth(month) {
+    const hit = cacheGet("m:" + month, TTL_PAST);
+    if (hit) return hit;
+    const [tx, st] = await Promise.all([
+        getDocs(query(collection(db, "transactions"), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`))),
+        getDocs(query(collection(db, "settlements"), where("month", "==", month)))
+    ]);
+    const v = { transactions: tx.docs.map((d) => ({ id: d.id, ...d.data() })), settlements: st.docs.map((d) => ({ id: d.id, ...d.data() })) };
+    cacheSet("m:" + month, v);
+    return v;
+}
+
+/** เดือนปัจจุบันฟังแบบสด (อ่านเฉพาะรายการที่เปลี่ยน) */
+export function watchMonth(month, onData) {
+    const state = { transactions: null, settlements: null };
+    const emit = () => { if (state.transactions && state.settlements) onData({ ...state }); };
     const fail = (e) => onData({ error: e });
     const un = [
-        onSnapshot(collection(db, "members"), (s) => {
-            state.members = [...new Set(s.docs.map((d) => String(d.data().name || "").replace(/\s+/g, " ").trim().toUpperCase()).filter(Boolean))];
-            emit();
-        }, fail),
-        onSnapshot(query(collection(db, "transactions"), where("date", ">=", `${since}-01`)), (s) => {
+        onSnapshot(query(collection(db, "transactions"), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`)), (s) => {
             state.transactions = s.docs.map((d) => ({ id: d.id, ...d.data() }));
             emit();
         }, fail),
-        onSnapshot(collection(db, "settlements"), (s) => {
+        onSnapshot(query(collection(db, "settlements"), where("month", "==", month)), (s) => {
             state.settlements = s.docs.map((d) => ({ id: d.id, ...d.data() }));
             emit();
         }, fail)
@@ -82,9 +123,16 @@ export async function api(path, body) {
     return json;
 }
 
-export async function loadWallet(since) {
-    const r = await api("/api/shortcut-transaction", { action: "wallet-list", since });
-    return Array.isArray(r.items) ? r.items : [];
+/** รายการกระเป๋าของเดือนหนึ่ง (เดือนที่ผ่านมาแล้วจำไว้ 1 วัน เดือนนี้ถามใหม่ทุกครั้ง) */
+export async function loadWallet(month, { current = false } = {}) {
+    if (!current) {
+        const hit = cacheGet("w:" + month, TTL_PAST);
+        if (hit) return hit;
+    }
+    const r = await api("/api/shortcut-transaction", { action: "wallet-list", month });
+    const items = Array.isArray(r.items) ? r.items : [];
+    if (!current) cacheSet("w:" + month, items);
+    return items;
 }
 
 export async function addWallet(entry) {

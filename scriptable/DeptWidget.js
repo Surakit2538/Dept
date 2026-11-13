@@ -8,7 +8,7 @@
  * เวอร์ชัน 2.0.1 (Device Token Auth)
  */
 
-const SCRIPT_VERSION = "2.0.2";
+const SCRIPT_VERSION = "2.0.3";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ==========================================
@@ -17,6 +17,8 @@ const BASE_URL = "https://dept-game.vercel.app";
 const widget = await createWidget();
 
 if (config.runsInWidget) {
+    // ขอให้ iPhone รีเฟรชไม่ถี่กว่าทุก 30 นาที (แต่ละครั้งอ่านฐานข้อมูล ประหยัดโควต้าฟรีของ Firebase)
+    widget.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
     Script.setWidget(widget);
 } else {
     // พรีวิวขนาดกลางเมื่อกดรันในแอป Scriptable

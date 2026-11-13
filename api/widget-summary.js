@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where } from "./auth-helpers.js";
+import { collection, getDocs, getDoc, doc, query, where } from "./auth-helpers.js";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 import { memberMonthSummary, displayBaht } from "../lib/ledger.mjs";
 
@@ -71,13 +71,9 @@ export default async function handler(req, res) {
             return res.status(400).json({ success: false, message: 'ไม่พบชื่อสมาชิกจากรหัสอุปกรณ์' });
         }
 
-        // ตรวจสอบว่าชื่อสมาชิกยังคงมีอยู่ในระบบ members
-        const membersSnap = await getDocs(collection(db, 'members'));
-        const allMemberNames = membersSnap.docs
-            .map(d => (d.data().name || '').trim().toUpperCase())
-            .filter(Boolean);
-
-        if (!allMemberNames.includes(targetUser)) {
+        // ตรวจสอบว่าสมาชิกยังอยู่ในระบบ: อ่านเฉพาะเอกสารของตัวเอง (1 ครั้ง) ประหยัดโควต้าอ่านของ Firestore
+        const memberSnap = await getDoc(doc(db, 'members', auth.memberId));
+        if (!memberSnap.exists()) {
             return res.status(404).json({
                 success: false,
                 message: `ไม่พบชื่อสมาชิก "${auth.name}" ในระบบ กรุณาติดต่อผู้ดูแล`
@@ -101,22 +97,16 @@ export default async function handler(req, res) {
         const transSnap = await getDocs(transQuery);
         const allTrans = transSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-        // ดึง personal_expenses เผื่อมีรายการส่วนตัว (D1)
+        // รายจ่ายส่วนตัวของเจ้าของเท่านั้น เฉพาะเดือนนี้ (เดิมอ่านของทุกคน) กระเป๋าใหม่ + รายการเดิมที่ยังไม่ถูกย้าย ไม่ซ้ำ id
         let allPersonal = [];
         try {
-            const personalQuery = query(
-                collection(db, 'personal_expenses'),
-                where('date', '>=', `${currentMonthStr}-01`),
-                where('date', '<=', `${currentMonthStr}-31`)
-            );
-            const personalSnap = await getDocs(personalQuery);
-            allPersonal = personalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-            // กระเป๋าใหม่ (wallet_entries): เฉพาะรายจ่ายส่วนตัวของเจ้าของ ไม่ซ้ำกับรายการเดิมที่ย้ายมา (id เดียวกัน)
-            const walletSnap = await getDocs(query(
-                collection(db, 'wallet_entries'),
-                where('date', '>=', `${currentMonthStr}-01`),
-                where('date', '<=', `${currentMonthStr}-31`)
-            ));
+            const [walletSnap, legacySnap] = await Promise.all([
+                getDocs(query(collection(db, 'wallet_entries'), where('ownerName', '==', targetUser), where('month', '==', currentMonthStr))),
+                getDocs(query(collection(db, 'personal_expenses'), where('payer', '==', targetUser)))
+            ]);
+            allPersonal = legacySnap.docs
+                .map(d => ({ id: d.id, ...d.data() }))
+                .filter(p => String(p.date || '').startsWith(currentMonthStr));
             const seen = new Set(allPersonal.map(p => p.id));
             walletSnap.docs.forEach(d => {
                 const w = d.data();
@@ -124,7 +114,6 @@ export default async function handler(req, res) {
                 allPersonal.push({ id: d.id, ...w });
             });
         } catch (e) {
-            // คอลเลกชันอาจยังไม่มีในเฟส 1
             allPersonal = [];
         }
 

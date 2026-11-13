@@ -2,6 +2,7 @@
 export function createFakeFirestore() {
     const store = new Map(); // collection -> Map(id -> data)
     let autoId = 0;
+    let readCount = 0; // นับจำนวนเอกสารที่อ่านออกมา เทียบกับ "reads" ของ Firestore จริง
     const col = (name) => {
         if (!store.has(name)) store.set(name, new Map());
         return store.get(name);
@@ -24,12 +25,14 @@ export function createFakeFirestore() {
                         ">=": (a, b) => a !== undefined && a >= b,
                         "<=": (a, b) => a !== undefined && a <= b,
                         ">": (a, b) => a !== undefined && a > b,
-                        "<": (a, b) => a !== undefined && a < b
+                        "<": (a, b) => a !== undefined && a < b,
+                        "in": (a, b) => Array.isArray(b) && b.includes(a)
                     }[c.op];
                     if (!test) throw new Error("fake firestore: unsupported op " + c.op);
                     docs = docs.filter((d) => test(d.data()[c.field], c.value));
                 }
             }
+            readCount += docs.length;
             return { docs, empty: docs.length === 0, forEach: (fn) => docs.forEach(fn) };
         },
         getDoc: async (ref) => {
@@ -68,6 +71,8 @@ export function createFakeFirestore() {
         seed: (name, id, data) => col(name).set(id, clone(data)),
         all: (name) => [...col(name).values()].map(clone),
         count: (name) => col(name).size,
+        reads: () => readCount,
+        resetReads: () => { readCount = 0; },
         has: (name, id) => col(name).has(id)
     };
 }

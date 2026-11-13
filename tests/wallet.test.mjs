@@ -143,3 +143,19 @@ test("wallet-list since: ดึงหลายเดือนในครั้�
     const one = await call({ action: "wallet-list", month: "2026-10", idToken: "good-me" });
     assert.deepEqual(one.body.items.map((i) => i.id), ["w-oct"]);
 });
+
+test("ประหยัดการอ่าน: wallet-list อ่านเฉพาะเดือนที่ขอ ไม่อ่านทั้งประวัติ", async () => {
+    const { call, db } = setup();
+    for (let i = 0; i < 120; i++) {
+        const m = `2026-${String((i % 10) + 1).padStart(2, "0")}`;
+        db.seed("wallet_entries", `bulk${i}`, { ownerName: "G A M E 👾", payer: "G A M E 👾", type: "expense", amount: 1, date: `${m}-05`, month: m, timestamp: i });
+    }
+    db.resetReads();
+    const one = await call({ action: "wallet-list", month: "2026-03", idToken: "good-me" });
+    assert.equal(one.body.count, 12);
+    // อ่านรายการเดือนนั้น 12 + รายการส่วนตัวเดิม (p1) 1 + สมาชิกที่ล็อกอิน 1 ไม่ใช่ 120+
+    assert.ok(db.reads() <= 20, `อ่าน ${db.reads()} เอกสาร`);
+    db.resetReads();
+    await call({ action: "wallet-list", since: "2026-09", idToken: "good-me" });
+    assert.ok(db.reads() < 60, `since อ่าน ${db.reads()} เอกสาร`);
+});
