@@ -13,6 +13,7 @@ const db = getDbInstance();
 export default createShortcutHandler({
     db,
     fs,
+    dbMode: () => fs.getDbMode(db),
     verifyDeviceToken,
     authenticateIdToken: createLineIdAuthenticator({
         db,

@@ -118,6 +118,11 @@ export async function deleteDoc(ref) {
     return isClientObj(ref) ? client.deleteDoc(ref) : ref.delete();
 }
 
+/** บอกว่า db นี้เป็นโหมดไหน (ใช้ตรวจหลังตั้งกุญแจแอดมิน) */
+export function getDbMode(db) {
+    return isAdminDb(db) ? "admin" : "client";
+}
+
 export function writeBatch(db) {
     return isAdminDb(db) ? db.batch() : client.writeBatch(db);
 }
