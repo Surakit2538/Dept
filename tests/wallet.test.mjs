@@ -133,3 +133,13 @@ test("Widget อ่านรายจ่ายส่วนตัวจาก wal
     assert.match(w, /w\.type === 'income'/);
     assert.match(w, /seen\.has\(d\.id\)/);
 });
+
+test("wallet-list since: ดึงหลายเดือนในครั้งเดียว", async () => {
+    const { call, db } = setup();
+    db.seed("wallet_entries", "w-oct", { ownerName: "G A M E 👾", payer: "G A M E 👾", type: "income", amount: 500, date: "2026-10-05", month: "2026-10", timestamp: 1 });
+    db.seed("wallet_entries", "w-aug", { ownerName: "G A M E 👾", payer: "G A M E 👾", type: "income", amount: 700, date: "2026-08-05", month: "2026-08", timestamp: 1 });
+    const r = await call({ action: "wallet-list", since: "2026-09", idToken: "good-me" });
+    assert.deepEqual(r.body.items.map((i) => i.id).sort(), ["p1", "w-oct"].sort());
+    const one = await call({ action: "wallet-list", month: "2026-10", idToken: "good-me" });
+    assert.deepEqual(one.body.items.map((i) => i.id), ["w-oct"]);
+});

@@ -73,3 +73,12 @@ test("ตัวช่วย: หมวด เดือน การแสดง�
     assert.equal(baht(4063, { sign: true }), "+฿4,063");
     assert.equal(baht(-12.5, { decimals: 2 }), "-฿12.50");
 });
+
+import { buildMonthly, lastMonths, monthShort } from "../web/src/model.js";
+test("buildMonthly / lastMonths: ใช้ไปและรายรับรายเดือน", () => {
+    assert.deepEqual(lastMonths("2026-11", 3), ["2026-09", "2026-10", "2026-11"]);
+    assert.deepEqual(lastMonths("2026-02", 3), ["2025-12", "2026-01", "2026-02"]);
+    assert.equal(monthShort("2026-11"), "พ.ย.");
+    const r = buildMonthly({ name: "GAME", months: ["2026-10", "2026-11"], transactions, settlements, walletItems });
+    assert.deepEqual(r.map((x) => [x.month, x.spentSat, x.incomeSat]), [["2026-10", 2500, 0], ["2026-11", 18500, 100000]]);
+});

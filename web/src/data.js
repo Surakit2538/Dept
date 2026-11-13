@@ -40,8 +40,8 @@ export async function signIn() {
     };
 }
 
-/** ฟังข้อมูลกลุ่มของเดือนหนึ่งแบบสด + รายชื่อสมาชิก คืนฟังก์ชันยกเลิก */
-export function watchGroup(month, onData) {
+/** ฟังข้อมูลกลุ่มตั้งแต่เดือน since เป็นต้นไปแบบสด + รายชื่อสมาชิก + ประวัติเคลียร์เงินทั้งหมด คืนฟังก์ชันยกเลิก */
+export function watchGroup(since, onData) {
     const state = { members: null, transactions: null, settlements: null };
     const emit = () => { if (state.members && state.transactions && state.settlements) onData({ ...state }); };
     const fail = (e) => onData({ error: e });
@@ -50,11 +50,11 @@ export function watchGroup(month, onData) {
             state.members = [...new Set(s.docs.map((d) => String(d.data().name || "").replace(/\s+/g, " ").trim().toUpperCase()).filter(Boolean))];
             emit();
         }, fail),
-        onSnapshot(query(collection(db, "transactions"), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`)), (s) => {
+        onSnapshot(query(collection(db, "transactions"), where("date", ">=", `${since}-01`)), (s) => {
             state.transactions = s.docs.map((d) => ({ id: d.id, ...d.data() }));
             emit();
         }, fail),
-        onSnapshot(query(collection(db, "settlements"), where("month", "==", month)), (s) => {
+        onSnapshot(collection(db, "settlements"), (s) => {
             state.settlements = s.docs.map((d) => ({ id: d.id, ...d.data() }));
             emit();
         }, fail)
@@ -82,8 +82,8 @@ export async function api(path, body) {
     return json;
 }
 
-export async function loadWallet(month) {
-    const r = await api("/api/shortcut-transaction", { action: "wallet-list", month });
+export async function loadWallet(since) {
+    const r = await api("/api/shortcut-transaction", { action: "wallet-list", since });
     return Array.isArray(r.items) ? r.items : [];
 }
 

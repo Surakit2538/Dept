@@ -135,3 +135,23 @@ export function baht(n, { decimals = 0, sign = false } = {}) {
     const prefix = v < 0 ? "-" : sign && v > 0 ? "+" : "";
     return `${prefix}฿${s}`;
 }
+
+/** ใช้ไป/รายรับรายเดือน (สตางค์) สำหรับกราฟรายเดือน months เรียงเก่า -> ใหม่ */
+export function buildMonthly({ name, months, transactions, settlements, walletItems = [] }) {
+    const me = normalizeName(name);
+    const entries = walletItems.map((x) => ({ ownerName: me, type: x.type, amount: x.amount, date: x.date }));
+    return months.map((month) => {
+        const w = walletMonth({ name: me, month, walletEntries: entries, transactions, settlements });
+        return { month, spentSat: w.expenseTotal, incomeSat: w.income };
+    });
+}
+
+/** n เดือนล่าสุดที่จบที่ endMonth (เก่า -> ใหม่) */
+export function lastMonths(endMonth, n) {
+    return Array.from({ length: n }, (_, i) => shiftMonth(endMonth, i - (n - 1)));
+}
+
+/** ชื่อเดือนสั้นๆ ใต้แท่งกราฟ */
+export function monthShort(month) {
+    return TH_MONTHS[Number(month.slice(5, 7)) - 1];
+}

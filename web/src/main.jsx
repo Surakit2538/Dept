@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Icon, Mark, iconFor } from "./icons.jsx";
 import { signIn, watchGroup, loadWallet, addWallet, bangkokToday } from "./data.js";
-import { buildHomeModel, shiftMonth, monthLabel, baht, CATEGORIES } from "./model.js";
+import { buildHomeModel, buildMonthly, lastMonths, shiftMonth, monthLabel, monthShort, baht } from "./model.js";
 
 const TABS = [
     { key: "home", label: "หน้าแรก", icon: "home" },
@@ -12,94 +12,137 @@ const TABS = [
     { key: "wallet", label: "กระเป๋า", icon: "wallet" },
     { key: "me", label: "ฉัน", icon: "user" }
 ];
+const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", other: "dots" };
+const MONTHS_BACK = 12; // โหลดย้อนหลังกี่เดือน
+const CHART_MONTHS = 6; // กราฟรายเดือนแสดงกี่เดือน
 
-function MonthPicker({ month, onChange, max }) {
+function MonthPicker({ month, onChange, min, max }) {
     return (
         <div class="month" role="group" aria-label="เลือกเดือน">
-            <button type="button" aria-label="เดือนก่อนหน้า" onClick={() => onChange(shiftMonth(month, -1))}><Icon name="left" size={16} /></button>
+            <button type="button" aria-label="เดือนก่อนหน้า" disabled={month <= min} onClick={() => onChange(shiftMonth(month, -1))}><Icon name="left" size={16} /></button>
             <span class="num">{monthLabel(month)}</span>
             <button type="button" aria-label="เดือนถัดไป" disabled={month >= max} onClick={() => onChange(shiftMonth(month, 1))}><Icon name="right" size={16} /></button>
         </div>
     );
 }
 
-function Home({ model, me }) {
-    const m = model;
-    const tone = m.netSat >= 0 ? "rcv" : "pay";
+/* ---------- วงแหวน: ใช้ไปกี่เปอร์เซ็นต์ของรายรับ ---------- */
+function Ring({ percent }) {
+    const r = 42, c = 2 * Math.PI * r;
+    const p = Math.max(0, Math.min(100, percent));
     return (
-        <>
-            <div>
-                <div class="lbl">สุทธิเดือนนี้</div>
-                <div class={`big num ${tone}`}>{baht(m.net, { sign: true })}</div>
-                <div class="strip">
-                    <div><div class="lbl">รายรับ</div><div class="num">{baht(m.incomeSat / 100, { decimals: 2 })}</div></div>
-                    <div class="vl" />
-                    <div><div class="lbl">ใช้ไป</div><div class="num pay">{baht(m.spentSat / 100, { decimals: 2 })}</div></div>
-                </div>
-                {m.spentPercent !== null ? (
-                    <>
-                        <div class="bar" style={{ marginTop: "12px" }} role="img" aria-label={`ใช้ไป ${m.spentPercent}% ของรายรับ`}><i style={{ width: `${Math.min(100, m.spentPercent)}%` }} /></div>
-                        <div class="axis"><span>ใช้ไป {m.spentPercent}% ของรายรับ</span><span>{m.spentPercent <= 100 ? `เหลือ ${100 - m.spentPercent}%` : "ใช้เกินรายรับ"}</span></div>
-                    </>
-                ) : <div class="axis"><span>ยังไม่มีรายรับเดือนนี้ กดปุ่มบันทึกเพื่อเพิ่ม</span></div>}
-            </div>
-
-            {m.categories.length > 0 && (
-                <div class="card">
-                    <div class="hd-row"><h3>ใช้ไปกับอะไร</h3><span class="lbl">หมวดจากไอคอนรายการ</span></div>
-                    <div class="stack" role="img" aria-label="สัดส่วนรายจ่ายตามหมวด">
-                        {m.categories.map((c, i) => <i key={c.key} style={{ width: `${c.percent}%`, opacity: [1, .75, .55, .35, .2][i] ?? .2 }} />)}
-                    </div>
-                    <div class="legend">
-                        {m.categories.map((c, i) => <span key={c.key}><em style={{ opacity: [1, .75, .55, .35, .2][i] ?? .2 }} />{c.label}<b>{c.percent}%</b></span>)}
-                    </div>
-                </div>
-            )}
-
-            {m.daily.length > 0 && m.spentSat > 0 && (
-                <div class="card">
-                    <div class="hd-row"><h3>ใช้ไปรายวัน</h3><span class="num lbl">เฉลี่ย {baht(m.average)} ต่อวัน</span></div>
-                    <DailyBars days={m.daily} />
-                    <div class="axis num"><span>1</span><span>{m.daily[m.daily.length - 1].today ? `${m.daily.length} วันนี้` : m.daily.length}</span></div>
-                </div>
-            )}
-
-            <div class="card">
-                <div class="hd-row"><h3>เพื่อนค้างฉัน</h3>{m.owedTotal > 0 && <span class="num rcv" style={{ fontWeight: 600, fontSize: "13px" }}>รวม {baht(m.owedTotal)}</span>}</div>
-                {m.owedToMe.length === 0 && <div class="empty">ไม่มีใครค้างคุณในเดือนนี้</div>}
-                {m.owedToMe.map((o) => <DebtRow key={o.name} d={o} tone="g" action="ขอ" />)}
-                {m.iOweTotal > 0 && (
-                    <>
-                        <div class="hd-row" style={{ marginTop: "14px" }}><h3>ฉันค้างเพื่อน</h3><span class="num pay" style={{ fontWeight: 600, fontSize: "13px" }}>รวม {baht(m.iOweTotal)}</span></div>
-                        {m.iOwe.map((o) => <DebtRow key={o.name} d={o} tone="p" action="โอน" />)}
-                    </>
-                )}
-            </div>
-
-            {m.recent.length > 0 && (
-                <div class="card" style={{ paddingBlock: "6px" }}>
-                    {m.recent.map((r) => (
-                        <div class="row" key={r.kind + r.id}>
-                            <span class="ico"><Icon name={r.kind === "income" ? "down" : iconFor(r.icon)} /></span>
-                            <div class="grow"><div class="t">{r.desc || "ไม่ระบุ"}</div><div class="s">{r.kind === "group" ? "ส่วนของฉันในกลุ่ม" : r.kind === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {r.date.slice(8, 10)}/{r.date.slice(5, 7)}</div></div>
-                            <div class={`num ${r.kind === "income" ? "rcv" : ""}`}>{baht(r.satang / 100, { decimals: 2 })}</div>
-                        </div>
-                    ))}
-                </div>
-            )}
-        </>
-    );
-}
-
-function DailyBars({ days }) {
-    const max = Math.max(...days.map((d) => d.satang), 1);
-    return (
-        <div class="days" role="img" aria-label="ใช้ไปรายวัน">
-            {days.map((d) => <i key={d.day} class={d.today ? "today" : ""} style={{ height: `${Math.max(3, Math.round((d.satang / max) * 100))}%` }} />)}
+        <div class="ring" role="img" aria-label={`ใช้ไป ${percent}% ของรายรับ`}>
+            <svg viewBox="0 0 100 100" width="112" height="112" aria-hidden="true">
+                <circle cx="50" cy="50" r={r} fill="none" stroke="var(--chip)" stroke-width="10" />
+                <circle cx="50" cy="50" r={r} fill="none" stroke={percent > 100 ? "var(--pay)" : "var(--pay)"} stroke-width="10" stroke-linecap="round"
+                    stroke-dasharray={`${(c * p) / 100} ${c}`} transform="rotate(-90 50 50)" />
+            </svg>
+            <div class="ring-t"><b class="num">{percent}%</b><span>ของรายรับ</span></div>
         </div>
     );
 }
 
+function Hero({ m }) {
+    const hasIncome = m.incomeSat > 0;
+    const over = hasIncome && m.netSat < 0;
+    const label = !hasIncome ? "ใช้ไปเดือนนี้" : over ? "ใช้เกินรายรับ" : "เหลือใช้เดือนนี้";
+    const value = !hasIncome ? m.spentSat / 100 : Math.abs(m.netSat) / 100;
+    const tone = !hasIncome || over ? "pay" : "rcv";
+    return (
+        <section class="card hero">
+            <div class="hero-l">
+                <div class="lbl">{label}</div>
+                <div class={`big num ${tone}`}>{baht(Math.round(value))}</div>
+                <div class="chips">
+                    <span class="chip"><Icon name="down" size={14} class="rcv" />รายรับ <b class="num">{baht(m.incomeSat / 100)}</b></span>
+                    <span class="chip"><Icon name="up" size={14} class="pay" />ใช้ไป <b class="num">{baht(m.spentSat / 100)}</b></span>
+                </div>
+                <div class="lbl" style={{ marginTop: "10px" }}>ส่วนตัว {baht(m.personalSat / 100)} &middot; ส่วนของฉันในกลุ่ม {baht(m.groupShareSat / 100)}</div>
+            </div>
+            {hasIncome ? <Ring percent={m.spentPercent} /> : (
+                <div class="hint"><Icon name="wallet" size={22} />ยังไม่ได้บันทึกรายรับ<br />กดปุ่ม &ldquo;บันทึก&rdquo; เพื่อเพิ่ม</div>
+            )}
+        </section>
+    );
+}
+
+function SectionTitle({ icon, title, note }) {
+    return (
+        <div class="sec-t">
+            <span class="ico"><Icon name={icon} /></span>
+            <div><h3>{title}</h3>{note && <p>{note}</p>}</div>
+        </div>
+    );
+}
+
+/* ---------- ใช้ไปกับอะไร: แถวไอคอน + แถบ อ่านจบในแวบเดียว ---------- */
+function Categories({ cats }) {
+    if (cats.length === 0) return null;
+    const top = cats[0];
+    return (
+        <section class="card">
+            <SectionTitle icon="bag" title="ใช้ไปกับอะไร" note={`ส่วนใหญ่ไปกับ ${top.label} ${top.percent}%`} />
+            <div class="cats">
+                {cats.map((c) => (
+                    <div class="cat" key={c.key}>
+                        <span class="ico big-ico"><Icon name={CAT_ICON[c.key] || "dots"} /></span>
+                        <div class="cat-b">
+                            <div class="cat-r"><span>{c.label}</span><span class="num"><b>{c.percent}%</b> <em>{baht(c.satang / 100)}</em></span></div>
+                            <div class="bar"><i style={{ width: `${Math.max(3, Math.round((c.percent / top.percent) * 100))}%` }} /></div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+/* ---------- รายเดือนก่อน แตะเดือนแล้วดูรายวัน ---------- */
+function Monthly({ series, selected, onSelect }) {
+    const max = Math.max(1, ...series.map((s) => Math.max(s.spentSat, s.incomeSat)));
+    const hasIncome = series.some((s) => s.incomeSat > 0);
+    return (
+        <>
+            <SectionTitle icon="bill" title="ใช้ไปรายเดือน" note="แตะแท่งเพื่อดูรายวันของเดือนนั้น" />
+            <div class="months" role="group" aria-label="ใช้ไปรายเดือน">
+                {series.map((s) => {
+                    const on = s.month === selected;
+                    return (
+                        <button type="button" class={`mcol ${on ? "on" : ""}`} key={s.month} aria-pressed={on} aria-label={`${monthLabel(s.month)} ใช้ไป ${baht(s.spentSat / 100)}`} onClick={() => onSelect(s.month)}>
+                            <span class="mval num">{s.spentSat > 0 ? shortBaht(s.spentSat / 100) : ""}</span>
+                            <span class="mplot">
+                                <i class="mbar" style={{ height: `${Math.max(2, Math.round((s.spentSat / max) * 100))}%` }} />
+                                {s.incomeSat > 0 && <i class="mline" style={{ bottom: `${Math.round((s.incomeSat / max) * 100)}%` }} />}
+                            </span>
+                            <span class="mlab">{monthShort(s.month)}</span>
+                        </button>
+                    );
+                })}
+            </div>
+            {hasIncome && <div class="legend2"><span><i class="k-bar" />ใช้ไป</span><span><i class="k-line" />รายรับ</span></div>}
+        </>
+    );
+}
+
+const shortBaht = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n)));
+
+function Daily({ month, daily }) {
+    if (!daily.length) return null;
+    const max = Math.max(1, ...daily.map((d) => d.satang));
+    const top = daily.reduce((a, d) => (d.satang > a.satang ? d : a), daily[0]);
+    const total = daily.reduce((a, d) => a + d.satang, 0);
+    return (
+        <div class="daily">
+            <div class="hd-row"><h4>รายวันของ {monthLabel(month)}</h4>{total > 0 && <span class="lbl">วันที่ใช้มากสุด {top.day} {monthShort(month)} {baht(top.satang / 100)}</span>}</div>
+            <div class="days" role="img" aria-label="ใช้ไปรายวัน">
+                {daily.map((d) => <i key={d.day} class={d.satang === top.satang && total > 0 ? "peak" : d.today ? "today" : ""} style={{ height: `${Math.max(3, Math.round((d.satang / max) * 100))}%` }} />)}
+            </div>
+            <div class="axis num"><span>1</span><span>{Math.ceil(daily.length / 2)}</span><span>{daily.length}</span></div>
+        </div>
+    );
+}
+
+/* ---------- หนี้ ---------- */
 function DebtRow({ d, tone, action }) {
     return (
         <div class="dbar">
@@ -110,6 +153,57 @@ function DebtRow({ d, tone, action }) {
                 <a class="btn sm ghost" href="/index.html#clear" title="เปิดหน้าเคลียร์เงิน (หน้าเดิม)"><Icon name={tone === "g" ? "qr" : "swap"} size={14} />{action}</a>
             </div>
             <div class={`bar ${tone === "g" ? "g" : ""}`}><i style={{ width: `${d.share}%` }} /></div>
+        </div>
+    );
+}
+
+function Debts({ m }) {
+    return (
+        <section class="card">
+            <SectionTitle icon="people" title="เพื่อนค้างฉัน" note={m.owedTotal > 0 ? `รอรับคืนรวม ${baht(m.owedTotal)}` : undefined} />
+            {m.owedToMe.length === 0 && <div class="empty"><Icon name="check" size={16} class="rcv" /> ไม่มีใครค้างคุณในเดือนนี้</div>}
+            {m.owedToMe.map((o) => <DebtRow key={o.name} d={o} tone="g" action="ขอ" />)}
+            {m.iOweTotal > 0 && (
+                <>
+                    <div class="sub-t">ฉันค้างเพื่อน <span class="num pay">{baht(m.iOweTotal)}</span></div>
+                    {m.iOwe.map((o) => <DebtRow key={o.name} d={o} tone="p" action="โอน" />)}
+                </>
+            )}
+        </section>
+    );
+}
+
+function Recent({ items }) {
+    if (!items.length) return null;
+    return (
+        <section class="card">
+            <SectionTitle icon="bill" title="รายการล่าสุด" />
+            {items.map((r) => (
+                <div class="row" key={r.kind + r.id}>
+                    <span class="ico"><Icon name={r.kind === "income" ? "down" : iconFor(r.icon)} /></span>
+                    <div class="grow"><div class="t">{r.desc || "ไม่ระบุ"}</div><div class="s">{r.kind === "group" ? "ส่วนของฉันในกลุ่ม" : r.kind === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {r.date.slice(8, 10)}/{r.date.slice(5, 7)}</div></div>
+                    <div class={`num ${r.kind === "income" ? "rcv" : ""}`}>{baht(r.satang / 100, { decimals: 2 })}</div>
+                </div>
+            ))}
+        </section>
+    );
+}
+
+function Home({ model, series, month, onMonth, daily }) {
+    return (
+        <div class="home-grid">
+            <div class="col">
+                <Hero m={model} />
+                <Categories cats={model.categories} />
+                <section class="card">
+                    <Monthly series={series} selected={month} onSelect={onMonth} />
+                    <Daily month={month} daily={daily} />
+                </section>
+            </div>
+            <div class="col">
+                <Debts m={model} />
+                <Recent items={model.recent} />
+            </div>
         </div>
     );
 }
@@ -191,6 +285,7 @@ function App() {
     const [tab, setTab] = useState(location.hash.slice(1) || "home");
     const today = useMemo(() => bangkokToday(), []);
     const nowMonth = today.slice(0, 7);
+    const since = useMemo(() => shiftMonth(nowMonth, -(MONTHS_BACK - 1)), [nowMonth]);
     const [month, setMonth] = useState(nowMonth);
     const [group, setGroup] = useState(null);
     const [wallet, setWallet] = useState([]);
@@ -208,32 +303,40 @@ function App() {
     }, []);
     useEffect(() => {
         if (auth.state !== "ok") return undefined;
-        setGroup(null);
-        return watchGroup(month, (d) => setGroup(d));
-    }, [auth.state, month]);
+        return watchGroup(since, (d) => setGroup(d));
+    }, [auth.state, since]);
     useEffect(() => {
         if (auth.state !== "ok") return;
-        loadWallet(month).then(setWallet).catch((e) => setToast(e.message));
-    }, [auth.state, month, reload]);
+        loadWallet(since).then(setWallet).catch((e) => setToast(e.message));
+    }, [auth.state, since, reload]);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
 
-    const model = useMemo(() => {
-        if (auth.state !== "ok" || !group || group.error) return null;
-        return buildHomeModel({ name: auth.user.name, month, today, members: group.members, transactions: group.transactions, settlements: group.settlements, walletItems: wallet });
-    }, [auth, group, wallet, month, today]);
+    const ready = auth.state === "ok" && group && !group.error;
+    const model = useMemo(() => (ready ? buildHomeModel({ name: auth.user.name, month, today, members: group.members, transactions: group.transactions, settlements: group.settlements, walletItems: wallet }) : null), [ready, auth, group, wallet, month, today]);
+    const series = useMemo(() => (ready ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: group.transactions, settlements: group.settlements, walletItems: wallet }) : []), [ready, auth, group, wallet, nowMonth]);
 
-    if (auth.state === "loading") return <div class="shell"><div class="center"><Mark size={64} /><div>กำลังเข้าสู่ระบบ</div></div></div>;
-    if (auth.state === "error") return <div class="shell"><div class="center"><Mark size={64} /><div role="alert">{auth.message}</div><a class="btn" href="/index.html">ไปหน้าเดิม</a></div></div>;
+    if (auth.state === "loading") return <div class="app"><div class="center"><Mark size={64} /><div>กำลังเข้าสู่ระบบ</div></div></div>;
+    if (auth.state === "error") return <div class="app"><div class="center"><Mark size={64} /><div role="alert">{auth.message}</div><a class="btn" href="/index.html">ไปหน้าเดิม</a></div></div>;
 
     const go = (k) => { location.hash = k; setTab(k); };
+    // ถ้าเดือนที่เลือกไม่อยู่ใน 6 เดือนของกราฟ ให้กราฟยังแสดง 6 เดือนล่าสุด (เดือนที่เลือกไม่ถูกไฮไลต์)
     return (
-        <div class="shell">
+        <div class="app">
+            <aside class="side" aria-label="เมนูหลัก">
+                <div class="brand"><Mark size={28} />Dept Money</div>
+                <nav>
+                    {TABS.map((t) => <button type="button" key={t.key} class={`snav ${tab === t.key ? "on" : ""}`} aria-current={tab === t.key ? "page" : undefined} onClick={() => go(t.key)}><Icon name={t.icon} />{t.label}</button>)}
+                </nav>
+                <button type="button" class="btn side-add" onClick={() => setSheet(true)}><Icon name="plus" />บันทึกรายการ</button>
+                <div class="side-me"><span class="av" aria-hidden="true">{[...auth.user.name][0]}</span><span>{auth.user.name}</span></div>
+            </aside>
             <main class="page">
                 <div class="top">
-                    <div class="brand"><Mark size={24} />Dept Money</div>
-                    {tab === "home" && <MonthPicker month={month} onChange={setMonth} max={nowMonth} />}
+                    <div class="brand mobile-only"><Mark size={24} />Dept Money</div>
+                    <h1 class="page-title">{TABS.find((t) => t.key === tab)?.label}</h1>
+                    {tab === "home" && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}
                 </div>
-                {tab === "home" && (group && group.error ? <div class="card" role="alert">โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชหน้านี้</div> : model ? <Home model={model} me={auth.user.name} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
+                {tab === "home" && (group && group.error ? <div class="card" role="alert">โหลดข้อมูลไม่สำเร็จ ลองรีเฟรชหน้านี้</div> : model ? <Home model={model} series={series} month={month} onMonth={setMonth} daily={model.daily} /> : <div class="empty">กำลังโหลดข้อมูล</div>)}
                 {tab === "bills" && <Stub title="บิล" note="หน้านี้กำลังสร้าง ใช้หน้าเดิมไปก่อน" href="/index.html#history" />}
                 {tab === "clear" && <Stub title="เคลียร์เงิน" note="หน้านี้กำลังสร้าง ใช้หน้าเดิมไปก่อน (QR และอัปโหลดสลิปอยู่ที่นั่น)" href="/index.html#clear" />}
                 {tab === "wallet" && <Stub title="กระเป๋า" note="หน้านี้กำลังสร้าง ตอนนี้ดูสรุปได้ที่หน้าแรก และบันทึกรายรับ/รายจ่ายได้จากปุ่มบันทึก" href="#home" />}
