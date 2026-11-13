@@ -5,10 +5,10 @@
 /**
  * Dept Money - iOS Scriptable Widget
  * บันทึกและแสดงสรุปรายจ่ายแบบ Widget บน iPhone
- * เวอร์ชัน 2.0.0 (Device Token Auth)
+ * เวอร์ชัน 2.0.1 (Device Token Auth)
  */
 
-const SCRIPT_VERSION = "2.0.0";
+const SCRIPT_VERSION = "2.0.1";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ==========================================
@@ -90,7 +90,7 @@ async function createWidget() {
 
     // ใช้วันนี้
     const todayStack = metricsRow.addStack();
-    todayStack.layoutVertical();
+    todayStack.layoutVertically();
     const todayLabel = todayStack.addText("ใช้วันนี้");
     todayLabel.font = Font.systemFont(11);
     todayLabel.textColor = new Color("#94A3B8");
@@ -105,7 +105,7 @@ async function createWidget() {
 
     // ใช้เดือนนี้
     const monthStack = metricsRow.addStack();
-    monthStack.layoutVertical();
+    monthStack.layoutVertically();
     const monthLabel = monthStack.addText("ใช้เดือนนี้");
     monthLabel.font = Font.systemFont(11);
     monthLabel.textColor = new Color("#94A3B8");
@@ -197,7 +197,7 @@ async function createWidget() {
 // ==========================================
 function renderErrorWidget(listWidget, title, message, colorHex = "#EF4444") {
     const stack = listWidget.addStack();
-    stack.layoutVertical();
+    stack.layoutVertically();
     stack.centerAlignContent();
 
     const titleText = stack.addText(title);
@@ -265,6 +265,12 @@ async function fetchSummaryData(token) {
                 success: false,
                 status: 404,
                 message: res.message || "ไม่พบชื่อสมาชิกในระบบ"
+            };
+        } else if (statusCode >= 400) {
+            return {
+                success: false,
+                status: statusCode,
+                message: (res && res.message) || `เซิร์ฟเวอร์ตอบกลับผิดพลาด (${statusCode})`
             };
         }
     } catch (e) {
