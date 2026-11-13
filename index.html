@@ -930,6 +930,11 @@
                 id="nav-iphone-setup">
                 <i class="fa-solid fa-mobile-screen-button w-5"></i> 📱 ตั้งค่า iPhone
             </button>
+            <button onclick="window.personalExpenses && window.personalExpenses.openModal()"
+                class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium hover:bg-slate-50 text-emerald-600"
+                id="nav-personal-expenses">
+                <i class="fa-solid fa-wallet w-5"></i> 🧾 รายจ่ายส่วนตัว
+            </button>
             <button onclick="window.location.href='admin.html'"
                 class="admin-only-btn hidden w-full flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-bold bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200 mt-2"
                 id="nav-admin">
@@ -1183,6 +1188,23 @@
                 <button onclick="window.iphoneSetup && window.iphoneSetup.openModal()"
                     class="bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
                     เปิดตั้งค่า
+                </button>
+            </div>
+
+            <!-- ปุ่มรายจ่ายส่วนตัว (ดู/ลบรายการที่บันทึกจากคำสั่งลัด) -->
+            <div class="bg-white rounded-2xl p-4 flex items-center justify-between shadow-sm border border-emerald-100">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-md shrink-0">
+                        <i class="fa-solid fa-wallet"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">🧾 รายจ่ายส่วนตัว</h4>
+                        <p class="text-xs text-slate-500">ดู/ลบรายการที่บันทึกแบบส่วนตัว (เพื่อนไม่เห็น)</p>
+                    </div>
+                </div>
+                <button onclick="window.personalExpenses && window.personalExpenses.openModal()"
+                    class="bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
+                    เปิดดู
                 </button>
             </div>
 
@@ -5160,6 +5182,9 @@
 
     <!-- iPhone Setup Script -->
     <script src="iphone-setup.js"></script>
+
+    <!-- Personal Expenses (ดู/ลบรายจ่ายส่วนตัว) Script: ?v= ใช้บังคับให้โหลดใหม่เมื่อมีการอัปเดต (service worker แคชไฟล์ JS) -->
+    <script src="personal-expenses.js?v=1"></script>
 </body>
 
 

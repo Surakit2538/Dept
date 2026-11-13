@@ -13,7 +13,7 @@
  * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
  */
 
-const SCRIPT_VERSION = "1.1.0";
+const SCRIPT_VERSION = "1.1.1";
 const BASE_URL = "https://dept-game.vercel.app";
 
 function getInputText() {
@@ -53,6 +53,9 @@ async function run() {
 
 const message = await run();
 // ส่งผลลัพธ์กลับให้คำสั่งลัดนำไปแสดงเป็นการแจ้งเตือน (ไม่เปิดหน้าต่างของ Scriptable)
-Script.setShortcutOutput(message);
-console.log(message);
+// ถ้าเงียบ (message ว่าง) จะ "ไม่ส่งอะไรกลับเลย" เพราะคำสั่งลัดนับข้อความว่างว่า "มีค่า" แล้วจะขึ้นแจ้งเตือนเปล่าๆ
+if (message) {
+    Script.setShortcutOutput(message);
+}
+console.log(message || "(เงียบ: สลิปซ้ำหรือไม่ใช่สลิป)");
 Script.complete();
