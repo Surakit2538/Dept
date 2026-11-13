@@ -1953,6 +1953,7 @@
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { splitInstallments } from "./lib/installments.mjs";
+        import { computeMonthLedger, toDisplayPlan } from "./lib/ledger.mjs?v=2";
         import { getFirestore, collection, addDoc, doc, getDocs, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const fApp = initializeApp(firebaseConfig);
@@ -3496,30 +3497,18 @@
 
             async calculateSettlement() {
                 // คำนวณยอดเฉพาะเดือนที่เลือก (Selected Month)
-                const currentMonthTransactions = this.data.transactions.filter(t => t.date && t.date.startsWith(this.data.currentMonth));
-                const balances = {};
-                this.data.members.forEach(m => balances[m] = 0);
-
-                currentMonthTransactions.forEach(t => {
-                    const payer = (t.payer || "").toUpperCase();
-                    if (balances.hasOwnProperty(payer)) balances[payer] += Number(t.amount);
-                    if (t.splits) {
-                        Object.keys(t.splits).forEach(k => {
-                            const memberKey = k.toUpperCase();
-                            if (balances.hasOwnProperty(memberKey)) balances[memberKey] -= Number(t.splits[k]);
-                        });
-                    }
+                // ตัวเลขทั้งหมดมาจากแกนคำนวณกลาง lib/ledger.mjs (ชุดเดียวกับ Widget, LINE, เตือนหนี้, ตรวจสลิป)
+                const ledger = computeMonthLedger({
+                    memberNames: this.data.members,
+                    transactions: this.data.transactions,
+                    settlements: this.data.settlements || [],
+                    month: this.data.currentMonth
                 });
+                const balances = {};
+                Object.keys(ledger.balances).forEach(k => balances[k] = ledger.balances[k] / 100); // บาท
 
                 // Get verified settlements for current month
                 const verifiedSettlements = (this.data.settlements || []).filter(s => s.status === 'verified' && s.month === this.data.currentMonth);
-
-                verifiedSettlements.forEach(s => {
-                    const fromUpper = (s.from || "").toUpperCase();
-                    const toUpper = (s.to || "").toUpperCase();
-                    if (balances.hasOwnProperty(fromUpper)) balances[fromUpper] += Number(s.amount);
-                    if (balances.hasOwnProperty(toUpper)) balances[toUpper] -= Number(s.amount);
-                });
 
                 // Render member status grid
                 const grid = document.getElementById('settlement-status-grid');
@@ -3661,12 +3650,7 @@
                 }
 
                 // Calculate debtors and creditors
-                const debtors = [], creditors = [];
-                this.data.members.forEach(m => {
-                    const b = Math.round(balances[m]);
-                    if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-                    if (b > 1) creditors.push({ name: m, amount: b });
-                });
+                const planLines = toDisplayPlan(ledger.plan);
 
                 this.data.settlementPlan = [];
                 const planContainer = document.getElementById('settlement-plan');
@@ -3706,11 +3690,10 @@
                     if (historyEmpty) historyEmpty.classList.remove('hidden');
                 }
 
-                let i = 0, j = 0;
-                while (i < debtors.length && j < creditors.length) {
-                    const d = debtors[i];
-                    const c = creditors[j];
-                    const pay = Math.min(d.amount, c.amount);
+                for (const line of planLines) {
+                    const d = { name: line.from };
+                    const c = { name: line.to };
+                    const pay = line.amount;
 
                     if (pay > 0) {
                         this.data.settlementPlan.push({ from: d.name, to: c.name, amount: pay, status: 'pending' });
@@ -3724,9 +3707,9 @@
                         item.innerHTML = `
                             <div class="flex items-center justify-between mb-3">
                                 <div class="flex items-center gap-2 font-bold text-white">
-                                    ${getPic(d.name)} <span class="text-sm">${d.name}</span>
+                                    ${getPic(d.name)} <span class="text-sm">${escapeHtml(d.name)}</span>
                                     <i class="fa-solid fa-arrow-right text-[10px] mx-1 text-slate-500"></i>
-                                    ${getPic(c.name)} <span class="text-sm">${c.name}</span>
+                                    ${getPic(c.name)} <span class="text-sm">${escapeHtml(c.name)}</span>
                                 </div>
                                 <div class="font-extrabold text-white text-sm">${pay.toLocaleString()} ฿</div>
                             </div>
@@ -3752,11 +3735,6 @@
                         planContainer.appendChild(item);
                     }
 
-                    d.amount -= pay;
-                    c.amount -= pay;
-
-                    if (d.amount <= 0.01) i++;
-                    if (c.amount <= 0.01) j++;
                 }
 
                 if (!planContainer.innerHTML) {

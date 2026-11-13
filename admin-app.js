@@ -1,5 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, doc, getDocs, updateDoc, deleteDoc, addDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { computeMonthLedger, toDisplayPlan } from "./lib/ledger.mjs?v=2";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -230,57 +231,14 @@ const app = {
         const listContainer = document.getElementById('pending-list');
         listContainer.innerHTML = '';
 
-        const transactions = this.data.transactions.filter(t => t.date && t.date.startsWith(this.data.currentMonth));
-        const verifiedSettlements = this.data.settlements.filter(s => s.status === 'verified' && s.month === this.data.currentMonth);
-
-        // คำนวณยอด
-        const balances = {};
-        this.data.members.forEach(m => balances[m] = 0);
-
-        transactions.forEach(t => {
-            const payer = String(t.payer || '').trim().toUpperCase();
-            if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
-            if (t.splits) {
-                Object.keys(t.splits).forEach(k => {
-                    const memberKey = k.toUpperCase();
-                    if (balances[memberKey] !== undefined) balances[memberKey] -= Number(t.splits[k]);
-                });
-            }
+        // ตัวเลขมาจากแกนคำนวณกลาง lib/ledger.mjs (ชุดเดียวกับหน้าเว็บหลัก)
+        const ledger = computeMonthLedger({
+            memberNames: this.data.members,
+            transactions: this.data.transactions,
+            settlements: this.data.settlements,
+            month: this.data.currentMonth
         });
-
-        // หักยอดที่ verified แล้วออกจาก balances เหมือนใน index.html
-        verifiedSettlements.forEach(s => {
-            const fromKey = String(s.from || '').trim().toUpperCase();
-            const toKey = String(s.to || '').trim().toUpperCase();
-            if (balances[fromKey] !== undefined) balances[fromKey] += Number(s.amount);
-            if (balances[toKey] !== undefined) balances[toKey] -= Number(s.amount);
-        });
-
-        const debtors = [], creditors = [];
-        this.data.members.forEach(m => {
-            const b = Math.round(balances[m]);
-            if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-            if (b > 1) creditors.push({ name: m, amount: b });
-        });
-
-        const pendingPlan = [];
-        let i = 0, j = 0;
-
-        while (i < debtors.length && j < creditors.length) {
-            const debtor = debtors[i];
-            const creditor = creditors[j];
-            const amount = Math.min(debtor.amount, creditor.amount);
-
-            if (amount > 0) {
-                pendingPlan.push({ from: debtor.name, to: creditor.name, amount });
-            }
-
-            debtor.amount -= amount;
-            creditor.amount -= amount;
-
-            if (debtor.amount < 0.01) i++;
-            if (creditor.amount < 0.01) j++;
-        }
+        const pendingPlan = toDisplayPlan(ledger.plan);
 
         if (pendingPlan.length === 0) {
             listContainer.innerHTML = `

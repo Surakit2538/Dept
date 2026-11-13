@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { readRawBody, decideWebhookAccess } from '../lib/line-signature.mjs';
 import { splitInstallments } from '../lib/installments.mjs';
+import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
 import {
     getFirestore, doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
@@ -1367,10 +1368,6 @@ async function generateMemberReport(replyToken, memberName) {
             if (data.name) membersData[data.name.toUpperCase()] = data;
         });
 
-        const balances = {};
-        // Init balances
-        Object.keys(membersData).forEach(m => balances[m] = 0);
-
         let totalPaid = 0;
         let totalShare = 0;
         let recentItems = [];
@@ -1404,64 +1401,28 @@ async function generateMemberReport(replyToken, memberName) {
                     date: t.date
                 });
             }
-
-            // Calculation for Settlement (Current month)
-            if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
-
-            if (t.splits) {
-                Object.entries(t.splits).forEach(([debtor, amount]) => {
-                    const debtorKey = (debtor || "").toUpperCase();
-                    if (balances[debtorKey] !== undefined) balances[debtorKey] -= Number(amount);
-                });
-            }
         });
 
-        // หัก verified settlements ของเดือนปัจจุบัน
+        // 3. ยอดสุทธิ/แผนโอน: ใช้แกนคำนวณกลาง lib/ledger.mjs (ชุดเดียวกับเว็บ, Widget, เตือนหนี้, ตรวจสลิป)
         const verifiedSnap = await getDocs(
             query(collection(db, 'settlements'),
                 where('month', '==', currentMonth))
         );
-        verifiedSnap.forEach(vDoc => {
-            const s = vDoc.data();
-            if (s.status === 'verified') {
-                const fromKey = (s.from || "").toUpperCase();
-                const toKey = (s.to || "").toUpperCase();
-                if (balances[fromKey] !== undefined) balances[fromKey] += Number(s.amount);
-                if (balances[toKey] !== undefined) balances[toKey] -= Number(s.amount);
-            }
+        const ledger = computeMonthLedger({
+            memberNames: Object.keys(membersData),
+            transactions: snapshot.docs.map(d => ({ id: d.id, ...d.data() })),
+            settlements: verifiedSnap.docs.map(d => ({ id: d.id, ...d.data() })),
+            month: currentMonth
         });
-
-        // 3. Match Debts (Settlement Algorithm)
-        const debtors = [];
-        const creditors = [];
-        Object.entries(balances).forEach(([m, bal]) => {
-            const b = Math.round(bal * 100) / 100; // Fix floating point
-            if (b < -1) debtors.push({ name: m, amount: Math.abs(b) });
-            if (b > 1) creditors.push({ name: m, amount: b });
-        });
+        const balances = {};
+        Object.keys(ledger.balances).forEach(k => balances[k] = ledger.balances[k] / 100);
 
         const myDebts = []; // List of people I owe
         const incomingDebts = []; // List of people who owe me
-
-        let i = 0, j = 0;
-        while (i < debtors.length && j < creditors.length) {
-            const debtor = debtors[i];
-            const creditor = creditors[j];
-            const pay = Math.min(debtor.amount, creditor.amount);
-
-            if (debtor.name === upperMember) {
-                myDebts.push({ to: creditor.name, amount: pay });
-            }
-            if (creditor.name === upperMember) {
-                incomingDebts.push({ from: debtor.name, amount: pay });
-            }
-
-            debtor.amount -= pay;
-            creditor.amount -= pay;
-
-            if (debtor.amount < 0.01) i++;
-            if (creditor.amount < 0.01) j++;
-        }
+        toDisplayPlan(ledger.plan).forEach(line => {
+            if (line.from === upperMember) myDebts.push({ to: line.to, amount: line.amount });
+            if (line.to === upperMember) incomingDebts.push({ from: line.from, amount: line.amount });
+        });
 
         // 4. Generate Flex Message
         const balance = balances[upperMember] !== undefined ? balances[upperMember] : (totalPaid - totalShare);

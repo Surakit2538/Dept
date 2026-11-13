@@ -46,5 +46,5 @@ test("ไม่เหลือจุดที่ใส่ข้อความ�
 });
 
 test("admin.html ขยับเลขเวอร์ชันของ admin-app.js (กัน service worker แคชไฟล์เก่า)", () => {
-    assert.match(read("admin.html"), /admin-app\.js\?v=3/);
+    assert.match(read("admin.html"), /admin-app\.js\?v=4/);
 });

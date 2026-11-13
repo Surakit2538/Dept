@@ -91,3 +91,31 @@ test("walletMonth: รายรับ/รายจ่ายส่วนตัว
     assert.equal(w.receivedBack, 10000);
     assert.equal(w.paidBack, 0);
 });
+
+import { toDisplayPlan } from "../lib/ledger.mjs";
+import fs from "node:fs";
+
+test("toDisplayPlan: ปัดบาทเต็มต่อบรรทัด และตัดต่ำกว่า 1 บาท", () => {
+    const p = toDisplayPlan([
+        { from: "A", to: "B", amountSatang: 3334 },
+        { from: "A", to: "C", amountSatang: 4550 },
+        { from: "D", to: "B", amountSatang: 100 }
+    ]);
+    assert.deepEqual(p, [{ from: "A", to: "B", amount: 33 }, { from: "A", to: "C", amount: 46 }, { from: "D", to: "B", amount: 1 }]);
+});
+
+test("2b: ทุกหน้าใช้แกนคำนวณกลาง ไม่เหลือสูตรหนี้ที่เขียนเอง", () => {
+    const read = (f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
+    for (const f of ["index.html", "admin-app.js"]) {
+        const s = read(f);
+        assert.match(s, /computeMonthLedger/, f);
+        assert.match(s, /lib\/ledger\.mjs\?v=2/, f);
+        assert.ok(!/balances\[[a-zA-Z]+\] \+= Number\(t\.amount\)/.test(s), `${f} ยังมีสูตรเดิม`);
+    }
+    assert.match(read("api/widget-summary.js"), /memberMonthSummary/);
+    assert.ok(!/balance \+= /.test(read("api/widget-summary.js")));
+    const hook = read("api/webhook.js");
+    assert.match(hook, /computeMonthLedger\(\{/);
+    assert.ok(!/balances\[payer\] \+= Number\(t\.amount\)/.test(hook));
+    assert.match(read("admin.html"), /admin-app\.js\?v=4/);
+});

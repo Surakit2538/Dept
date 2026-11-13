@@ -1,5 +1,6 @@
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
+import { memberMonthSummary, displayBaht } from "../lib/ledger.mjs";
 
 const db = getDbInstance();
 
@@ -118,7 +119,6 @@ export default async function handler(req, res) {
         let todayExpense = 0;
         let monthExpense = 0;
         let userTransactions = [];
-        let balance = 0;
 
         // คำนวณจาก transactions กลุ่ม
         allTrans.forEach(t => {
@@ -141,13 +141,6 @@ export default async function handler(req, res) {
 
             if (isThisMonth) {
                 monthExpense += userShare;
-                // ยอดค้างรับ-จ่าย (Group Balance)
-                if (tPayer === targetUser) {
-                    balance += Number(t.amount) || 0;
-                }
-                if (userInSplits) {
-                    balance -= Number(tSplits[userInSplits]) || 0;
-                }
             }
 
             if (isToday) {
@@ -202,23 +195,14 @@ export default async function handler(req, res) {
         );
         const settlementsSnap = await getDocs(settlementsQuery);
 
-        settlementsSnap.forEach(sDoc => {
-            const s = sDoc.data();
-            if (s.status === 'verified') {
-                const fromUpper = (s.from || '').trim().toUpperCase();
-                const toUpper = (s.to || '').trim().toUpperCase();
-                const amount = Number(s.amount) || 0;
-
-                // คนโอนเงินเคลียร์หนี้แล้ว -> หนี้ลดลง / balance เพิ่มขึ้น
-                if (fromUpper === targetUser) {
-                    balance += amount;
-                }
-                // คนรับเงินคืนแล้ว -> ยอดที่เพื่อนค้างเราลดลง / balance ลดลง
-                if (toUpper === targetUser) {
-                    balance -= amount;
-                }
-            }
+        // ยอดค้างรับ-จ่าย: ใช้แกนคำนวณกลาง (ชุดเดียวกับเว็บ/LINE/เตือนหนี้)
+        const summary = memberMonthSummary({
+            name: targetUser,
+            transactions: allTrans,
+            settlements: settlementsSnap.docs.map(d => d.data()),
+            month: currentMonthStr
         });
+        const roundedBalance = displayBaht(summary.balance);
 
         // เรียงหารายการล่าสุด
         userTransactions.sort((a, b) => b.timestamp - a.timestamp);
@@ -236,7 +220,6 @@ export default async function handler(req, res) {
         // ข้อความสรุปหนี้สิน
         let debtText = 'เคลียร์ครบแล้ว';
         let debtType = 'settled';
-        const roundedBalance = Math.round(balance);
         if (roundedBalance > 0) {
             debtText = `เพื่อนค้างคุณ ฿${roundedBalance.toLocaleString('th-TH')}`;
             debtType = 'receive';
