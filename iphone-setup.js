@@ -154,7 +154,7 @@ if (failedFile) {
                             <i class="fa-solid fa-receipt"></i> ขั้นที่ 2: สแกนสลิป
                         </span>
                         <p class="text-xs text-slate-300">
-                            หลังรันโค้ดติดตั้งสำเร็จ จะได้สคริปต์ <b>DeptSlip</b> เพิ่มมาด้วย ตั้งเป็นไอคอนบนหน้าจอโฮมแล้วแตะใช้ได้เลย ไม่ต้องสร้างคำสั่งลัด
+                            หลังรันโค้ดติดตั้งสำเร็จ จะได้สคริปต์ <b>DeptSlip</b> เพิ่มมาด้วย สร้างคำสั่งลัด 3 คำสั่ง (ใช้ Live Text ของ iPhone อ่านสลิป รูปไม่ออกจากเครื่อง) แล้วเพิ่มเป็นไอคอนบนหน้าจอโฮม หลังจากนั้นแตะไอคอนเดียวก็สแกนสลิปได้
                         </p>
                         <a href="/shortcut-guide.html" target="_blank" rel="noopener" class="block w-full text-center bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl font-bold text-xs transition-colors">
                             <i class="fa-solid fa-book-open mr-1"></i> เปิดคู่มือการใช้งาน

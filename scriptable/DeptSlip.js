@@ -1,22 +1,23 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: green; icon-glyph: receipt;
-// share-sheet-inputs: image;
 
 /**
  * Dept Money - สแกนสลิป
  * ติดตั้ง/อัปเดตอัตโนมัติด้วย DeptInstaller (จากหน้าเว็บ "ตั้งค่า iPhone")
  *
- * วิธีใช้ (ไม่ต้องสร้างคำสั่งลัด):
- *   1) แตะไอคอน DeptSlip บนหน้าจอโฮม  -> ใช้รูปล่าสุดในอัลบั้ม (แคปสลิปไว้ก่อน)
- *   2) หรือแชร์รูปสลิป -> Run Script -> DeptSlip
- *   3) (ทางเลือก) คำสั่งลัดส่งข้อความที่แยกจากรูปมาให้ ก็รับได้
- * สคริปต์ส่งรูปไปให้เซิร์ฟเวอร์อ่านสลิป -> ถามส่วนตัว/หาร -> บันทึก
+ * วิธีใช้: คำสั่งลัด "สแกนสลิป" (หารูปล่าสุด -> แยกข้อความจากรูปภาพ ด้วย Live Text ของ iPhone
+ *          -> เรียกใช้สคริปต์นี้ โดยส่งข้อความมาที่ช่อง Parameter)
+ * สคริปต์ส่ง "ข้อความ" (ไม่ส่งรูป) ไปให้เซิร์ฟเวอร์แกะยอด -> ถามส่วนตัว/หาร -> บันทึก
  * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
  */
 
-const SCRIPT_VERSION = "1.1.0";
+const SCRIPT_VERSION = "1.2.0";
 const BASE_URL = "https://dept-game.vercel.app";
+
+// ค่าเริ่มต้น false: รูปสลิปไม่ออกจากเครื่อง ใช้ Live Text ของ iPhone อ่านแล้วส่งแต่ข้อความ
+// ตั้งเป็น true เฉพาะเมื่อต้องการให้เซิร์ฟเวอร์ (AI Gemini) อ่านรูปแทน เมื่อไม่มีข้อความส่งมา
+const USE_AI_IMAGE = false;
 
 // ==========================================
 // 🛠️ ตัวช่วย
@@ -27,6 +28,17 @@ async function showMessage(title, message) {
     a.message = message;
     a.addAction("ตกลง");
     await a.present();
+}
+
+/** แสดงข้อความที่ iPhone อ่านได้จากรูป (ไว้ตรวจเวลายอด/ชื่ออ่านผิด และคัดลอกส่งให้ผู้พัฒนาปรับปรุงได้) */
+async function showRawText(text) {
+    const a = new Alert();
+    a.title = "ข้อความที่ iPhone อ่านได้";
+    a.message = text.length > 900 ? text.slice(0, 900) + "\n..." : text;
+    a.addAction("คัดลอกทั้งหมด");
+    a.addAction("กลับ");
+    const i = await a.presentAlert();
+    if (i === 0) Pasteboard.copy(text);
 }
 
 async function callApi(method, path, body) {
@@ -113,6 +125,12 @@ async function main() {
     const text = getInputText();
     if (text.trim()) {
         payload = { action: "parse", text: text };
+    } else if (!USE_AI_IMAGE) {
+        await showMessage(
+            "สแกนสลิป",
+            "ไม่ได้รับข้อความจากคำสั่งลัด\n\nตรวจว่าคำสั่งลัด \"สแกนสลิป\" มีขั้น \"แยกข้อความจากรูปภาพ\" และส่งผลมาที่ช่อง Parameter ของ \"เรียกใช้สคริปต์\" (ดูคู่มือส่วนที่ 2)"
+        );
+        return;
     } else {
         const img = await getSlipImage();
         if (!img) {
@@ -130,13 +148,22 @@ async function main() {
     }
 
     // 3) ถามว่าบันทึกแบบไหน
-    const menu = new Alert();
-    menu.title = "สแกนสลิป";
-    menu.message = parsed.message;
-    menu.addAction("👤 ส่วนตัว");
-    menu.addAction("👥 หารกับเพื่อน");
-    menu.addCancelAction("❌ ปิด");
-    const choice = await menu.presentAlert();
+    let choice;
+    while (true) {
+        const menu = new Alert();
+        menu.title = "สแกนสลิป";
+        menu.message = parsed.message;
+        menu.addAction("👤 ส่วนตัว");
+        menu.addAction("👥 หารกับเพื่อน");
+        if (text.trim()) menu.addAction("🔍 ดูข้อความที่อ่านได้");
+        menu.addCancelAction("❌ ปิด");
+        choice = await menu.presentAlert();
+        if (choice === 2) {
+            await showRawText(text);
+            continue;
+        }
+        break;
+    }
     if (choice === -1) return;
 
     if (choice === 0) {

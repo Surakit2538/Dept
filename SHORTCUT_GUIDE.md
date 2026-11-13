@@ -5,18 +5,20 @@
 
 ## ภาพรวมการทำงาน
 
-**วิธีหลัก (v2) ไม่ต้องสร้างคำสั่งลัด:** แตะไอคอน `DeptSlip` บนหน้าจอโฮม (สร้างจาก Scriptable → Add to Home Screen) หรือแชร์รูปสลิปเข้า Scriptable (`share-sheet-inputs: image`)
+**วิธีหลัก: Live Text ของ iPhone** Shortcut 3 คำสั่ง (Find Photos 1 รูปล่าสุด → Extract Text from Image → Run Script `DeptSlip` ส่งข้อความที่ช่อง Parameter, เปิด Run In App) เพิ่มลงหน้าจอโฮมด้วย Share → เพิ่มไปยังหน้าจอโฮม (ห้ามใช้ปุ่ม Add to Home Screen ของ Scriptable เพราะบน iOS รุ่นใหม่เปิด `data:` URL ใน Safari ไม่ได้) รูปสลิปไม่ออกจากเครื่อง
 
 ```
-[แตะไอคอน DeptSlip] → หยิบรูปล่าสุดในอัลบั้ม (หรือรูปที่แชร์) → ย่อ 1400px JPEG base64
-   → POST /api/shortcut-transaction {action:"parse", imageBase64}   → server ให้ Gemini อ่านสลิป → ได้ message + เก็บ "รายการรอบันทึก"
-   → เมนู: 👤 ส่วนตัว / 👥 หารกับเพื่อน / ❌ ปิด
+[แตะไอคอน] → Shortcut: รูปล่าสุด → Live Text → Run Script DeptSlip (text)
+   → POST /api/shortcut-transaction {action:"parse", text}   → server แกะด้วย regex (lib/slip-core.mjs) → message + เก็บ "รายการรอบันทึก"
+   → เมนู: 👤 ส่วนตัว / 👥 หารกับเพื่อน / 🔍 ดูข้อความที่อ่านได้ / ❌ ปิด
         ส่วนตัว  → POST {action:"save", splitType:"personal"}
         หาร      → GET /api/get-members?include_self=1 → เลือกหลายคน
                    → POST {action:"save", splitType:"equal", splitWith:"<ชื่อ ขึ้นบรรทัดใหม่>"}
 ```
 
-ทางเลือก (ไม่บังคับ) เพื่อให้เด้งอัตโนมัติเมื่อปิดแอปธนาคาร: Shortcut 3 คำสั่ง (หารูปล่าสุด 5 นาที → ถ้ามี → Run Script `DeptSlip` ส่งรูปเป็น input) หรือแบบละเอียดที่เรียก API เองทั้งหมด (ไม่เปิด Scriptable แต่ต้องวางรหัสใน Shortcut) ดูขั้นตอนใน `shortcut-guide.html`
+**ทางเลือกอ่านรูปด้วย AI (ปิดอยู่):** `USE_AI_IMAGE = true` ใน `scriptable/DeptSlip.js` ทำให้ส่งรูปล่าสุดไปให้ Gemini อ่านผ่าน `{action:"parse", imageBase64}` (โค้ดฝั่ง server ยังอยู่ครบ ใช้ `GEMINI_API_KEY`) ค่าเริ่มต้นปิด เพื่อความเป็นส่วนตัวและไม่มีค่าใช้จ่าย
+
+ทางเลือกให้เด้งอัตโนมัติเมื่อปิดแอปธนาคาร: เพิ่มตัวกรอง "วันที่สร้าง อยู่ใน 5 นาที" และคำสั่ง If ในคำสั่งลัดเดิม (ดู `shortcut-guide.html`) หรือแบบละเอียดที่เรียก API เองทั้งหมด
 
 `DeptInstaller` (สร้างจากหน้าเว็บ `iphone-setup.js`) ติดตั้ง `DeptWidget.js` และ `DeptSlip.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง รหัสอยู่ใน Keychain (`dept_token`)
 
@@ -33,7 +35,7 @@
 
 ทุกคำตอบเป็น JSON ที่มี `success`, `status`, `message` เสมอ (Shortcut แสดง `message` ตรงๆ)
 
-### `action: "parse"` — body `{ imageBase64, mimeType }` (หลัก, อ่านด้วย Gemini ผ่าน `lib/gemini-slip.mjs`, ต้องมี `GEMINI_API_KEY`) หรือ `{ text }` (OCR จากคำสั่งลัด, แกะด้วย regex)
+### `action: "parse"` — body `{ text }` (หลัก: ข้อความจาก Live Text, แกะด้วย regex) หรือ `{ imageBase64, mimeType }` (ทางเลือก, อ่านด้วย Gemini ผ่าน `lib/gemini-slip.mjs`, ต้องมี `GEMINI_API_KEY`)
 `status`: `ok` (เก็บ `pending_slips/<memberId>` อายุ 30 นาที) · `no_amount` · `duplicate` · `ocr_failed` · `too_large` — กรณีไม่ใช่ `ok` จะล้างรายการรอบันทึกเก่าด้วย เพื่อไม่ให้กด "บันทึก" แล้วได้สลิปเก่า
 
 ### `action: "save"` — body `{ splitType, splitWith?, desc? }`
