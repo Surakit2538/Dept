@@ -2903,6 +2903,7 @@
                     const base64Image = await getBase64(this.data.selectedSlipFile);
 
                     const payload = {
+                        idToken: (typeof liff !== 'undefined' && liff.getIDToken) ? liff.getIDToken() : null,
                         from: from,
                         to: to,
                         amount: amount,
@@ -5173,6 +5174,7 @@
                 try {
                     // Create payload matching your backend requirement
                     const payload = {
+                        idToken: (typeof liff !== 'undefined' && liff.getIDToken) ? liff.getIDToken() : null,
                         month: monthName,
                         debts: this.data.settlementPlan, // array of {from, to, amount}
                         targetUsers: targetUsers.length > 0 ? targetUsers : undefined

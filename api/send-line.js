@@ -1,3 +1,16 @@
+import * as fs from "firebase/firestore";
+import { getDbInstance } from "./auth-helpers.js";
+import { createLineIdAuthenticator } from "../lib/line-auth.mjs";
+
+const db = getDbInstance();
+const authenticateIdToken = createLineIdAuthenticator({
+    db,
+    fs,
+    channelId: process.env.LINE_LOGIN_CHANNEL_ID || "2008948704"
+});
+
+const normName = (v) => String(v || '').replace(/\s+/g, ' ').trim().toUpperCase();
+
 export default async function handler(req, res) {
     // 1. อนุญาตเฉพาะ Method POST
     if (req.method !== 'POST') {
@@ -5,7 +18,18 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { month, debts, targetUsers } = req.body;
+        // ต้องล็อกอินด้วย LINE และเป็นแอดมินเท่านั้น (ก่อนหน้านี้ใครก็ยิงให้ส่งข้อความเข้า LINE ได้)
+        const auth = await authenticateIdToken(req.body && req.body.idToken);
+        if (!auth.authenticated) return res.status(auth.status || 401).json({ message: auth.message });
+        if (!auth.isAdmin) return res.status(403).json({ message: 'เฉพาะแอดมินเท่านั้นที่ส่งสรุปยอดได้' });
+
+        const { month, debts: rawDebts, targetUsers } = req.body;
+        const debts = Array.isArray(rawDebts)
+            ? rawDebts
+                .filter(d => d && typeof d.from === 'string' && typeof d.to === 'string' && Number.isFinite(Number(d.amount)))
+                .slice(0, 200)
+                .map(d => ({ from: d.from.slice(0, 60), to: d.to.slice(0, 60), amount: Number(d.amount) }))
+            : [];
         const CHANNEL_ACCESS_TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
         const TARGET_ID = process.env.LINE_GROUP_ID; // ถ้ามีค่านี้จะส่งหาคน/กลุ่มนี้
 
@@ -151,10 +175,18 @@ export default async function handler(req, res) {
         let messagesSent = 0;
 
         if (targetUsers && Array.isArray(targetUsers) && targetUsers.length > 0) {
-            // Send to specific users
-            const sendPromises = targetUsers.map(async (user) => {
+            // Send to specific users — userId ไม่เชื่อค่าจากหน้าเว็บ แต่ดูจากฐานข้อมูลสมาชิกตามชื่อ
+            const memberSnap = await fs.getDocs(fs.collection(db, 'members'));
+            const lineIdByName = new Map();
+            memberSnap.docs.forEach(d => {
+                const m = d.data();
+                if (m.lineUserId && !lineIdByName.has(normName(m.name))) lineIdByName.set(normName(m.name), m.lineUserId);
+            });
+            const sendPromises = targetUsers.slice(0, 50).map(async (rawUser) => {
+                const user = { name: String((rawUser && rawUser.name) || ''), userId: lineIdByName.get(normName(rawUser && rawUser.name)) };
+                if (!user.userId) return true; // ไม่มีบัญชี LINE ที่ผูกไว้
                 // Filter debts for this user
-                const userDebts = debts.filter(d => d.from === user.name);
+                const userDebts = debts.filter(d => normName(d.from) === normName(user.name));
                 
                 if (userDebts.length === 0) return true; // Skip if no debts for this user
                 

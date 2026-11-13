@@ -1,4 +1,5 @@
 import { initializeApp } from "firebase/app";
+import { readRawBody, decideWebhookAccess } from '../lib/line-signature.mjs';
 import {
     getFirestore, doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
@@ -61,11 +62,28 @@ function getBangkokMonthString(date = new Date()) {
     return `${y}-${m}`;
 }
 
+// ปิด bodyParser เพื่อให้ได้เนื้อหาดิบไว้ตรวจลายเซ็นของ LINE
+export const config = { api: { bodyParser: false } };
+
 // --- MAIN HANDLER ---
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
-    const events = req.body.events || [];
+    const rawBody = await readRawBody(req);
+    const access = decideWebhookAccess({
+        rawBody,
+        signature: req.headers['x-line-signature'],
+        secret: process.env.LINE_CHANNEL_SECRET,
+        // ตั้ง LINE_SIGNATURE_ENFORCE=1 เมื่อเห็นใน log ว่าลายเซ็นถูกต้องแล้ว ถึงจะเริ่มปฏิเสธคำขอที่ลายเซ็นผิด
+        enforce: process.env.LINE_SIGNATURE_ENFORCE === '1'
+    });
+    if (access.reason === 'no_secret') console.warn('[webhook] LINE_CHANNEL_SECRET not set: signature not checked');
+    else if (access.valid === false) console.warn('[webhook] signature mismatch:', access.reason);
+    if (!access.allow) return res.status(401).send('Invalid signature');
+
+    let body = {};
+    try { body = JSON.parse(rawBody.toString('utf8') || '{}'); } catch (e) { return res.status(400).send('Bad Request'); }
+    const events = body.events || [];
     await Promise.all(events.map(async (event) => {
         try {
             if (event.type === 'message') {

@@ -1,5 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import * as fsModule from "firebase/firestore";
+import { createLineIdAuthenticator } from "../lib/line-auth.mjs";
 import { verifySlipWithSlipOK, matchReceiverName, getSlipErrorMessage } from './slipok-helpers.js';
 import { 
     getMemberByName as getMemberByNameHelper, 
@@ -21,12 +23,22 @@ const firebaseConfig = {
 
 const firebaseApp = initializeApp(firebaseConfig);
 const db = getFirestore(firebaseApp);
+const authenticateIdToken = createLineIdAuthenticator({
+    db,
+    fs: fsModule,
+    channelId: process.env.LINE_LOGIN_CHANNEL_ID || "2008948704"
+});
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') return res.status(405).json({ success: false, message: 'Method Not Allowed' });
 
     try {
-        const { base64Image, from, to, amount, month } = req.body;
+        // ต้องล็อกอินด้วย LINE: ผู้โอนคือสมาชิกที่ล็อกอินอยู่ ไม่เชื่อชื่อที่ส่งมาจากหน้าเว็บ (กันแอบอ้างเป็นคนอื่น)
+        const auth = await authenticateIdToken(req.body && req.body.idToken);
+        if (!auth.authenticated) return res.status(auth.status || 401).json({ success: false, message: auth.message });
+        const from = auth.name;
+
+        const { base64Image } = req.body;
 
         if (!base64Image) {
             return res.status(400).json({ success: false, message: 'ไม่พบไฟล์รูปภาพสลิป หรือไฟล์ใหญ่เกินส่งผ่านระบบได้' });

@@ -7,6 +7,6 @@
         "form-data": "^4.0.0"
     },
     "scripts": {
-        "test": "node --test tests/slip-core.test.mjs tests/shortcut-service.test.mjs tests/image-parse.test.mjs tests/personal-expenses.test.mjs tests/ledger.test.mjs tests/settlement-match.test.mjs tests/reminders.test.mjs tests/web-members.test.mjs tests/xss.test.mjs"
+        "test": "node --test tests/slip-core.test.mjs tests/shortcut-service.test.mjs tests/image-parse.test.mjs tests/personal-expenses.test.mjs tests/ledger.test.mjs tests/settlement-match.test.mjs tests/reminders.test.mjs tests/web-members.test.mjs tests/xss.test.mjs tests/security-1d.test.mjs"
     }
 }
