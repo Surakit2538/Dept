@@ -21,23 +21,38 @@ const BASE_URL = "${BASE_URL}";
 // 1. บันทึก Token ลง Keychain ของ iOS อย่างปลอดภัย
 Keychain.set("dept_token", DEVICE_TOKEN);
 
-// 2. ดาวน์โหลดโค้ด Widget เวอร์ชันล่าสุด
-const req = new Request(\`\${BASE_URL}/scriptable/DeptWidget.js\`);
-const code = await req.loadString();
+// 2. ดาวน์โหลดสคริปต์ทั้งหมดเวอร์ชันล่าสุด (Widget + สแกนสลิป)
+const FILES = ["DeptWidget.js", "DeptSlip.js"];
+const downloaded = {};
+let failedFile = "";
+for (const name of FILES) {
+    try {
+        const code = await new Request(\`\${BASE_URL}/scriptable/\${name}\`).loadString();
+        // 3. ตรวจสอบความสมบูรณ์ก่อนบันทึก
+        if (!code.includes("SCRIPT_VERSION") || !code.includes("Script.complete();") || code.includes("<!DOCTYPE html>")) {
+            failedFile = name;
+            break;
+        }
+        downloaded[name] = code;
+    } catch (e) {
+        failedFile = name;
+        break;
+    }
+}
 
-// 3. ตรวจสอบความสมบูรณ์ของโค้ดก่อนบันทึก
-if (!code.includes("SCRIPT_VERSION") || !code.includes("Script.complete();") || code.includes("<!DOCTYPE html>")) {
+if (failedFile) {
     const errAlert = new Alert();
     errAlert.title = "ติดตั้งไม่สำเร็จ ❌";
-    errAlert.message = "ไม่สามารถดาวน์โหลดไฟล์สคริปต์ที่สมบูรณ์ได้ กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง";
+    errAlert.message = \`ดาวน์โหลดไฟล์ \${failedFile} ไม่สมบูรณ์ (ยังไม่มีการเปลี่ยนแปลงใดๆ) กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง\`;
     errAlert.addAction("ตกลง");
     await errAlert.present();
     Script.complete();
 } else {
-    // 4. บันทึกลง Scriptable
+    // 4. บันทึกลง Scriptable (บันทึกเมื่อโหลดครบทุกไฟล์แล้วเท่านั้น)
     const fm = FileManager.iCloud() ? FileManager.iCloud() : FileManager.local();
-    const filePath = fm.joinPath(fm.documentsDirectory(), "DeptWidget.js");
-    fm.writeString(filePath, code);
+    for (const name of FILES) {
+        fm.writeString(fm.joinPath(fm.documentsDirectory(), name), downloaded[name]);
+    }
 
     // 5. ทดสอบเรียก API ยืนยันว่ารหัสใช้งานได้จริง
     let confirmedUser = "";
@@ -52,7 +67,7 @@ if (!code.includes("SCRIPT_VERSION") || !code.includes("Script.complete();") || 
 
     const successAlert = new Alert();
     successAlert.title = "ติดตั้งสำเร็จ ✅";
-    successAlert.message = \`ติดตั้ง DeptWidget.js เรียบร้อยแล้ว\\n\\nสมาชิก: \${confirmedUser || "${userName}"}\\nตอนนี้คุณสามารถเพิ่ม Widget ไว้บนหน้าจอโฮมได้เลยครับ!\`;
+    successAlert.message = \`ติดตั้ง DeptWidget และ DeptSlip เรียบร้อยแล้ว\n\nสมาชิก: \${confirmedUser || "${userName}"}\nต่อไปให้เพิ่ม Widget บนหน้าจอโฮม และสร้างคำสั่งลัดสแกนสลิปตามคู่มือในเว็บครับ\`;
     successAlert.addAction("เรียบร้อย");
     await successAlert.present();
     Script.complete();

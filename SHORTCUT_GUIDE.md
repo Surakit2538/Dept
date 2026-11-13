@@ -14,7 +14,12 @@
                    → POST {action:"save", splitType:"equal", splitWith:"<ชื่อ ขึ้นบรรทัดใหม่>"}
 ```
 
-Scriptable ใช้แค่ `DeptWidget.js` (Widget) การแกะสลิปทำบน server จึงแก้ parser ได้โดยไม่ต้องให้ผู้ใช้คัดลอกโค้ดลงมือถือ
+มี 2 แบบให้ผู้ใช้เลือก (ทั้งสองเรียก API ชุดเดียวกัน):
+
+- **แบบง่าย (แนะนำ):** Shortcut มี 5 คำสั่ง (หารูป → ถ้ามีรูป → OCR → Run Script `DeptSlip`) เมนูและเลือกเพื่อนอยู่ใน `scriptable/DeptSlip.js` รหัสอ่านจาก Keychain (`dept_token`) ที่ตัวติดตั้งเก็บไว้ จึงไม่ต้องวางรหัสในคำสั่งลัด ข้อเสีย: แอป Scriptable เด้งขึ้นมาบังหน้าจอชั่วคราว
+- **แบบละเอียด:** สร้างทุกขั้นใน Shortcut (เรียก API ด้วย Get Contents of URL เอง) ไม่เปิด Scriptable แต่ต้องวางรหัสใน Shortcut
+
+`DeptInstaller` (สร้างจากหน้าเว็บ `iphone-setup.js`) ติดตั้ง `DeptWidget.js` และ `DeptSlip.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง การแกะสลิปทำบน server จึงแก้ parser ได้โดยไม่ต้องให้ผู้ใช้คัดลอกโค้ดลงมือถือ
 
 ## API
 

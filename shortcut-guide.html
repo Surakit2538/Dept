@@ -44,21 +44,21 @@
   <div class="card">
     <b>ก่อนเริ่มต้องมี</b>
     <ul>
-      <li>ติดตั้ง Widget เรียบร้อยแล้ว (ขั้นที่ 1 ในหน้า "ตั้งค่า iPhone")</li>
-      <li>กด <b>"คัดลอกรหัส"</b> ในหน้า "ตั้งค่า iPhone" ไว้แล้ว (รหัสจะอยู่ในคลิปบอร์ด ถ้าหายไปให้กลับไปกดสร้างรหัสใหม่ แล้วรันโค้ดติดตั้ง Widget ซ้ำ 1 ครั้ง)</li>
+      <li>ติดตั้งแอป <b>Scriptable</b> แล้ว และเคยรันโค้ดติดตั้ง Widget มาแล้ว (ส่วนที่ 1 ด้านล่างจะติดตั้งสคริปต์สแกนสลิปให้ด้วยในขั้นตอนเดียวกัน)</li>
+      <li>รหัสของคุณจะถูกเก็บไว้ในมือถือโดยตัวติดตั้ง <b>ไม่ต้องวางรหัสในคำสั่งลัด</b></li>
     </ul>
   </div>
 
-  <h2>ส่วนที่ 1: สร้างคำสั่งลัด</h2>
-  <p class="muted">เปิดแอป <b>คำสั่งลัด (Shortcuts)</b> → แตะ <b>+</b> → ตั้งชื่อว่า <b>สแกนสลิป</b> → แตะ "เพิ่มการทำงาน" แล้วค้นหาชื่อคำสั่งตามข้างล่าง (ถ้าค้นชื่อไทยไม่เจอ ให้ลองคำในวงเล็บ)</p>
-
+  <h2>ส่วนที่ 1: ติดตั้งสคริปต์ลงมือถือ</h2>
   <ol class="steps">
-    <li><span class="act">ข้อความ</span> <span class="en">(Text)</span><br>
-      แตะในช่องข้อความ แล้ววางรหัสที่คัดลอกมา จะเห็นเป็น <code>Bearer ตามด้วยตัวอักษรยาวๆ</code></li>
+    <li>ในหน้า "ตั้งค่า iPhone" บนเว็บ กด <b>"สร้างรหัสสำหรับเครื่องนี้"</b> โค้ดติดตั้งจะถูกคัดลอกให้อัตโนมัติ</li>
+    <li>เปิดแอป <b>Scriptable</b> → เปิดสคริปต์ <b>DeptInstaller</b> ตัวเดิม (หรือกด + สร้างใหม่) → ลบโค้ดเก่าทั้งหมด → <b>วาง</b>โค้ดใหม่ → กด <b>▶</b></li>
+    <li>ต้องขึ้น <b>"ติดตั้งสำเร็จ ✅"</b> และในรายการสคริปต์จะมี <b>DeptWidget</b> กับ <b>DeptSlip</b> เพิ่มขึ้นมา</li>
+  </ol>
 
-    <li><span class="act">ตั้งค่าตัวแปร</span> <span class="en">(Set Variable)</span><br>
-      ตั้งชื่อตัวแปรว่า <span class="chip" data-copy="รหัส">รหัส</span></li>
-
+  <h2>ส่วนที่ 2: สร้างคำสั่งลัด (แบบง่าย 5 คำสั่ง)</h2>
+  <p class="muted">เปิดแอป <b>คำสั่งลัด (Shortcuts)</b> → แตะ <b>+</b> → ตั้งชื่อว่า <b>สแกนสลิป</b> → แตะ "เพิ่มการทำงาน" แล้วค้นหาตามชื่อข้างล่าง (ถ้าค้นชื่อไทยไม่เจอ ให้ลองคำในวงเล็บ)</p>
+  <ol class="steps">
     <li><span class="act">ค้นหารูปภาพ</span> <span class="en">(Find Photos)</span><br>
       แตะ "เพิ่มตัวกรอง" แล้วตั้งค่า:
       <ul>
@@ -66,69 +66,118 @@
         <li>จัดเรียงตาม: <b>วันที่สร้าง</b> / ลำดับ: <b>ล่าสุดก่อน</b></li>
         <li>เปิด <b>จำกัด</b> → <b>1</b> รายการ</li>
       </ul>
-      <span class="muted">ทำไมต้อง 5 นาที: ถ้าไม่มีสลิปใหม่ คำสั่งลัดจะไม่ทำอะไร และไม่ถามซ้ำทุกครั้งที่เปิด–ปิดแอปธนาคาร</span></li>
+      <span class="muted">ถ้าไม่มีสลิปใหม่ คำสั่งลัดจะไม่ทำอะไร และไม่ถามซ้ำทุกครั้งที่เปิด–ปิดแอปธนาคาร</span></li>
 
     <li><span class="act">ถ้า</span> <span class="en">(If)</span><br>
-      ตั้งเงื่อนไข: <b>รูปภาพ</b> (ผลลัพธ์จากขั้นที่ 3) → <b>มีค่าใดๆ</b> <span class="en">(has any value)</span><br>
-      <span class="muted">ขั้นที่ 5 ถึง 11 ต้องอยู่ "ภายใน" ถ้านี้ ทั้งหมด</span></li>
+      เงื่อนไข: <b>รูปภาพ</b> (ผลจากขั้นที่ 1) → <b>มีค่าใดๆ</b> <span class="en">(has any value)</span><br>
+      <span class="muted">ขั้นที่ 3 และ 4 ต้องอยู่ "ภายใน" ถ้านี้</span></li>
 
     <li class="sub"><span class="act">แยกข้อความจากรูปภาพ</span> <span class="en">(Extract Text from Image)</span><br>
-      ข้อมูลนำเข้า: <b>รูปภาพ</b> จากขั้นที่ 3</li>
+      ข้อมูลนำเข้า: <b>รูปภาพ</b> จากขั้นที่ 1</li>
 
-    <li class="sub"><span class="act">รับเนื้อหาของ URL</span> <span class="en">(Get Contents of URL)</span><br>
-      <table>
-        <tr><th>ช่อง</th><th>ค่า</th></tr>
-        <tr><td>URL</td><td><span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span></td></tr>
-        <tr><td>วิธี</td><td>แตะ "แสดงเพิ่มเติม" → วิธี: <b>POST</b></td></tr>
-        <tr><td>ส่วนหัว</td><td>เพิ่มส่วนหัว: ชื่อ <span class="chip" data-copy="Authorization">Authorization</span> ค่า = ตัวแปร <b>รหัส</b> (แตะช่องค่า แล้วเลือกตัวแปร "รหัส")</td></tr>
-        <tr><td>เนื้อหาคำขอ</td><td><b>JSON</b> แล้วกด "เพิ่มช่องใหม่" 2 ช่อง (ชนิด <b>ข้อความ</b> ทั้งคู่):<br>
-          • คีย์ <span class="chip" data-copy="action">action</span> ค่า <span class="chip" data-copy="parse">parse</span><br>
-          • คีย์ <span class="chip" data-copy="text">text</span> ค่า = ตัวแปร <b>ข้อความจากรูปภาพ</b> (ผลจากขั้นที่ 5)</td></tr>
-      </table></li>
-
-    <li class="sub"><span class="act">รับค่าพจนานุกรม</span> <span class="en">(Get Dictionary Value)</span><br>
-      รับ <b>ค่า</b> สำหรับคีย์ <span class="chip" data-copy="message">message</span> ใน <b>เนื้อหาของ URL</b> (ผลจากขั้นที่ 6)</li>
-
-    <li class="sub"><span class="act">เลือกจากเมนู</span> <span class="en">(Choose from Menu)</span><br>
+    <li class="sub"><span class="act">เรียกใช้สคริปต์</span> <span class="en">(Run Script — ของแอป Scriptable)</span><br>
       <ul>
-        <li>ข้อความแจ้ง (Prompt): แตะแล้วเลือกตัวแปร <b>ค่าพจนานุกรม</b> (ผลจากขั้นที่ 7)</li>
-        <li>ตัวเลือก 3 อัน ตั้งชื่อตามนี้: <span class="chip" data-copy="👤 ส่วนตัว">👤 ส่วนตัว</span> &nbsp; <span class="chip" data-copy="👥 หารกับเพื่อน">👥 หารกับเพื่อน</span> &nbsp; <span class="chip" data-copy="❌ ปิด">❌ ปิด</span></li>
-      </ul>
-      <span class="muted">หลังเพิ่มแล้ว จะมี 3 ช่องว่างให้ใส่คำสั่ง ทำตามขั้นที่ 9, 10, 11</span></li>
+        <li>สคริปต์: เลือก <span class="chip" data-copy="DeptSlip">DeptSlip</span></li>
+        <li>ช่อง <b>ข้อความ</b> / Parameter (ถ้ามี): แตะแล้วเลือกตัวแปร <b>ข้อความจากรูปภาพ</b> (ผลจากขั้นที่ 3)</li>
+      </ul></li>
 
-    <li class="sub2"><b>ใต้ตัวเลือก "👤 ส่วนตัว"</b> — เพิ่ม 3 คำสั่งต่อไปนี้:<br>
-      ① <span class="act">รับเนื้อหาของ URL</span>: URL เดิม, วิธี POST, ส่วนหัว Authorization = <b>รหัส</b>, เนื้อหา JSON 2 ช่อง:<br>
-      &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
-      &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="personal">personal</span><br>
-      ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
-      ③ <span class="act">แสดงผลลัพธ์</span> <span class="en">(Show Result)</span></li>
-
-    <li class="sub2"><b>ใต้ตัวเลือก "👥 หารกับเพื่อน"</b> — เพิ่ม 6 คำสั่งต่อไปนี้:<br>
-      ① <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/get-members?include_self=1">https://dept-game.vercel.app/api/get-members?include_self=1</span> วิธี <b>GET</b> ส่วนหัว Authorization = <b>รหัส</b> (ไม่มีเนื้อหา)<br>
-      ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="members">members</span><br>
-      ③ <span class="act">เลือกจากรายการ</span> <span class="en">(Choose from List)</span>: เปิด <b>เลือกหลายรายการ</b> <span class="en">(Select Multiple)</span>, ข้อความแจ้ง: <span class="chip" data-copy="เลือกคนที่หารด้วย">เลือกคนที่หารด้วย</span><br>
-      ④ <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span> วิธี POST ส่วนหัว Authorization = <b>รหัส</b> เนื้อหา JSON 3 ช่อง (ชนิดข้อความ):<br>
-      &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
-      &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="equal">equal</span><br>
-      &nbsp;&nbsp;• <span class="chip" data-copy="splitWith">splitWith</span> = ตัวแปร <b>รายการที่เลือก</b> <span class="en">(Chosen Items)</span> จาก ③<br>
-      ⑤ <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
-      ⑥ <span class="act">แสดงผลลัพธ์</span></li>
-
-    <li class="sub2"><b>ใต้ตัวเลือก "❌ ปิด"</b> — ไม่ต้องเพิ่มอะไร</li>
+    <li><b>จบ If</b> <span class="en">(End If)</span> — แอปจะเพิ่มให้เองอัตโนมัติ ไม่ต้องทำอะไร</li>
   </ol>
+  <p>เสร็จแล้วแตะ <b>เสร็จสิ้น</b> เพื่อบันทึกคำสั่งลัด</p>
 
   <div class="card">
-    <b>ถ้าตอนเลือกรายการ เห็นชื่อตัวเองอยู่บนสุดมีดาว ⭐ และ "(ฉัน)"</b>
+    <b>เวลาใช้งาน:</b> แอป Scriptable จะเด้งขึ้นมาแสดงกล่อง "พบบิล ฿xxx" ให้เลือก <b>👤 ส่วนตัว</b> / <b>👥 หารกับเพื่อน</b> / <b>❌ ปิด</b> เป็นเรื่องปกติ
     <ul>
-      <li><b>ติ๊กชื่อตัวเอง</b> = หารรวมตัวเองด้วย (เช่น กินข้าวด้วยกัน)</li>
-      <li><b>ไม่ติ๊กชื่อตัวเอง</b> = จ่ายแทนเพื่อน (ไม่มีส่วนของตัวเอง เพื่อนที่เลือกค้างคุณคนละเท่าๆ กัน)</li>
+      <li>ถ้าเลือก <b>หารกับเพื่อน</b> จะมีรายชื่อให้แตะเลือกได้หลายคน แตะชื่ออีกครั้งเพื่อยกเลิก แล้วกด <b>✔︎ เสร็จ</b></li>
+      <li><b>เลือกชื่อตัวเอง (⭐ ... (ฉัน))</b> = หารรวมตัวเองด้วย</li>
+      <li><b>ไม่เลือกชื่อตัวเอง</b> = จ่ายแทนเพื่อน (ไม่มีส่วนของตัวเอง เพื่อนที่เลือกค้างคุณคนละเท่าๆ กัน)</li>
       <li>ต้องเลือกเพื่อนอย่างน้อย 1 คน</li>
     </ul>
   </div>
 
-  <p>เสร็จแล้วแตะ <b>เสร็จสิ้น</b> เพื่อบันทึกคำสั่งลัด</p>
+  <details>
+    <summary>ทางเลือก: แบบละเอียด (ไม่เปิดแอป Scriptable ขึ้นมาบัง แต่ต้องสร้างหลายคำสั่งและวางรหัสเอง)</summary>
+    <p class="muted">แบบนี้ต้องกดปุ่ม <b>"คัดลอกรหัส"</b> ในหน้า "ตั้งค่า iPhone" ไว้ก่อน แล้ววางรหัสในขั้นที่ 1 ของคำสั่งลัด</p>
+      <p class="muted">เปิดแอป <b>คำสั่งลัด (Shortcuts)</b> → แตะ <b>+</b> → ตั้งชื่อว่า <b>สแกนสลิป</b> → แตะ "เพิ่มการทำงาน" แล้วค้นหาชื่อคำสั่งตามข้างล่าง (ถ้าค้นชื่อไทยไม่เจอ ให้ลองคำในวงเล็บ)</p>
+    
+      <ol class="steps">
+        <li><span class="act">ข้อความ</span> <span class="en">(Text)</span><br>
+          แตะในช่องข้อความ แล้ววางรหัสที่คัดลอกมา จะเห็นเป็น <code>Bearer ตามด้วยตัวอักษรยาวๆ</code></li>
+    
+        <li><span class="act">ตั้งค่าตัวแปร</span> <span class="en">(Set Variable)</span><br>
+          ตั้งชื่อตัวแปรว่า <span class="chip" data-copy="รหัส">รหัส</span></li>
+    
+        <li><span class="act">ค้นหารูปภาพ</span> <span class="en">(Find Photos)</span><br>
+          แตะ "เพิ่มตัวกรอง" แล้วตั้งค่า:
+          <ul>
+            <li>วันที่สร้าง → <b>อยู่ใน</b> → <b>5</b> → <b>นาที</b> (ล่าสุด 5 นาที)</li>
+            <li>จัดเรียงตาม: <b>วันที่สร้าง</b> / ลำดับ: <b>ล่าสุดก่อน</b></li>
+            <li>เปิด <b>จำกัด</b> → <b>1</b> รายการ</li>
+          </ul>
+          <span class="muted">ทำไมต้อง 5 นาที: ถ้าไม่มีสลิปใหม่ คำสั่งลัดจะไม่ทำอะไร และไม่ถามซ้ำทุกครั้งที่เปิด–ปิดแอปธนาคาร</span></li>
+    
+        <li><span class="act">ถ้า</span> <span class="en">(If)</span><br>
+          ตั้งเงื่อนไข: <b>รูปภาพ</b> (ผลลัพธ์จากขั้นที่ 3) → <b>มีค่าใดๆ</b> <span class="en">(has any value)</span><br>
+          <span class="muted">ขั้นที่ 5 ถึง 11 ต้องอยู่ "ภายใน" ถ้านี้ ทั้งหมด</span></li>
+    
+        <li class="sub"><span class="act">แยกข้อความจากรูปภาพ</span> <span class="en">(Extract Text from Image)</span><br>
+          ข้อมูลนำเข้า: <b>รูปภาพ</b> จากขั้นที่ 3</li>
+    
+        <li class="sub"><span class="act">รับเนื้อหาของ URL</span> <span class="en">(Get Contents of URL)</span><br>
+          <table>
+            <tr><th>ช่อง</th><th>ค่า</th></tr>
+            <tr><td>URL</td><td><span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span></td></tr>
+            <tr><td>วิธี</td><td>แตะ "แสดงเพิ่มเติม" → วิธี: <b>POST</b></td></tr>
+            <tr><td>ส่วนหัว</td><td>เพิ่มส่วนหัว: ชื่อ <span class="chip" data-copy="Authorization">Authorization</span> ค่า = ตัวแปร <b>รหัส</b> (แตะช่องค่า แล้วเลือกตัวแปร "รหัส")</td></tr>
+            <tr><td>เนื้อหาคำขอ</td><td><b>JSON</b> แล้วกด "เพิ่มช่องใหม่" 2 ช่อง (ชนิด <b>ข้อความ</b> ทั้งคู่):<br>
+              • คีย์ <span class="chip" data-copy="action">action</span> ค่า <span class="chip" data-copy="parse">parse</span><br>
+              • คีย์ <span class="chip" data-copy="text">text</span> ค่า = ตัวแปร <b>ข้อความจากรูปภาพ</b> (ผลจากขั้นที่ 5)</td></tr>
+          </table></li>
+    
+        <li class="sub"><span class="act">รับค่าพจนานุกรม</span> <span class="en">(Get Dictionary Value)</span><br>
+          รับ <b>ค่า</b> สำหรับคีย์ <span class="chip" data-copy="message">message</span> ใน <b>เนื้อหาของ URL</b> (ผลจากขั้นที่ 6)</li>
+    
+        <li class="sub"><span class="act">เลือกจากเมนู</span> <span class="en">(Choose from Menu)</span><br>
+          <ul>
+            <li>ข้อความแจ้ง (Prompt): แตะแล้วเลือกตัวแปร <b>ค่าพจนานุกรม</b> (ผลจากขั้นที่ 7)</li>
+            <li>ตัวเลือก 3 อัน ตั้งชื่อตามนี้: <span class="chip" data-copy="👤 ส่วนตัว">👤 ส่วนตัว</span> &nbsp; <span class="chip" data-copy="👥 หารกับเพื่อน">👥 หารกับเพื่อน</span> &nbsp; <span class="chip" data-copy="❌ ปิด">❌ ปิด</span></li>
+          </ul>
+          <span class="muted">หลังเพิ่มแล้ว จะมี 3 ช่องว่างให้ใส่คำสั่ง ทำตามขั้นที่ 9, 10, 11</span></li>
+    
+        <li class="sub2"><b>ใต้ตัวเลือก "👤 ส่วนตัว"</b> — เพิ่ม 3 คำสั่งต่อไปนี้:<br>
+          ① <span class="act">รับเนื้อหาของ URL</span>: URL เดิม, วิธี POST, ส่วนหัว Authorization = <b>รหัส</b>, เนื้อหา JSON 2 ช่อง:<br>
+          &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
+          &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="personal">personal</span><br>
+          ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
+          ③ <span class="act">แสดงผลลัพธ์</span> <span class="en">(Show Result)</span></li>
+    
+        <li class="sub2"><b>ใต้ตัวเลือก "👥 หารกับเพื่อน"</b> — เพิ่ม 6 คำสั่งต่อไปนี้:<br>
+          ① <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/get-members?include_self=1">https://dept-game.vercel.app/api/get-members?include_self=1</span> วิธี <b>GET</b> ส่วนหัว Authorization = <b>รหัส</b> (ไม่มีเนื้อหา)<br>
+          ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="members">members</span><br>
+          ③ <span class="act">เลือกจากรายการ</span> <span class="en">(Choose from List)</span>: เปิด <b>เลือกหลายรายการ</b> <span class="en">(Select Multiple)</span>, ข้อความแจ้ง: <span class="chip" data-copy="เลือกคนที่หารด้วย">เลือกคนที่หารด้วย</span><br>
+          ④ <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span> วิธี POST ส่วนหัว Authorization = <b>รหัส</b> เนื้อหา JSON 3 ช่อง (ชนิดข้อความ):<br>
+          &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
+          &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="equal">equal</span><br>
+          &nbsp;&nbsp;• <span class="chip" data-copy="splitWith">splitWith</span> = ตัวแปร <b>รายการที่เลือก</b> <span class="en">(Chosen Items)</span> จาก ③<br>
+          ⑤ <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
+          ⑥ <span class="act">แสดงผลลัพธ์</span></li>
+    
+        <li class="sub2"><b>ใต้ตัวเลือก "❌ ปิด"</b> — ไม่ต้องเพิ่มอะไร</li>
+      </ol>
+    
+      <div class="card">
+        <b>ถ้าตอนเลือกรายการ เห็นชื่อตัวเองอยู่บนสุดมีดาว ⭐ และ "(ฉัน)"</b>
+        <ul>
+          <li><b>ติ๊กชื่อตัวเอง</b> = หารรวมตัวเองด้วย (เช่น กินข้าวด้วยกัน)</li>
+          <li><b>ไม่ติ๊กชื่อตัวเอง</b> = จ่ายแทนเพื่อน (ไม่มีส่วนของตัวเอง เพื่อนที่เลือกค้างคุณคนละเท่าๆ กัน)</li>
+          <li>ต้องเลือกเพื่อนอย่างน้อย 1 คน</li>
+        </ul>
+      </div>
+    
+      <p>เสร็จแล้วแตะ <b>เสร็จสิ้น</b> เพื่อบันทึกคำสั่งลัด</p>
+  </details>
 
-  <h2>ส่วนที่ 2: ทดสอบด้วยมือก่อน</h2>
+  <h2>ส่วนที่ 3: ทดสอบด้วยมือก่อน</h2>
   <ol class="steps">
     <li>แคปหน้าจอสลิปโอนเงินจริง (หรือกดบันทึกสลิปลงรูปภาพจากแอปธนาคาร)</li>
     <li>เปิดแอปคำสั่งลัด แตะ <b>สแกนสลิป</b> ครั้งแรกจะมีป๊อปอัปขอสิทธิ์ ให้กด <b>อนุญาตเสมอ</b> (เข้าถึงรูปภาพ และเชื่อมต่อ dept-game.vercel.app)</li>
@@ -136,7 +185,7 @@
     <li>เปิด Widget ดู ยอด "ใช้วันนี้" ควรเพิ่มขึ้น (Widget อาจรีเฟรชช้าได้ถึง 15–30 นาที)</li>
   </ol>
 
-  <h2>ส่วนที่ 3: ให้ทำงานอัตโนมัติเมื่อปิดแอปธนาคาร</h2>
+  <h2>ส่วนที่ 4: ให้ทำงานอัตโนมัติเมื่อปิดแอปธนาคาร</h2>
   <ol class="steps">
     <li>ในแอปคำสั่งลัด ไปแท็บ <b>การทำงานอัตโนมัติ</b> → <b>+</b> → <b>แอป</b></li>
     <li>เลือกแอปธนาคารที่ใช้ (K PLUS, SCB EASY, ttb touch, Krungthai NEXT, UOB TMRW, Kept ฯลฯ) → ติ๊ก <b>ถูกปิด</b></li>
@@ -148,7 +197,11 @@
 
   <h2>แก้ปัญหา</h2>
   <details><summary>ขึ้นว่า "รหัสไม่ถูกต้อง" หรือ "รหัสถูกยกเลิก"</summary>
-    <p>รหัสในคำสั่งลัดเก่าหรือถูกสร้างใหม่ทับ กลับไปหน้า "ตั้งค่า iPhone" กดสร้างรหัสใหม่ แล้วทำ 2 อย่าง: (1) รันโค้ดติดตั้ง Widget ซ้ำ (2) แก้ขั้นที่ 1 ในคำสั่งลัดให้เป็นรหัสใหม่</p></details>
+    <p>รหัสถูกสร้างใหม่ทับ หรือถูกยกเลิก กลับไปหน้า "ตั้งค่า iPhone" กดสร้างรหัสใหม่ แล้วรันโค้ดติดตั้งซ้ำ 1 ครั้ง (แบบง่ายแค่นี้พอ) ส่วนแบบละเอียดต้องแก้ขั้นที่ 1 ในคำสั่งลัดให้เป็นรหัสใหม่ด้วย</p></details>
+  <details><summary>Scriptable ขึ้นว่า "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์"</summary>
+    <p>ยังไม่เคยรันโค้ดติดตั้ง หรือรันแล้วไม่สำเร็จ กลับไปทำส่วนที่ 1 ให้ขึ้นว่า "ติดตั้งสำเร็จ"</p></details>
+  <details><summary>Scriptable ขึ้นว่า "ไม่ได้รับข้อความจากคำสั่งลัด"</summary>
+    <p>ตรวจขั้นที่ 4 ว่าส่งตัวแปร "ข้อความจากรูปภาพ" ให้สคริปต์ DeptSlip และอยู่ภายใน "ถ้า" ต่อจากขั้นที่ 3</p></details>
   <details><summary>ขึ้นว่า "ไม่พบยอดเงินในรูปล่าสุด"</summary>
     <p>ระบบจะบอกว่าอ่านข้อความอะไรได้จากรูป ถ้าเป็นสลิปจริงแต่อ่านไม่ได้ ให้คัดลอกข้อความที่ขึ้นแสดง (ลบเลขบัญชีและชื่อออกก่อนก็ได้) ส่งให้ผู้พัฒนา เพื่อปรับให้อ่านสลิปธนาคารนั้นได้</p></details>
   <details><summary>ขึ้นว่า "สลิปนี้เคยบันทึกแล้ว"</summary>
@@ -156,7 +209,7 @@
   <details><summary>ไม่มีอะไรเด้งขึ้นมาเลยหลังปิดแอปธนาคาร</summary>
     <p>เป็นปกติถ้าไม่มีรูปใหม่ภายใน 5 นาที ให้แคปสลิปหรือบันทึกสลิปลงรูปภาพก่อนปิดแอป และตรวจว่าการทำงานอัตโนมัติเลือกแอปธนาคารถูกตัว</p></details>
   <details><summary>เมนูหารเพื่อนไม่เห็นชื่อเพื่อน</summary>
-    <p>ตรวจว่าขั้นที่ 10 ① ใช้ URL ที่ลงท้ายด้วย <code>?include_self=1</code> และส่วนหัว Authorization ใช้ตัวแปร "รหัส"</p></details>
+    <p>ตรวจ (เฉพาะแบบละเอียด) ว่าขั้นที่ 10 ① ใช้ URL ที่ลงท้ายด้วย <code>?include_self=1</code> และส่วนหัว Authorization ใช้ตัวแปร "รหัส"</p></details>
 </main>
 
 <script>
