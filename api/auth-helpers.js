@@ -1,6 +1,9 @@
 import crypto from "crypto";
 import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
+import { initializeApp as initAdminApp, getApps as getAdminApps, cert } from "firebase-admin/app";
+import { getFirestore as getAdminFirestore, FieldValue } from "firebase-admin/firestore";
+import { collection, getDocs, query, where, updateDoc, registerAdminFieldValue } from "../lib/fs-compat.mjs";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -11,9 +14,42 @@ const firebaseConfig = {
     appId: "1:6714403201:web:a98a2cefcebef5c63b6080"
 };
 
+/** อ่านกุญแจบริการ (service account) จาก env: รับเป็น JSON ตรงๆ หรือเข้ารหัส base64 */
+export function parseServiceAccount(raw) {
+    const text = String(raw || "").trim();
+    if (!text) return null;
+    const json = text.startsWith("{") ? text : Buffer.from(text, "base64").toString("utf8");
+    const sa = JSON.parse(json);
+    if (!sa.client_email || !sa.private_key) throw new Error("service account ไม่ครบ (ต้องมี client_email และ private_key)");
+    return sa;
+}
+
+let cachedDb = null;
+
+/**
+ * ถ้าตั้ง FIREBASE_SERVICE_ACCOUNT บน Vercel จะใช้ firebase-admin (ข้ามกฎความปลอดภัย จึงปิดกฎให้เบราว์เซอร์ได้)
+ * ถ้าไม่ตั้ง (หรือกุญแจเสีย) จะใช้แบบเดิม = ย้อนกลับได้ทันทีโดยลบตัวแปรนี้
+ */
 export function getDbInstance() {
+    if (cachedDb) return cachedDb;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            const sa = parseServiceAccount(process.env.FIREBASE_SERVICE_ACCOUNT);
+            const existing = getAdminApps();
+            const adminApp = existing.length ? existing[0] : initAdminApp({ credential: cert(sa) });
+            const adb = getAdminFirestore(adminApp);
+            try { adb.settings({ ignoreUndefinedProperties: true }); } catch (e) { /* ตั้งค่าไปแล้ว */ }
+            registerAdminFieldValue(FieldValue);
+            cachedDb = adb;
+            console.log("[db] using firebase-admin");
+            return cachedDb;
+        } catch (e) {
+            console.error("[db] FIREBASE_SERVICE_ACCOUNT ใช้ไม่ได้ กลับไปใช้แบบเดิม:", e.message);
+        }
+    }
     const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-    return getFirestore(app);
+    cachedDb = getFirestore(app);
+    return cachedDb;
 }
 
 export function hashToken(rawToken) {

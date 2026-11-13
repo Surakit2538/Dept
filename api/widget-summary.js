@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "../lib/fs-compat.mjs";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 import { memberMonthSummary, displayBaht } from "../lib/ledger.mjs";
 
