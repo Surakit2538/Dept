@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Dept Money">
+<title>Dept Money</title>
+<rect width="120" height="120" rx="26" fill="#0b6e69"/>
+<g transform="translate(60 60) scale(.72) translate(-60.25 -60)"><g transform="translate(-8 0)"><path d="M20 32 A28 28 0 0 1 20 88 Z" fill="#fdd53b"/><path d="M56 88 V46 A14 14 0 0 1 84 46 V88 M84 46 A14 14 0 0 1 112 46 V88" fill="none" stroke="#ffffff" stroke-width="9"/></g></g>
+</svg>
