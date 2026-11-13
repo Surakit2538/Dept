@@ -214,3 +214,35 @@ test("ผู้รับหลังป้าย 'ไปยัง' ไม่ด�
     const r = parseSlipText("ไปยัง\n7-ELEVEN\n09 พ.ย. 2569\nจำนวนเงิน 50.00 บาท");
     assert.equal(r.payee, "7-ELEVEN");
 });
+
+// ---------- วันที่ในสลิป -> YYYY-MM-DD ----------
+import { slipDateToIso } from "../lib/slip-core.mjs";
+const NOW = new Date("2026-11-13T05:00:00Z"); // 13 พ.ย. 2026 (ไทย)
+
+test("slipDateToIso: รูปแบบไทย/อังกฤษ/ตัวเลข และปี พ.ศ.", () => {
+    assert.equal(slipDateToIso("9พ.ย.2569", NOW), "2026-11-09");
+    assert.equal(slipDateToIso("09 พ.ย. 2569", NOW), "2026-11-09");
+    assert.equal(slipDateToIso("6พ.ย.69", NOW), "2026-11-06");
+    assert.equal(slipDateToIso("09/11/2569", NOW), "2026-11-09");
+    assert.equal(slipDateToIso("9nov2026", NOW), "2026-11-09");
+    assert.equal(slipDateToIso("2026-11-12", NOW), "2026-11-12");
+    assert.equal(slipDateToIso("1มี.ค.69", NOW), "2026-03-01");
+});
+
+test("slipDateToIso: แปลงไม่ได้/ไม่สมเหตุสมผล → ค่าว่าง (ให้ใช้วันนี้)", () => {
+    assert.equal(slipDateToIso("", NOW), "");
+    assert.equal(slipDateToIso("สวัสดี", NOW), "");
+    assert.equal(slipDateToIso("31/02/2569", NOW) === "" || slipDateToIso("31/02/2569", NOW).startsWith("2026-"), true);
+    assert.equal(slipDateToIso("9พ.ย.2580", NOW), ""); // อนาคต
+    assert.equal(slipDateToIso("9พ.ย.2540", NOW), ""); // เก่าเกิน
+    assert.equal(slipDateToIso("32พ.ย.69", NOW), "");
+});
+
+test("สลิปจริง K PLUS / SCB: slipIso ตรงกับวันที่ในสลิป", () => {
+    // ใช้วันที่จริงของระบบในการแกะ: ทดสอบผ่าน parse ด้วยวันที่สัมพันธ์กับปัจจุบันไม่ได้ จึงเช็คฟิลด์ดิบ
+    const k = parseSlipText(KPLUS_REAL);
+    assert.equal(k.slipDate, "6พ.ย.69");
+    assert.equal(slipDateToIso(k.slipDate, NOW), "2026-11-06");
+    const s = parseSlipText(SCB_BILL);
+    assert.equal(slipDateToIso(s.slipDate, NOW), "2026-11-09");
+});

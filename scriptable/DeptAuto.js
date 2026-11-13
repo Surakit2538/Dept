@@ -13,7 +13,7 @@
  * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
  */
 
-const SCRIPT_VERSION = "1.0.0";
+const SCRIPT_VERSION = "1.1.0";
 const BASE_URL = "https://dept-game.vercel.app";
 
 function getInputText() {
@@ -34,7 +34,7 @@ async function run() {
         return "คำสั่งลัดส่งรูปภาพมา ไม่ใช่ข้อความ ให้เลือกตัวแปร \"ข้อความจากรูปภาพ\" ที่ช่อง Parameter ของ \"เรียกใช้สคริปต์\"";
     }
     if (!text.trim()) {
-        return "ไม่พบข้อความในรูปล่าสุด";
+        return ""; // รูปล่าสุดไม่มีข้อความ (ไม่ใช่สลิป) ไม่ต้องแจ้งเตือน
     }
 
     const req = new Request(BASE_URL + "/api/shortcut-transaction");
@@ -44,7 +44,8 @@ async function run() {
     req.body = JSON.stringify({ action: "auto", text: text });
     try {
         const res = await req.loadJSON();
-        return res && res.message ? String(res.message) : "เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง";
+        // message ว่าง = เงียบ (สลิปซ้ำ หรือไม่ใช่สลิป) คำสั่งลัดจะไม่แสดงการแจ้งเตือน
+        return res && typeof res.message === "string" ? res.message : "เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง";
     } catch (e) {
         return "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + e.message;
     }

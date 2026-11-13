@@ -235,7 +235,7 @@ test("auto: เรียกซ้ำกับสลิปเดิม → ไม
     const r = await call({ action: "auto", text: SLIP });
     assert.equal(r.body.status, "duplicate");
     assert.equal(r.body.success, false);
-    assert.doesNotMatch(r.body.message, /กด ❌ ปิด/);
+    assert.equal(r.body.message, "", "สลิปซ้ำในโหมดอัตโนมัติต้องเงียบ");
     assert.equal(db.count("personal_expenses"), 1);
 });
 
@@ -243,7 +243,7 @@ test("auto: รูป/ข้อความที่ไม่ใช่สลิ�
     const { call, db } = setup();
     const r = await call({ action: "auto", text: "รูปแมวน่ารัก" });
     assert.equal(r.body.status, "no_amount");
-    assert.doesNotMatch(r.body.message, /กด ❌ ปิด/);
+    assert.equal(r.body.message, "", "ไม่ใช่สลิปในโหมดอัตโนมัติต้องเงียบ");
     assert.equal(db.count("personal_expenses"), 0);
 });
 
@@ -284,12 +284,12 @@ test("convert แต่เลือก 'ส่วนตัว' → ไม่เ�
     assert.equal(db.count("transactions"), 0);
 });
 
-test("auto ซ้ำกับรายการส่วนตัวเดิม → แจ้งว่าบันทึกแล้ว และบอกวิธีหาร ไม่สร้างรายการใหม่", async () => {
+test("auto ซ้ำกับรายการส่วนตัวเดิม → เงียบ (message ว่าง) ไม่สร้างรายการใหม่", async () => {
     const { call, db } = setup();
     await call({ action: "auto", text: SLIP });
     const r = await call({ action: "auto", text: SLIP });
     assert.equal(r.body.status, "duplicate");
-    assert.match(r.body.message, /สแกนสลิป/);
+    assert.equal(r.body.message, "");
     assert.equal(db.count("personal_expenses"), 1);
     assert.equal(db.has("pending_slips", "me"), false);
 });
@@ -300,4 +300,26 @@ test("สลิปที่หารไปแล้ว (อยู่ใน trans
     await call({ action: "save", splitType: "equal", splitWith: ["AOY"] });
     const r = await call({ action: "parse", text: SLIP });
     assert.equal(r.body.status, "duplicate");
+});
+
+// ---------- ใช้วันที่ในสลิปเป็นวันที่บันทึก ----------
+const NOV13 = Date.parse("2026-11-13T05:00:00Z");
+
+test("บันทึกด้วยวันที่ในสลิป (ไม่ใช่วันนี้): สลิปวันที่ 10 พ.ย. 69 → 2026-11-10", async () => {
+    const { call, db } = setup({ time: NOV13 });
+    await call({ action: "auto", text: SLIP });
+    assert.equal(db.all("personal_expenses")[0].date, "2026-11-10");
+});
+
+test("หารกับเพื่อน: รายการใน transactions ใช้วันที่ในสลิปด้วย", async () => {
+    const { call, db } = setup({ time: NOV13 });
+    await call({ action: "parse", text: SLIP });
+    await call({ action: "save", splitType: "equal", splitWith: ["AOY"] });
+    assert.equal(db.all("transactions")[0].date, "2026-11-10");
+});
+
+test("สลิปไม่มีวันที่ที่แปลงได้ → ใช้วันนี้ (ตามเวลาไทย)", async () => {
+    const { call, db } = setup({ time: NOV13 });
+    await call({ action: "auto", text: "ไปยัง ร้านน้ำ\nจำนวน 20.00 บาท" });
+    assert.equal(db.all("personal_expenses")[0].date, "2026-11-13");
 });
