@@ -5,18 +5,11 @@
 /**
  * Dept Money - iOS Scriptable Widget
  * บันทึกและแสดงสรุปรายจ่ายแบบ Widget บน iPhone
+ * เวอร์ชัน 2.0.0 (Device Token Auth)
  */
 
-// ==========================================
-// ⚙️ การตั้งค่า (Configuration)
-// ==========================================
-// 1. ระบุ URL ของเว็บคุณ (เช่น https://dept-money.vercel.app)
+const SCRIPT_VERSION = "2.0.0";
 const BASE_URL = "https://dept-game.vercel.app";
-
-// 2. ระบุชื่อของคุณในระบบ (ให้ตรงกับชื่อ Member ในเว็บ)
-// ถ้าใส่ Parameter ใน Widget Setup จะใช้ค่านั้นก่อน
-const DEFAULT_USER = "BANK"; 
-const USER_NAME = (args.widgetParameter && args.widgetParameter.trim()) || DEFAULT_USER;
 
 // ==========================================
 // 🚀 เริ่มต้นทำงาน
@@ -37,15 +30,37 @@ Script.complete();
 async function createWidget() {
     const listWidget = new ListWidget();
     listWidget.backgroundColor = new Color("#16181D");
-    listWidget.setPadding(14, 16, 14, 16);
-
-    // เมื่อแตะที่ Widget ให้เปิดเว็บ Dept Money
+    listWidget.setPadding(14, 16, 12, 16);
     listWidget.url = BASE_URL;
 
-    // ดึงข้อมูลสรุป
-    const data = await fetchSummaryData(USER_NAME);
+    // ตรวจสอบ Token จาก Keychain
+    const token = Keychain.contains("dept_token") ? Keychain.get("dept_token") : null;
 
-    // 1. แถวบน: Header + วันที่
+    if (!token) {
+        return renderErrorWidget(
+            listWidget,
+            "⚠️ ยังไม่ได้ตั้งค่าอุปกรณ์",
+            "กรุณาเปิดเว็บ Dept Money แล้วแตะเมนู\n\"📱 ตั้งค่า iPhone\" เพื่อติดตั้ง",
+            "#FBBF24"
+        );
+    }
+
+    // ดึงข้อมูลสรุป
+    const result = await fetchSummaryData(token);
+
+    if (!result.success) {
+        return renderErrorWidget(
+            listWidget,
+            "⚠️ ไม่สามารถโหลดข้อมูลได้",
+            result.message || "กรุณาตรวจสอบการเชื่อมต่อ",
+            result.status === 401 ? "#EF4444" : "#FBBF24"
+        );
+    }
+
+    const data = result.data;
+    const isOffline = result.isOffline || false;
+
+    // 1. แถวบน: Header + ชื่อผู้ใช้/วันที่
     const headerRow = listWidget.addStack();
     headerRow.layoutHorizontally();
     headerRow.centerAlignContent();
@@ -53,6 +68,13 @@ async function createWidget() {
     const titleText = headerRow.addText("💳 DEPT TRACKER");
     titleText.font = Font.boldSystemFont(11);
     titleText.textColor = new Color("#94A3B8");
+
+    if (data.user) {
+        headerRow.addSpacer(6);
+        const userBadge = headerRow.addText(`· ${data.user}`);
+        userBadge.font = Font.systemFont(10);
+        userBadge.textColor = new Color("#64748B");
+    }
 
     headerRow.addSpacer();
 
@@ -96,7 +118,7 @@ async function createWidget() {
 
     metricsRow.addSpacer();
 
-    listWidget.addSpacer(12);
+    listWidget.addSpacer(10);
 
     // 3. แถวล่าง: รายการล่าสุด
     const lastRow = listWidget.addStack();
@@ -121,7 +143,7 @@ async function createWidget() {
 
         lastRow.addSpacer(6);
 
-        // ชื่อรายการ/ร้านค้า
+        // ชื่อรายการ
         const descText = lastRow.addText(truncateString(last.desc, 18));
         descText.font = Font.systemFont(12);
         descText.textColor = new Color("#F1F5F9");
@@ -138,16 +160,69 @@ async function createWidget() {
         emptyText.textColor = new Color("#64748B");
     }
 
-    // 4. แถวสรุปหนี้สิน (Bonus) ถ้ามี
-    if (data.debt && data.debt.balance !== 0) {
-        listWidget.addSpacer(6);
-        const debtRow = listWidget.addStack();
-        debtRow.layoutHorizontally();
+    // 4. แถวล่างสุด: สรุปหนี้สิน + ออฟไลน์/เวอร์ชัน
+    listWidget.addSpacer(6);
+    const footerRow = listWidget.addStack();
+    footerRow.layoutHorizontally();
+    footerRow.centerAlignContent();
 
-        const debtLabel = debtRow.addText(`👥 ${data.debt.text}`);
+    if (data.debt && data.debt.balance !== 0) {
+        const debtLabel = footerRow.addText(`👥 ${data.debt.text}`);
         debtLabel.font = Font.systemFont(10);
         debtLabel.textColor = data.debt.type === 'receive' ? new Color("#34D399") : new Color("#FBBF24");
+    } else {
+        const settledLabel = footerRow.addText("👥 เคลียร์หนี้ครบแล้ว");
+        settledLabel.font = Font.systemFont(10);
+        settledLabel.textColor = new Color("#64748B");
     }
+
+    footerRow.addSpacer();
+
+    if (isOffline) {
+        const offlineLabel = footerRow.addText(`ออฟไลน์ (${result.cachedAt || ""}) `);
+        offlineLabel.font = Font.systemFont(8);
+        offlineLabel.textColor = new Color("#F59E0B");
+    }
+
+    // W4: แสดง SCRIPT_VERSION มุมล่าง
+    const verText = footerRow.addText(`v${SCRIPT_VERSION}`);
+    verText.font = Font.systemFont(8);
+    verText.textColor = new Color("#475569");
+
+    return listWidget;
+}
+
+// ==========================================
+// ⚠️ Widget หน้าแสดง Error
+// ==========================================
+function renderErrorWidget(listWidget, title, message, colorHex = "#EF4444") {
+    const stack = listWidget.addStack();
+    stack.layoutVertical();
+    stack.centerAlignContent();
+
+    const titleText = stack.addText(title);
+    titleText.font = Font.boldSystemFont(13);
+    titleText.textColor = new Color(colorHex);
+
+    stack.addSpacer(6);
+
+    const msgText = stack.addText(message);
+    msgText.font = Font.systemFont(11);
+    msgText.textColor = new Color("#94A3B8");
+
+    stack.addSpacer(10);
+
+    const hintText = stack.addText("แตะที่นี่เพื่อเปิดเว็บ");
+    hintText.font = Font.systemFont(10);
+    hintText.textColor = new Color("#38BDF8");
+
+    listWidget.addSpacer();
+
+    const footer = listWidget.addStack();
+    footer.addSpacer();
+    const ver = footer.addText(`v${SCRIPT_VERSION}`);
+    ver.font = Font.systemFont(8);
+    ver.textColor = new Color("#475569");
 
     return listWidget;
 }
@@ -155,44 +230,69 @@ async function createWidget() {
 // ==========================================
 // 🌐 ดึงข้อมูลจาก API + Offline Caching
 // ==========================================
-async function fetchSummaryData(user) {
-    const cacheKey = `dept_widget_cache_${user}.json`;
+async function fetchSummaryData(token) {
+    const cacheKey = "dept_widget_cache_v2.json";
     const fm = FileManager.local();
     const cachePath = fm.joinPath(fm.documentsDirectory(), cacheKey);
 
-    const endpoint = `${BASE_URL}/api/widget-summary?user=${encodeURIComponent(user)}`;
+    const endpoint = `${BASE_URL}/api/widget-summary`;
 
     try {
         const req = new Request(endpoint);
-        req.timeoutInterval = 6;
+        req.headers = {
+            "Authorization": `Bearer ${token}`
+        };
+        req.timeoutInterval = 7;
         const res = await req.loadJSON();
+        const statusCode = req.response ? req.response.statusCode : 200;
 
-        if (res && res.success) {
-            // บันทึก Cache ไว้ใช้ยามออฟไลน์
-            fm.writeString(cachePath, JSON.stringify(res));
-            return res;
+        if (statusCode === 200 && res && res.success) {
+            // บันทึก cache พร้อม timestamp
+            const cachePayload = {
+                data: res,
+                cachedAt: formatTime(new Date())
+            };
+            fm.writeString(cachePath, JSON.stringify(cachePayload));
+            return { success: true, data: res, isOffline: false };
+        } else if (statusCode === 401) {
+            return {
+                success: false,
+                status: 401,
+                message: "รหัสอุปกรณ์ไม่ถูกต้องหรือถูกยกเลิก\nกรุณาตั้งค่าใหม่จากเว็บ"
+            };
+        } else if (statusCode === 404) {
+            return {
+                success: false,
+                status: 404,
+                message: res.message || "ไม่พบชื่อสมาชิกในระบบ"
+            };
         }
     } catch (e) {
-        console.warn("Offline or API failed, fallback to cache:", e);
+        console.warn("API request failed, fallback to cache:", e);
     }
 
-    // ถ้าเน็ตหลุด ให้อ่านจาก Cache เก่า
+    // ถ้าเชื่อมต่อไม่ได้ ให้อ่านจาก Cache เก่า
     if (fm.fileExists(cachePath)) {
         try {
             const cachedStr = fm.readString(cachePath);
-            return JSON.parse(cachedStr);
+            const cached = JSON.parse(cachedStr);
+            if (cached && cached.data) {
+                return {
+                    success: true,
+                    data: cached.data,
+                    isOffline: true,
+                    cachedAt: cached.cachedAt || ""
+                };
+            }
         } catch (cacheErr) {
             console.error("Cache read error:", cacheErr);
         }
     }
 
-    // ค่าเริ่มต้นหากไม่พบข้อมูลเลย
     return {
-        todayExpense: 0,
-        monthExpense: 0,
-        dateHeader: "วันนี้",
-        lastTransaction: null,
-        debt: { balance: 0, text: "เคลียร์ครบแล้ว" }
+        success: false,
+        status: 0,
+        message: "ออฟไลน์ ไม่สามารถโหลดข้อมูลและไม่พบแคชเก่า"
     };
 }
 
@@ -205,6 +305,12 @@ function formatNumber(num) {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
     });
+}
+
+function formatTime(date) {
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
 }
 
 function truncateString(str, maxLen) {
