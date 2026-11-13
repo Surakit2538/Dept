@@ -152,3 +152,65 @@ test("resolveParticipants: ตัดชื่อซ้ำ และแยกช�
     assert.deepEqual(r.participants, ["AOY", "TPALM"]);
     assert.deepEqual(r.unknown, ["NOBODY"]);
 });
+
+// ---------------------------------------------------------------------------
+// รูปแบบสลิปจริงที่ผู้ใช้ส่งมา (SCB จ่ายบิล / K PLUS โอนเงิน) ข้อความด้านล่างเป็นการจำลองลำดับ
+// ที่ Live Text น่าจะอ่านได้ ยังไม่ใช่ผลลัพธ์จริงจาก iPhone ถ้าของจริงต่างไป ให้แก้เป็นเคสใหม่
+// ---------------------------------------------------------------------------
+const SCB_BILL = `SCB
+จ่ายบิลสำเร็จ
+09 พ.ย. 2569 - 11:54
+รหัสอ้างอิง: 202611090WNBHkeUOT0VXV45y
+จาก
+นาย สุรกิจ พ.
+xxx-xxx651-9
+ไปยัง
+METROPOLITAN
+ELECTRICITY AUTHORITY
+Biller ID : 099400016520011
+อ้างอิง 1 : 010014568000002570
+อ้างอิง 2 : 000704339914301069
+จำนวนเงิน
+1,084.97
+ผู้รับเงินสามารถสแกนคิวอาร์โค้ดนี้เพื่อ
+ตรวจสอบสถานะการจ่ายเงิน`;
+
+const KPLUS_REAL = `โอนเงินสำเร็จ
+6 พ.ย. 69 20:26 น.
+K+
+นาย สุรกิจ พ
+ธ.กสิกรไทย
+xxx-x-x7002-x
+นาย สุรกิจ พัฒนเธียรสกุล
+ธ.ไทยพาณิชย์
+xxx-x-x0617-x
+เลขที่รายการ:
+016310202618COR01495
+จำนวน:
+10,000.00 บาท
+ค่าธรรมเนียม:
+0.00 บาท
+สแกนตรวจสอบสลิป`;
+
+test("สลิป SCB จ่ายบิลจริง: ยอดไม่มีหน่วย, ผู้รับชื่อยาวหลายบรรทัด, เลขอ้างอิงตัวพิมพ์ผสม", () => {
+    const r = parseSlipText(SCB_BILL);
+    assert.equal(r.amount, 1084.97);
+    assert.equal(r.bank, "SCB");
+    assert.equal(r.payee, "METROPOLITAN ELECTRICITY AUTHORITY");
+    assert.equal(r.transRef, "202611090WNBHkeUOT0VXV45y");
+    assert.equal(r.strong, true);
+});
+
+test("สลิป K PLUS จริง: ไม่มีป้าย 'ไปยัง' ใช้ชื่อผู้รับที่ขึ้นหลังสุด, ธนาคารจาก 'ธ.กสิกรไทย'", () => {
+    const r = parseSlipText(KPLUS_REAL);
+    assert.equal(r.amount, 10000);
+    assert.equal(r.bank, "KBANK");
+    assert.equal(r.payee, "นาย สุรกิจ พัฒนเธียรสกุล");
+    assert.equal(r.transRef, "016310202618COR01495");
+    assert.equal(r.slipTime, "20:26");
+});
+
+test("ผู้รับหลังป้าย 'ไปยัง' ไม่ดึงวันที่หรือเวลาที่ตามมาต่อท้ายชื่อ", () => {
+    const r = parseSlipText("ไปยัง\n7-ELEVEN\n09 พ.ย. 2569\nจำนวนเงิน 50.00 บาท");
+    assert.equal(r.payee, "7-ELEVEN");
+});

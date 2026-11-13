@@ -20,7 +20,7 @@
 
 ทางเลือกให้เด้งอัตโนมัติเมื่อปิดแอปธนาคาร: เพิ่มตัวกรอง "วันที่สร้าง อยู่ใน 5 นาที" และคำสั่ง If ในคำสั่งลัดเดิม (ดู `shortcut-guide.html`) หรือแบบละเอียดที่เรียก API เองทั้งหมด
 
-`DeptInstaller` (สร้างจากหน้าเว็บ `iphone-setup.js`) ติดตั้ง `DeptWidget.js` และ `DeptSlip.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง รหัสอยู่ใน Keychain (`dept_token`)
+`DeptInstaller` (สร้างจากหน้าเว็บ `iphone-setup.js`) ติดตั้ง `DeptWidget.js`, `DeptSlip.js` และ `DeptAuto.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง รหัสอยู่ใน Keychain (`dept_token`)
 
 ## API
 
@@ -37,6 +37,12 @@
 
 ### `action: "parse"` — body `{ text }` (หลัก: ข้อความจาก Live Text, แกะด้วย regex) หรือ `{ imageBase64, mimeType }` (ทางเลือก, อ่านด้วย Gemini ผ่าน `lib/gemini-slip.mjs`, ต้องมี `GEMINI_API_KEY`)
 `status`: `ok` (เก็บ `pending_slips/<memberId>` อายุ 30 นาที) · `no_amount` · `duplicate` · `ocr_failed` · `too_large` — กรณีไม่ใช่ `ok` จะล้างรายการรอบันทึกเก่าด้วย เพื่อไม่ให้กด "บันทึก" แล้วได้สลิปเก่า
+
+### `action: "auto"` — body `{ text }` (บันทึกอัตโนมัติ ไม่ถามอะไร)
+แกะสลิปแล้วบันทึกเป็น **ส่วนตัว** ทันที (parse + save personal ในครั้งเดียว) ใช้กับ `scriptable/DeptAuto.js` ที่คำสั่งลัด "สลิปอัตโนมัติ" เรียกเมื่อปิดแอปธนาคาร (Run In App ปิด) แล้วส่ง `message` กลับผ่าน `Script.setShortcutOutput` ให้คำสั่งลัดแสดงเป็นแจ้งเตือน ถ้าไม่พบยอด/ซ้ำจะไม่บันทึกและบอกสาเหตุ (ไม่มีข้อความ "(กด ❌ ปิด เพื่อออก)")
+
+### สถานะ `convert` (เปลี่ยนส่วนตัวเป็นหาร)
+ถ้า `parse` เจอสลิปที่ **เจ้าของรหัสเดียวกัน** บันทึกเป็นส่วนตัวไว้แล้ว (`personal_expenses`) จะคืน `status: "convert"` และเก็บ `pending_slips` พร้อม `convertFrom` (id รายการส่วนตัวเดิม) และ `date` เดิม `DeptSlip` แสดงเมนูเฉพาะ "เปลี่ยนเป็นหารกับเพื่อน" เมื่อ `save` แบบ `equal` จะเพิ่มรายการใน `transactions` ด้วยวันที่เดิม แล้วลบรายการส่วนตัวเดิม (เลือก `personal` = ไม่เปลี่ยนอะไร) สลิปที่อยู่ใน `transactions` แล้วยังเป็น `duplicate` ปกติ `auto` เจอ `convert` จะตอบ `duplicate` พร้อมบอกให้ใช้ไอคอนสแกนสลิปเพื่อหาร
 
 ### `action: "save"` — body `{ splitType, splitWith?, desc? }`
 - `splitType: "personal"` → เก็บใน **`personal_expenses`** (ไม่มี `splits`, ไม่โผล่ในหน้ากลุ่ม/สรุป LINE, ไม่กระทบยอดหนี้)

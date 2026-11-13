@@ -21,8 +21,8 @@ const BASE_URL = "${BASE_URL}";
 // 1. บันทึก Token ลง Keychain ของ iOS อย่างปลอดภัย
 Keychain.set("dept_token", DEVICE_TOKEN);
 
-// 2. ดาวน์โหลดสคริปต์ทั้งหมดเวอร์ชันล่าสุด (Widget + สแกนสลิป)
-const FILES = ["DeptWidget.js", "DeptSlip.js"];
+// 2. ดาวน์โหลดสคริปต์ทั้งหมดเวอร์ชันล่าสุด (Widget + สแกนสลิป + บันทึกอัตโนมัติ)
+const FILES = ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"];
 const downloaded = {};
 let failedFile = "";
 for (const name of FILES) {
@@ -67,7 +67,7 @@ if (failedFile) {
 
     const successAlert = new Alert();
     successAlert.title = "ติดตั้งสำเร็จ ✅";
-    successAlert.message = \`ติดตั้ง DeptWidget และ DeptSlip เรียบร้อยแล้ว\n\nสมาชิก: \${confirmedUser || "${userName}"}\nต่อไปให้เพิ่ม Widget บนหน้าจอโฮม และสร้างคำสั่งลัดสแกนสลิปตามคู่มือในเว็บครับ\`;
+    successAlert.message = \`ติดตั้ง DeptWidget, DeptSlip และ DeptAuto เรียบร้อยแล้ว\n\nสมาชิก: \${confirmedUser || "${userName}"}\nต่อไปให้เพิ่ม Widget บนหน้าจอโฮม และสร้างคำสั่งลัดสแกนสลิปตามคู่มือในเว็บครับ\`;
     successAlert.addAction("เรียบร้อย");
     await successAlert.present();
     Script.complete();

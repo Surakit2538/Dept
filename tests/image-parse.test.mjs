@@ -84,7 +84,7 @@ test("parse จากรูป → ok เก็บรายการรอบั
     assert.equal(s.body.status, "saved");
     assert.equal(db.all("personal_expenses")[0].transRef, "016314142312345678");
     // สแกนรูปเดิมอีก → ซ้ำ
-    assert.equal((await call({ action: "parse", imageBase64: "AAAA" })).body.status, "duplicate");
+    assert.equal((await call({ action: "parse", imageBase64: "AAAA" })).body.status, "convert");
 });
 
 test("รูปที่ไม่ใช่สลิป → no_amount (ไม่มีข้อความ OCR ให้ดู)", async () => {

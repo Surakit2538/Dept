@@ -12,7 +12,7 @@
  * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
  */
 
-const SCRIPT_VERSION = "1.2.0";
+const SCRIPT_VERSION = "1.3.0";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ค่าเริ่มต้น false: รูปสลิปไม่ออกจากเครื่อง ใช้ Live Text ของ iPhone อ่านแล้วส่งแต่ข้อความ
@@ -123,6 +123,13 @@ async function main() {
     // 1) เตรียมข้อมูลที่จะส่งไปให้เซิร์ฟเวอร์อ่าน
     let payload;
     const text = getInputText();
+    if (/^\s*file:\/\//i.test(text)) {
+        await showMessage(
+            "สแกนสลิป",
+            "คำสั่งลัดส่ง \"รูปภาพ\" มาให้สคริปต์ ไม่ใช่ข้อความ\n\nวิธีแก้: ในคำสั่งลัด \"สแกนสลิป\" ที่คำสั่ง \"เรียกใช้สคริปต์\" แตะช่อง Parameter แล้วเลือกตัวแปร \"ข้อความจากรูปภาพ\" (ผลของคำสั่ง \"แยกข้อความจากรูปภาพ\") แทนตัวแปร \"รูปภาพ\""
+        );
+        return;
+    }
     if (text.trim()) {
         payload = { action: "parse", text: text };
     } else if (!USE_AI_IMAGE) {
@@ -142,31 +149,43 @@ async function main() {
 
     // 2) ให้เซิร์ฟเวอร์อ่านสลิป
     const parsed = await callApi("POST", "/api/shortcut-transaction", payload);
-    if (parsed.status !== "ok") {
+    // status "convert" = สลิปนี้บันทึกเป็นส่วนตัวไปแล้ว (เช่น โดยระบบอัตโนมัติ) เสนอให้เปลี่ยนเป็นหารกับเพื่อนได้
+    const isConvert = parsed.status === "convert";
+    if (parsed.status !== "ok" && !isConvert) {
         await showMessage("สแกนสลิป", String(parsed.message || "เกิดข้อผิดพลาด").replace(/\n\n\(กด ❌ ปิด เพื่อออก\)$/, ""));
         return;
     }
 
-    // 3) ถามว่าบันทึกแบบไหน
-    let choice;
+    // 3) ถามว่าบันทึกแบบไหน (ตัวเลือกเรียงตามที่แสดง จึงเก็บเป็นรายการ key)
+    const keys = [];
+    let choiceKey = null;
     while (true) {
+        keys.length = 0;
         const menu = new Alert();
         menu.title = "สแกนสลิป";
         menu.message = parsed.message;
-        menu.addAction("👤 ส่วนตัว");
-        menu.addAction("👥 หารกับเพื่อน");
-        if (text.trim()) menu.addAction("🔍 ดูข้อความที่อ่านได้");
+        if (!isConvert) {
+            menu.addAction("👤 ส่วนตัว");
+            keys.push("personal");
+        }
+        menu.addAction(isConvert ? "👥 เปลี่ยนเป็นหารกับเพื่อน" : "👥 หารกับเพื่อน");
+        keys.push("split");
+        if (text.trim()) {
+            menu.addAction("🔍 ดูข้อความที่อ่านได้");
+            keys.push("raw");
+        }
         menu.addCancelAction("❌ ปิด");
-        choice = await menu.presentAlert();
-        if (choice === 2) {
+        const idx = await menu.presentAlert();
+        if (idx === -1) return;
+        choiceKey = keys[idx];
+        if (choiceKey === "raw") {
             await showRawText(text);
             continue;
         }
         break;
     }
-    if (choice === -1) return;
 
-    if (choice === 0) {
+    if (choiceKey === "personal") {
         const saved = await callApi("POST", "/api/shortcut-transaction", { action: "save", splitType: "personal" });
         await showMessage("สแกนสลิป", String(saved.message || "เกิดข้อผิดพลาด"));
         return;

@@ -152,14 +152,14 @@ test("splitType ผิด → 400", async () => {
     assert.equal((await call({ action: "save", splitType: "weird" })).statusCode, 400);
 });
 
-test("สแกนสลิปเดิมซ้ำหลังบันทึก (มีเลขอ้างอิง) → duplicate", async () => {
+test("สแกนสลิปเดิมซ้ำหลังบันทึกส่วนตัว (มีเลขอ้างอิง) → convert (เสนอให้เปลี่ยนเป็นหาร) ไม่ซ้ำซ้อน", async () => {
     const { call, db } = setup();
     await call({ action: "parse", text: SLIP });
     await call({ action: "save", splitType: "personal" });
     const r = await call({ action: "parse", text: SLIP });
-    assert.equal(r.body.status, "duplicate");
-    assert.match(r.body.message, /เคยบันทึกแล้ว/);
-    assert.equal(db.has("pending_slips", "me"), false);
+    assert.equal(r.body.status, "convert");
+    assert.match(r.body.message, /เปลี่ยนเป็นหารกับเพื่อน/);
+    assert.equal(db.count("personal_expenses"), 1);
 });
 
 test("บันทึกซ้ำสองครั้งติดกัน → ครั้งที่สองไม่ซ้ำซ้อน", async () => {
@@ -177,7 +177,7 @@ test("ไม่มีเลขอ้างอิงแต่มีวันเ�
     await call({ action: "save", splitType: "personal" });
     clock.t += 3 * 60 * 60 * 1000;
     const r = await call({ action: "parse", text: SLIP_NO_REF });
-    assert.equal(r.body.status, "duplicate");
+    assert.equal(r.body.status, "convert");
 });
 
 test("ไม่มีเลขอ้างอิงและไม่มีเวลา (weak) → กันซ้ำแค่ 10 นาที", async () => {
@@ -185,7 +185,7 @@ test("ไม่มีเลขอ้างอิงและไม่มีเ�
     await call({ action: "parse", text: SLIP_WEAK });
     await call({ action: "save", splitType: "personal" });
     clock.t += 5 * 60 * 1000;
-    assert.equal((await call({ action: "parse", text: SLIP_WEAK })).body.status, "duplicate");
+    assert.equal((await call({ action: "parse", text: SLIP_WEAK })).body.status, "convert");
     clock.t += 6 * 60 * 1000; // รวม 11 นาที
     assert.equal((await call({ action: "parse", text: SLIP_WEAK })).body.status, "ok");
 });
@@ -212,4 +212,92 @@ test("body เป็น string JSON ก็รับได้ (กรณีไม
     const { call } = setup();
     const r = await call(JSON.stringify({ action: "parse", text: SLIP }));
     assert.equal(r.body.status, "ok");
+});
+
+// ---------- โหมดอัตโนมัติ (action: auto) ----------
+test("auto: แกะสลิปแล้วบันทึกส่วนตัวทันที ไม่ถามอะไร และไม่ค้างรายการรอบันทึก", async () => {
+    const { call, db, lineCalls } = setup();
+    const r = await call({ action: "auto", text: SLIP });
+    assert.equal(r.statusCode, 200);
+    assert.equal(r.body.status, "saved");
+    assert.equal(r.body.success, true);
+    assert.match(r.body.message, /บันทึกส่วนตัวแล้ว/);
+    assert.equal(db.count("personal_expenses"), 1);
+    assert.equal(db.count("transactions"), 0);
+    assert.equal(db.has("pending_slips", "me"), false);
+    assert.equal(lineCalls.length, 0);
+    assert.equal(db.all("personal_expenses")[0].payer, "G A M E 👾");
+});
+
+test("auto: เรียกซ้ำกับสลิปเดิม → ไม่บันทึกซ้ำ และข้อความไม่มี '(กด ❌ ปิด เพื่อออก)'", async () => {
+    const { call, db } = setup();
+    await call({ action: "auto", text: SLIP });
+    const r = await call({ action: "auto", text: SLIP });
+    assert.equal(r.body.status, "duplicate");
+    assert.equal(r.body.success, false);
+    assert.doesNotMatch(r.body.message, /กด ❌ ปิด/);
+    assert.equal(db.count("personal_expenses"), 1);
+});
+
+test("auto: รูป/ข้อความที่ไม่ใช่สลิป → ไม่บันทึก บอกสาเหตุ", async () => {
+    const { call, db } = setup();
+    const r = await call({ action: "auto", text: "รูปแมวน่ารัก" });
+    assert.equal(r.body.status, "no_amount");
+    assert.doesNotMatch(r.body.message, /กด ❌ ปิด/);
+    assert.equal(db.count("personal_expenses"), 0);
+});
+
+test("auto: ไม่มีรหัส → 401", async () => {
+    const { call } = setup();
+    assert.equal((await call({ action: "auto", text: SLIP }, "Bearer bad")).statusCode, 401);
+});
+
+// ---------- เปลี่ยนรายการส่วนตัว (จากระบบอัตโนมัติ) เป็นหารกับเพื่อน ----------
+test("auto บันทึกส่วนตัวแล้ว → สแกนด้วยมือได้ 'convert' และเปลี่ยนเป็นหาร: ย้ายรายการ ไม่ซ้ำซ้อน", async () => {
+    const { call, db } = setup();
+    await call({ action: "auto", text: SLIP });
+    assert.equal(db.count("personal_expenses"), 1);
+    const originalDate = db.all("personal_expenses")[0].date;
+
+    const p = await call({ action: "parse", text: SLIP });
+    assert.equal(p.body.status, "convert");
+    assert.match(p.body.message, /เปลี่ยนเป็นหารกับเพื่อน/);
+
+    const s = await call({ action: "save", splitType: "equal", splitWith: ["AOY", "TPALM"] });
+    assert.equal(s.body.status, "saved");
+    assert.equal(db.count("personal_expenses"), 0, "รายการส่วนตัวเดิมต้องถูกย้ายออก");
+    assert.equal(db.count("transactions"), 1);
+    const t = db.all("transactions")[0];
+    assert.equal(t.date, originalDate);
+    assert.equal(t.amount, 150);
+    assert.deepEqual(t.splits, { AOY: 75, TPALM: 75 });
+    assert.equal(db.has("pending_slips", "me"), false);
+});
+
+test("convert แต่เลือก 'ส่วนตัว' → ไม่เปลี่ยนอะไร ไม่เพิ่มซ้ำ", async () => {
+    const { call, db } = setup();
+    await call({ action: "auto", text: SLIP });
+    await call({ action: "parse", text: SLIP });
+    const s = await call({ action: "save", splitType: "personal" });
+    assert.equal(s.body.status, "saved");
+    assert.equal(db.count("personal_expenses"), 1);
+    assert.equal(db.count("transactions"), 0);
+});
+
+test("auto ซ้ำกับรายการส่วนตัวเดิม → แจ้งว่าบันทึกแล้ว และบอกวิธีหาร ไม่สร้างรายการใหม่", async () => {
+    const { call, db } = setup();
+    await call({ action: "auto", text: SLIP });
+    const r = await call({ action: "auto", text: SLIP });
+    assert.equal(r.body.status, "duplicate");
+    assert.match(r.body.message, /สแกนสลิป/);
+    assert.equal(db.count("personal_expenses"), 1);
+    assert.equal(db.has("pending_slips", "me"), false);
+});
+
+test("สลิปที่หารไปแล้ว (อยู่ใน transactions) ยังเป็น duplicate ธรรมดา ไม่ใช่ convert", async () => {
+    const { call } = setup();
+    await call({ action: "parse", text: SLIP });
+    await call({ action: "save", splitType: "equal", splitWith: ["AOY"] });
+    const r = await call({ action: "parse", text: SLIP });
+    assert.equal(r.body.status, "duplicate");
 });
