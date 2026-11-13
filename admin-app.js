@@ -223,7 +223,7 @@ const app = {
         this.data.members.forEach(m => balances[m] = 0);
 
         transactions.forEach(t => {
-            const payer = t.payer;
+            const payer = String(t.payer || '').trim().toUpperCase();
             if (balances[payer] !== undefined) balances[payer] += Number(t.amount);
             if (t.splits) {
                 Object.keys(t.splits).forEach(k => {
@@ -235,8 +235,10 @@ const app = {
 
         // หักยอดที่ verified แล้วออกจาก balances เหมือนใน index.html
         verifiedSettlements.forEach(s => {
-            if (balances[s.from] !== undefined) balances[s.from] += Number(s.amount);
-            if (balances[s.to] !== undefined) balances[s.to] -= Number(s.amount);
+            const fromKey = String(s.from || '').trim().toUpperCase();
+            const toKey = String(s.to || '').trim().toUpperCase();
+            if (balances[fromKey] !== undefined) balances[fromKey] += Number(s.amount);
+            if (balances[toKey] !== undefined) balances[toKey] -= Number(s.amount);
         });
 
         const debtors = [], creditors = [];

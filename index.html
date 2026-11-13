@@ -1971,6 +1971,10 @@
             return `${y}-${m}-${d}`;
         }
 
+        function escapeHtml(s) {
+            return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
         function getBangkokMonthString(date = new Date()) {
             const formatter = new Intl.DateTimeFormat("en-US", {
                 timeZone: "Asia/Bangkok",
@@ -3410,11 +3414,46 @@
                     const div = document.createElement('div');
                     div.className = "flex items-center gap-2 bg-[#2c2c2e] border border-white/10 px-4 py-2 rounded-xl shadow-sm";
                     div.innerHTML = `
-                        <span class="text-sm font-bold text-white tracking-wide">${m}</span>
-                        ${(m !== 'GAME' && this.data.userRole === 'admin') ? `<button onclick="window.app.deleteMember('${m}')" class="text-[10px] w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-colors ml-1"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                        <span class="text-sm font-bold text-white tracking-wide">${escapeHtml(m)}</span>
+                        ${(m !== 'GAME' && this.data.userRole === 'admin') ? `<button type="button" data-delete-member class="text-[10px] w-5 h-5 flex items-center justify-center rounded-full bg-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-colors ml-1"><i class="fa-solid fa-xmark"></i></button>` : ''}
                     `;
+                    const delBtn = div.querySelector('[data-delete-member]');
+                    if (delBtn) delBtn.addEventListener('click', () => this.deleteMember(m));
                     list.appendChild(div);
                 });
+            },
+
+            // หาเอกสารสมาชิกจากชื่อ (this.data.members เป็นแค่ชื่อ ส่วนข้อมูล LINE อยู่ใน rawMembers) ชื่อซ้ำให้เลือกตัวที่ผูก LINE
+            findMemberDoc(name) {
+                const norm = (v) => String(v || '').replace(/\s+/g, ' ').trim().toUpperCase();
+                const key = norm(name);
+                const docs = (this.data.rawMembers || []).filter(m => norm(m.name) === key);
+                return docs.find(m => m.lineUserId) || docs[0] || null;
+            },
+
+            async deleteMember(name) {
+                if (this.data.userRole !== 'admin') return;
+                const norm = (v) => String(v || '').replace(/\s+/g, ' ').trim().toUpperCase();
+                const key = norm(name);
+                if (!key) return;
+                if (key === 'GAME') { alert('ลบสมาชิกนี้ไม่ได้'); return; }
+                if (key === norm(this.data.currentUser)) { alert('ลบบัญชีของตัวเองไม่ได้'); return; }
+                // ถ้าชื่อนี้ยังอยู่ในบิลหรือประวัติเคลียร์หนี้ การลบจะทำให้ยอดหนี้ของคนอื่นคำนวณผิด จึงไม่อนุญาต
+                const inBills = this.data.transactions.some(t => norm(t.payer) === key || Object.keys(t.splits || {}).some(k => norm(k) === key));
+                const inSettlements = (this.data.settlements || []).some(x => norm(x.from) === key || norm(x.to) === key);
+                if (inBills || inSettlements) {
+                    alert(`ลบ ${key} ไม่ได้ เพราะยังมีชื่อนี้ในรายการบิลหรือประวัติเคลียร์หนี้\n(ถ้าลบ ยอดหนี้ของคนอื่นจะคำนวณผิด)\n\nถ้าเป็นชื่อซ้ำหรือพิมพ์ผิด ให้แจ้งผู้พัฒนา`);
+                    return;
+                }
+                if (!confirm(`ยืนยันลบสมาชิก ${key} ?\n(ลบแล้วกู้คืนไม่ได้)`)) return;
+                try {
+                    const docs = (this.data.rawMembers || []).filter(m => norm(m.name) === key);
+                    for (const m of docs) await deleteDoc(doc(db, 'members', m.id));
+                    this.showToast(`ลบสมาชิก ${key} เรียบร้อย`);
+                } catch (e) {
+                    console.error(e);
+                    alert('เกิดข้อผิดพลาด: ' + e.message);
+                }
             },
 
             async toggleAdminRole(name, currentRole) {
@@ -3732,14 +3771,14 @@
                 let html = '';
                 debtors.forEach(debtorName => {
                     // Try to find if user has lineUserId
-                    const memberInfo = this.data.members.find(m => m.name === debtorName);
+                    const memberInfo = this.findMemberDoc(debtorName);
                     const hasLineId = memberInfo && memberInfo.lineUserId;
                     
                     html += `
                         <label class="flex items-center gap-2 bg-[#2c2c2e] p-2 rounded-lg border border-white/5 cursor-pointer hover:bg-white/5 transition-colors ${!hasLineId ? 'opacity-50' : ''}">
-                            <input type="checkbox" name="line_targets" value="${debtorName}" class="rounded border-slate-600 text-[#4B6CB7] focus:ring-[#4B6CB7] bg-[#1c1c1e]" checked ${!hasLineId ? 'disabled' : ''}>
+                            <input type="checkbox" name="line_targets" value="${escapeHtml(debtorName)}" class="rounded border-slate-600 text-[#4B6CB7] focus:ring-[#4B6CB7] bg-[#1c1c1e]" checked ${!hasLineId ? 'disabled' : ''}>
                             <div class="flex flex-col">
-                                <span class="text-xs font-bold text-white">${debtorName}</span>
+                                <span class="text-xs font-bold text-white">${escapeHtml(debtorName)}</span>
                                 ${!hasLineId ? '<span class="text-[8px] text-red-400">ยังไม่ผูก LINE</span>' : ''}
                             </div>
                         </label>
@@ -4985,7 +5024,7 @@
 
                     await batch.commit();
                     alert(`ลบข้อมูลเดือน ${m} เรียบร้อย\n - Transactions: ${itemsInMonth.length} รายการ\n - Settlements: ${settlementsSnapshot.size} รายการ`);
-                    await this.loadTransactions();
+                    // ข้อมูลรีเฟรชเองผ่าน onSnapshot ไม่ต้องโหลดซ้ำ
                 }
             },
 
@@ -5050,8 +5089,7 @@
                         `- ลบ transactions: ${oldTransactions.length} รายการ\n` +
                         `- ลบ settlements: ${settlementsSnapshot.size} รายการ`);
 
-                    // โหลดข้อมูลใหม่
-                    await this.loadTransactions();
+                    // ข้อมูลรีเฟรชเองผ่าน onSnapshot ไม่ต้องโหลดซ้ำ
 
                 } catch (e) {
                     alert('เกิดข้อผิดพลาด: ' + e.message);
@@ -5110,7 +5148,7 @@
                 const targetUsers = [];
                 document.querySelectorAll('input[name="line_targets"]:checked').forEach(cb => {
                     const memberName = cb.value;
-                    const memberInfo = this.data.members.find(m => m.name === memberName);
+                    const memberInfo = this.findMemberDoc(memberName);
                     if (memberInfo && memberInfo.lineUserId) {
                         targetUsers.push({ name: memberName, userId: memberInfo.lineUserId });
                     }
