@@ -6,7 +6,7 @@ const db = getDbInstance();
 /**
  * GET /api/get-members   (ต้องมี Authorization: Bearer <รหัสอุปกรณ์>)
  *   ปกติ: คืนรายชื่อเพื่อน "ไม่รวมตัวเอง"
- *   ?include_self=1: คืนรายชื่อทั้งหมด โดยชื่อตัวเองอยู่บนสุดและมีป้าย "⭐ ชื่อ (ฉัน)"
+ *   ?include_self=1: คืนรายชื่อทั้งหมด โดยชื่อตัวเองอยู่บนสุดและมีป้าย "ชื่อ (ฉัน)"
  *                    (ใช้ในคำสั่งลัดเพื่อให้ติ๊กเลือกได้ว่าจะหารรวมตัวเองหรือจ่ายแทน)
  */
 export default async function handler(req, res) {
@@ -54,7 +54,7 @@ export default async function handler(req, res) {
         members.sort((a, b) => a.localeCompare(b, 'th'));
 
         if (includeSelf && selfName) {
-            members.unshift(`⭐ ${selfName} (ฉัน)`);
+            members.unshift(`${selfName} (ฉัน)`);
         }
 
         return res.status(200).json({

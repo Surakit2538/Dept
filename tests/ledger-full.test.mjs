@@ -115,7 +115,8 @@ test("2b: ทุกหน้าใช้แกนคำนวณกลาง ไ
     assert.match(read("api/widget-summary.js"), /memberMonthSummary/);
     assert.ok(!/balance \+= /.test(read("api/widget-summary.js")));
     const hook = read("api/webhook.js");
-    assert.match(hook, /computeMonthLedger\(\{/);
+    assert.match(hook, /buildMemberReportMessage\(/);
+    assert.match(read("lib/line-report.mjs"), /computeMonthLedger\(\{/);
     assert.ok(!/balances\[payer\] \+= Number\(t\.amount\)/.test(hook));
     assert.match(read("admin.html"), /admin-app\.js\?v=4/);
 });

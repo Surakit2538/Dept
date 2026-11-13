@@ -205,7 +205,7 @@ export function createSlipSuccessMessage(slip, settlement) {
                 },
                 {
                     type: 'text',
-                    text: '✅ ยืนยันการโอนสำเร็จ',
+                    text: 'ยืนยันการโอนสำเร็จ',
                     weight: 'bold',
                     color: '#ffffff',
                     size: 'lg',

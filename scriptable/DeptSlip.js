@@ -12,7 +12,7 @@
  * รหัสอ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
  */
 
-const SCRIPT_VERSION = "1.4.0";
+const SCRIPT_VERSION = "1.5.0";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ค่าเริ่มต้น false: รูปสลิปไม่ออกจากเครื่อง ใช้ Live Text ของ iPhone อ่านแล้วส่งแต่ข้อความ
@@ -20,7 +20,7 @@ const BASE_URL = "https://dept-game.vercel.app";
 const USE_AI_IMAGE = false;
 
 // ==========================================
-// 🛠️ ตัวช่วย
+// ตัวช่วย
 // ==========================================
 async function showMessage(title, message) {
     const a = new Alert();
@@ -100,10 +100,10 @@ async function pickPeople(members) {
         sheet.title = "เลือกคนที่หารด้วย";
         sheet.message = selected.size > 0
             ? "เลือกแล้ว: " + Array.from(selected).join(", ")
-            : "แตะชื่อเพื่อเลือก/ยกเลิก\n⭐ คือตัวคุณ: เลือก = หารรวมตัวเอง · ไม่เลือก = จ่ายแทน";
-        sheet.addAction("✔︎ เสร็จ (" + selected.size + " รายการ)");
+            : "แตะชื่อเพื่อเลือก/ยกเลิก\nชื่อที่มี (ฉัน) คือตัวคุณ: เลือก = หารรวมตัวเอง · ไม่เลือก = จ่ายแทน";
+        sheet.addAction("เสร็จ (" + selected.size + " รายการ)");
         members.forEach(function (m) {
-            sheet.addAction((selected.has(m) ? "✅ " : "") + m);
+            sheet.addAction((selected.has(m) ? "✓ " : "") + m);
         });
         sheet.addCancelAction("ยกเลิก");
 
@@ -117,7 +117,7 @@ async function pickPeople(members) {
 }
 
 // ==========================================
-// 🚀 เริ่มทำงาน
+// เริ่มทำงาน
 // ==========================================
 async function main() {
     // 1) เตรียมข้อมูลที่จะส่งไปให้เซิร์ฟเวอร์อ่าน
@@ -152,7 +152,7 @@ async function main() {
     // status "convert" = สลิปนี้บันทึกเป็นส่วนตัวไปแล้ว (เช่น โดยระบบอัตโนมัติ) เสนอให้เปลี่ยนเป็นหารกับเพื่อนได้
     const isConvert = parsed.status === "convert";
     if (parsed.status !== "ok" && !isConvert) {
-        await showMessage("สแกนสลิป", String(parsed.message || "เกิดข้อผิดพลาด").replace(/\n\n\(กด ❌ ปิด เพื่อออก\)$/, ""));
+        await showMessage("สแกนสลิป", String(parsed.message || "เกิดข้อผิดพลาด").replace(/\n\n\(กด ปิด เพื่อออก\)$/, ""));
         return;
     }
 
@@ -165,21 +165,21 @@ async function main() {
         menu.title = "สแกนสลิป";
         menu.message = parsed.message;
         if (!isConvert) {
-            menu.addAction("👤 ส่วนตัว");
+            menu.addAction("ส่วนตัว");
             keys.push("personal");
         }
-        menu.addAction(isConvert ? "👥 เปลี่ยนเป็นหารกับเพื่อน" : "👥 หารกับเพื่อน");
+        menu.addAction(isConvert ? "เปลี่ยนเป็นหารกับเพื่อน" : "หารกับเพื่อน");
         keys.push("split");
         if (!isConvert) {
             // รายรับ: เงินเข้าบัญชีเรา (เพื่อนโอนคืนหนี้ไม่ใช่รายรับ) ระบบบอกคำแนะนำไว้ในข้อความด้านบนแล้ว
-            menu.addAction("💰 รายรับ");
+            menu.addAction("รายรับ");
             keys.push("income");
         }
         if (text.trim()) {
-            menu.addAction("🔍 ดูข้อความที่อ่านได้");
+            menu.addAction("ดูข้อความที่อ่านได้");
             keys.push("raw");
         }
-        menu.addCancelAction("❌ ปิด");
+        menu.addCancelAction("ปิด");
         const idx = await menu.presentAlert();
         if (idx === -1) return;
         choiceKey = keys[idx];

@@ -8,11 +8,11 @@
  * เวอร์ชัน 2.0.1 (Device Token Auth)
  */
 
-const SCRIPT_VERSION = "2.0.1";
+const SCRIPT_VERSION = "2.0.2";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ==========================================
-// 🚀 เริ่มต้นทำงาน
+// เริ่มต้นทำงาน
 // ==========================================
 const widget = await createWidget();
 
@@ -25,7 +25,7 @@ if (config.runsInWidget) {
 Script.complete();
 
 // ==========================================
-// 🎨 สร้าง Widget UI
+// สร้าง Widget UI
 // ==========================================
 async function createWidget() {
     const listWidget = new ListWidget();
@@ -39,8 +39,8 @@ async function createWidget() {
     if (!token) {
         return renderErrorWidget(
             listWidget,
-            "⚠️ ยังไม่ได้ตั้งค่าอุปกรณ์",
-            "กรุณาเปิดเว็บ Dept Money แล้วแตะเมนู\n\"📱 ตั้งค่า iPhone\" เพื่อติดตั้ง",
+            "ยังไม่ได้ตั้งค่าอุปกรณ์",
+            "กรุณาเปิดเว็บ Dept Money แล้วแตะเมนู\n\"ตั้งค่า iPhone\" เพื่อติดตั้ง",
             "#FBBF24"
         );
     }
@@ -51,7 +51,7 @@ async function createWidget() {
     if (!result.success) {
         return renderErrorWidget(
             listWidget,
-            "⚠️ ไม่สามารถโหลดข้อมูลได้",
+            "ไม่สามารถโหลดข้อมูลได้",
             result.message || "กรุณาตรวจสอบการเชื่อมต่อ",
             result.status === 401 ? "#EF4444" : "#FBBF24"
         );
@@ -65,7 +65,7 @@ async function createWidget() {
     headerRow.layoutHorizontally();
     headerRow.centerAlignContent();
 
-    const titleText = headerRow.addText("💳 DEPT TRACKER");
+    const titleText = headerRow.addText("DEPT TRACKER");
     titleText.font = Font.boldSystemFont(11);
     titleText.textColor = new Color("#94A3B8");
 
@@ -167,11 +167,11 @@ async function createWidget() {
     footerRow.centerAlignContent();
 
     if (data.debt && data.debt.balance !== 0) {
-        const debtLabel = footerRow.addText(`👥 ${data.debt.text}`);
+        const debtLabel = footerRow.addText(`${data.debt.text}`);
         debtLabel.font = Font.systemFont(10);
         debtLabel.textColor = data.debt.type === 'receive' ? new Color("#34D399") : new Color("#FBBF24");
     } else {
-        const settledLabel = footerRow.addText("👥 เคลียร์หนี้ครบแล้ว");
+        const settledLabel = footerRow.addText("เคลียร์หนี้ครบแล้ว");
         settledLabel.font = Font.systemFont(10);
         settledLabel.textColor = new Color("#64748B");
     }
@@ -193,7 +193,7 @@ async function createWidget() {
 }
 
 // ==========================================
-// ⚠️ Widget หน้าแสดง Error
+// Widget หน้าแสดง Error
 // ==========================================
 function renderErrorWidget(listWidget, title, message, colorHex = "#EF4444") {
     const stack = listWidget.addStack();
@@ -228,7 +228,7 @@ function renderErrorWidget(listWidget, title, message, colorHex = "#EF4444") {
 }
 
 // ==========================================
-// 🌐 ดึงข้อมูลจาก API + Offline Caching
+// ดึงข้อมูลจาก API + Offline Caching
 // ==========================================
 async function fetchSummaryData(token) {
     const cacheKey = "dept_widget_cache_v2.json";
@@ -303,7 +303,7 @@ async function fetchSummaryData(token) {
 }
 
 // ==========================================
-// 🛠️ ฟังก์ชันเสริม (Helpers)
+// ฟังก์ชันเสริม (Helpers)
 // ==========================================
 function formatNumber(num) {
     const val = Number(num) || 0;

@@ -42,7 +42,7 @@ for (const name of FILES) {
 
 if (failedFile) {
     const errAlert = new Alert();
-    errAlert.title = "ติดตั้งไม่สำเร็จ ❌";
+    errAlert.title = "ติดตั้งไม่สำเร็จ";
     errAlert.message = \`ดาวน์โหลดไฟล์ \${failedFile} ไม่สมบูรณ์ (ยังไม่มีการเปลี่ยนแปลงใดๆ) กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง\`;
     errAlert.addAction("ตกลง");
     await errAlert.present();
@@ -66,7 +66,7 @@ if (failedFile) {
     } catch (e) {}
 
     const successAlert = new Alert();
-    successAlert.title = "ติดตั้งสำเร็จ ✅";
+    successAlert.title = "ติดตั้งสำเร็จ";
     successAlert.message = \`ติดตั้ง DeptWidget, DeptSlip และ DeptAuto เรียบร้อยแล้ว\n\nสมาชิก: \${confirmedUser || "${userName}"}\nต่อไปให้เพิ่ม Widget บนหน้าจอโฮม และสร้างคำสั่งลัดสแกนสลิปตามคู่มือในเว็บครับ\`;
     successAlert.addAction("เรียบร้อย");
     await successAlert.present();
@@ -121,7 +121,7 @@ if (failedFile) {
                         <i class="fa-solid fa-key"></i>
                         <span id="btn-generate-text">สร้างรหัสสำหรับเครื่องนี้</span>
                     </button>
-                    <p class="text-[11px] text-slate-400 text-center">⚠️ หากสร้างรหัสใหม่ รหัสบนเครื่องเก่าจะถูกยกเลิกทันที</p>
+                    <p class="text-[11px] text-slate-400 text-center">หากสร้างรหัสใหม่ รหัสบนเครื่องเก่าจะถูกยกเลิกทันที</p>
                 </div>
 
                 <!-- Result Steps (Shown after token created) -->
@@ -139,7 +139,7 @@ if (failedFile) {
                             <p class="font-bold text-white mb-1">วิธีติดตั้งใน 3 ขั้นตอน:</p>
                             <p>1. เปิดแอป <strong>Scriptable</strong> บน iPhone</p>
                             <p>2. กดเครื่องหมาย <strong>+</strong> (ขวาบน) แล้วกด <strong>วาง (Paste)</strong></p>
-                            <p>3. กดปุ่ม <strong>▶ (Play)</strong> เพื่อรันติดตั้งครั้งเดียว</p>
+                            <p>3. กดปุ่ม <strong>Play (ปุ่มสามเหลี่ยม)</strong> เพื่อรันติดตั้งครั้งเดียว</p>
                         </div>
 
                         <button onclick="window.iphoneSetup.copyInstallerCode()" id="btn-copy-installer" class="w-full bg-indigo-600 hover:bg-indigo-500 active:scale-[0.98] text-white py-3 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md">
@@ -251,7 +251,7 @@ if (failedFile) {
                 document.getElementById("iphone-token-display").value = data.token;
 
                 // เปลี่ยนปุ่มสร้างเป็นสร้างใหม่
-                btnText.innerText = "🔄 สร้างรหัสใหม่อีกครั้ง";
+                btnText.innerText = "สร้างรหัสใหม่อีกครั้ง";
 
                 // คัดลอกโค้ด Widget ให้อัตโนมัติเลยเพื่อความสะดวก
                 await this.copyInstallerCode(true);
@@ -271,13 +271,13 @@ if (failedFile) {
             const btnText = document.getElementById("btn-copy-installer-text");
             try {
                 await navigator.clipboard.writeText(script);
-                btnText.innerText = "คัดลอกโค้ดติดตั้งสำเร็จแล้ว! ✅";
+                btnText.innerText = "คัดลอกโค้ดติดตั้งสำเร็จแล้ว!";
                 setTimeout(() => {
                     btnText.innerText = "คัดลอกโค้ดติดตั้งอีกครั้ง";
                 }, 3000);
             } catch (e) {
                 // iOS ไม่ให้คัดลอกอัตโนมัติหลังรอเซิร์ฟเวอร์ (ต้องเป็นการแตะของผู้ใช้เอง) จึงให้แตะปุ่มแทน ไม่ต้องขึ้นข้อความผิดพลาด
-                btnText.innerText = "👆 แตะที่นี่เพื่อคัดลอกโค้ดติดตั้ง";
+                btnText.innerText = "แตะที่นี่เพื่อคัดลอกโค้ดติดตั้ง";
                 if (!silent) alert("ไม่สามารถคัดลอกได้ กรุณาแตะปุ่ม \"คัดลอกโค้ดติดตั้ง\" อีกครั้ง");
             }
         },
@@ -289,7 +289,7 @@ if (failedFile) {
                 await navigator.clipboard.writeText("Bearer " + currentToken);
                 const btnText = document.getElementById("btn-copy-token-text");
                 const oldText = btnText.innerText;
-                btnText.innerText = "คัดลอกแล้ว! ✅";
+                btnText.innerText = "คัดลอกแล้ว!";
                 setTimeout(() => {
                     btnText.innerText = oldText;
                 }, 3000);

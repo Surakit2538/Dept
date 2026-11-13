@@ -1,6 +1,8 @@
 import { readRawBody, decideWebhookAccess } from '../lib/line-signature.mjs';
 import { splitInstallments } from '../lib/installments.mjs';
 import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
+import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, executeRemind, remindResultText, parsePostback } from '../lib/line-report.mjs';
+import * as fsApi from './auth-helpers.js';
 import {
     doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
@@ -78,6 +80,9 @@ export default async function handler(req, res) {
     const events = body.events || [];
     await Promise.all(events.map(async (event) => {
         try {
+            if (event.type === 'postback') {
+                await handlePostback(event, access.valid);
+            }
             if (event.type === 'message') {
                 if (event.message.type === 'text') await handleTextMessage(event);
                 if (event.message.type === 'image') await handleImageMessage(event);
@@ -86,7 +91,7 @@ export default async function handler(req, res) {
             console.error("Handler Error:", err);
             try {
                 if (event.replyToken) {
-                    await replyText(event.replyToken, `⚠️ เกิดข้อผิดพลาด: ${err.message}`);
+                    await replyText(event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`);
                 }
             } catch (replyErr) {
                 console.error("Reply Error:", replyErr);
@@ -105,7 +110,7 @@ async function handleTextMessage(event) {
     // คำสั่งยกเลิก (Global)
     if (['ยกเลิก', 'cancel', 'เริ่มใหม่', 'reset', 'พอ'].includes(text.toLowerCase())) {
         await deleteDoc(doc(db, 'user_sessions', userId));
-        return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
+        return replyText(replyToken, "ยกเลิกรายการแล้วครับ");
     }
 
     const sessionRef = doc(db, 'user_sessions', userId);
@@ -116,7 +121,7 @@ async function handleTextMessage(event) {
             step: 'ASK_DESC_START',
             timestamp: serverTimestamp()
         });
-        return replyText(replyToken, "📝 เริ่มบันทึกรายการ\nกรุณาพิมพ์ชื่อรายการครับ");
+        return replyText(replyToken, "เริ่มบันทึกรายการ\nกรุณาพิมพ์ชื่อรายการครับ");
     }
 
     // 2. คำสั่งดูค่าใช้จ่าย (Global)
@@ -126,9 +131,9 @@ async function handleTextMessage(event) {
         await deleteDoc(sessionRef); // Clear active session to avoid trapping
         const memberName = await getMemberNameByLineId(userId);
         if (!memberName) {
-            return replyText(replyToken, "❌ ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
+            return replyText(replyToken, "ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
         }
-        await generateMemberReport(replyToken, memberName);
+        await generateMemberReport(replyToken, memberName, event.source.type === 'user');
         return;
     }
 
@@ -143,7 +148,7 @@ async function handleTextMessage(event) {
             const parsedExpense = await parseExpenseWithGemini(text, members);
             
             if (parsedExpense && parsedExpense.error_msg) {
-                return replyText(replyToken, `❌ ข้อผิดพลาดจาก AI: ${parsedExpense.error_msg}\n(เช็ค API Key หรือโควต้าของ Gemini)`);
+                return replyText(replyToken, `ข้อผิดพลาดจาก AI: ${parsedExpense.error_msg}\n(เช็ค API Key หรือโควต้าของ Gemini)`);
             }
             
             if (parsedExpense && parsedExpense.is_expense) {
@@ -195,7 +200,7 @@ async function handleTextMessage(event) {
             }
         } else if (text.length > 5 && (text.includes('จ่าย') || text.includes('บาท')) && !process.env.GEMINI_API_KEY) {
             // กรณีพิมพ์เหมือนรายจ่าย แต่ยังไม่ได้ตั้งค่า API Key
-            return replyText(replyToken, "⚠️ ระบบ AI ยังไม่พร้อมใช้งาน กรุณาตั้งค่า GEMINI_API_KEY ใน Vercel Environment Variables และกด Redeploy");
+            return replyText(replyToken, "ระบบ AI ยังไม่พร้อมใช้งาน กรุณาตั้งค่า GEMINI_API_KEY ใน Vercel Environment Variables และกด Redeploy");
         }
 
         // ถ้าพิมพ์อย่างอื่นมา ให้ปล่อยผ่าน (Ignore)
@@ -207,9 +212,9 @@ async function handleTextMessage(event) {
     const data = session.data || {};
 
     // คำสั่งยกเลิกที่พิมพ์มาเมื่อไหร่ก็ได้
-    if (text === 'ยกเลิก' || text === '❌ ยกเลิก' || text === 'cancel') {
+    if (text === 'ยกเลิก' || text === 'ยกเลิก' || text === 'cancel') {
         await deleteDoc(sessionRef);
-        return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
+        return replyText(replyToken, "ยกเลิกรายการแล้วครับ");
     }
 
     // STEP 0.5: รับชื่อรายการ (แบบแมนนวล "เริ่มต้นจดบันทึก")
@@ -225,11 +230,11 @@ async function handleTextMessage(event) {
 
     // STEP AI: รับการยืนยันจาก AI
     if (currentStep === 'CONFIRM_AI_EXPENSE') {
-        if (text === 'ยืนยัน' || text === '✅ บันทึก' || text === '✅ ตกลง' || text === 'บันทึก') {
+        if (text === 'ยืนยัน' || text === 'บันทึก' || text === 'ตกลง' || text === 'บันทึก') {
             return await saveTransaction(replyToken, userId, data);
         } else {
             await deleteDoc(sessionRef);
-            return replyText(replyToken, "❌ ยกเลิกรายการแล้วครับ");
+            return replyText(replyToken, "ยกเลิกรายการแล้วครับ");
         }
     }
 
@@ -246,7 +251,7 @@ async function handleTextMessage(event) {
         const cleaned = text.replace(/,/g, '').replace(/บาท/g, '').trim();
         const amount = parseFloat(cleaned);
         if (isNaN(amount) || amount <= 0) {
-            return replyText(replyToken, "❌ กรุณาพิมพ์จำนวนเงินเป็นตัวเลขที่ถูกต้องครับ (เช่น 350 หรือ 1200)");
+            return replyText(replyToken, "กรุณาพิมพ์จำนวนเงินเป็นตัวเลขที่ถูกต้องครับ (เช่น 350 หรือ 1200)");
         }
         data.amount = amount;
         return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
@@ -271,7 +276,7 @@ async function handleTextMessage(event) {
         if (!members.includes(finalPayer)) {
             const actions = [
                 ...members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } })),
-                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+                { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
             ];
             const flex = createInteractiveCard("ไม่พบชื่อในระบบ", `คุณพิมพ์: "${text}"\nกรุณาแตะเลือกชื่อคนจ่ายจากปุ่มด้านล่าง หรือพิมพ์ให้ตรงกับ: ${members.join(', ')}`);
             return replyQuickReply(replyToken, flex, actions);
@@ -286,15 +291,15 @@ async function handleTextMessage(event) {
         const members = await getMemberNames();
         let currentList = data.participants || [];
 
-        if (text === 'ยืนยันรายชื่อ' || text === '✅ ยืนยัน' || text === 'ยืนยัน') {
+        if (text === 'ยืนยันรายชื่อ' || text === 'ยืนยัน' || text === 'ยืนยัน') {
             if (currentList.length === 0) {
-                return replyText(replyToken, "⚠️ กรุณาเลือกคนหารอย่างน้อย 1 คน หรือกดเลือกทุกคนครับ");
+                return replyText(replyToken, "กรุณาเลือกคนหารอย่างน้อย 1 คน หรือกดเลือกทุกคนครับ");
             }
             data.participants = currentList;
             return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
         }
 
-        if (text === 'ทุกคน' || text === '👥 ทุกคน') {
+        if (text === 'ทุกคน' || text === 'ทุกคน') {
             data.participants = members;
             return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
         }
@@ -312,13 +317,13 @@ async function handleTextMessage(event) {
             await setDoc(sessionRef, { step: 'AI_ASK_PARTICIPANTS', data: data, timestamp: serverTimestamp() });
             
             const actions = [
-                { type: "action", action: { type: "message", label: "✅ ยืนยันรายชื่อ", text: "ยืนยันรายชื่อ" } },
-                { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
+                { type: "action", action: { type: "message", label: "ยืนยันรายชื่อ", text: "ยืนยันรายชื่อ" } },
+                { type: "action", action: { type: "message", label: "ทุกคน", text: "ทุกคน" } },
                 ...members.slice(0, 10).map(m => ({
                     type: "action",
-                    action: { type: "message", label: (currentList.includes(m) ? `✅ ${m}` : m), text: m }
+                    action: { type: "message", label: (currentList.includes(m) ? `\u2713 ${m}` : m), text: m }
                 })),
-                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+                { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
             ];
             const flex = createInteractiveCard(
                 "เลือกคนหารเงิน",
@@ -335,7 +340,7 @@ async function handleTextMessage(event) {
             return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
         }
 
-        return replyText(replyToken, `🤖 ไม่พบชื่อ "${text}" ในระบบครับ\nกรุณาแตะปุ่มเลือก หรือพิมพ์ชื่อให้ตรงกับ: ${members.join(', ')} (หรือพิมพ์ว่า "ทุกคน")`);
+        return replyText(replyToken, `ไม่พบชื่อ "${text}" ในระบบครับ\nกรุณาแตะปุ่มเลือก หรือพิมพ์ชื่อให้ตรงกับ: ${members.join(', ')} (หรือพิมพ์ว่า "ทุกคน")`);
     }
 
     // STEP AI 4: รับรูปแบบการชำระ (จ่ายเต็ม / ผ่อนชำระ / Subscription)
@@ -345,7 +350,7 @@ async function handleTextMessage(event) {
         if (lower.includes("ผ่อน") || lower.includes("installment")) {
             data.paymentType = 'installment';
             return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
-        } else if (lower.includes("sub") || lower.includes("รายเดือน") || text.includes("💳")) {
+        } else if (lower.includes("sub") || lower.includes("รายเดือน") || text.includes("")) {
             data.paymentType = 'subscription';
             data.installments = 1;
             return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
@@ -355,10 +360,10 @@ async function handleTextMessage(event) {
             return await checkNextStepAndAsk(replyToken, sessionRef, data, members, userId);
         } else {
             const actions = [
-                { type: "action", action: { type: "message", label: "🟢 จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
-                { type: "action", action: { type: "message", label: "🟡 ผ่อนชำระ", text: "ผ่อนชำระ" } },
-                { type: "action", action: { type: "message", label: "💳 Subscription", text: "Subscription" } },
-                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+                { type: "action", action: { type: "message", label: "จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
+                { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } },
+                { type: "action", action: { type: "message", label: "Subscription", text: "Subscription" } },
+                { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
             ];
             const flex = createInteractiveCard("เลือกรูปแบบการชำระ", `รายการ: ${data.desc}\nยอดเงิน: ${(data.amount || 0).toLocaleString()} ฿\n\nโปรดแตะเลือกจากปุ่มด้านล่าง หรือพิมพ์ "จ่ายเต็ม" / "ผ่อนชำระ" / "Subscription"`);
             return replyQuickReply(replyToken, flex, actions);
@@ -396,9 +401,9 @@ async function handleTextMessage(event) {
         } else {
             const perPerson = Math.round(((data.amount || 0) / (data.participants?.length || 1)) * 100) / 100;
             const actions = [
-                { type: "action", action: { type: "message", label: `⚖️ หารเท่า (~${perPerson}฿)`, text: "หารเท่า" } },
-                { type: "action", action: { type: "message", label: "✏️ กำหนดเอง", text: "กำหนดเอง" } },
-                { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+                { type: "action", action: { type: "message", label: `หารเท่า (~${perPerson}฿)`, text: "หารเท่า" } },
+                { type: "action", action: { type: "message", label: "กำหนดเอง", text: "กำหนดเอง" } },
+                { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
             ];
             const flex = createInteractiveCard("วิธีหารเงิน", `ยอดรวม: ${(data.amount || 0).toLocaleString()} ฿ (${data.participants?.length || 0} คน)\n\nแตะเลือกหารเท่ากัน หรือระบุยอดแยกรายคน`);
             return replyQuickReply(replyToken, flex, actions);
@@ -422,7 +427,7 @@ async function handleTextMessage(event) {
 
         if (!valid) {
             const example = (data.participants || members.slice(0, 2)).map((p, idx) => `${p}=${(idx + 1) * 100}`).join(' ');
-            return replyText(replyToken, `⚠️ รูปแบบไม่ถูกต้องครับ\nกรุณาพิมพ์ตามรูปแบบ "ชื่อ=จำนวน"\nตัวอย่าง: ${example}`);
+            return replyText(replyToken, `รูปแบบไม่ถูกต้องครับ\nกรุณาพิมพ์ตามรูปแบบ "ชื่อ=จำนวน"\nตัวอย่าง: ${example}`);
         }
 
         data.customAmountStr = text.trim();
@@ -432,7 +437,7 @@ async function handleTextMessage(event) {
     // STEP 2: รับราคา -> ถามคนจ่าย (โหมดเริ่มต้นจดบันทึกแบบเดิม)
     if (currentStep === 'ASK_AMOUNT') {
         const amount = parseFloat(text.replace(/,/g, ''));
-        if (isNaN(amount) || amount <= 0) return replyText(replyToken, "⚠️ โปรดระบุราคาเป็นตัวเลขครับ");
+        if (isNaN(amount) || amount <= 0) return replyText(replyToken, "โปรดระบุราคาเป็นตัวเลขครับ");
 
         await setDoc(sessionRef, { step: 'ASK_PAYER', data: { ...data, amount } }, { merge: true });
         const members = await getMemberNames();
@@ -448,7 +453,7 @@ async function handleTextMessage(event) {
         const actions = [
             { type: "action", action: { type: "message", label: "จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
             { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } },
-            { type: "action", action: { type: "message", label: "💳 Subscription", text: "Subscription" } }
+            { type: "action", action: { type: "message", label: "Subscription", text: "Subscription" } }
         ];
         const flex = createInteractiveCard("รูปแบบการชำระ", `คนจ่าย: ${payer}
 เลือกรูปแบบการชำระครับ`);
@@ -461,7 +466,7 @@ async function handleTextMessage(event) {
             await setDoc(sessionRef, { step: 'ASK_INSTALLMENTS', data: { ...data, paymentType: 'installment' } }, { merge: true });
             const flex = createInteractiveCard("ระบุจำนวนงวด", "ต้องการผ่อนกี่เดือน? (2-24)", "ตัวอย่าง: 3, 6, 12");
             return replyFlex(replyToken, "ระบุจำนวนงวด", flex);
-        } else if (text.toLowerCase().includes("subscription") || text.includes("💳")) {
+        } else if (text.toLowerCase().includes("subscription") || text.includes("")) {
             // Subscription - ข้ามไปถามคนหารเลย
             await setDoc(sessionRef, {
                 step: 'ASK_PARTICIPANTS',
@@ -489,8 +494,8 @@ async function handleTextMessage(event) {
     // STEP 5: เลือกคนหาร
     if (currentStep === 'ASK_PARTICIPANTS') {
         let currentList = data.participants || [];
-        if (text === 'ยืนยัน' || text === '✅ ตกลง') {
-            if (currentList.length === 0) return replyText(replyToken, "⚠️ กรุณาเลือกอย่างน้อย 1 คนครับ");
+        if (text === 'ยืนยัน' || text === 'ตกลง') {
+            if (currentList.length === 0) return replyText(replyToken, "กรุณาเลือกอย่างน้อย 1 คนครับ");
             await setDoc(sessionRef, { step: 'ASK_SPLIT_METHOD' }, { merge: true });
             const actions = [
                 { type: "action", action: { type: "message", label: "หารเท่ากัน", text: "หารเท่า" } },
@@ -540,34 +545,34 @@ async function handleImageMessage(event) {
         const imageBuffer = await getImageContent(messageId);
 
         if (!imageBuffer) {
-            return replyText(replyToken, "❌ ไม่สามารถดึงรูปภาพได้ กรุณาลองใหม่อีกครั้ง");
+            return replyText(replyToken, "ไม่สามารถดึงรูปภาพได้ กรุณาลองใหม่อีกครั้ง");
         }
 
         // 2. ตรวจสอบว่า user มีข้อมูลสมาชิกหรือไม่
         const userMember = await getMemberByLineIdHelper(db, userId);
 
         if (!userMember) {
-            return replyText(replyToken, "❌ ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
+            return replyText(replyToken, "ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน");
         }
 
         // 3. ส่งรูปไปตรวจสอบกับ SlipOK API
-        await replyText(replyToken, "🔍 กำลังตรวจสอบสลิป...");
+        await replyText(replyToken, "กำลังตรวจสอบสลิป...");
 
         const slipData = await verifySlipWithSlipOK(imageBuffer);
 
-        // 🔍 DEBUG: Log SlipOK response
+        // DEBUG: Log SlipOK response
         console.log('=== SlipOK Response ===');
         console.log('Success:', slipData.success);
         console.log('Full Response:', JSON.stringify(slipData, null, 2));
 
         if (!slipData.success) {
             const errorMsg = getSlipErrorMessage(slipData.code, slipData.message);
-            return pushMessage(userId, `❌ ${errorMsg}`);
+            return pushMessage(userId, `${errorMsg}`);
         }
 
         const slip = slipData.data;
 
-        // 🔍 DEBUG: Log slip data structure
+        // DEBUG: Log slip data structure
         console.log('=== Slip Data Structure ===');
         console.log('slip.amount:', slip.amount);
         console.log('Type of slip.amount:', typeof slip.amount);
@@ -577,19 +582,19 @@ async function handleImageMessage(event) {
         const slipAmount = typeof slip.amount === 'number' ? slip.amount : (slip.amount?.amount || 0);
 
         if (!slipAmount || slipAmount <= 0) {
-            console.log('❌ Amount validation failed! slip.amount =', slip.amount);
+            console.log('Amount validation failed! slip.amount =', slip.amount);
 
             return pushMessage(userId,
-                `❌ ไม่สามารถอ่านยอดเงินจากสลิปได้\n\n` +
+                `ไม่สามารถอ่านยอดเงินจากสลิปได้\n\n` +
                 `กรุณาตรวจสอบว่าสลิปชัดเจนและลองใหม่อีกครั้ง`
             );
         }
 
-        console.log('✅ Slip amount validated:', slipAmount);
+        console.log('Slip amount validated:', slipAmount);
 
         // 5. หา Settlement ที่ตรงกับยอดเงินในสลิป
         // ใช้เดือนปัจจุบัน (YYYY-MM format) (ถูกค้นหาย้อนหลังด้วย Smart search)
-        console.log('🔍 Finding settlement for:', userMember.name, 'amount:', slipAmount);
+        console.log('Finding settlement for:', userMember.name, 'amount:', slipAmount);
 
         const matchOutcome = await findSettlementForSlip(db, userMember.name, slipAmount, slip.receiver);
         const matchingSettlement = matchOutcome.ok ? matchOutcome.settlement : null;
@@ -602,18 +607,18 @@ async function handleImageMessage(event) {
         if (!matchingSettlement) {
             if (matchOutcome.reason === 'no_debt') {
                 return pushMessage(userId,
-                    `ℹ️ ตอนนี้คุณไม่มียอดค้างชำระที่ต้องโอนให้เพื่อน\n\n` +
+                    `ตอนนี้คุณไม่มียอดค้างชำระที่ต้องโอนให้เพื่อน\n\n` +
                     `ถ้าคิดว่ายังมียอดค้าง ให้ตรวจสอบในหน้าเคลียร์หนี้ของเว็บ`
                 );
             }
             if (matchOutcome.reason === 'overpay') {
                 return pushMessage(userId,
-                    `⚠️ ยอดในสลิป ${slipAmount.toLocaleString()} บาท มากกว่ายอดที่คุณค้างชำระ (สูงสุด ${matchOutcome.owed.toLocaleString()} บาท)\n\n` +
+                    `ยอดในสลิป ${slipAmount.toLocaleString()} บาท มากกว่ายอดที่คุณค้างชำระ (สูงสุด ${matchOutcome.owed.toLocaleString()} บาท)\n\n` +
                     `ระบบยังไม่ได้บันทึกการเคลียร์หนี้ กรุณาตรวจสอบยอดในหน้าเคลียร์หนี้แล้วแจ้งผู้ดูแลถ้าต้องการให้บันทึกเอง`
                 );
             }
             return pushMessage(userId,
-                `⚠️ ไม่พบรายการค้างชำระที่ตรงกับจำนวนเงิน ${slipAmount.toLocaleString()} บาท\n\n` +
+                `ไม่พบรายการค้างชำระที่ตรงกับจำนวนเงิน ${slipAmount.toLocaleString()} บาท\n\n` +
                 `กรุณาตรวจสอบยอดในหน้าเคลียร์หนี้ แล้วลองใหม่อีกครั้ง`
             );
         }
@@ -623,12 +628,12 @@ async function handleImageMessage(event) {
 
         if (!receiver || !receiver.realName) {
             return pushMessage(userId,
-                `⚠️ ผู้รับ (${matchingSettlement.to}) ยังไม่ได้ตั้งค่าชื่อจริง\n` +
+                `ผู้รับ (${matchingSettlement.to}) ยังไม่ได้ตั้งค่าชื่อจริง\n` +
                 `กรุณาแจ้งให้ผู้รับไปตั้งค่าในหน้า Settings`
             );
         }
 
-        console.log(`🔍 MATCHING DEBUG:`);
+        console.log(`MATCHING DEBUG:`);
         console.log(`   - Slip Receiver: ${JSON.stringify(slip.receiver)}`);
         console.log(`   - DB Real Name: "${receiver.realName}"`);
 
@@ -638,10 +643,10 @@ async function handleImageMessage(event) {
         if (!matchResult.matched) {
             const debugInfo = matchResult.debug || {};
             return pushMessage(userId,
-                `❌ ชื่อผู้รับไม่ตรงกัน!\n\n` +
+                `ชื่อผู้รับไม่ตรงกัน!\n\n` +
                 `ในสลิป: ${slip.receiver.displayName || slip.receiver.name}\n` +
                 `ในระบบ: ${receiver.realName}\n\n` +
-                `🔍 Debug Info (Normalized):\n` +
+                `Debug Info (Normalized):\n` +
                 `Slip: "${debugInfo.slipDisplay || debugInfo.slipName}"\n` +
                 `DB: "${debugInfo.db}"\n\n` +
                 `กรุณาตรวจสอบว่าชื่อจริงในระบบตรงกับบัญชีธนาคารหรือไม่`
@@ -652,7 +657,7 @@ async function handleImageMessage(event) {
         const isDuplicate = await checkDuplicateSlip(db, slip.transRef);
 
         if (isDuplicate) {
-            return pushMessage(userId, `⚠️ สลิปนี้เคยถูกใช้ยืนยันการโอนเงินแล้ว`);
+            return pushMessage(userId, `สลิปนี้เคยถูกใช้ยืนยันการโอนเงินแล้ว`);
         }
 
         // 7. บันทึกข้อมูลการ Verify
@@ -671,10 +676,10 @@ async function handleImageMessage(event) {
 
         // 9. ส่งข้อความยืนยันกลับไปหาผู้ส่ง
         const successFlex = createSlipSuccessMessage(slip, matchingSettlement);
-        await pushFlex(userId, "✅ ยืนยันการโอนเงินสำเร็จ", successFlex);
+        await pushFlex(userId, "ยืนยันการโอนเงินสำเร็จ", successFlex);
         if (matchingSettlement.partial) {
             return pushMessage(userId,
-                `ℹ️ นี่เป็นการชำระบางส่วน ${slipAmount.toLocaleString()} บาท\n` +
+                `นี่เป็นการชำระบางส่วน ${slipAmount.toLocaleString()} บาท\n` +
                 `ยังเหลือค้างให้ ${matchingSettlement.to} อีก ${matchingSettlement.remaining.toLocaleString()} บาท`
             );
         }
@@ -682,7 +687,7 @@ async function handleImageMessage(event) {
 
     } catch (error) {
         console.error("Error in handleImageMessage:", error);
-        return pushMessage(userId, "❌ เกิดข้อผิดพลาด: " + error.message);
+        return pushMessage(userId, "เกิดข้อผิดพลาด: " + error.message);
     }
 }
 
@@ -869,7 +874,7 @@ async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId
             data: data,
             timestamp: serverTimestamp()
         });
-        return replyText(replyToken, `🤖 ขาดชื่อรายการครับ ค่าใช้จ่ายนี้คือค่าอะไรครับ? (พิมพ์ชื่อรายการได้เลย)`);
+        return replyText(replyToken, `ขาดชื่อรายการครับ ค่าใช้จ่ายนี้คือค่าอะไรครับ? (พิมพ์ชื่อรายการได้เลย)`);
     }
 
     // 2. เช็คจำนวนเงิน
@@ -879,7 +884,7 @@ async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId
             data: data,
             timestamp: serverTimestamp()
         });
-        return replyText(replyToken, `🤖 ขาดจำนวนเงินสำหรับ "${data.desc}" ครับ\nยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข เช่น 350 หรือ 1200)`);
+        return replyText(replyToken, `ขาดจำนวนเงินสำหรับ "${data.desc}" ครับ\nยอดรวมทั้งหมดเท่าไหร่ครับ? (พิมพ์เฉพาะตัวเลข เช่น 350 หรือ 1200)`);
     }
 
     // 3. เช็คคนจ่าย
@@ -891,7 +896,7 @@ async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId
         });
         const actions = [
             ...members.map(m => ({ type: "action", action: { type: "message", label: m, text: m } })),
-            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
         ];
         const flex = createInteractiveCard(
             "ใครเป็นคนจ่ายเงิน?",
@@ -908,12 +913,12 @@ async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId
             timestamp: serverTimestamp()
         });
         const actions = [
-            { type: "action", action: { type: "message", label: "👥 ทุกคน", text: "ทุกคน" } },
+            { type: "action", action: { type: "message", label: "ทุกคน", text: "ทุกคน" } },
             ...members.slice(0, 10).map(m => ({
                 type: "action",
                 action: { type: "message", label: m, text: m }
             })),
-            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
         ];
         const flex = createInteractiveCard(
             "หารกับใครบ้าง?",
@@ -930,10 +935,10 @@ async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId
             timestamp: serverTimestamp()
         });
         const actions = [
-            { type: "action", action: { type: "message", label: "🟢 จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
-            { type: "action", action: { type: "message", label: "🟡 ผ่อนชำระ", text: "ผ่อนชำระ" } },
-            { type: "action", action: { type: "message", label: "💳 Subscription", text: "Subscription" } },
-            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            { type: "action", action: { type: "message", label: "จ่ายเต็มจำนวน", text: "จ่ายเต็ม" } },
+            { type: "action", action: { type: "message", label: "ผ่อนชำระ", text: "ผ่อนชำระ" } },
+            { type: "action", action: { type: "message", label: "Subscription", text: "Subscription" } },
+            { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
         ];
         const flex = createInteractiveCard(
             "เลือกรูปแบบการชำระ",
@@ -971,9 +976,9 @@ async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId
         });
         const perPerson = Math.round((data.amount / data.participants.length) * 100) / 100;
         const actions = [
-            { type: "action", action: { type: "message", label: `⚖️ หารเท่า (~${perPerson}฿)`, text: "หารเท่า" } },
-            { type: "action", action: { type: "message", label: "✏️ กำหนดเอง", text: "กำหนดเอง" } },
-            { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+            { type: "action", action: { type: "message", label: `หารเท่า (~${perPerson}฿)`, text: "หารเท่า" } },
+            { type: "action", action: { type: "message", label: "กำหนดเอง", text: "กำหนดเอง" } },
+            { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
         ];
         const flex = createInteractiveCard(
             "เลือกวิธีหารเงิน",
@@ -1013,21 +1018,21 @@ async function checkNextStepAndAsk(replyToken, sessionRef, data, members, userId
     const paymentLabel = data.paymentType === 'installment'
         ? `ผ่อนชำระ (${data.installments} งวด / ตกงวดละ ${(data.amount / data.installments).toLocaleString()} ฿)`
         : data.paymentType === 'subscription'
-        ? `Subscription 💳 (สร้างซ้ำทุกเดือน)`
-        : `จ่ายเต็มจำนวน 🟢`;
+        ? `Subscription (สร้างซ้ำทุกเดือน)`
+        : `จ่ายเต็มจำนวน `;
 
     const splitLabel = data.splitMethod === 'custom'
         ? `กำหนดเอง (${data.customAmountStr})`
         : `หารเท่ากัน (~${(data.amount / data.participants.length).toLocaleString()} ฿/คน)`;
 
-    const summary = `📝 รายการ: ${data.desc}\n💰 ยอดรวม: ${data.amount.toLocaleString()} ฿\n👤 คนจ่าย: ${data.payer}\n👥 คนหาร (${data.participants.length} คน): ${data.participants.join(', ')}\n💳 รูปแบบ: ${paymentLabel}\n⚖️ วิธีหาร: ${splitLabel}`;
+    const summary = `รายการ: ${data.desc}\nยอดรวม: ${data.amount.toLocaleString()} ฿\nคนจ่าย: ${data.payer}\nคนหาร (${data.participants.length} คน): ${data.participants.join(', ')}\nรูปแบบ: ${paymentLabel}\nวิธีหาร: ${splitLabel}`;
 
     const actions = [
-        { type: "action", action: { type: "message", label: "✅ ยืนยันบันทึก", text: "ยืนยัน" } },
-        { type: "action", action: { type: "message", label: "❌ ยกเลิก", text: "ยกเลิก" } }
+        { type: "action", action: { type: "message", label: "ยืนยันบันทึก", text: "ยืนยัน" } },
+        { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }
     ];
 
-    const flex = createInteractiveCard("🤖 ตรวจสอบและยืนยันบันทึก", summary, "แตะ 'ยืนยันบันทึก' เพื่อลงบัญชีทันที หรือ 'ยกเลิก' เพื่อเริ่มใหม่");
+    const flex = createInteractiveCard("ตรวจสอบและยืนยันบันทึก", summary, "แตะ 'ยืนยันบันทึก' เพื่อลงบัญชีทันที หรือ 'ยกเลิก' เพื่อเริ่มใหม่");
     return replyQuickReply(replyToken, flex, actions);
 }
 
@@ -1171,11 +1176,11 @@ function createInteractiveCard(title, description, hintText = null) {
 async function askParticipants(replyToken, userId, selectedList) {
     const members = await getMemberNames();
     const actions = [
-        { type: "action", action: { type: "message", label: "✅ ยืนยันรายชื่อ", text: "ยืนยัน" } },
+        { type: "action", action: { type: "message", label: "ยืนยันรายชื่อ", text: "ยืนยัน" } },
         { type: "action", action: { type: "message", label: "เลือกทุกคน", text: "ทุกคน" } },
         ...members.slice(0, 11).map(m => ({
             type: "action",
-            action: { type: "message", label: (selectedList.includes(m) ? `✅ ${m}` : m), text: m }
+            action: { type: "message", label: (selectedList.includes(m) ? `\u2713 ${m}` : m), text: m }
         }))
     ];
 
@@ -1298,7 +1303,7 @@ async function saveTransaction(replyToken, userId, finalData) {
                 "backgroundColor": "#334155",
                 "contents": [
                     { "type": "text", "text": "SUCCESS REPORT", "color": "#22c55e", "size": "xxs", "weight": "bold" },
-                    { "type": "text", "text": "บันทึกสำเร็จ ✅", "color": "#ffffff", "size": "lg", "weight": "bold", "margin": "xs" },
+                    { "type": "text", "text": "บันทึกสำเร็จ ", "color": "#ffffff", "size": "lg", "weight": "bold", "margin": "xs" },
                     { "type": "text", "text": finalData.desc, "color": "#cbd5e1", "size": "xs", "wrap": true }
                 ]
             },
@@ -1329,7 +1334,7 @@ async function saveTransaction(replyToken, userId, finalData) {
                     },
                     ...(finalData.paymentType === 'subscription' ? [
                         { "type": "separator", "margin": "md" },
-                        { "type": "text", "text": "💳 Subscription (สร้างทุกเดือนอัตโนมัติ)", "size": "xs", "color": "#9333ea", "margin": "md", "align": "center" }
+                        { "type": "text", "text": "Subscription (สร้างทุกเดือนอัตโนมัติ)", "size": "xs", "color": "#9333ea", "margin": "md", "align": "center" }
                     ] : [])
                 ]
             }
@@ -1337,213 +1342,55 @@ async function saveTransaction(replyToken, userId, finalData) {
 
         return replyFlex(replyToken, "บันทึกสำเร็จ", flex);
     } catch (e) {
-        return replyText(replyToken, "❌ เกิดข้อผิดพลาด: " + e.message);
+        return replyText(replyToken, "เกิดข้อผิดพลาด: " + e.message);
     }
 }
 
-async function generateMemberReport(replyToken, memberName) {
+async function generateMemberReport(replyToken, memberName, isPrivate = true) {
     try {
-        const date = new Date();
-        const currentMonth = getBangkokMonthString(date);
-
-        // 1. Fetch Transactions for current month only
-        const q = query(collection(db, "transactions"),
-            where("date", ">=", `${currentMonth}-01`),
-            where("date", "<=", `${currentMonth}-31`)
-        );
-
-        const snapshot = await getDocs(q);
-        const membersSnapshot = await getDocs(collection(db, "members"));
-        const membersData = {};
-        membersSnapshot.docs.forEach(d => {
-            const data = d.data();
-            if (data.name) membersData[data.name.toUpperCase()] = data;
-        });
-
-        let totalPaid = 0;
-        let totalShare = 0;
-        let recentItems = [];
-        const upperMember = memberName.toUpperCase();
-
-        // 2. Calculate Balances & Stats for current month
-        snapshot.forEach(doc => {
-            const t = doc.data();
-            const payer = (t.payer || "").toUpperCase();
-
-            let involved = false;
-            if (payer === upperMember) {
-                totalPaid += Number(t.amount);
-                involved = true;
-            }
-            if (t.splits) {
-                Object.entries(t.splits).forEach(([debtor, amt]) => {
-                    const debtorKey = (debtor || "").toUpperCase();
-                    if (debtorKey === upperMember) {
-                        totalShare += Number(amt);
-                        involved = true;
-                    }
-                });
-            }
-            if (involved) {
-                recentItems.push({
-                    desc: t.desc, 
-                    amount: t.amount, 
-                    myShare: (t.splits && (t.splits[memberName] || t.splits[upperMember])) || 0,
-                    isPayer: payer === upperMember, 
-                    date: t.date
-                });
-            }
-        });
-
-        // 3. ยอดสุทธิ/แผนโอน: ใช้แกนคำนวณกลาง lib/ledger.mjs (ชุดเดียวกับเว็บ, Widget, เตือนหนี้, ตรวจสลิป)
-        const verifiedSnap = await getDocs(
-            query(collection(db, 'settlements'),
-                where('month', '==', currentMonth))
-        );
-        const ledger = computeMonthLedger({
-            memberNames: Object.keys(membersData),
-            transactions: snapshot.docs.map(d => ({ id: d.id, ...d.data() })),
-            settlements: verifiedSnap.docs.map(d => ({ id: d.id, ...d.data() })),
-            month: currentMonth
-        });
-        const balances = {};
-        Object.keys(ledger.balances).forEach(k => balances[k] = ledger.balances[k] / 100);
-
-        const myDebts = []; // List of people I owe
-        const incomingDebts = []; // List of people who owe me
-        toDisplayPlan(ledger.plan).forEach(line => {
-            if (line.from === upperMember) myDebts.push({ to: line.to, amount: line.amount });
-            if (line.to === upperMember) incomingDebts.push({ from: line.from, amount: line.amount });
-        });
-
-        // 4. Generate Flex Message
-        const balance = balances[upperMember] !== undefined ? balances[upperMember] : (totalPaid - totalShare);
-        recentItems.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-        // Items Rows
-        const itemRows = recentItems.slice(0, 5).map(item => ({
-            type: "box", layout: "horizontal", margin: "sm",
-            contents: [
-                { type: "text", text: item.desc, size: "xs", color: "#555555", flex: 5, wrap: true },
-                { type: "text", text: item.isPayer ? "จ่าย" : "หาร", size: "xs", color: "#aaaaaa", flex: 2, align: "center" },
-                { type: "text", text: `${(item.myShare || 0).toLocaleString()}฿`, size: "xs", color: "#111111", flex: 3, align: "end", weight: "bold" }
-            ]
-        }));
-
-        // QR Code Section & Debts
-        const debtRows = [];
-
-        // แสดงยอดที่คนอื่นต้องโอนให้เรา (กรณีเป็นเจ้าหนี้)
-        if (incomingDebts.length > 0) {
-            debtRows.push({ type: "separator", margin: "lg" });
-            debtRows.push({ type: "text", text: "🟢 ยอดที่คนอื่นต้องโอนให้คุณ", size: "sm", weight: "bold", color: "#16a34a", margin: "md" });
-
-            for (const inc of incomingDebts) {
-                debtRows.push({
-                    type: "box", layout: "horizontal", margin: "sm",
-                    contents: [
-                        { type: "text", text: `• ${inc.from}`, size: "xs", color: "#334155", flex: 7 },
-                        { type: "text", text: `+${inc.amount.toLocaleString()} ฿`, size: "xs", weight: "bold", color: "#16a34a", align: "end", flex: 3 }
-                    ]
-                });
-            }
-        }
-
-        if (myDebts.length > 0) {
-            debtRows.push({ type: "separator", margin: "lg" });
-            debtRows.push({ type: "text", text: "🔻 ที่คุณต้องโอนจ่าย", size: "sm", weight: "bold", color: "#ef4444", margin: "md" });
-
-            for (const debt of myDebts) {
-                const creditor = membersData[debt.to];
-                const qrUrl = (creditor && creditor.promptpay)
-                    ? `https://promptpay.io/${creditor.promptpay.replace(/[^0-9]/g, '')}/${debt.amount.toFixed(2)}`
-                    : null;
-
-                debtRows.push({
-                    type: "box", layout: "vertical", margin: "md", backgroundColor: "#fef2f2", cornerRadius: "md", paddingAll: "md",
-                    contents: [
-                        {
-                            type: "box", layout: "horizontal",
-                            contents: [
-                                { type: "text", text: `จ่ายให้ ${debt.to}`, size: "sm", weight: "bold", color: "#b91c1c", flex: 7 },
-                                { type: "text", text: `${debt.amount.toLocaleString()} ฿`, size: "sm", weight: "bold", color: "#b91c1c", align: "end", flex: 3 }
-                            ]
-                        }
-                    ]
-                });
-
-                if (qrUrl) {
-                    debtRows.push({
-                        type: "image", url: qrUrl, size: "md", aspectRatio: "1:1", aspectMode: "cover", margin: "sm"
-                    });
-                    debtRows.push({
-                        type: "text", text: "(สแกนเพื่อจ่าย)", size: "xxs", color: "#ef4444", align: "center", margin: "xs"
-                    });
-                } else {
-                    debtRows.push({
-                        type: "text", text: "(ยังไม่ได้ตั้งค่า PromptPay)", size: "xxs", color: "#9ca3af", align: "center", margin: "xs"
-                    });
-                }
-            }
-        }
-
-        const flex = {
-            type: "bubble",
-            header: {
-                type: "box", layout: "vertical", backgroundColor: "#334155",
-                contents: [
-                    { type: "text", text: "MONTHLY REPORT", color: "#94a3b8", size: "xxs", weight: "bold" },
-                    { type: "text", text: `สรุปยอด: ${memberName}`, color: "#ffffff", size: "lg", weight: "bold", margin: "xs" },
-                    { type: "text", text: `ประจำเดือน: ${currentMonth}`, color: "#cbd5e1", size: "xs" }
-                ]
-            },
-            body: {
-                type: "box", layout: "vertical", backgroundColor: "#ffffff",
-                contents: [
-                    {
-                        type: "box", layout: "horizontal",
-                        contents: [
-                            { type: "text", text: "สำรองจ่ายไป", size: "xs", color: "#64748b" },
-                            { type: "text", text: `${(totalPaid || 0).toLocaleString()} ฿`, size: "sm", color: "#1e293b", align: "end", weight: "bold" }
-                        ]
-                    },
-                    {
-                        type: "box", layout: "horizontal", margin: "sm",
-                        contents: [
-                            { type: "text", text: "ส่วนที่ต้องหาร", size: "xs", color: "#64748b" },
-                            { type: "text", text: `${(totalShare || 0).toLocaleString()} ฿`, size: "sm", color: "#ef4444", align: "end", weight: "bold" }
-                        ]
-                    },
-                    { type: "separator", margin: "md" },
-                    {
-                        type: "box", layout: "horizontal", margin: "md",
-                        contents: [
-                            { type: "text", text: "ยอดสุทธิ", size: "sm", color: "#334155", weight: "bold" },
-                            {
-                                type: "text",
-                                text: balance >= 0 ? `+${(balance || 0).toLocaleString()} ฿ (รับ)` : `${(balance || 0).toLocaleString()} ฿ (จ่าย)`,
-                                size: "lg",
-                                color: balance >= 0 ? "#22c55e" : "#ef4444",
-                                align: "end",
-                                weight: "bold"
-                            }
-                        ]
-                    },
-                    // Add QR Code Rows here
-                    ...debtRows,
-
-                    { type: "separator", margin: "lg" },
-                    { type: "text", text: "รายการล่าสุด", size: "xs", color: "#94a3b8", margin: "md", weight: "bold" },
-                    ...itemRows
-                ]
-            }
-        };
-
-        await replyFlex(replyToken, "รายงานค่าใช้จ่าย", flex);
-
+        // แชทส่วนตัว: การ์ดสรุปเดือน (มีตัวเลขกระเป๋า) / กลุ่ม: การ์ดใครต้องโอนให้ใคร (ไม่มีตัวเลขส่วนตัวเด็ดขาด)
+        const message = isPrivate
+            ? await buildMemberReportMessage({ db, fs: fsApi, memberName })
+            : await buildGroupReportMessage({ db, fs: fsApi });
+        await sendToLine(replyToken, message);
     } catch (e) {
         console.error(e);
-        await replyText(replyToken, "❌ เกิดข้อผิดพลาดในการดึงข้อมูล: " + e.message);
+        await replyText(replyToken, "เกิดข้อผิดพลาดในการดึงข้อมูล: " + e.message);
+    }
+}
+
+// --- POSTBACK (ปุ่มเตือนหนี้ในการ์ด) ---
+async function pushToUser(userId, message) {
+    const res = await fetch('https://api.line.me/v2/bot/message/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}` },
+        body: JSON.stringify({ to: userId, messages: [message] })
+    });
+    if (!res.ok) throw new Error('LINE push failed: ' + res.status);
+}
+
+async function handlePostback(event, signatureValid) {
+    const replyToken = event.replyToken;
+    if (!replyToken) return;
+    // ปุ่มเตือนส่งข้อความหาคนอื่น จึงรับเฉพาะคำขอที่ตรวจลายเซ็นของ LINE ผ่านแล้ว และเฉพาะแชทส่วนตัว
+    if (signatureValid !== true) {
+        console.warn('[webhook] postback ignored: signature not verified');
+        return;
+    }
+    if (!event.source || event.source.type !== 'user') return;
+    const cmd = parsePostback(event.postback && event.postback.data);
+    if (cmd.action === 'cancel') return replyText(replyToken, 'ยกเลิกแล้ว ไม่ได้ส่งข้อความหาใคร');
+    if (cmd.action === 'unknown') return;
+    const memberName = await getMemberNameByLineId(event.source.userId);
+    if (!memberName) return replyText(replyToken, 'ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน');
+    if (cmd.action === 'remind') {
+        const prep = await prepareRemind({ db, fs: fsApi, memberName, target: cmd.target });
+        if (!prep.ok) return replyText(replyToken, prep.message);
+        return sendToLine(replyToken, prep.confirm);
+    }
+    if (cmd.action === 'confirm-remind') {
+        const result = await executeRemind({ db, fs: fsApi, memberName, target: cmd.target, push: pushToUser });
+        return replyText(replyToken, remindResultText(result));
     }
 }
 

@@ -167,7 +167,7 @@ export async function sendSlipVerifiedNotification(lineUserId, fromName, toName,
                     },
                     {
                         type: 'text',
-                        text: '💰 มีคนโอนเงินให้คุณ',
+                        text: 'มีคนโอนเงินให้คุณ',
                         weight: 'bold',
                         color: '#ffffff',
                         size: 'lg',
@@ -201,7 +201,7 @@ export async function sendSlipVerifiedNotification(lineUserId, fromName, toName,
                         ]
                     },
                     { type: 'separator', margin: 'md' },
-                    { type: 'text', text: '✅ Settlement ของเดือนนี้อัปเดตแล้ว', size: 'xs', color: '#64748b', align: 'center', margin: 'md', wrap: true }
+                    { type: 'text', text: 'Settlement ของเดือนนี้อัปเดตแล้ว', size: 'xs', color: '#64748b', align: 'center', margin: 'md', wrap: true }
                 ]
             }
         }

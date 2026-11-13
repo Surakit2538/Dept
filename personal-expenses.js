@@ -151,7 +151,7 @@
             if (it.bank) mid.appendChild(el("div", "text-[11px] text-slate-400", it.bank));
             const amount = el("div", "text-sm font-bold text-red-300 shrink-0", baht(it.amount));
 
-            const del = el("button", "w-9 h-9 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-300 flex items-center justify-center shrink-0", "🗑");
+            const del = el("button", "w-9 h-9 rounded-full bg-red-500/10 hover:bg-red-500/20 text-red-300 flex items-center justify-center shrink-0", "");
             del.setAttribute("aria-label", "ลบรายการนี้");
             del.addEventListener("click", () => window.personalExpenses.remove(it));
 

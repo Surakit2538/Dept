@@ -1,6 +1,7 @@
 import * as fs from "./auth-helpers.js";
 import { getDbInstance } from "./auth-helpers.js";
 import { createLineIdAuthenticator } from "../lib/line-auth.mjs";
+import { buildReminderCard, buildGroupDebtCard } from "../lib/line-cards.mjs";
 
 const db = getDbInstance();
 const authenticateIdToken = createLineIdAuthenticator({
@@ -42,135 +43,11 @@ export default async function handler(req, res) {
             return res.status(400).json({ message: 'No debts to report' });
         }
 
-        // Helper function to create Flex Message
-        const createFlexMessage = (month, displayDebts, headerTitleText = "ADMIN REPORT") => {
-            const debtRows = displayDebts.map((d, index) => ({
-                type: "box",
-                layout: "horizontal",
-                margin: "md",
-                contents: [
-                    {
-                        type: "text",
-                        text: `${index + 1}. ${d.from}`,
-                        size: "sm",
-                        color: "#555555",
-                        flex: 3
-                    },
-                    {
-                        type: "text",
-                        text: "➡️",
-                        size: "sm",
-                        color: "#aaaaaa",
-                        align: "center",
-                        flex: 1
-                    },
-                    {
-                        type: "text",
-                        text: d.to,
-                        size: "sm",
-                        color: "#555555",
-                        align: "center",
-                        flex: 3
-                    },
-                    {
-                        type: "text",
-                        text: `${d.amount.toLocaleString()} ฿`,
-                        size: "sm",
-                        color: "#111111",
-                        weight: "bold",
-                        align: "end",
-                        flex: 3
-                    }
-                ]
-            }));
-
-            return {
-                type: "flex",
-                altText: `สรุปยอดเคลียร์เงินเดือน ${month}`, // ข้อความที่ขึ้นแจ้งเตือนก่อนกดเข้ามาดู
-                contents: {
-                    type: "bubble",
-                    size: "giga",
-                    header: {
-                        type: "box",
-                        layout: "vertical",
-                        backgroundColor: "#334155",
-                        contents: [
-                            {
-                                type: "text",
-                                text: headerTitleText,
-                                color: "#94a3b8",
-                                size: "xxs",
-                                weight: "bold"
-                            },
-                            {
-                                type: "text",
-                                text: "สรุปยอดเคลียร์เงิน 💸",
-                                weight: "bold",
-                                size: "lg",
-                                color: "#ffffff",
-                                margin: "xs"
-                            },
-                            {
-                                type: "text",
-                                text: `ประจำเดือน: ${month}`,
-                                size: "xs",
-                                color: "#cbd5e1"
-                            }
-                        ]
-                    },
-                    body: {
-                        type: "box",
-                        layout: "vertical",
-                        contents: [
-                            {
-                                type: "text",
-                                text: "รายการที่ต้องโอน",
-                                weight: "bold",
-                                size: "sm",
-                                color: "#333333",
-                                margin: "md"
-                            },
-                            {
-                                type: "separator",
-                                margin: "md",
-                                color: "#f0f0f0"
-                            },
-                            // ใส่รายการหนี้ที่สร้างไว้ข้างบน
-                            ...debtRows,
-                            {
-                                type: "separator",
-                                margin: "xl",
-                                color: "#f0f0f0"
-                            }
-                        ]
-                    },
-                    footer: {
-                        type: "box",
-                        layout: "vertical",
-                        contents: [
-                            {
-                                type: "text",
-                                text: "กรุณาตรวจสอบและโอนเงินให้เรียบร้อย",
-                                size: "xxs",
-                                color: "#aaaaaa",
-                                align: "center"
-                            },
-                            {
-                                type: "button",
-                                action: {
-                                    type: "uri",
-                                    label: "เปิดแอป Dept Money",
-                                    uri: "https://dept-game.vercel.app/" // เปลี่ยนเป็น URL เว็บของคุณ
-                                },
-                                style: "primary",
-                                color: "#15803d",
-                                margin: "md"
-                            }
-                        ]
-                    }
-                }
-            };
-        };
+        // การ์ดตามระบบดีไซน์ใหม่ (lib/line-cards.mjs) ไม่มี emoji ส่งหาลูกหนี้แต่ละคนเฉพาะยอดของคนนั้น / ส่งกลุ่มเฉพาะใครต้องโอนให้ใคร
+        const monthText = String(month || '').slice(0, 40);
+        const createFlexMessage = (monthLabel, displayDebts, perUser = false) => (perUser
+            ? buildReminderCard({ monthLabel, debts: displayDebts.map((d) => ({ to: d.to, amount: d.amount })) })
+            : buildGroupDebtCard({ monthLabel, lines: displayDebts }));
 
         let messagesSent = 0;
 
@@ -190,7 +67,7 @@ export default async function handler(req, res) {
                 
                 if (userDebts.length === 0) return true; // Skip if no debts for this user
                 
-                const flexMsg = createFlexMessage(month, userDebts, "สรุปยอดค้างชำระของคุณ");
+                const flexMsg = createFlexMessage(monthText, userDebts, true);
                 
                 const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
                     method: 'POST',
@@ -224,7 +101,7 @@ export default async function handler(req, res) {
                 return res.status(400).json({ message: 'No target users provided and LINE_GROUP_ID is not configured' });
             }
 
-            const flexMessage = createFlexMessage(month, debts);
+            const flexMessage = createFlexMessage(monthText, debts);
             
             const lineRes = await fetch('https://api.line.me/v2/bot/message/push', {
                 method: 'POST',

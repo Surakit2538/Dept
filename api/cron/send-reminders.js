@@ -13,12 +13,12 @@ export default async function handler(req, res) {
     }
 
     try {
-        console.log("🔄 Starting debt reminders (Vercel Cron)...");
+        console.log("Starting debt reminders (Vercel Cron)...");
         const result = await run();
-        console.log("✅ Debt reminders:", JSON.stringify(result));
+        console.log("Debt reminders:", JSON.stringify(result));
         return res.status(200).json({ success: result.status !== "partial", ...result });
     } catch (error) {
-        console.error("❌ Error sending debt reminders:", error);
+        console.error("Error sending debt reminders:", error);
         return res.status(500).json({ success: false, error: error.message });
     }
 }
