@@ -72,3 +72,10 @@ test("เส้นทางที่เสี่ยงต้องตรวจ�
     const idx = read("index.html");
     assert.equal((idx.match(/idToken: \(typeof liff/g) || []).length, 2);
 });
+
+test("1g: ไม่มีคีย์ SlipOK ฝังในโค้ด ต้องอ่านจาก env", () => {
+    const h = read("api/slipok-helpers.js");
+    assert.ok(!/SLIPOK4D5KB1A|apikey\/59702/.test(h));
+    assert.match(h, /process\.env\.SLIPOK_API_KEY/);
+    assert.match(h, /process\.env\.SLIPOK_BRANCH_ID/);
+});

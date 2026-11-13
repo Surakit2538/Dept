@@ -1,7 +1,12 @@
 // Helper functions for SlipOK API integration
 
-const SLIPOK_API_URL = 'https://api.slipok.com/api/line/apikey/59702';
-const SLIPOK_API_KEY = 'SLIPOK4D5KB1A';
+// ค่าลับอ่านจาก Environment Variables บน Vercel เท่านั้น (SLIPOK_API_KEY, SLIPOK_BRANCH_ID) ห้ามฝังในโค้ด
+function getSlipOkConfig() {
+    const key = process.env.SLIPOK_API_KEY;
+    const branch = process.env.SLIPOK_BRANCH_ID;
+    if (!key || !branch) return null;
+    return { url: `https://api.slipok.com/api/line/apikey/${encodeURIComponent(branch.trim())}`, key: key.trim() };
+}
 
 // Get image content from LINE
 export async function getImageContent(messageId) {
@@ -73,10 +78,16 @@ export async function verifySlipWithSlipOK(imageBuffer, expectedAmount = null) {
 
         body.set(endBuffer, offset);
 
-        const response = await fetch(SLIPOK_API_URL, {
+        const cfg = getSlipOkConfig();
+        if (!cfg) {
+            console.error('Missing SLIPOK_API_KEY or SLIPOK_BRANCH_ID');
+            return { success: false, code: 'CONFIG', message: 'ระบบตรวจสลิปยังไม่ได้ตั้งค่า (ติดต่อผู้ดูแล)' };
+        }
+
+        const response = await fetch(cfg.url, {
             method: 'POST',
             headers: {
-                'x-authorization': SLIPOK_API_KEY,
+                'x-authorization': cfg.key,
                 'Content-Type': `multipart/form-data; boundary=${boundary}`
             },
             body: body
