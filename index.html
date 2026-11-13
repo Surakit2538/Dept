@@ -1952,6 +1952,7 @@
         };
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { splitInstallments } from "./lib/installments.mjs";
         import { getFirestore, collection, addDoc, doc, getDocs, updateDoc, deleteDoc, writeBatch, onSnapshot, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const fApp = initializeApp(firebaseConfig);
@@ -4645,24 +4646,28 @@
                     if (type === 'installment') {
                         const installments = Number(document.getElementById('t-installments').value) || 1;
                         const groupId = "grp_" + Date.now();
-                        const baseDate = new Date(date);
 
-                        for (let i = 0; i < installments; i++) {
-                            const currentInstallmentDate = new Date(baseDate);
-                            currentInstallmentDate.setMonth(baseDate.getMonth() + i);
+                        // คำนวณงวดด้วยตัวช่วยกลาง: วันที่ไม่ล้นเดือน และเงินรวมทุกงวดเท่ายอดเต็มเป๊ะ
+                        let rows;
+                        try {
+                            rows = splitInstallments({ amount, installments, splits, date });
+                        } catch (e) {
+                            return alert(e.message);
+                        }
+                        rows.forEach((row, i) => {
                             const txn = {
-                                date: getBangkokDateString(currentInstallmentDate),
-                                desc: `${desc} (${i + 1}/${installments})`,
-                                amount: amount / installments,
+                                date: row.date,
+                                desc: `${desc} (${row.index}/${installments})`,
+                                amount: row.amount,
                                 payer,
-                                splits: Object.fromEntries(Object.entries(splits).map(([k, v]) => [k, v / installments])),
+                                splits: row.splits,
                                 paymentType: 'installment',
                                 icon,
                                 groupId,
                                 timestamp: Date.now() + i
                             };
                             batch.set(doc(collection(db, "transactions")), txn);
-                        }
+                        });
                     } else if (type === 'subscription') {
                         // Subscription - สร้างเฉพาะเดือนปัจจุบัน + template (ใช้ Cloud Functions สร้างเดือนถัดไป)
                         const recurring = document.getElementById('t-subscription-recurring').checked;

@@ -1,5 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { readRawBody, decideWebhookAccess } from '../lib/line-signature.mjs';
+import { splitInstallments } from '../lib/installments.mjs';
 import {
     getFirestore, doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
@@ -1234,21 +1235,23 @@ async function saveTransaction(replyToken, userId, finalData) {
         const icon = 'fa-utensils';
 
         if (finalData.paymentType === 'installment') {
-            const amountPerMonth = finalData.amount / finalData.installments;
-            const monthlySplits = {};
-            for (let p in splits) monthlySplits[p] = (splits[p] / finalData.amount) * amountPerMonth;
             const groupId = `grp_line_${Date.now()}`;
-
-            for (let i = 0; i < finalData.installments; i++) {
-                const nextDate = new Date(); nextDate.setMonth(today.getMonth() + i);
+            // คำนวณงวดด้วยตัวช่วยกลาง (lib/installments.mjs): วันที่ไม่ล้นเดือน และเงินรวมทุกงวดเท่ายอดเต็มเป๊ะ
+            const rows = splitInstallments({
+                amount: finalData.amount,
+                installments: finalData.installments,
+                splits,
+                date: getBangkokDateString(today)
+            });
+            rows.forEach((row, i) => {
                 batch.set(doc(collection(db, "transactions")), {
-                    date: getBangkokDateString(nextDate),
-                    desc: `${finalData.desc} (${i + 1}/${finalData.installments})`,
-                    amount: amountPerMonth, payer: finalData.payer, splits: monthlySplits,
+                    date: row.date,
+                    desc: `${finalData.desc} (${row.index}/${finalData.installments})`,
+                    amount: row.amount, payer: finalData.payer, splits: row.splits,
                     paymentType: 'installment', installments: finalData.installments,
                     timestamp: Date.now() + i, groupId: groupId, icon: icon
                 });
-            }
+            });
         } else if (finalData.paymentType === 'subscription') {
             // Subscription - สร้างเฉพาะเดือนปัจจุบัน + template (ใช้ Cloud Functions สร้างเดือนถัดไป)
             const groupId = `sub_${Date.now()}`;
