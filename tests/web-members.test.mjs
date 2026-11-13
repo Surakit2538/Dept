@@ -10,16 +10,18 @@ function extractApp() {
     const end = html.indexOf("            async toggleAdminRole(");
     assert.ok(start > 0 && end > start, "ไม่พบเมธอดใน index.html");
     const body = html.slice(start, end).trim().replace(/,\s*$/, "");
-    return new Function("deps", `const { doc, deleteDoc, db, alert, confirm } = deps; return { ${body} };`);
+    return new Function("deps", `const { doc, deleteDoc, updateDoc, db, alert, confirm, prompt } = deps; return { ${body} };`);
 }
 
-function makeApp({ role = "admin", currentUser = "ME", transactions = [], settlements = [], rawMembers, confirmResult = true } = {}) {
-    const calls = { alerts: [], deleted: [], toasts: [] };
+function makeApp({ role = "admin", currentUser = "ME", transactions = [], settlements = [], rawMembers, confirmResult = true, answers = [] } = {}) {
+    const calls = { alerts: [], deleted: [], toasts: [], updated: [] };
     const make = extractApp();
     const app = make({
         db: {},
         doc: (_db, col, id) => ({ col, id }),
         deleteDoc: async (ref) => { calls.deleted.push(ref); },
+        updateDoc: async (ref, data) => { calls.updated.push({ ref, data }); },
+        prompt: () => (answers.length ? answers.shift() : null),
         alert: (m) => calls.alerts.push(m),
         confirm: () => confirmResult
     });
@@ -34,6 +36,7 @@ function makeApp({ role = "admin", currentUser = "ME", transactions = [], settle
         ]
     };
     app.showToast = (m) => calls.toasts.push(m);
+    app.renderMemberList = () => {};
     return { app, calls };
 }
 
@@ -107,4 +110,30 @@ test("ล็อกอิน: ไม่สร้างสมาชิกซ้ำ
     assert.match(html, /Not in cache\. Checking DB/);
     assert.ok(!html.includes("if (!usedCache && !existingByName)"));
     assert.equal((html.match(/const dupCheck = await getDocs\(query\(collection\(db, "members"\), where\("lineUserId", "==", userId\)\)\)/g) || []).length, 2);
+});
+
+test("editMemberInfo: แอดมินกรอกชื่อจริง/พร้อมเพย์ให้เพื่อนได้ และตรวจรูปแบบ", async () => {
+    const ok = makeApp({ answers: ["สมชาย ใจดี", "081-234-5678"] });
+    await ok.app.editMemberInfo("AOY");
+    assert.equal(ok.calls.updated.length, 1);
+    assert.deepEqual([ok.calls.updated[0].ref.id, ok.calls.updated[0].data.realName, ok.calls.updated[0].data.promptpay], ["m1", "สมชาย ใจดี", "0812345678"]);
+
+    const badPp = makeApp({ answers: ["สมชาย", "12345"] });
+    await badPp.app.editMemberInfo("AOY");
+    assert.equal(badPp.calls.updated.length, 0);
+    assert.equal(badPp.calls.alerts.length, 1);
+
+    const cancel = makeApp({ answers: [null] });
+    await cancel.app.editMemberInfo("AOY");
+    assert.equal(cancel.calls.updated.length, 0);
+
+    const notAdmin = makeApp({ role: "member", answers: ["x", "0812345678"] });
+    await notAdmin.app.editMemberInfo("AOY");
+    assert.equal(notAdmin.calls.updated.length, 0);
+});
+
+test("ฟอร์มกรอกข้อมูล: ชื่ออังกฤษไม่บังคับ", () => {
+    assert.ok(!html.includes('id="onboard-english-name" required'));
+    assert.ok(html.includes("return Boolean(hasRealName && hasPromptpay);"));
+    assert.ok(!html.includes("return hasRealName && hasEnglishName && hasPromptpay;"));
 });
