@@ -1,17 +1,7 @@
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
-    authDomain: "deptmoney-6682a.firebaseapp.com",
-    projectId: "deptmoney-6682a",
-    storageBucket: "deptmoney-6682a.firebasestorage.app",
-    messagingSenderId: "6714403201",
-    appId: "1:6714403201:web:a98a2cefcebef5c63b6080"
-};
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
+const db = getDbInstance();
 
 function getBangkokDateParts(date = new Date()) {
     const formatter = new Intl.DateTimeFormat("en-US", {
@@ -22,15 +12,18 @@ function getBangkokDateParts(date = new Date()) {
         weekday: "short"
     });
     const parts = formatter.formatToParts(date);
-    const y = parts.find(p => p.type === "year").value;
-    const m = parts.find(p => p.type === "month").value;
-    const d = parts.find(p => p.type === "day").value;
+    const y = parts.find(p => p.type === "year")?.value;
+    const m = parts.find(p => p.type === "month")?.value;
+    const d = parts.find(p => p.type === "day")?.value;
+    const weekday = parts.find(p => p.type === "weekday")?.value;
+
     return {
         dateStr: `${y}-${m}-${d}`,
         monthStr: `${y}-${m}`,
         day: d,
         month: m,
-        year: y
+        year: y,
+        weekday: weekday // "Sun", "Mon", "Tue", ...
     };
 }
 
@@ -52,7 +45,7 @@ const THAI_DAYS = {
 export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -63,37 +56,82 @@ export default async function handler(req, res) {
     }
 
     try {
-        const { user } = req.query;
-        if (!user) {
-            return res.status(400).json({ success: false, message: 'Query parameter "user" is required.' });
+        // 1. ตรวจสอบสิทธิ์ด้วย Device Token (11.3 & W1)
+        const auth = await verifyDeviceToken(db, req);
+        if (!auth.authenticated) {
+            return res.status(auth.status).json({
+                success: false,
+                message: auth.message
+            });
         }
 
-        const targetUser = String(user).trim().toUpperCase();
-        const now = new Date();
-        const { dateStr: todayStr, monthStr: currentMonthStr, day, month, year } = getBangkokDateParts(now);
+        const targetUser = String(auth.name || '').trim().toUpperCase();
+        if (!targetUser) {
+            return res.status(400).json({ success: false, message: 'ไม่พบชื่อสมาชิกจากรหัสอุปกรณ์' });
+        }
 
-        // Fetch transactions for the month
-        const transSnap = await getDocs(collection(db, 'transactions'));
+        // ตรวจสอบว่าชื่อสมาชิกยังคงมีอยู่ในระบบ members
+        const membersSnap = await getDocs(collection(db, 'members'));
+        const allMemberNames = membersSnap.docs
+            .map(d => (d.data().name || '').trim().toUpperCase())
+            .filter(Boolean);
+
+        if (!allMemberNames.includes(targetUser)) {
+            return res.status(404).json({
+                success: false,
+                message: `ไม่พบชื่อสมาชิก "${auth.name}" ในระบบ กรุณาติดต่อผู้ดูแล`
+            });
+        }
+
+        const now = new Date();
+        const { dateStr: todayStr, monthStr: currentMonthStr, day, month, weekday } = getBangkokDateParts(now);
+
+        // F9: ใช้ชื่อวันจาก Intl Asia/Bangkok
+        const dayThai = THAI_DAYS[weekday] || 'วันนี้';
+        const monthIndex = parseInt(month, 10) - 1;
+        const thaiDateHeader = `${dayThai} ${parseInt(day, 10)} ${THAI_MONTHS_SHORT[monthIndex] || ''}`;
+
+        // F14: Fetch transactions เฉพาะเดือนปัจจุบัน
+        const transQuery = query(
+            collection(db, 'transactions'),
+            where('date', '>=', `${currentMonthStr}-01`),
+            where('date', '<=', `${currentMonthStr}-31`)
+        );
+        const transSnap = await getDocs(transQuery);
         const allTrans = transSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // ดึง personal_expenses เผื่อมีรายการส่วนตัว (D1)
+        let allPersonal = [];
+        try {
+            const personalQuery = query(
+                collection(db, 'personal_expenses'),
+                where('date', '>=', `${currentMonthStr}-01`),
+                where('date', '<=', `${currentMonthStr}-31`)
+            );
+            const personalSnap = await getDocs(personalQuery);
+            allPersonal = personalSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            // คอลเลกชันอาจยังไม่มีในเฟส 1
+            allPersonal = [];
+        }
 
         let todayExpense = 0;
         let monthExpense = 0;
         let userTransactions = [];
-
-        // Balances calculation for debt status
         let balance = 0;
 
+        // คำนวณจาก transactions กลุ่ม
         allTrans.forEach(t => {
             const tDate = t.date || '';
-            const tPayer = (t.payer || '').toUpperCase();
+            const tPayer = (t.payer || '').trim().toUpperCase();
             const tSplits = t.splits || {};
             const isThisMonth = tDate.startsWith(currentMonthStr);
             const isToday = tDate === todayStr;
 
-            // Find portion spent by targetUser
+            // ส่วนที่ targetUser จ่ายหรือถูกหาร
             let userShare = 0;
             const splitKeys = Object.keys(tSplits);
-            const userInSplits = splitKeys.find(k => k.toUpperCase() === targetUser);
+            const userInSplits = splitKeys.find(k => k.trim().toUpperCase() === targetUser);
 
             if (userInSplits) {
                 userShare = Number(tSplits[userInSplits]) || 0;
@@ -103,7 +141,7 @@ export default async function handler(req, res) {
 
             if (isThisMonth) {
                 monthExpense += userShare;
-                // Group balance logic (only for shared transactions)
+                // ยอดค้างรับ-จ่าย (Group Balance)
                 if (tPayer === targetUser) {
                     balance += Number(t.amount) || 0;
                 }
@@ -116,39 +154,86 @@ export default async function handler(req, res) {
                 todayExpense += userShare;
             }
 
-            // If user is involved, collect for sorting latest transaction
+            // ถ้าเกี่ยวข้องกับ user ให้เก็บไว้สำหรับหงรายการล่าสุด
             if (tPayer === targetUser || userInSplits) {
                 userTransactions.push({
-                    ...t,
-                    userShare: userShare
+                    desc: t.desc || 'ค่าใช้จ่ายกลุ่ม',
+                    amount: Number(userShare || t.amount || 0),
+                    bank: t.bank || (t.paymentType === 'installment' ? 'CARD' : 'EXP'),
+                    date: t.date || todayStr,
+                    timestamp: t.timestamp || new Date(t.createdAt || t.date).getTime() || 0,
+                    source: 'group'
                 });
             }
         });
 
-        // Sort latest transactions
-        userTransactions.sort((a, b) => {
-            const timeA = a.timestamp || new Date(a.createdAt || a.date).getTime() || 0;
-            const timeB = b.timestamp || new Date(b.createdAt || b.date).getTime() || 0;
-            return timeB - timeA;
+        // คำนวณจาก personal_expenses ของ user คนนี้ (ถ้ามี)
+        allPersonal.forEach(p => {
+            const pPayer = (p.payer || '').trim().toUpperCase();
+            if (pPayer !== targetUser) return;
+
+            const pDate = p.date || '';
+            const pAmount = Number(p.amount) || 0;
+            const isThisMonth = pDate.startsWith(currentMonthStr);
+            const isToday = pDate === todayStr;
+
+            if (isThisMonth) {
+                monthExpense += pAmount;
+            }
+            if (isToday) {
+                todayExpense += pAmount;
+            }
+
+            userTransactions.push({
+                desc: p.desc || 'ค่าใช้จ่ายส่วนตัว',
+                amount: pAmount,
+                bank: p.bank || 'EXP',
+                date: p.date || todayStr,
+                timestamp: p.timestamp || new Date(p.createdAt || p.date).getTime() || 0,
+                source: 'personal'
+            });
+            // รายการส่วนตัวไม่กระทบ balance
         });
 
+        // F8: หัก settlements ที่สถานะ verified ของเดือนปัจจุบัน
+        const settlementsQuery = query(
+            collection(db, 'settlements'),
+            where('month', '==', currentMonthStr)
+        );
+        const settlementsSnap = await getDocs(settlementsQuery);
+
+        settlementsSnap.forEach(sDoc => {
+            const s = sDoc.data();
+            if (s.status === 'verified') {
+                const fromUpper = (s.from || '').trim().toUpperCase();
+                const toUpper = (s.to || '').trim().toUpperCase();
+                const amount = Number(s.amount) || 0;
+
+                // คนโอนเงินเคลียร์หนี้แล้ว -> หนี้ลดลง / balance เพิ่มขึ้น
+                if (fromUpper === targetUser) {
+                    balance += amount;
+                }
+                // คนรับเงินคืนแล้ว -> ยอดที่เพื่อนค้างเราลดลง / balance ลดลง
+                if (toUpper === targetUser) {
+                    balance -= amount;
+                }
+            }
+        });
+
+        // เรียงหารายการล่าสุด
+        userTransactions.sort((a, b) => b.timestamp - a.timestamp);
         const latest = userTransactions[0] || null;
         let lastTransaction = null;
         if (latest) {
             lastTransaction = {
-                desc: latest.desc || 'ค่าใช้จ่าย',
-                amount: Number(latest.userShare || latest.amount || 0),
-                bank: latest.bank || (latest.paymentType === 'installment' ? 'CARD' : 'EXP'),
-                date: latest.date || todayStr,
-                payer: latest.payer || ''
+                desc: latest.desc,
+                amount: latest.amount,
+                bank: latest.bank,
+                date: latest.date
             };
         }
 
-        // Formatted Thai Header Date: e.g. "พฤหัสบดี 12 พ.ย."
-        const dayOfWeekIndex = now.getDay();
-        const dayNames = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
-        const thaiDateHeader = `${dayNames[dayOfWeekIndex]} ${parseInt(day, 10)} ${THAI_MONTHS_SHORT[parseInt(month, 10) - 1]}`;
-
+        // ข้อความสรุปหนี้สิน
         let debtText = 'เคลียร์ครบแล้ว';
         let debtType = 'settled';
         const roundedBalance = Math.round(balance);
@@ -162,7 +247,7 @@ export default async function handler(req, res) {
 
         return res.status(200).json({
             success: true,
-            user: targetUser,
+            user: auth.name,
             dateHeader: thaiDateHeader,
             todayExpense: todayExpense,
             monthExpense: monthExpense,

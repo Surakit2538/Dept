@@ -1,23 +1,12 @@
-import { initializeApp, getApps } from "firebase/app";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
+import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 
-const firebaseConfig = {
-    apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
-    authDomain: "deptmoney-6682a.firebaseapp.com",
-    projectId: "deptmoney-6682a",
-    storageBucket: "deptmoney-6682a.firebasestorage.app",
-    messagingSenderId: "6714403201",
-    appId: "1:6714403201:web:a98a2cefcebef5c63b6080"
-};
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const db = getFirestore(app);
+const db = getDbInstance();
 
 export default async function handler(req, res) {
-    // Enable CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -28,14 +17,39 @@ export default async function handler(req, res) {
     }
 
     try {
+        let excludeName = req.query.exclude ? String(req.query.exclude).trim().toUpperCase() : null;
+
+        // ถ้ามี Authorization header ให้ตรวจ token เพื่อดึงชื่อผู้ใช้มาตัดออกอัตโนมัติ (11.3)
+        const authHeader = req.headers.authorization || req.headers.Authorization;
+        if (authHeader) {
+            const authResult = await verifyDeviceToken(db, req);
+            if (authResult.authenticated && authResult.name) {
+                excludeName = authResult.name.trim().toUpperCase();
+            }
+        }
+
         const snap = await getDocs(collection(db, 'members'));
-        const members = snap.docs
-            .map(d => {
-                const data = d.data();
-                return data.name ? data.name.trim() : null;
-            })
-            .filter(Boolean)
-            .sort((a, b) => a.localeCompare(b, 'th'));
+        const seenNames = new Set();
+        const members = [];
+
+        snap.docs.forEach(d => {
+            const data = d.data();
+            const rawName = data.name ? data.name.trim() : null;
+            if (!rawName) return;
+
+            const upperName = rawName.toUpperCase();
+            // กรองชื่อซ้ำ (เช่น G A M E 👾 ที่มี 2 รายการ)
+            if (seenNames.has(upperName)) return;
+            seenNames.add(upperName);
+
+            // ตัดชื่อเจ้าของ token หรือชื่อใน exclude ออก
+            if (excludeName && upperName === excludeName) return;
+
+            members.push(rawName);
+        });
+
+        // เรียงลำดับตามตัวอักษรไทย
+        members.sort((a, b) => a.localeCompare(b, 'th'));
 
         return res.status(200).json({
             success: true,
