@@ -4,10 +4,9 @@
     "dependencies": {
         "@google/generative-ai": "^0.24.1",
         "firebase": "^10.7.1",
-        "firebase-admin": "^12.7.0",
         "form-data": "^4.0.0"
     },
     "scripts": {
-        "test": "node --test tests/slip-core.test.mjs tests/shortcut-service.test.mjs tests/image-parse.test.mjs tests/personal-expenses.test.mjs tests/ledger.test.mjs tests/settlement-match.test.mjs tests/reminders.test.mjs tests/web-members.test.mjs tests/xss.test.mjs tests/security-1d.test.mjs tests/installments.test.mjs tests/subscriptions.test.mjs tests/ledger-full.test.mjs tests/wallet.test.mjs tests/slip-direction.test.mjs tests/fs-compat.test.mjs"
+        "test": "node --test tests/slip-core.test.mjs tests/shortcut-service.test.mjs tests/image-parse.test.mjs tests/personal-expenses.test.mjs tests/ledger.test.mjs tests/settlement-match.test.mjs tests/reminders.test.mjs tests/web-members.test.mjs tests/xss.test.mjs tests/security-1d.test.mjs tests/installments.test.mjs tests/subscriptions.test.mjs tests/ledger-full.test.mjs tests/wallet.test.mjs tests/slip-direction.test.mjs"
     }
 }

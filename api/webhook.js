@@ -1,11 +1,11 @@
+import { initializeApp } from "firebase/app";
 import { readRawBody, decideWebhookAccess } from '../lib/line-signature.mjs';
 import { splitInstallments } from '../lib/installments.mjs';
 import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
 import {
-    doc, getDoc, setDoc, deleteDoc,
+    getFirestore, doc, getDoc, setDoc, deleteDoc,
     collection, getDocs, writeBatch, serverTimestamp, query, where
-} from "../lib/fs-compat.mjs";
-import { getDbInstance } from "./auth-helpers.js";
+} from "firebase/firestore";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 // Import SlipOK helpers
 import {
@@ -25,7 +25,17 @@ import {
 } from './firestore-helpers.js';
 
 // --- CONFIGURATION ---
-const db = getDbInstance(); // ใช้ firebase-admin ถ้าตั้ง FIREBASE_SERVICE_ACCOUNT ไม่งั้นแบบเดิม
+const firebaseConfig = {
+    apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
+    authDomain: "deptmoney-6682a.firebaseapp.com",
+    projectId: "deptmoney-6682a",
+    storageBucket: "deptmoney-6682a.firebasestorage.app",
+    messagingSenderId: "6714403201",
+    appId: "1:6714403201:web:a98a2cefcebef5c63b6080"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // --- TIMEZONE HELPERS ---
 function getBangkokDateString(date = new Date()) {

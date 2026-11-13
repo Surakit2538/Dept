@@ -1,5 +1,6 @@
-import { getDbInstance } from "./auth-helpers.js";
-import * as fsModule from "../lib/fs-compat.mjs";
+import { initializeApp } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import * as fsModule from "firebase/firestore";
 import { createLineIdAuthenticator } from "../lib/line-auth.mjs";
 import { verifySlipWithSlipOK, matchReceiverName, getSlipErrorMessage } from './slipok-helpers.js';
 import { 
@@ -10,7 +11,18 @@ import {
     sendSlipVerifiedNotification 
 } from './firestore-helpers.js';
 
-const db = getDbInstance();
+// --- CONFIGURATION ---
+const firebaseConfig = {
+    apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
+    authDomain: "deptmoney-6682a.firebaseapp.com",
+    projectId: "deptmoney-6682a",
+    storageBucket: "deptmoney-6682a.firebasestorage.app",
+    messagingSenderId: "6714403201",
+    appId: "1:6714403201:web:a98a2cefcebef5c63b6080"
+};
+
+const firebaseApp = initializeApp(firebaseConfig);
+const db = getFirestore(firebaseApp);
 const authenticateIdToken = createLineIdAuthenticator({
     db,
     fs: fsModule,
