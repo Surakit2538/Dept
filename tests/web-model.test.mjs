@@ -173,5 +173,31 @@ test("guessBillIcon / BILL_ICONS", () => {
     assert.equal(guessBillIcon("ค่าไฟเดือนนี้"), "bills");
     assert.equal(guessBillIcon("เติมน้ำมัน"), "travel");
     assert.equal(guessBillIcon("xyz"), "other");
+    assert.equal(guessBillIcon(""), "other");
+    assert.equal(guessBillIcon("กาแฟร้านประจำ"), "drink");
+    assert.equal(guessBillIcon("ค่าเช่าห้อง"), "rent");
+    assert.equal(guessBillIcon("ดูหนังกัน"), "fun");
+    assert.equal(guessBillIcon("ซื้อยาแก้หวัด"), "health");
+    assert.equal(guessBillIcon("ตั๋วเครื่องบินไปเชียงใหม่"), "trip");
+    assert.equal(guessBillIcon("ของขวัญวันเกิดเพื่อน"), "gift");
+    assert.equal(guessBillIcon("อาหารแมว"), "pet");
+    assert.equal(guessBillIcon("Netflix"), "bills");
     assert.ok(BILL_ICONS.every((i) => i.fa.startsWith("fa-")));
+});
+
+import { suggestPeople } from "../web/src/model.js";
+test("BILL_ICONS: ครบ 12 หมวด ไม่ซ้ำ และทุกหมวดเดาได้ถูก key", () => {
+    assert.equal(BILL_ICONS.length, 12);
+    assert.equal(new Set(BILL_ICONS.map((i) => i.key)).size, 12);
+    assert.equal(new Set(BILL_ICONS.map((i) => i.fa)).size, 12);
+    assert.equal(BILL_ICONS[BILL_ICONS.length - 1].key, "other");
+    for (const i of BILL_ICONS) assert.ok(i.label && i.icon);
+});
+test("suggestPeople: เรียงตามที่หารด้วยบ่อย ตัดตัวเอง คนนอกกลุ่ม และคนที่ไม่เคยหารด้วย", () => {
+    const members = ["GAME", "CARE", "AOY", "BEN", "ZED"];
+    const t = (payer, ...p) => ({ payer, splits: Object.fromEntries(p.map((x) => [x, 1])) });
+    const txs = [t("GAME", "GAME", "CARE"), t("GAME", "GAME", "CARE", "AOY"), t("CARE", "CARE", "GAME"), t("BEN", "BEN", "AOY"), t("GAME", "GAME", "GHOST")];
+    assert.deepEqual(suggestPeople({ me: "game", members, transactions: txs }), ["CARE", "AOY"]);
+    assert.deepEqual(suggestPeople({ me: "GAME", members, transactions: txs, limit: 1 }), ["CARE"]);
+    assert.deepEqual(suggestPeople({ me: "GAME", members, transactions: [] }), []);
 });

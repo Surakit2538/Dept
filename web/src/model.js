@@ -232,24 +232,56 @@ const toSat = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.rou
 
 /* ---------- เพิ่มบิลหารกับเพื่อน ---------- */
 
-/** ไอคอนตามหมวด (ชุดเดียวกับที่หน้าเดิมเก็บใน transactions.icon) */
+/** หมวดของบิล: fa คือรหัสไอคอนเดิมที่เก็บใน transactions.icon (หน้าเดิมและสรุปรายเดือนอ่านได้ต่อ) icon คือไอคอน SVG ที่แสดง */
 export const BILL_ICONS = [
     { key: "food", label: "อาหาร", fa: "fa-utensils", icon: "food" },
-    { key: "bills", label: "บิล/ค่าบริการ", fa: "fa-bolt", icon: "bolt" },
+    { key: "drink", label: "เครื่องดื่ม", fa: "fa-mug-hot", icon: "coffee" },
     { key: "goods", label: "ของใช้", fa: "fa-cart-shopping", icon: "bag" },
     { key: "travel", label: "เดินทาง", fa: "fa-car", icon: "car" },
+    { key: "bills", label: "บิล", fa: "fa-bolt", icon: "bolt" },
+    { key: "rent", label: "ที่พัก", fa: "fa-house", icon: "key" },
+    { key: "fun", label: "บันเทิง", fa: "fa-film", icon: "film" },
+    { key: "health", label: "สุขภาพ", fa: "fa-pills", icon: "pill" },
+    { key: "trip", label: "เที่ยว", fa: "fa-plane", icon: "plane" },
+    { key: "gift", label: "ของขวัญ", fa: "fa-gift", icon: "gift" },
+    { key: "pet", label: "สัตว์เลี้ยง", fa: "fa-paw", icon: "paw" },
     { key: "other", label: "อื่นๆ", fa: "fa-money-bill", icon: "dots" }
 ];
 
-/** เดาหมวดจากชื่อรายการ (ผู้ใช้เปลี่ยนเองได้) */
+const GUESS = [
+    ["trip", ["เที่ยว", "โรงแรม", "ที่พักรีสอร์ท", "เครื่องบิน", "ตั๋วเครื่องบิน", "airbnb", "agoda", "ทริป"]],
+    ["rent", ["ค่าเช่า", "ค่าห้อง", "ค่าหอ", "คอนโด", "ค่าส่วนกลาง"]],
+    ["drink", ["กาแฟ", "ชานม", "ชาไข่มุก", "คาเฟ่", "เครื่องดื่ม", "น้ำผลไม้", "เหล้า", "เบียร์", "ไวน์", "ปาร์ตี้", "starbucks", "amazon"]],
+    ["pet", ["แมว", "หมา", "สุนัข", "สัตว์"]],
+    ["food", ["ข้าว", "กิน", "อาหาร", "ก๋วยเตี๋ยว", "ขนม", "หมูกระทะ", "ชาบู", "บุฟเฟ", "ส้มตำ", "ไก่", "หมู", "เนื้อ", "ปิ้งย่าง", "ผัด", "ต้ม", "แกง", "ส้ม", "ไอติม", "เค้ก", "grab food", "lineman", "foodpanda"]],
+    ["bills", ["ค่าไฟ", "ค่าน้ำ", "ค่าเน็ต", "อินเทอร์เน็ต", "เน็ต", "โทรศัพท์", "ค่าโทร", "netflix", "spotify", "youtube", "disney", "subscription", "ค่าบริการ"]],
+    ["travel", ["รถ", "น้ำมัน", "แท็กซี่", "grab", "bolt", "bts", "mrt", "ทางด่วน", "ที่จอดรถ", "ค่าเดินทาง", "รถเมล์", "ตั๋วรถ"]],
+    ["fun", ["หนัง", "โรงหนัง", "เกม", "steam", "คอนเสิร์ต", "บัตรคอน", "karaoke", "คาราโอเกะ", "บอร์ดเกม", "ดูหนัง"]],
+    ["health", ["ค่ายา", "ซื้อยา", "หมอ", "โรงพยาบาล", "คลินิก", "ฟัน", "ตรวจสุขภาพ", "วิตามิน", "ฟิตเนส", "ยิม"]],
+    ["gift", ["ของขวัญ", "วันเกิด", "ซองงาน", "ทำบุญ", "ดอกไม้"]],
+    ["goods", ["ซื้อ", "ของใช้", "ช้อป", "shopee", "lazada", "7-11", "เซเว่น", "ซุปเปอร์", "โลตัส", "บิ๊กซี", "tops", "makro", "แม็คโคร", "ที่ปิ้ง", "ครีม", "สบู่", "ยาสระผม", "ตัดผม", "ซาลอน"]]
+];
+
+/** เดาหมวดจากชื่อรายการ (ผู้ใช้เปลี่ยนเองได้ ถ้าเดาไม่ได้จะเป็น "อื่นๆ") */
 export function guessBillIcon(desc) {
     const d = String(desc || "").toLowerCase();
-    const has = (...w) => w.some((x) => d.includes(x));
-    if (has("ข้าว", "กิน", "อาหาร", "ก๋วยเตี๋ยว", "กาแฟ", "ขนม", "หมู", "ไก่", "เหล้า", "เบียร์", "บุฟเฟ")) return "food";
-    if (has("ค่าไฟ", "ค่าน้ำ", "เน็ต", "โทรศัพท์", "ค่าเช่า", "ห้อง", "บ้าน", "netflix", "spotify")) return "bills";
-    if (has("รถ", "น้ำมัน", "แท็กซี่", "grab", "bts", "mrt", "ทางด่วน", "ตั๋ว", "เดินทาง")) return "travel";
-    if (has("ซื้อ", "ของ", "ช้อป", "shopee", "lazada", "7-11", "ซุปเปอร์", "โลตัส", "บิ๊กซี")) return "goods";
+    if (!d.trim()) return "other";
+    for (const [key, words] of GUESS) if (words.some((w) => d.includes(w))) return key;
     return "other";
+}
+
+/** คนที่หารด้วยบ่อยที่สุดจากบิลที่เราเกี่ยวข้อง (ไว้เสนอเป็นทางลัด ไม่ให้ต้องไล่ดูสมาชิกทั้งกลุ่ม) */
+export function suggestPeople({ me, members, transactions, limit = 6 }) {
+    const meN = normalizeName(me);
+    const valid = new Set((members || []).map(normalizeName));
+    const count = new Map();
+    for (const t of transactions || []) {
+        const names = new Set(Object.keys((t && t.splits) || {}).map(normalizeName));
+        names.add(normalizeName(t && t.payer));
+        if (!names.has(meN)) continue;
+        names.forEach((n) => { if (n && n !== meN && valid.has(n)) count.set(n, (count.get(n) || 0) + 1); });
+    }
+    return [...count.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).slice(0, limit).map(([n]) => n);
 }
 
 /** แบ่งเท่ากันเป็นสตางค์ เศษไล่ให้คนแรกๆ ผลรวมเท่ายอดเต็มเป๊ะ */

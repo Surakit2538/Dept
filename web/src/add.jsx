@@ -4,9 +4,9 @@ import { Icon } from "./icons.jsx";
 import { Sheet } from "./ui.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
 
-export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, initial = null }) {
+export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null }) {
     const [mode, setMode] = useState(initial); // null | "bill" | "expense" | "income"
-    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} />;
+    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} />;
     if (mode) return <AddForm type={mode} onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} save={save} today={today} />;
     return (
         <Sheet title="บันทึกอะไร" onClose={onClose}>
@@ -99,15 +99,30 @@ function readLast(all) {
     } catch (e) { return null; }
 }
 
-/** ฟอร์มบิลหารกับเพื่อน แบบสั้นหน้าเดียว: ถามแค่ยอด ชื่อรายการ หารกับใคร หมวด ส่วนที่ไม่ค่อยใช้พับไว้ใน "ตัวเลือกเพิ่มเติม" */
-function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me }) {
+const PANELS = [
+    { key: "date", label: "วันที่" },
+    { key: "payer", label: "คนจ่าย" },
+    { key: "split", label: "วิธีแบ่ง" },
+    { key: "type", label: "ชำระแบบ" }
+];
+
+/** ฟอร์มบิลหารกับเพื่อน แบบสั้นหน้าเดียว: ยอด รายการ หารกับใคร (ชิปทางลัด) หมวด และตัวเลือกเพิ่มเติมแบบเปิดทีละหัวข้อ */
+function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [] }) {
     const all = members || [];
+    const quick = suggested.filter((m) => all.includes(m));
     const [amount, setAmount] = useState("");
     const [desc, setDesc] = useState("");
     const [date, setDate] = useState(today);
     const [pickDate, setPickDate] = useState(false);
     const [payer, setPayer] = useState(me);
-    const [people, setPeople] = useState(() => new Set(readLast(all) || all));
+    const [people, setPeople] = useState(() => {
+        const last = readLast(all);
+        if (last) return new Set(last);
+        const start = [me, ...quick.slice(0, 2)].filter((m) => all.includes(m));
+        return new Set(start.length > 0 ? start : all.slice(0, 1));
+    });
+    const [more, setMore] = useState(false);
+    const [find, setFind] = useState("");
     const [mode, setMode] = useState("equal");
     const [custom, setCustom] = useState({});
     const [type, setType] = useState("normal");
@@ -115,7 +130,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me }) {
     const [recurring, setRecurring] = useState(true);
     const [iconKey, setIconKey] = useState("other");
     const [iconTouched, setIconTouched] = useState(false);
-    const [open, setOpen] = useState(false);
+    const [panel, setPanel] = useState(null);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
 
@@ -126,8 +141,9 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me }) {
     const toggle = (m) => setPeople((cur) => { const s = new Set(cur); if (s.has(m)) s.delete(m); else s.add(m); return s; });
     const onDesc = (v) => { setDesc(v); if (!iconTouched) setIconKey(guessBillIcon(v)); };
     const label = (m) => (m === me ? "ฉัน" : m);
+    const addable = quick.filter((m) => !people.has(m));
+    const others = all.filter((m) => !people.has(m) && (!find.trim() || m.toLowerCase().includes(find.trim().toLowerCase())));
 
-    // ผลลัพธ์สั้นๆ ให้เห็นทันทีว่าบิลนี้จะออกมาเป็นอย่างไร
     let resultText = "เลือกคนหารอย่างน้อย 1 คน";
     let resultTone = "mute";
     if (chosen.length > 0) {
@@ -137,18 +153,29 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me }) {
         resultTone = "";
     }
     const each = preview ? (preview[chosen[0]] ?? 0) : 0;
-    const dateLabel = date === today ? "วันนี้" : date === addDays(today, -1) ? "เมื่อวาน" : date;
-    const summary = [dateLabel, payer === me ? "ฉันจ่าย" : `${payer} จ่าย`, type === "installment" ? `ผ่อน ${installments} งวด` : type === "subscription" ? "รายเดือน" : mode === "custom" ? "ยอดเอง" : "หารเท่ากัน"].join(" · ");
+    const dateLabel = date === today ? "วันนี้" : date === addDays(today, -1) ? "เมื่อวาน" : date.slice(5).split("-").reverse().join("/");
+    const values = {
+        date: dateLabel,
+        payer: payer === me ? "ฉัน" : payer,
+        split: mode === "custom" ? "ยอดเอง" : "เท่ากัน",
+        type: type === "installment" ? `ผ่อน ${installments} งวด` : type === "subscription" ? "รายเดือน" : "ครั้งเดียว"
+    };
+    const catHint = !iconTouched && desc.trim() ? "เลือกให้อัตโนมัติ" : "";
 
     async function submit(e) {
         e.preventDefault();
         setErr("");
-        const fa = (BILL_ICONS.find((i) => i.key === iconKey) || BILL_ICONS[4]).fa;
+        const fa = (BILL_ICONS.find((i) => i.key === iconKey) || BILL_ICONS[BILL_ICONS.length - 1]).fa;
         const r = buildBill({ amount, desc, payer, date, today, participants: chosen, mode, custom, type, installments, recurring, icon: fa });
         if (!r.ok) {
             setErr(r.error);
-            // ปัญหาอยู่ในส่วนที่พับไว้ ให้เปิดให้เห็นเลย
-            if (/ยอด|ผ่อน|งวด|วันที่|คนจ่าย/.test(r.error) && !/จำนวนเงิน/.test(r.error)) setOpen(true);
+            // ปัญหาอยู่ในหัวข้อที่ปิดอยู่ ให้เปิดหัวข้อนั้นให้เห็นเลย
+            if (!/จำนวนเงิน/.test(r.error)) {
+                if (/วันที่/.test(r.error)) setPanel("date");
+                else if (/คนจ่าย/.test(r.error)) setPanel("payer");
+                else if (/ผ่อน|งวด/.test(r.error)) setPanel("type");
+                else if (/ยอด/.test(r.error)) setPanel(mode === "custom" ? "split" : "type");
+            }
             return;
         }
         setBusy(true);
@@ -173,19 +200,38 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me }) {
             <div class="field"><label for="b-desc">รายการ</label><input id="b-desc" type="text" maxLength={100} placeholder="เช่น ข้าวมันไก่" value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
 
             <div class="field">
-                <div class="hd-row"><span class="fl" id="b-people-l">หารกับใคร</span><button type="button" class="link" onClick={() => setPeople(new Set(people.size === all.length ? [] : all))}>{people.size === all.length ? "ไม่เลือกเลย" : "ทุกคน"}</button></div>
-                <div class="people" role="group" aria-labelledby="b-people-l">
-                    {all.map((m) => (
-                        <button type="button" key={m} class={`person ${people.has(m) ? "on" : ""}`} aria-pressed={people.has(m)} onClick={() => toggle(m)}>
-                            <span class="pav">{people.has(m) ? <Icon name="check" size={18} /> : [...m][0]}</span>
-                            <span class="pn">{label(m)}</span>
+                <span class="fl" id="b-people-l">หารกับใคร <span class="mute">({chosen.length} คน)</span></span>
+                <div class="pchips" role="group" aria-labelledby="b-people-l">
+                    {chosen.map((m) => (
+                        <button type="button" key={m} class="pchip on" aria-label={`เอา ${label(m)} ออก`} onClick={() => toggle(m)}>
+                            <span class="pav-s">{[...m][0]}</span>{label(m)}<Icon name="close" size={14} />
                         </button>
                     ))}
+                    {addable.map((m) => (
+                        <button type="button" key={m} class="pchip" aria-label={`เพิ่ม ${label(m)}`} onClick={() => toggle(m)}>
+                            <Icon name="plus" size={14} />{label(m)}
+                        </button>
+                    ))}
+                    {others.length > 0 || more ? (
+                        <button type="button" class={`pchip ghost ${more ? "open" : ""}`} aria-expanded={more} aria-controls="b-pick" onClick={() => { setMore(!more); setFind(""); }}>
+                            <Icon name="search" size={14} />คนอื่น
+                        </button>
+                    ) : null}
                 </div>
+                {more && (
+                    <div id="b-pick" class="picker">
+                        <input type="search" aria-label="ค้นหาชื่อ" placeholder="พิมพ์ชื่อเพื่อค้นหา" value={find} onInput={(e) => setFind(e.currentTarget.value)} />
+                        <div class="plist">
+                            {others.map((m) => <button type="button" key={m} onClick={() => toggle(m)}><span class="pav-s">{[...m][0]}</span>{m}<Icon name="plus" size={14} class="mute" /></button>)}
+                            {others.length === 0 && <p class="mute">{find.trim() ? "ไม่พบชื่อนี้" : "เลือกครบทุกคนแล้ว"}</p>}
+                        </div>
+                        {others.length > 1 && !find.trim() && <button type="button" class="link" onClick={() => setPeople(new Set(all))}>เลือกทุกคน</button>}
+                    </div>
+                )}
             </div>
 
             <div class="field">
-                <span class="fl" id="b-icon-l">หมวด</span>
+                <div class="hd-row"><span class="fl" id="b-icon-l">หมวด</span>{catHint && <span class="hint">{catHint}</span>}</div>
                 <div class="cats-pick" role="group" aria-labelledby="b-icon-l">
                     {BILL_ICONS.map((i) => <button type="button" key={i.key} class={iconKey === i.key ? "on" : ""} aria-pressed={iconKey === i.key} onClick={() => { setIconKey(i.key); setIconTouched(true); }}><span class="ct"><Icon name={i.icon} /></span>{i.label}</button>)}
                 </div>
@@ -197,45 +243,64 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me }) {
                 {preview && type === "installment" && Number(installments) >= 2 && <b class="num rcv">งวดละ {baht(n / Number(installments), { decimals: 2 })}</b>}
             </div>
 
-            <button type="button" class="more-opt" aria-expanded={open} aria-controls="b-more" onClick={() => setOpen(!open)}>
-                <Icon name="sliders" /><span>ตัวเลือกเพิ่มเติม<small>{summary}</small></span><Icon name="down" size={16} class={`chev ${open ? "up" : ""}`} />
-            </button>
-            {open && (
-                <div id="b-more" class="more-box">
-                    <div class="field">
-                        <span class="fl" id="b-date-l">วันที่</span>
-                        <div class="chips-pick" role="group" aria-labelledby="b-date-l">
+            <div class="opts">
+                <span class="fl" id="b-opt-l">ตัวเลือกเพิ่มเติม</span>
+                <div class="opt-chips" role="group" aria-labelledby="b-opt-l">
+                    {PANELS.map((p) => (
+                        <button type="button" key={p.key} class={panel === p.key ? "on" : ""} aria-expanded={panel === p.key} aria-controls={`b-p-${p.key}`} onClick={() => setPanel(panel === p.key ? null : p.key)}>
+                            <small>{p.label}</small><b>{values[p.key]}</b>
+                        </button>
+                    ))}
+                </div>
+                {panel === "date" && (
+                    <div id="b-p-date" class="opt-panel">
+                        <div class="chips-pick">
                             <button type="button" class={date === today && !pickDate ? "on" : ""} aria-pressed={date === today && !pickDate} onClick={() => { setDate(today); setPickDate(false); }}>วันนี้</button>
                             <button type="button" class={date === addDays(today, -1) && !pickDate ? "on" : ""} aria-pressed={date === addDays(today, -1) && !pickDate} onClick={() => { setDate(addDays(today, -1)); setPickDate(false); }}>เมื่อวาน</button>
                             <button type="button" class={pickDate ? "on" : ""} aria-pressed={pickDate} onClick={() => setPickDate(true)}>เลือกวัน</button>
                         </div>
                         {pickDate && <input id="b-date" type="date" aria-label="วันที่" max={today} value={date} onInput={(e) => setDate(e.currentTarget.value)} />}
                     </div>
-                    <div class="field"><label for="b-payer">คนจ่าย</label>
+                )}
+                {panel === "payer" && (
+                    <div id="b-p-payer" class="opt-panel">
+                        <label for="b-payer" class="fl">ใครจ่ายเงินก่อน</label>
                         <select id="b-payer" value={payer} onChange={(e) => setPayer(e.currentTarget.value)}>{all.map((m) => <option key={m} value={m}>{m === me ? `${m} (ฉัน)` : m}</option>)}</select>
                         {!people.has(payer) && people.size > 0 && <small>{payer} ไม่ได้อยู่ในคนหาร: เป็นการจ่ายแทนเพื่อน ไม่มีส่วนของ {payer}</small>}
                     </div>
-                    <Segmented id="b-mode-l" label="วิธีแบ่ง" value={mode} onChange={setMode} options={MODES} />
-                    {mode === "custom" && (
-                        <div class="split-custom">
-                            {chosen.map((m) => (
-                                <div class="cust" key={m}>
-                                    <label for={`c-${m}`}>{label(m)}</label>
-                                    <input id={`c-${m}`} class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value={custom[m] ?? ""} onInput={(e) => setCustom({ ...custom, [m]: e.currentTarget.value })} />
-                                </div>
-                            ))}
-                            <p class={`lbl num ${n > 0 && customSum !== Math.round(n * 100) ? "pay" : ""}`}>รวม {baht(customSum / 100, { decimals: 2 })} จากยอดบิล {baht(n || 0, { decimals: 2 })}</p>
+                )}
+                {panel === "split" && (
+                    <div id="b-p-split" class="opt-panel">
+                        <div class="seg" role="group" aria-label="วิธีแบ่ง">
+                            {MODES.map((o) => <button type="button" key={o.key} class={mode === o.key ? "on" : ""} aria-pressed={mode === o.key} onClick={() => setMode(o.key)}>{o.label}</button>)}
                         </div>
-                    )}
-                    <Segmented id="b-type-l" label="ชำระแบบไหน" value={type} onChange={setType} options={TYPES} />
-                    {type === "installment" && (
-                        <div class="field"><label for="b-inst">ผ่อนกี่เดือน (2 ถึง 60)</label><input id="b-inst" class="num" type="number" inputmode="numeric" min="2" max="60" value={installments} onInput={(e) => setInstallments(e.currentTarget.value)} /></div>
-                    )}
-                    {type === "subscription" && (
-                        <label class="check"><input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.currentTarget.checked)} /><span>สร้างบิลนี้ซ้ำทุกเดือนอัตโนมัติ (ยกเลิกได้ภายหลัง)</span></label>
-                    )}
-                </div>
-            )}
+                        {mode === "custom" && (
+                            <div class="split-custom">
+                                {chosen.map((m) => (
+                                    <div class="cust" key={m}>
+                                        <label for={`c-${m}`}>{label(m)}</label>
+                                        <input id={`c-${m}`} class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value={custom[m] ?? ""} onInput={(e) => setCustom({ ...custom, [m]: e.currentTarget.value })} />
+                                    </div>
+                                ))}
+                                <p class={`lbl num ${n > 0 && customSum !== Math.round(n * 100) ? "pay" : ""}`}>รวม {baht(customSum / 100, { decimals: 2 })} จากยอดบิล {baht(n || 0, { decimals: 2 })}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {panel === "type" && (
+                    <div id="b-p-type" class="opt-panel">
+                        <div class="seg" role="group" aria-label="ชำระแบบไหน">
+                            {TYPES.map((o) => <button type="button" key={o.key} class={type === o.key ? "on" : ""} aria-pressed={type === o.key} onClick={() => setType(o.key)}>{o.label}</button>)}
+                        </div>
+                        {type === "installment" && (
+                            <div class="field"><label for="b-inst">ผ่อนกี่เดือน (2 ถึง 60)</label><input id="b-inst" class="num" type="number" inputmode="numeric" min="2" max="60" value={installments} onInput={(e) => setInstallments(e.currentTarget.value)} /></div>
+                        )}
+                        {type === "subscription" && (
+                            <label class="check"><input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.currentTarget.checked)} /><span>สร้างบิลนี้ซ้ำทุกเดือนอัตโนมัติ (ยกเลิกได้ภายหลัง)</span></label>
+                        )}
+                    </div>
+                )}
+            </div>
 
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึกบิล"}</button>

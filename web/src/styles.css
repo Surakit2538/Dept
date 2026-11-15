@@ -250,7 +250,7 @@ a { color: inherit; }
 .person.on .pav { background: var(--accent); color: var(--accent-ink); }
 .pn { font-size: var(--fs-xs); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mute); }
 .person.on .pn { color: var(--ink); font-weight: 600; }
-.cats-pick { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s2); }
+.cats-pick { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--s2) var(--s1); }
 .cats-pick button { border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--mute); min-width: 0; }
 .cats-pick .ct { width: 100%; height: 44px; border-radius: 12px; background: var(--chip); display: grid; place-items: center; }
 .cats-pick button.on { color: var(--ink); font-weight: 600; }
@@ -287,3 +287,26 @@ a { color: inherit; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { transform: translateY(28px); opacity: .5; } }
 @keyframes pulse { 50% { opacity: .5; } }
+
+.pchips { display: flex; flex-wrap: wrap; gap: var(--s2); margin-top: var(--s2); }
+.pchip { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--s3) 0 6px; border-radius: 999px; border: 1px dashed var(--line); background: transparent; color: var(--ink); }
+.pchip:not(.on):not(.ghost) { padding-left: var(--s3); }
+.pchip.on { background: var(--accent); border: 1px solid var(--accent); color: var(--accent-ink); font-weight: 600; }
+.pchip.ghost { border-style: solid; color: var(--accent); padding-left: var(--s3); }
+.pchip.ghost.open { background: var(--chip); }
+.pav-s { width: 28px; height: 28px; border-radius: 50%; background: var(--chip); color: var(--ink); display: inline-grid; place-items: center; font-size: var(--fs-sm); font-weight: 600; flex: none; }
+.pchip.on .pav-s { background: rgba(255,255,255,.25); color: inherit; }
+.picker { margin-top: var(--s3); border: 1px solid var(--line); border-radius: 12px; padding: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
+.plist { max-height: 168px; overflow-y: auto; display: flex; flex-direction: column; }
+.plist button { display: flex; align-items: center; gap: var(--s3); min-height: 44px; border: 0; background: transparent; color: var(--ink); text-align: left; padding: 0 var(--s1); }
+.plist button .ic { margin-left: auto; }
+.hint { font-size: var(--fs-xs); color: var(--mute); }
+.opts { margin-top: var(--s4); border-top: 1px solid var(--line); padding-top: var(--s3); }
+.opt-chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s2); margin-top: var(--s2); }
+.opt-chips button { border: 1px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 12px; min-height: 52px; padding: var(--s1) var(--s2); display: flex; flex-direction: column; align-items: flex-start; justify-content: center; text-align: left; min-width: 0; }
+.opt-chips small { color: var(--mute); font-size: var(--fs-xs); }
+.opt-chips b { font-size: var(--fs-sm); font-weight: 600; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-chips button.on { border-color: var(--accent); background: var(--chip); }
+.opt-panel { margin-top: var(--s3); padding: var(--s3); background: var(--chip); border-radius: 12px; display: flex; flex-direction: column; gap: var(--s3); }
+@media (max-width: 420px) { .opt-chips { grid-template-columns: repeat(2, 1fr); } }
+.hint { white-space: nowrap; }

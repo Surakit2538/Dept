@@ -24,6 +24,14 @@ const P = {
     alert: <><path d="M12 4.5 3.5 19h17z" /><path d="M12 10v4.5M12 17h.01" /></>,
     chart: <path d="M5 19.5V11M10 19.5V5M15 19.5v-6M20 19.5V8.5" />,
     sliders: <><path d="M5 7h9M18 7h1M5 17h1M10 17h9" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>,
+    coffee: <><path d="M5 9.5h11v5a4.5 4.5 0 0 1-4.5 4.5h-2A4.5 4.5 0 0 1 5 14.5z" /><path d="M16 11h1.5a2 2 0 0 1 0 4H16M8.5 4.5v2M12 4.5v2" /></>,
+    key: <><circle cx="8.5" cy="14.5" r="3.5" /><path d="M11 12 19 4.5M16 7.5l2.5 2.5M14 9.5l1.8 1.8" /></>,
+    film: <><rect x="4" y="5" width="16" height="14" rx="2" /><path d="M8 5v14M16 5v14M4 9.5h4M4 14.5h4M16 9.5h4M16 14.5h4" /></>,
+    pill: <><rect x="3.5" y="9" width="17" height="6.5" rx="3.25" transform="rotate(-40 12 12)" /><path d="m9.4 9.4 5.2 5.2" /></>,
+    plane: <path d="M3.5 13.5 20.5 5l-4 14-4.5-4.5-3 3v-4.5zM11.5 14.5 20.5 5" />,
+    gift: <><rect x="4" y="9" width="16" height="4" rx="1" /><path d="M5.5 13v6.5h13V13M12 9v10.5M12 9c-1-3.5-5-3.5-5-1.2C7 9 9 9 12 9zM12 9c1-3.5 5-3.5 5-1.2 0 1.2-2 1.2-5 1.2z" /></>,
+    paw: <><circle cx="7" cy="10" r="1.6" /><circle cx="11" cy="6.8" r="1.6" /><circle cx="15.5" cy="7.5" r="1.6" /><circle cx="18" cy="11.5" r="1.6" /><path d="M8 17.5c0-2.5 2.2-4.5 4.5-4.5s4.5 2 4 4.2c-.4 1.8-2 2.3-4 2.3S8 19.5 8 17.5z" /></>,
+    search: <><circle cx="11" cy="11" r="6" /><path d="m16 16 4 4" /></>,
     close: <path d="M6 6l12 12M18 6 6 18" />
 };
 
@@ -37,10 +45,11 @@ export function Icon({ name, size, class: cls = "" }) {
 
 /** ไอคอนรายการ จากไอคอนที่เลือกตอนบันทึก (fa-*) → ไอคอนชุดนี้ */
 const FA = {
-    "fa-utensils": "food", "fa-mug-hot": "food", "fa-wine-glass": "food",
-    "fa-car": "car", "fa-gas-pump": "car", "fa-bus": "car", "fa-plane": "car",
-    "fa-cart-shopping": "bag", "fa-basket-shopping": "bag", "fa-scissors": "bag", "fa-pills": "bag", "fa-paw": "bag", "fa-gift": "bag",
-    "fa-bolt": "bolt", "fa-house": "bolt", "fa-mobile-screen": "bolt", "fa-mobile-screen-button": "bolt",
+    "fa-utensils": "food", "fa-mug-hot": "coffee", "fa-wine-glass": "coffee",
+    "fa-car": "car", "fa-gas-pump": "car", "fa-bus": "car", "fa-plane": "plane",
+    "fa-cart-shopping": "bag", "fa-basket-shopping": "bag", "fa-scissors": "bag", "fa-pills": "pill", "fa-paw": "paw", "fa-gift": "gift",
+    "fa-film": "film", "fa-house": "key",
+    "fa-bolt": "bolt", "fa-mobile-screen": "bolt", "fa-mobile-screen-button": "bolt",
     "fa-arrow-down": "down"
 };
 export const iconFor = (fa) => FA[fa] || "bill";

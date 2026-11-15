@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
 import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWallet, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
-import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, lastMonths, shiftMonth } from "./model.js";
+import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState } from "./ui.jsx";
 import { AddSheet } from "./add.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -83,6 +83,7 @@ function App() {
             wallet: vals.flatMap((v) => v.wallet || [])
         };
     }, [monthsReady, byMonth]);
+    const suggested = useMemo(() => (all && members ? suggestPeople({ me: auth.user.name, members, transactions: all.transactions }) : []), [all, auth, members]);
     const model = useMemo(() => (all ? buildHomeModel({ name: auth.user.name, month, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, auth, members, month, today]);
     const series = useMemo(() => (all ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : []), [all, auth, nowMonth]);
     const clearM = useMemo(() => (all ? buildClearModel({ name: auth.user.name, month, members, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, members, month]);
@@ -116,7 +117,7 @@ function App() {
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 {body}
             </Shell>
-            {sheet && <AddSheet initial={sheet === "income" ? "income" : null} today={today} members={members || []} me={auth.user.name} save={addWallet} saveBill={saveBill} onClose={() => setSheet(null)}
+            {sheet && <AddSheet initial={sheet === "income" ? "income" : null} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => setSheet(null)}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
