@@ -23,6 +23,7 @@ const P = {
     trash: <><path d="M5 7h14M10 7V5h4v2M7 7l1 12.5h8L17 7" /><path d="M10.5 11v5M13.5 11v5" /></>,
     alert: <><path d="M12 4.5 3.5 19h17z" /><path d="M12 10v4.5M12 17h.01" /></>,
     chart: <path d="M5 19.5V11M10 19.5V5M15 19.5v-6M20 19.5V8.5" />,
+    sliders: <><path d="M5 7h9M18 7h1M5 17h1M10 17h9" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></>,
     close: <path d="M6 6l12 12M18 6 6 18" />
 };
 

@@ -105,6 +105,8 @@ test("ฟอร์มบิลหารกับเพื่อน: แสดง
     assert.match(menu, /รายจ่ายส่วนตัว/);
     assert.match(menu, /รายรับ/);
     const form = toString(h(AddSheet, { initial: "bill", today: "2026-11-14", members: ["GAME", "CARE", evil], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} }));
-    for (const t of ["ยอดเต็มของบิล", "คนจ่าย", "หารกับใครบ้าง", "หารเท่ากัน", "กำหนดยอดเอง", "จ่ายครั้งเดียว", "ผ่อนชำระ", "รายเดือน", "บันทึกบิล"]) assert.ok(form.includes(t), `ไม่พบ ${t}`);
+    for (const t of ["ยอดเต็มของบิล", "รายการ", "หารกับใคร", "หมวด", "ตัวเลือกเพิ่มเติม", "บันทึกบิล"]) assert.ok(form.includes(t), `ไม่พบ ${t}`);
     assert.ok(!form.includes("<script>alert"), "ชื่อต้องถูก escape");
+    assert.ok(form.includes('aria-expanded="false"'), "ตัวเลือกเพิ่มเติมต้องพับไว้ก่อน");
+    assert.ok(!form.includes("ผ่อนชำระ"), "ผ่อน/รายเดือนต้องซ่อนจนกว่าจะกดเปิด");
 });
