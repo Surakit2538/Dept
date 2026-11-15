@@ -7,18 +7,21 @@ import { verifySlip } from "../data.js";
 
 function QrSheet({ line, profile, onClose }) {
     const url = promptpayQrUrl(profile && profile.promptpay, line.amount);
+    const [failed, setFailed] = useState(false);
     return (
         <Sheet title={`โอนให้ ${line.to}`} onClose={onClose}>
             <div class="qr-box">
-                {url ? (
+                {url && failed ? (
+                    <p class="empty" role="alert">โหลดรูป QR ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วเปิดใหม่ หรือโอนด้วยเลขพร้อมเพย์ {maskPromptpay(profile.promptpay)} จำนวน {baht(line.amount)}</p>
+                ) : url ? (
                     <>
-                        <img src={url} alt={`QR พร้อมเพย์ของ ${line.to} จำนวน ${line.amount} บาท`} width="240" height="240" referrerpolicy="no-referrer" />
-                        <div class="big num" style={{ fontSize: "30px" }}>{baht(line.amount)}</div>
-                        <div class="lbl">พร้อมเพย์ {maskPromptpay(profile.promptpay)}</div>
-                        <p class="lbl" style={{ textAlign: "center" }}>สแกนด้วยแอปธนาคาร แล้วกลับมากด &ldquo;อัปโหลดสลิป&rdquo; เพื่อยืนยันว่าโอนแล้ว</p>
+                        <img src={url} alt={`QR พร้อมเพย์ของ ${line.to} จำนวน ${line.amount} บาท`} width="240" height="240" referrerpolicy="no-referrer" onError={() => setFailed(true)} />
+                        <p class="big num">{baht(line.amount)}</p>
+                        <p class="lbl">พร้อมเพย์ <span class="num">{maskPromptpay(profile.promptpay)}</span></p>
+                        <p class="lbl qr-help">สแกนด้วยแอปธนาคาร แล้วกลับมากด &ldquo;อัปโหลดสลิป&rdquo; เพื่อยืนยันว่าโอนแล้ว</p>
                     </>
                 ) : (
-                    <div class="empty" role="alert">{line.to} ยังไม่ได้ตั้งค่าพร้อมเพย์ ให้บอกเจ้าตัวไปตั้งในหน้า &ldquo;ฉัน&rdquo; หรือให้แอดมินกรอกให้</div>
+                    <p class="empty" role="alert">{line.to} ยังไม่ได้ตั้งพร้อมเพย์ ให้เจ้าตัวตั้งในหน้า &ldquo;ฉัน&rdquo; หรือให้แอดมินกรอกให้</p>
                 )}
             </div>
         </Sheet>
@@ -57,25 +60,25 @@ function SlipSheet({ line, month, onClose, onDone }) {
     }
     return (
         <Sheet title="อัปโหลดสลิป" onClose={onClose}>
-            <p class="lbl" style={{ margin: "6px 0 10px" }}>โอนให้ {line.to} {baht(line.amount)} ของเดือน {monthLabel(month)}</p>
+            <p class="lbl">โอนให้ {line.to} {baht(line.amount)} ของเดือน {monthLabel(month)}</p>
             <div class="field"><label for="slip-file">รูปสลิป</label><input id="slip-file" type="file" accept="image/jpeg,image/png,image/webp" onChange={pick} /></div>
-            {result && <div class={`msg ${result.ok ? "ok" : ""}`} role={result.ok ? "status" : "alert"}>{result.text}</div>}
-            <button type="button" class="btn" style={{ width: "100%", marginTop: "16px" }} disabled={!file || busy || (result && result.ok)} onClick={submit}>{busy ? "กำลังตรวจสลิป" : "ตรวจสลิป"}</button>
+            {result && <p class={`msg ${result.ok ? "ok" : ""}`} role={result.ok ? "status" : "alert"}>{result.text}</p>}
+            {result && result.ok
+                ? <button type="button" class="btn block" onClick={onClose}>เสร็จแล้ว</button>
+                : <button type="button" class="btn block" disabled={!file || busy} onClick={submit}>{busy ? "กำลังตรวจสลิป" : "ตรวจสลิป"}</button>}
         </Sheet>
     );
 }
 
 function Line({ l, profile, onQr, onSlip }) {
     const mine = l.role === "pay";
+    const text = mine ? `โอนให้ ${l.to}` : l.role === "receive" ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`;
     return (
-        <div class="dbar">
+        <li class="dbar">
             <div class="r1">
                 <Avatar name={mine ? l.to : l.from} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 500 }}>{mine ? `โอนให้ ${l.to}` : l.role === "receive" ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`}</div>
-                    {mine && !validPromptpay(profile && profile.promptpay) && <div class="lbl">ผู้รับยังไม่ได้ตั้งพร้อมเพย์</div>}
-                </div>
-                <div class={`num ${mine ? "pay" : l.role === "receive" ? "rcv" : ""}`} style={{ fontWeight: 600 }}>{baht(l.amount)}</div>
+                <span class="who">{text}{mine && !validPromptpay(profile && profile.promptpay) && <small>ผู้รับยังไม่ได้ตั้งพร้อมเพย์</small>}</span>
+                <span class={`num amt ${mine ? "pay" : l.role === "receive" ? "rcv" : ""}`}>{baht(l.amount)}</span>
             </div>
             {mine && (
                 <div class="acts">
@@ -83,7 +86,7 @@ function Line({ l, profile, onQr, onSlip }) {
                     <button type="button" class="btn sm ghost" onClick={() => onSlip(l)}><Icon name="up" size={14} />อัปโหลดสลิป</button>
                 </div>
             )}
-        </div>
+        </li>
     );
 }
 
@@ -96,21 +99,21 @@ export function ClearPage({ model, profiles, month, onChanged }) {
             <div class="col">
                 <section class="card">
                     <SectionTitle icon="swap" title="ยอดที่ต้องโอนเดือนนี้" note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
-                    {model.cleared && <div class="empty"><Icon name="check" size={16} class="rcv" /> เคลียร์ครบแล้ว ไม่มียอดค้าง</div>}
-                    {model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} onQr={setQr} onSlip={setSlip} />)}
+                    {model.cleared ? <p class="empty"><Icon name="check" size={16} class="rcv" />เคลียร์ครบแล้ว ไม่มียอดค้าง</p>
+                        : <ul class="plain">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} onQr={setQr} onSlip={setSlip} />)}</ul>}
                 </section>
             </div>
             <div class="col">
                 <section class="card">
                     <SectionTitle icon="check" title="ประวัติที่ยืนยันแล้ว" />
-                    {model.history.length === 0 && <div class="empty">ยังไม่มีรายการเคลียร์เงินในเดือนนี้</div>}
-                    {model.history.map((h) => (
-                        <div class="row" key={h.id}>
+                    {model.history.length === 0 && <p class="empty">ยังไม่มีรายการเคลียร์เงินในเดือนนี้</p>}
+                    <ul class="plain">{model.history.map((h) => (
+                        <li class="row" key={h.id}>
                             <span class="ico"><Icon name="check" class="rcv" /></span>
                             <div class="grow"><div class="t">{h.from} โอนให้ {h.to}</div><div class="s">{h.manual ? "แอดมินยืนยัน" : "ตรวจจากสลิป"}</div></div>
-                            <div class="num rcv">{baht(h.amount)}</div>
-                        </div>
-                    ))}
+                            <span class="num rcv">{baht(h.amount)}</span>
+                        </li>
+                    ))}</ul>
                 </section>
             </div>
             {qr && <QrSheet line={qr} profile={byName[qr.to]} onClose={() => setQr(null)} />}
