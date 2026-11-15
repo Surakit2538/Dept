@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
-import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWallet, addWallet, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWallet, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, lastMonths, shiftMonth } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState } from "./ui.jsx";
 import { AddSheet } from "./add.jsx";
@@ -116,7 +116,8 @@ function App() {
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 {body}
             </Shell>
-            {sheet && <AddSheet initial={sheet === "income" ? "income" : null} today={today} save={addWallet} onClose={() => setSheet(null)} onSaved={(msg) => { setToast(msg); setReload((n) => n + 1); }} />}
+            {sheet && <AddSheet initial={sheet === "income" ? "income" : null} today={today} members={members || []} me={auth.user.name} save={addWallet} saveBill={saveBill} onClose={() => setSheet(null)}
+                onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
     );

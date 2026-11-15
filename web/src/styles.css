@@ -236,6 +236,27 @@ a { color: inherit; }
   .grab { display: none; }
 }
 
+/* ---------- ฟอร์มบิลหารกับเพื่อน ---------- */
+.fl { font-size: var(--fs-sm); font-weight: 500; }
+.field.two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin-top: var(--s4); }
+.field.two .field { margin-top: 0; min-width: 0; }
+.field select { width: 100%; padding: 10px var(--s3); border-radius: var(--r-md); border: 1px solid var(--line); background: var(--bg); color: var(--ink); min-height: 46px; font: inherit; }
+.chips-pick { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.chips-pick button { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--s3); border-radius: 999px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); max-width: 100%; overflow-wrap: anywhere; text-align: left; }
+.chips-pick button.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.link { border: 0; background: transparent; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; min-height: 32px; padding: 0; }
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--chip); border-radius: var(--r-md); padding: 3px; gap: 3px; }
+.seg button { border: 0; background: transparent; min-height: 40px; border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--mute); padding: 0 var(--s2); }
+.seg button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.split-prev { margin-top: var(--s3); display: grid; gap: 2px; }
+.split-prev li { display: flex; justify-content: space-between; gap: var(--s3); font-size: var(--fs-sm); color: var(--mute); }
+.split-custom { margin-top: var(--s3); display: grid; gap: var(--s2); }
+.cust { display: grid; grid-template-columns: minmax(0, 1fr) 130px; gap: var(--s3); align-items: center; }
+.cust label { overflow-wrap: anywhere; }
+.cust input { width: 100%; padding: 8px var(--s3); border-radius: var(--r-md); border: 1px solid var(--line); background: var(--bg); min-height: 44px; text-align: right; }
+.check { display: flex; align-items: flex-start; gap: var(--s3); margin-top: var(--s3); font-size: var(--fs-sm); min-height: 44px; }
+.check input { width: 22px; height: 22px; margin: 0; flex: none; }
+
 @media (prefers-reduced-motion: no-preference) {
   .scrim { animation: fade .18s ease-out; }
   .sheet { animation: rise .32s var(--ease); }

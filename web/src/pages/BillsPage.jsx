@@ -47,7 +47,7 @@ export function BillsPage({ model, search, onSearch, me, isAdmin, onChanged, onE
                 </div>
                 {list.length === 0 ? <p class="empty">{search ? `ไม่พบบิลที่ตรงกับ "${search}"` : "ยังไม่มีบิลในเดือนนี้"}</p>
                     : <ul class="plain">{list.map((b) => <Bill key={b.id} b={b} canDelete={isAdmin || b.payer.trim().toUpperCase() === me} onDeleted={onChanged} onError={onError} />)}</ul>}
-                <a class="more" href="/index.html#add">เพิ่มหรือแก้ไขบิล (ฟอร์มหน้าเดิม)<Icon name="right" size={14} /></a>
+                <a class="more" href="/index.html#history">แก้ไขบิลที่บันทึกไปแล้ว (หน้าเดิม)<Icon name="right" size={14} /></a>
             </section>
         </div>
     );

@@ -1,4 +1,5 @@
 // โมเดลข้อมูลหน้าแรก (ฟังก์ชันล้วน ไม่แตะเครือข่าย ทดสอบได้) ใช้แกนคำนวณกลาง lib/ledger.mjs ตัวเดียวกับเซิร์ฟเวอร์
+import { splitInstallments } from "../../lib/installments.mjs";
 import {
     normalizeName, shareOf, paidBy, computeMonthLedger, toDisplayPlan, walletMonth, displayBaht
 } from "../../lib/ledger.mjs";
@@ -228,3 +229,102 @@ export function buildBillsModel({ name, month, transactions, search = "" }) {
     return { all: list, mine, totalSat: list.reduce((a, b) => a + b.amountSat, 0), myShareSat: mine.reduce((a, b) => a + b.myShareSat, 0) };
 }
 const toSat = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) : 0; };
+
+/* ---------- เพิ่มบิลหารกับเพื่อน ---------- */
+
+/** ไอคอนตามหมวด (ชุดเดียวกับที่หน้าเดิมเก็บใน transactions.icon) */
+export const BILL_ICONS = [
+    { key: "food", label: "อาหาร", fa: "fa-utensils", icon: "food" },
+    { key: "bills", label: "บิล/ค่าบริการ", fa: "fa-bolt", icon: "bolt" },
+    { key: "goods", label: "ของใช้", fa: "fa-cart-shopping", icon: "bag" },
+    { key: "travel", label: "เดินทาง", fa: "fa-car", icon: "car" },
+    { key: "other", label: "อื่นๆ", fa: "fa-money-bill", icon: "dots" }
+];
+
+/** เดาหมวดจากชื่อรายการ (ผู้ใช้เปลี่ยนเองได้) */
+export function guessBillIcon(desc) {
+    const d = String(desc || "").toLowerCase();
+    const has = (...w) => w.some((x) => d.includes(x));
+    if (has("ข้าว", "กิน", "อาหาร", "ก๋วยเตี๋ยว", "กาแฟ", "ขนม", "หมู", "ไก่", "เหล้า", "เบียร์", "บุฟเฟ")) return "food";
+    if (has("ค่าไฟ", "ค่าน้ำ", "เน็ต", "โทรศัพท์", "ค่าเช่า", "ห้อง", "บ้าน", "netflix", "spotify")) return "bills";
+    if (has("รถ", "น้ำมัน", "แท็กซี่", "grab", "bts", "mrt", "ทางด่วน", "ตั๋ว", "เดินทาง")) return "travel";
+    if (has("ซื้อ", "ของ", "ช้อป", "shopee", "lazada", "7-11", "ซุปเปอร์", "โลตัส", "บิ๊กซี")) return "goods";
+    return "other";
+}
+
+/** แบ่งเท่ากันเป็นสตางค์ เศษไล่ให้คนแรกๆ ผลรวมเท่ายอดเต็มเป๊ะ */
+export function equalSplit(amount, people) {
+    const total = Math.round(Number(amount) * 100);
+    const n = people.length;
+    const base = Math.floor(total / n);
+    const extra = total - base * n;
+    return Object.fromEntries(people.map((p, i) => [p, (base + (i < extra ? 1 : 0)) / 100]));
+}
+
+/**
+ * สร้างเอกสารบิลจากค่าที่กรอก (ไม่แตะฐานข้อมูล)
+ * @returns {{ok:true, docs:object[], template:object|null, summary:string}|{ok:false, error:string}}
+ */
+export function buildBill(f) {
+    const amount = Math.round(Number(f.amount) * 100) / 100;
+    if (!Number.isFinite(amount) || amount <= 0) return { ok: false, error: "ใส่จำนวนเงินเป็นตัวเลขมากกว่า 0" };
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date || "")) return { ok: false, error: "เลือกวันที่ให้ถูกต้อง" };
+    if (f.today && f.date > f.today) return { ok: false, error: "เลือกวันที่ไม่เกินวันนี้" };
+    const payer = normalizeName(f.payer);
+    if (!payer) return { ok: false, error: "เลือกคนจ่าย" };
+    const people = [...new Set((f.participants || []).map(normalizeName).filter(Boolean))];
+    if (people.length === 0) return { ok: false, error: "เลือกคนหารอย่างน้อย 1 คน" };
+    if (people.length === 1 && people[0] === payer) return { ok: false, error: "บิลที่มีแต่ตัวเองคนเดียวไม่ต้องหาร ให้ใช้รายจ่ายส่วนตัวแทน" };
+
+    let splits;
+    if (f.mode === "custom") {
+        splits = {};
+        let sum = 0;
+        for (const p of people) {
+            const v = Math.round(Number((f.custom || {})[p]) * 100);
+            if (!Number.isFinite(v) || v <= 0) return { ok: false, error: `ใส่ยอดของ ${p} ให้มากกว่า 0 (หรือเอาออกจากคนหาร)` };
+            splits[p] = v / 100;
+            sum += v;
+        }
+        const diff = Math.round(amount * 100) - sum;
+        if (diff !== 0) return { ok: false, error: `ยอดที่แบ่งรวมกัน ${baht(sum / 100, { decimals: 2 })} ไม่เท่ายอดบิล ${baht(amount, { decimals: 2 })} (${diff > 0 ? "ขาด" : "เกิน"} ${baht(Math.abs(diff) / 100, { decimals: 2 })})` };
+    } else {
+        // ผู้จ่ายอยู่ท้ายสุด เศษสตางค์จะตกกับเพื่อนก่อน
+        const ordered = people.includes(payer) ? [...people.filter((p) => p !== payer), payer] : people;
+        splits = equalSplit(amount, ordered);
+    }
+
+    const desc = String(f.desc || "").trim().slice(0, 100) || "ไม่ระบุ";
+    const icon = f.icon || "fa-money-bill";
+    const now = f.now || Date.now();
+    const base = { payer, icon };
+
+    if (f.type === "installment") {
+        const n = Number(f.installments);
+        let rows;
+        try { rows = splitInstallments({ amount, installments: n, splits, date: f.date }); } catch (e) { return { ok: false, error: e.message }; }
+        const groupId = `grp_${now}`;
+        return {
+            ok: true,
+            docs: rows.map((r, i) => ({ ...base, date: r.date, desc: `${desc} (${r.index}/${n})`, amount: r.amount, splits: r.splits, paymentType: "installment", groupId, timestamp: now + i })),
+            template: null,
+            summary: `ผ่อน ${n} งวด งวดละประมาณ ${baht(amount / n, { decimals: 2 })}`
+        };
+    }
+    if (f.type === "subscription") {
+        const groupId = `sub_${now}`;
+        const recurring = f.recurring !== false;
+        const doc = { ...base, date: f.date, desc, amount, splits, paymentType: "subscription", subscriptionRecurring: recurring, subscriptionStartDate: f.date, groupId, timestamp: now };
+        const template = recurring ? {
+            desc, amount, payer, splits, icon, billingDay: Number(f.date.slice(8, 10)) || 1, groupId, active: true,
+            createdAt: new Date(now), createdBy: payer, lastGeneratedMonth: f.date.slice(0, 7)
+        } : null;
+        return { ok: true, docs: [doc], template, summary: recurring ? "สร้างซ้ำทุกเดือนอัตโนมัติ" : "ครั้งเดียว" };
+    }
+    return {
+        ok: true,
+        docs: [{ ...base, date: f.date, desc, amount, splits, paymentType: "normal", timestamp: now }],
+        template: null,
+        summary: people.includes(payer) ? `หารกับเพื่อน ${people.length} คน (รวมผู้จ่าย)` : `จ่ายแทน ${people.length} คน (ไม่มีส่วนของผู้จ่าย)`
+    };
+}

@@ -116,3 +116,62 @@ test("พร้อมเพย์: ตรวจรูปแบบ ปิดบ�
     assert.equal(promptpayQrUrl("0812345678", 0), "");
     assert.equal(maskPromptpay("1234567890123"), "X-XXXX-XXXXX-23-X");
 });
+
+import { buildBill, equalSplit, guessBillIcon, BILL_ICONS } from "../web/src/model.js";
+const sat = (o) => Object.values(o).reduce((a, v) => a + Math.round(v * 100), 0);
+test("equalSplit: ผลรวมเท่ายอดเต็มเป๊ะ เศษตกคนแรกๆ", () => {
+    const s = equalSplit(100, ["A", "B", "C"]);
+    assert.equal(sat(s), 10000);
+    assert.deepEqual(Object.values(s), [33.34, 33.33, 33.33]);
+});
+test("buildBill: หารเท่ากัน (รวมผู้จ่าย) และจ่ายแทน", () => {
+    const b = buildBill({ amount: 100, desc: " กินข้าว ", payer: "game", participants: ["GAME", "CARE", "AOY"], date: "2026-11-10", today: "2026-11-14", icon: "fa-utensils", now: 5 });
+    assert.equal(b.ok, true);
+    assert.equal(b.docs.length, 1);
+    assert.equal(b.docs[0].payer, "GAME");
+    assert.equal(sat(b.docs[0].splits), 10000);
+    assert.equal(b.docs[0].desc, "กินข้าว");
+    assert.equal(b.docs[0].splits.GAME, 33.33); // ผู้จ่ายท้ายสุด เศษตกเพื่อน
+    assert.match(b.summary, /รวมผู้จ่าย/);
+    const treat = buildBill({ amount: 90, payer: "GAME", participants: ["CARE", "AOY"], date: "2026-11-10", today: "2026-11-14" });
+    assert.equal(treat.docs[0].splits.GAME, undefined);
+    assert.match(treat.summary, /จ่ายแทน/);
+});
+test("buildBill: กำหนดเอง ต้องรวมเท่ายอดบิล", () => {
+    const ok = buildBill({ amount: 100, payer: "GAME", participants: ["GAME", "CARE"], mode: "custom", custom: { GAME: 30, CARE: 70 }, date: "2026-11-10" });
+    assert.equal(ok.ok, true);
+    const bad = buildBill({ amount: 100, payer: "GAME", participants: ["GAME", "CARE"], mode: "custom", custom: { GAME: 30, CARE: 60 }, date: "2026-11-10" });
+    assert.equal(bad.ok, false);
+    assert.match(bad.error, /ขาด/);
+    assert.equal(buildBill({ amount: 100, payer: "GAME", participants: ["GAME", "CARE"], mode: "custom", custom: { GAME: 100, CARE: 0 }, date: "2026-11-10" }).ok, false);
+});
+test("buildBill: ผ่อนชำระ (วันที่ไม่ล้นเดือน ยอดรวมเท่าเดิม) และรายเดือน", () => {
+    const b = buildBill({ amount: 100, payer: "GAME", participants: ["GAME", "CARE"], type: "installment", installments: 3, date: "2026-01-31", now: 9 });
+    assert.equal(b.docs.length, 3);
+    assert.deepEqual(b.docs.map((d) => d.date), ["2026-01-31", "2026-02-28", "2026-03-31"]);
+    assert.equal(b.docs.reduce((a, d) => a + Math.round(d.amount * 100), 0), 10000);
+    assert.ok(b.docs.every((d) => sat(d.splits) === Math.round(d.amount * 100)));
+    assert.equal(b.docs[0].desc, "ไม่ระบุ (1/3)");
+    const s = buildBill({ amount: 400, desc: "Netflix", payer: "GAME", participants: ["GAME", "CARE"], type: "subscription", date: "2026-11-15", now: 7 });
+    assert.equal(s.docs.length, 1);
+    assert.equal(s.template.billingDay, 15);
+    assert.equal(s.template.lastGeneratedMonth, "2026-11");
+    assert.equal(s.template.groupId, s.docs[0].groupId);
+    assert.equal(buildBill({ amount: 400, payer: "GAME", participants: ["GAME", "CARE"], type: "subscription", recurring: false, date: "2026-11-15" }).template, null);
+});
+test("buildBill: ตรวจค่าผิด", () => {
+    const base = { amount: 100, payer: "GAME", participants: ["GAME", "CARE"], date: "2026-11-10", today: "2026-11-14" };
+    assert.equal(buildBill({ ...base, amount: 0 }).ok, false);
+    assert.equal(buildBill({ ...base, participants: [] }).ok, false);
+    assert.equal(buildBill({ ...base, participants: ["GAME"] }).ok, false);
+    assert.equal(buildBill({ ...base, date: "2026-12-01" }).ok, false);
+    assert.equal(buildBill({ ...base, type: "installment", installments: 1000 }).ok, false);
+    assert.equal(buildBill({ ...base, payer: "" }).ok, false);
+});
+test("guessBillIcon / BILL_ICONS", () => {
+    assert.equal(guessBillIcon("ก๋วยเตี๋ยวเรือ"), "food");
+    assert.equal(guessBillIcon("ค่าไฟเดือนนี้"), "bills");
+    assert.equal(guessBillIcon("เติมน้ำมัน"), "travel");
+    assert.equal(guessBillIcon("xyz"), "other");
+    assert.ok(BILL_ICONS.every((i) => i.fa.startsWith("fa-")));
+});

@@ -90,8 +90,21 @@ test("เคลียร์เงิน: คนที่ผู้รับยั
 test("เว็บใหม่: main.jsx ต่อหน้าครบ และไม่มี emoji", () => {
     const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
     for (const p of ["ClearPage", "WalletPage", "BillsPage", "MePage"]) assert.ok(main.includes(`<${p} `), `main.jsx ต้องใช้ ${p}`);
-    for (const f of ["web/src/ui.jsx", "web/src/pages/ClearPage.jsx", "web/src/pages/WalletPage.jsx", "web/src/pages/BillsPage.jsx", "web/src/pages/MePage.jsx", "web/src/data.js", "web/src/model.js"]) {
+    for (const f of ["web/src/ui.jsx", "web/src/add.jsx", "web/src/pages/HomePage.jsx", "web/src/pages/ClearPage.jsx", "web/src/pages/WalletPage.jsx", "web/src/pages/BillsPage.jsx", "web/src/pages/MePage.jsx", "web/src/data.js", "web/src/model.js"]) {
         const s = fs.readFileSync(path.join(root, f), "utf8");
         assert.ok(!/\p{Extended_Pictographic}/u.test(s), `${f} มี emoji`);
     }
+});
+
+test("ฟอร์มบิลหารกับเพื่อน: แสดงผลได้ ครบทุกส่วน และ escape ชื่อสมาชิก", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { AddSheet } = await bundle("web/src/add.jsx", "add");
+    const evil = '<script>alert(1)</script>';
+    const menu = toString(h(AddSheet, { initial: null, today: "2026-11-14", members: ["GAME", "CARE"], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} }));
+    assert.match(menu, /บิลหารกับเพื่อน/);
+    assert.match(menu, /รายจ่ายส่วนตัว/);
+    assert.match(menu, /รายรับ/);
+    const form = toString(h(AddSheet, { initial: "bill", today: "2026-11-14", members: ["GAME", "CARE", evil], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} }));
+    for (const t of ["ยอดเต็มของบิล", "คนจ่าย", "หารกับใครบ้าง", "หารเท่ากัน", "กำหนดยอดเอง", "จ่ายครั้งเดียว", "ผ่อนชำระ", "รายเดือน", "บันทึกบิล"]) assert.ok(form.includes(t), `ไม่พบ ${t}`);
+    assert.ok(!form.includes("<script>alert"), "ชื่อต้องถูก escape");
 });

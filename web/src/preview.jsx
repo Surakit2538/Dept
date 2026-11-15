@@ -51,7 +51,7 @@ function Preview() {
     const [tab, setTab] = useState(location.hash.slice(1) || "home");
     const [month, setMonth] = useState(now);
     const [search, setSearch] = useState("");
-    const [sheet, setSheet] = useState(null);
+    const [sheet, setSheet] = useState(params.get("form") ? "menu" : null);
     const [toast, setToast] = useState("");
     useEffect(() => { const h = () => setTab(location.hash.slice(1) || "home"); addEventListener("hashchange", h); return () => removeEventListener("hashchange", h); }, []);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
@@ -71,7 +71,7 @@ function Preview() {
     return (
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}>{body}</Shell>
-            {sheet && <AddSheet initial={sheet === "income" ? "income" : null} today={today} save={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
+            {sheet && <AddSheet initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
     );

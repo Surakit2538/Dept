@@ -1,6 +1,6 @@
 // การเชื่อมต่อ: LINE (LIFF), Firestore (เฉพาะคอลเลกชันข้อมูลกลุ่มที่กฎอนุญาต) และ API ของเรา (กระเป๋า)
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, getDocs, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -202,4 +202,12 @@ export function logout() {
     try { liff.logout(); } catch (e) { /* ไม่มีอะไร */ }
     clearCache();
     location.href = "/app/";
+}
+
+/** บันทึกบิลหารกับเพื่อน (หนึ่งบิลหรือหลายงวด) และ template รายเดือน ในครั้งเดียว: สำเร็จทั้งหมดหรือไม่เลย */
+export async function saveBill({ docs, template }) {
+    const batch = writeBatch(db);
+    docs.forEach((d) => batch.set(doc(collection(db, "transactions")), d));
+    if (template) batch.set(doc(collection(db, "subscription_templates")), template);
+    await batch.commit();
 }
