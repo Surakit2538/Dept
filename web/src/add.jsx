@@ -100,7 +100,6 @@ function readLast(all) {
 }
 
 const PANELS = [
-    { key: "date", label: "วันที่" },
     { key: "payer", label: "คนจ่าย" },
     { key: "split", label: "วิธีแบ่ง" },
     { key: "type", label: "ชำระแบบ" }
@@ -113,7 +112,6 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const [amount, setAmount] = useState("");
     const [desc, setDesc] = useState("");
     const [date, setDate] = useState(today);
-    const [pickDate, setPickDate] = useState(false);
     const [payer, setPayer] = useState(me);
     const [people, setPeople] = useState(() => {
         const last = readLast(all);
@@ -153,9 +151,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
         resultTone = "";
     }
     const each = preview ? (preview[chosen[0]] ?? 0) : 0;
-    const dateLabel = date === today ? "วันนี้" : date === addDays(today, -1) ? "เมื่อวาน" : date.slice(5).split("-").reverse().join("/");
     const values = {
-        date: dateLabel,
         payer: payer === me ? "ฉัน" : payer,
         split: mode === "custom" ? "ยอดเอง" : "เท่ากัน",
         type: type === "installment" ? `ผ่อน ${installments} งวด` : type === "subscription" ? "รายเดือน" : "ครั้งเดียว"
@@ -171,8 +167,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
             setErr(r.error);
             // ปัญหาอยู่ในหัวข้อที่ปิดอยู่ ให้เปิดหัวข้อนั้นให้เห็นเลย
             if (!/จำนวนเงิน/.test(r.error)) {
-                if (/วันที่/.test(r.error)) setPanel("date");
-                else if (/คนจ่าย/.test(r.error)) setPanel("payer");
+                if (/คนจ่าย/.test(r.error)) setPanel("payer");
                 else if (/ผ่อน|งวด/.test(r.error)) setPanel("type");
                 else if (/ยอด/.test(r.error)) setPanel(mode === "custom" ? "split" : "type");
             }
@@ -193,6 +188,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     return (
         <Sheet as="form" title="บิลหารกับเพื่อน" onClose={onClose} onSubmit={submit}
             action={<button type="button" class="btn sm ghost" onClick={onBack}>เปลี่ยนประเภท</button>}>
+            <div class="field"><label for="b-date">วันที่</label><input id="b-date" type="date" max={today} value={date} onInput={(e) => setDate(e.currentTarget.value)} /></div>
             <div class="field amount">
                 <label for="b-amount">ยอดเต็มของบิล (บาท)</label>
                 <input id="b-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
@@ -231,7 +227,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
             </div>
 
             <div class="field">
-                <div class="hd-row"><span class="fl" id="b-icon-l">หมวด</span>{catHint && <span class="hint">{catHint}</span>}</div>
+                <div class="hd-row"><span class="fl" id="b-icon-l">หมวด</span>{catHint && <span class="cat-hint">{catHint}</span>}</div>
                 <div class="cats-pick" role="group" aria-labelledby="b-icon-l">
                     {BILL_ICONS.map((i) => <button type="button" key={i.key} class={iconKey === i.key ? "on" : ""} aria-pressed={iconKey === i.key} onClick={() => { setIconKey(i.key); setIconTouched(true); }}><span class="ct"><Icon name={i.icon} /></span>{i.label}</button>)}
                 </div>
@@ -252,16 +248,6 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
                         </button>
                     ))}
                 </div>
-                {panel === "date" && (
-                    <div id="b-p-date" class="opt-panel">
-                        <div class="chips-pick">
-                            <button type="button" class={date === today && !pickDate ? "on" : ""} aria-pressed={date === today && !pickDate} onClick={() => { setDate(today); setPickDate(false); }}>วันนี้</button>
-                            <button type="button" class={date === addDays(today, -1) && !pickDate ? "on" : ""} aria-pressed={date === addDays(today, -1) && !pickDate} onClick={() => { setDate(addDays(today, -1)); setPickDate(false); }}>เมื่อวาน</button>
-                            <button type="button" class={pickDate ? "on" : ""} aria-pressed={pickDate} onClick={() => setPickDate(true)}>เลือกวัน</button>
-                        </div>
-                        {pickDate && <input id="b-date" type="date" aria-label="วันที่" max={today} value={date} onInput={(e) => setDate(e.currentTarget.value)} />}
-                    </div>
-                )}
                 {panel === "payer" && (
                     <div id="b-p-payer" class="opt-panel">
                         <label for="b-payer" class="fl">ใครจ่ายเงินก่อน</label>
