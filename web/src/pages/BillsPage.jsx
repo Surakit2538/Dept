@@ -4,8 +4,9 @@ import { Icon, iconFor } from "../icons.jsx";
 import { SectionTitle, DeleteButton } from "../ui.jsx";
 import { baht, monthShort } from "../model.js";
 import { deleteBill, loadTemplates, stopTemplate } from "../data.js";
+import { EditBillSheet } from "../editbill.jsx";
 
-function Bill({ b, canDelete, onDeleted, onError }) {
+function Bill({ b, canDelete, onDeleted, onError, onEdit }) {
     const kind = b.type === "installment" ? "ผ่อน" : b.type === "subscription" ? "รายเดือน" : "";
     const name = b.desc || "ไม่ระบุ";
     const has = b.myShareSat > 0;
@@ -20,6 +21,7 @@ function Bill({ b, canDelete, onDeleted, onError }) {
                 {has ? <><span class="num pay mine">{baht(b.myShareSat / 100, { decimals: 2 })}</span><small>ส่วนฉัน &middot; บิล <span class="num">{baht(b.amountSat / 100, { decimals: 2 })}</span></small></>
                     : <><span class="num mute">{baht(b.amountSat / 100, { decimals: 2 })}</span><small>ไม่มีส่วนของฉัน</small></>}
             </div>
+            {canDelete && <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(b)}><Icon name="pencil" size={17} /></button>}
             {canDelete && <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />}
         </li>
     );
@@ -66,6 +68,7 @@ function Recurring({ me, isAdmin, onError }) {
 
 export function BillsPage({ model, search, onSearch, me, isAdmin, onChanged, onError }) {
     const [mineOnly, setMineOnly] = useState(false);
+    const [editing, setEditing] = useState(null);
     const list = mineOnly ? model.mine : model.all;
     return (
         <div class="col narrow">
@@ -89,12 +92,12 @@ export function BillsPage({ model, search, onSearch, me, isAdmin, onChanged, onE
                     : groupByDay(list).map(([d, items]) => (
                         <div class="day" key={d}>
                             <h3 class="day-h">{dayLabel(d)}</h3>
-                            <ul class="plain">{items.map((b) => <Bill key={b.id} b={b} canDelete={isAdmin || b.payer.trim().toUpperCase() === me} onDeleted={onChanged} onError={onError} />)}</ul>
+                            <ul class="plain">{items.map((b) => <Bill key={b.id} b={b} canDelete={isAdmin || b.payer.trim().toUpperCase() === me} onDeleted={onChanged} onError={onError} onEdit={setEditing} />)}</ul>
                         </div>
                     ))}
-                <a class="more" href="/index.html#history">แก้ไขบิลที่บันทึกไปแล้ว (หน้าเดิม)<Icon name="right" size={14} /></a>
             </section>
             <Recurring me={me} isAdmin={isAdmin} onError={onError} />
+            {editing && <EditBillSheet bill={editing} onClose={() => setEditing(null)} onSaved={() => { onChanged(); }} />}
         </div>
     );
 }

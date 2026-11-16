@@ -355,3 +355,27 @@ a { color: inherit; }
 .steps a { color: var(--accent); }
 .copied { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
 .danger-text { color: var(--pay); margin-top: var(--s3); }
+
+/* ---------- หน้าแรกเข้า: ผูกบัญชี / กรอกข้อมูล ---------- */
+.gate { max-width: 440px; margin: 0 auto; min-height: 100dvh; padding: var(--s6) var(--s4); display: flex; flex-direction: column; gap: var(--s4); justify-content: center; }
+.gate h1 { font-size: var(--fs-xl); font-weight: 600; line-height: 1.25; }
+.pick-list { display: flex; flex-direction: column; gap: var(--s2); max-height: 42dvh; overflow-y: auto; }
+.pick { width: 100%; display: flex; align-items: center; gap: var(--s3); min-height: 52px; padding: 0 var(--s3); border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface); color: var(--ink); text-align: left; }
+.pick.on { border-color: var(--accent); background: var(--chip); font-weight: 600; }
+.pick .grow { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+/* ---------- จัดการสมาชิก ---------- */
+.madd { display: flex; gap: var(--s2); align-items: flex-end; }
+.madd .field { flex: 1; min-width: 0; }
+.mlist { margin-top: var(--s3); display: flex; flex-direction: column; }
+.mrow { border-top: 1px solid var(--line); padding: var(--s3) 0; }
+.mrow:first-child { border-top: 0; }
+.mtop { display: flex; align-items: center; gap: var(--s3); }
+.mtop .grow { flex: 1; min-width: 0; }
+.mtop .t { font-weight: 500; overflow-wrap: anywhere; }
+.mtop .s { display: flex; flex-wrap: wrap; gap: var(--s1); margin-top: 2px; }
+.mtop .tag { margin-left: 0; }
+.tag.warn { color: var(--pay); }
+.mform { margin-top: var(--s2); padding: var(--s3); background: var(--chip); border-radius: 12px; }
+.mform .field { margin-top: var(--s2); }
+.mact { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); }

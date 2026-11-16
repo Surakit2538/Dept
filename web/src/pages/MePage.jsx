@@ -3,16 +3,18 @@ import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { SectionTitle } from "../ui.jsx";
 import { IphoneSheet } from "../iphone.jsx";
+import { MembersSheet } from "../members.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
 
-export function MePage({ auth, profiles, onSaved, onRefresh }) {
+export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast }) {
     const mine = (profiles || []).find((p) => p.id === auth.user.memberId) || (profiles || []).find((p) => p.name === auth.user.name) || {};
     const [realName, setRealName] = useState("");
     const [promptpay, setPromptpay] = useState("");
     const [msg, setMsg] = useState(null);
     const [busy, setBusy] = useState(false);
     const [iphone, setIphone] = useState(false);
+    const [members, setMembers] = useState(false);
     useEffect(() => { setRealName(mine.realName || ""); setPromptpay(mine.promptpay || ""); }, [mine.id, mine.realName, mine.promptpay]);
 
     async function save(e) {
@@ -70,12 +72,13 @@ export function MePage({ auth, profiles, onSaved, onRefresh }) {
                 {auth.user.isAdmin && (
                     <section class="card">
                         <SectionTitle icon="lock" title="สำหรับผู้ดูแล" />
-                        <a class="opt-row" href="/index.html#members"><span class="ico"><Icon name="people" /></span><span><b>จัดการสมาชิก</b><small>เพิ่ม ลบ กรอกชื่อจริง/พร้อมเพย์ให้เพื่อน (หน้าเดิม)</small></span><Icon name="right" size={16} class="mute" /></a>
+                        <button type="button" class="opt-row" onClick={() => setMembers(true)}><span class="ico"><Icon name="people" /></span><span><b>จัดการสมาชิก</b><small>เพิ่มชื่อ แก้ชื่อจริง/พร้อมเพย์ ตั้งแอดมิน ลบ</small></span><Icon name="right" size={16} class="mute" /></button>
                         <a class="opt-row" href="/admin.html"><span class="ico"><Icon name="lock" /></span><span><b>หน้าแอดมิน</b><small>ยืนยันการจ่ายแทนคน ดูประวัติ</small></span><Icon name="right" size={16} class="mute" /></a>
                     </section>
                 )}
                 <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>
             </div>
+        {members && <MembersSheet profiles={profiles} me={auth.user.name} onClose={() => setMembers(false)} onChanged={onMembers} onToast={onToast} />}
         {iphone && <IphoneSheet onClose={() => setIphone(false)} />}
         </div>
     );

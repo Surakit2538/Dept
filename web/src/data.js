@@ -1,6 +1,6 @@
 // การเชื่อมต่อ: LINE (LIFF), Firestore (เฉพาะคอลเลกชันข้อมูลกลุ่มที่กฎอนุญาต) และ API ของเรา (กระเป๋า)
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, getDocs, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "firebase/firestore";
+import { getFirestore, collection, query, where, getDocs, getDoc, onSnapshot, doc, updateDoc, deleteDoc, addDoc, writeBatch, limit, FieldPath } from "firebase/firestore";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -19,7 +19,27 @@ export function bangkokToday(now = new Date()) {
     return p; // YYYY-MM-DD
 }
 
-/** เข้าสู่ระบบด้วย LINE แล้วหาสมาชิกที่ผูกกับบัญชีนี้ คืนค่า { name, memberId, pictureUrl, isAdmin } หรือโยน error ที่อ่านรู้เรื่อง */
+const SUPER_ADMIN_LINE_ID = "U0d739eea39c312e11c487e22861920d1";
+const cleanName = (n) => String(n || "").replace(/\s+/g, " ").trim().toUpperCase();
+
+function userFromMember(id, x, lineUserId) {
+    return {
+        name: cleanName(x.name),
+        memberId: id,
+        pictureUrl: /^https:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "",
+        isAdmin: x.role === "admin" || lineUserId === SUPER_ADMIN_LINE_ID,
+        realName: x.realName || "",
+        promptpay: x.promptpay || ""
+    };
+}
+
+/**
+ * เข้าสู่ระบบด้วย LINE แล้วหาสมาชิกที่ผูกกับบัญชีนี้
+ * คืนค่า:
+ *  - { name, memberId, pictureUrl, isAdmin, realName, promptpay }   พบสมาชิกแล้ว
+ *  - { needLink: true, profile, candidates:[{id,name}] }             ยังไม่ผูกบัญชี ให้เลือกว่าเป็นสมาชิกคนไหน หรือสมัครใหม่
+ *  - null                                                             กำลังพาไปหน้าล็อกอิน LINE
+ */
 export async function signIn() {
     if (typeof liff === "undefined") throw new Error("โหลดระบบ LINE ไม่สำเร็จ ลองรีเฟรชหน้านี้");
     await liff.init({ liffId: LIFF_ID });
@@ -29,17 +49,47 @@ export async function signIn() {
     }
     // อ่านรหัสผู้ใช้จาก ID token ในเครื่องได้เลย (เร็วกว่าถามเซิร์ฟเวอร์ LINE) ถ้าไม่มีค่อยถามด้วย getProfile
     const decoded = typeof liff.getDecodedIDToken === "function" ? liff.getDecodedIDToken() : null;
-    const profile = { userId: decoded && decoded.sub ? decoded.sub : (await liff.getProfile()).userId };
-    const snap = await getDocs(query(collection(db, "members"), where("lineUserId", "==", profile.userId)));
-    if (snap.empty) throw new Error("ยังไม่พบบัญชีสมาชิกที่ผูกกับ LINE นี้ กรุณาเข้าใช้งานจากหน้าเว็บเดิมครั้งแรกก่อน");
-    const m = snap.docs.find((d) => d.data().realName) || snap.docs[0];
-    const x = m.data();
-    return {
-        name: String(x.name || "").replace(/\s+/g, " ").trim().toUpperCase(),
-        memberId: m.id,
-        pictureUrl: /^https:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "",
-        isAdmin: x.role === "admin" || profile.userId === "U0d739eea39c312e11c487e22861920d1"
-    };
+    let userId = decoded && decoded.sub ? decoded.sub : "";
+    let profile = null;
+    if (!userId) { profile = await liff.getProfile(); userId = profile.userId; }
+    const snap = await getDocs(query(collection(db, "members"), where("lineUserId", "==", userId)));
+    if (!snap.empty) {
+        const m = snap.docs.find((d) => d.data().realName) || snap.docs[0];
+        return userFromMember(m.id, m.data(), userId);
+    }
+
+    // ยังไม่เคยผูกบัญชี: หาจากชื่อ LINE ที่ตรงกับสมาชิกที่ยังไม่ผูก ถ้าไม่พบให้ผู้ใช้เลือกเอง
+    if (!profile) profile = await liff.getProfile();
+    const p = { userId, displayName: cleanName(profile.displayName), pictureUrl: /^https:\/\//i.test(profile.pictureUrl || "") ? profile.pictureUrl : "" };
+    const all = await getDocs(collection(db, "members"));
+    const unlinked = all.docs.filter((d) => !d.data().lineUserId);
+    const same = unlinked.find((d) => cleanName(d.data().name) === p.displayName);
+    if (same) return linkMember(p, same.id);
+    if (unlinked.length === 0) return createMember(p);
+    return { needLink: true, profile: p, candidates: unlinked.map((d) => ({ id: d.id, name: cleanName(d.data().name) })).sort((a, b) => a.name.localeCompare(b.name)) };
+}
+
+/** ผูกบัญชี LINE นี้เข้ากับสมาชิกที่มีอยู่ (ไม่เปลี่ยนชื่อในระบบ ประวัติบิลทั้งหมดจึงอยู่ครบ) */
+export async function linkMember(profile, memberId) {
+    const ref = doc(db, "members", String(memberId));
+    const cur = await getDoc(ref);
+    if (!cur.exists()) throw new Error("ไม่พบสมาชิกนี้ ลองรีเฟรชหน้า");
+    if (cur.data().lineUserId && cur.data().lineUserId !== profile.userId) throw new Error("ชื่อนี้ถูกผูกกับ LINE อื่นแล้ว");
+    await updateDoc(ref, { lineUserId: profile.userId, lineDisplayName: profile.displayName, pictureUrl: profile.pictureUrl || "", linkedAt: new Date().toISOString() });
+    invalidateProfiles();
+    return userFromMember(cur.id, { ...cur.data(), pictureUrl: profile.pictureUrl }, profile.userId);
+}
+
+/** สมัครเป็นสมาชิกใหม่ด้วยชื่อ LINE (ถ้าชื่อซ้ำกับสมาชิกเดิม ต่อท้ายด้วยเลข 4 ตัวจากรหัส LINE) */
+export async function createMember(profile) {
+    const dup = await getDocs(query(collection(db, "members"), where("lineUserId", "==", profile.userId)));
+    if (!dup.empty) return userFromMember(dup.docs[0].id, dup.docs[0].data(), profile.userId);
+    const taken = await getDocs(query(collection(db, "members"), where("name", "==", profile.displayName)));
+    const name = (taken.empty ? profile.displayName : `${profile.displayName} ${profile.userId.slice(-4).toUpperCase()}`) || `USER ${profile.userId.slice(-4).toUpperCase()}`;
+    const data = { name, lineUserId: profile.userId, pictureUrl: profile.pictureUrl || "", role: "member", joinedAt: new Date().toISOString() };
+    const ref = await addDoc(collection(db, "members"), data);
+    invalidateProfiles();
+    return userFromMember(ref.id, data, profile.userId);
 }
 
 // ---------- แคชในเครื่อง: ประหยัดโควต้าอ่านของ Firestore (ฟรี 50,000 ครั้ง/วัน) ----------
@@ -194,7 +244,7 @@ export async function loadProfiles() {
         const x = d.data();
         const name = upName(x.name);
         if (!name) return;
-        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId) };
+        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), role: x.role === "admin" ? "admin" : "member" };
         const cur = byName.get(name);
         if (!cur || (!cur.hasLine && p.hasLine) || (!cur.promptpay && p.promptpay)) byName.set(name, p);
     });
@@ -223,6 +273,40 @@ export async function loadTemplates() {
 
 export async function stopTemplate(id) {
     await updateDoc(doc(db, "subscription_templates", String(id)), { active: false, stoppedAt: new Date() });
+}
+
+/** แก้ชื่อรายการ/หมวดของบิล (ไม่แก้ยอดและคนหาร) */
+export async function updateBillFields(id, fields) {
+    const allowed = {};
+    if (typeof fields.desc === "string") allowed.desc = fields.desc;
+    if (typeof fields.icon === "string") allowed.icon = fields.icon;
+    await updateDoc(doc(db, "transactions", String(id)), allowed);
+}
+
+/** ---------- จัดการสมาชิก (แอดมิน) ---------- */
+export async function addMemberName(name) {
+    await addDoc(collection(db, "members"), { name, createdAt: new Date().toISOString(), quickAdded: true, role: "member" });
+    invalidateProfiles();
+}
+
+export async function updateMember(id, fields) {
+    const data = { realName: String(fields.realName || ""), promptpay: String(fields.promptpay || ""), role: fields.role === "admin" ? "admin" : "member", realNameUpdatedAt: new Date(), promptpayUpdatedAt: new Date() };
+    await updateDoc(doc(db, "members", String(id)), data);
+    invalidateProfiles();
+}
+
+/** ลบสมาชิก เฉพาะเมื่อชื่อนี้ไม่อยู่ในบิลหรือประวัติเคลียร์เงินเลย (ไม่งั้นยอดหนี้ของคนอื่นจะคำนวณผิด) */
+export async function deleteMemberIfUnused(p) {
+    const name = p.name;
+    const used = await Promise.all([
+        getDocs(query(collection(db, "transactions"), where("payer", "==", name), limit(1))),
+        getDocs(query(collection(db, "transactions"), where(new FieldPath("splits", name), ">=", 0), limit(1))),
+        getDocs(query(collection(db, "settlements"), where("from", "==", name), limit(1))),
+        getDocs(query(collection(db, "settlements"), where("to", "==", name), limit(1)))
+    ]);
+    if (used.some((s) => !s.empty)) throw new Error(`ลบ ${name} ไม่ได้ เพราะยังมีชื่อนี้ในรายการบิลหรือประวัติเคลียร์เงิน (ถ้าลบ ยอดหนี้ของคนอื่นจะคำนวณผิด)`);
+    await deleteDoc(doc(db, "members", String(p.id)));
+    invalidateProfiles();
 }
 
 export async function deleteBill(id) {

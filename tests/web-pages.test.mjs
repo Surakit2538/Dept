@@ -124,3 +124,29 @@ test("ตั้งค่า iPhone: สคริปต์ติดตั้ง�
     assert.ok(!code.includes('evil()";'), "ชื่อต้องไม่หลุดออกจากคอมเมนต์");
     for (const f of ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"]) assert.ok(code.includes(f));
 });
+
+test("หน้าผูกบัญชี กรอกข้อมูลครั้งแรก จัดการสมาชิก แก้ไขบิล: แสดงผลได้และ escape ชื่อ", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const evil = "<b onclick=x>";
+    const { LinkPage, OnboardPage } = await bundle("web/src/onboard.jsx", "onboard");
+    const link = toString(h(LinkPage, { profile: { userId: "U1", displayName: "NEW" }, candidates: [{ id: "a", name: "CARE" }, { id: "b", name: evil }], onDone() {} }));
+    assert.match(link, /เลือกชื่อของคุณ/);
+    assert.match(link, /ฉันเป็นสมาชิกใหม่/);
+    assert.ok(!link.includes("<b onclick"), "ชื่อต้องถูก escape");
+    const ob = toString(h(OnboardPage, { user: { name: "CARE", memberId: "m", realName: "", promptpay: "" }, onDone() {} }));
+    assert.match(ob, /ชื่อจริงภาษาไทย/);
+    assert.match(ob, /พร้อมเพย์/);
+    const { MembersSheet } = await bundle("web/src/members.jsx", "members");
+    const ms = toString(h(MembersSheet, { profiles: [{ id: "1", name: "GAME", role: "admin", hasLine: true, realName: "ก", promptpay: "0812345678" }, { id: "2", name: evil, role: "member", hasLine: false, realName: "", promptpay: "" }], me: "GAME", onClose() {}, onChanged() {}, onToast() {} }));
+    assert.match(ms, /จัดการสมาชิก/);
+    assert.match(ms, /ยังไม่ผูก LINE/);
+    assert.match(ms, /ข้อมูลไม่ครบ/);
+    assert.ok(!ms.includes("<b onclick"));
+    const { EditBillSheet } = await bundle("web/src/editbill.jsx", "editbill");
+    const eb = toString(h(EditBillSheet, { bill: { id: "t", desc: evil, icon: "fa-utensils", type: "normal" }, onClose() {}, onSaved() {} }));
+    assert.match(eb, /แก้ไขบิล/);
+    assert.match(eb, /ลบบิลแล้วเพิ่มใหม่/);
+    assert.ok(!eb.includes("<b onclick"));
+    const inst = toString(h(EditBillSheet, { bill: { id: "t", desc: "x (1/3)", icon: "", type: "installment" }, onClose() {}, onSaved() {} }));
+    assert.match(inst, /แก้ได้เฉพาะหมวด/);
+});

@@ -1,0 +1,92 @@
+// จัดการสมาชิก (เฉพาะแอดมิน): เพิ่มชื่อ แก้ชื่อจริง/พร้อมเพย์ ตั้งสิทธิ์แอดมิน ลบ (ลบได้เมื่อไม่มีชื่อนี้ในบิลหรือประวัติเคลียร์เงิน)
+import { useState } from "preact/hooks";
+import { Sheet, DeleteButton } from "./ui.jsx";
+import { Icon } from "./icons.jsx";
+import { validPromptpay } from "./model.js";
+import { addMemberName, updateMember, deleteMemberIfUnused } from "./data.js";
+
+function Row({ p, isMe, onChanged, onToast }) {
+    const [open, setOpen] = useState(false);
+    const [realName, setRealName] = useState(p.realName || "");
+    const [promptpay, setPromptpay] = useState(p.promptpay || "");
+    const [admin, setAdmin] = useState(p.role === "admin");
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState("");
+    const complete = Boolean(p.realName && p.promptpay);
+    async function save(e) {
+        e.preventDefault();
+        setErr("");
+        const rn = realName.trim();
+        const pp = promptpay.trim() ? validPromptpay(promptpay) : "";
+        if (rn && !/[ก-๙a-zA-Z]/.test(rn)) return setErr("ชื่อจริงไม่ถูกต้อง");
+        if (promptpay.trim() && !pp) return setErr("พร้อมเพย์ต้องเป็นเบอร์ 10 หลัก หรือเลขบัตร 13 หลัก");
+        setBusy(true);
+        try {
+            await updateMember(p.id, { realName: rn, promptpay: pp, role: admin ? "admin" : "member" });
+            onToast(`บันทึกข้อมูลของ ${p.name} แล้ว`);
+            setOpen(false);
+            onChanged();
+        } catch (ex) { setErr(ex.message); }
+        setBusy(false);
+    }
+    return (
+        <li class="mrow">
+            <div class="mtop">
+                <span class="av">{[...p.name][0]}</span>
+                <div class="grow">
+                    <div class="t">{p.name}{isMe ? " (ฉัน)" : ""}</div>
+                    <div class="s">
+                        {p.role === "admin" && <span class="tag">แอดมิน</span>}
+                        {!p.hasLine && <span class="tag">ยังไม่ผูก LINE</span>}
+                        {!complete && <span class="tag warn">ข้อมูลไม่ครบ</span>}
+                    </div>
+                </div>
+                <button type="button" class="btn sm ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "ปิด" : "แก้ไข"}</button>
+            </div>
+            {open && (
+                <form class="mform" onSubmit={save}>
+                    <div class="field"><label for={`mr-${p.id}`}>ชื่อจริงภาษาไทย</label><input id={`mr-${p.id}`} type="text" maxLength={80} value={realName} onInput={(e) => setRealName(e.currentTarget.value)} /></div>
+                    <div class="field"><label for={`mp-${p.id}`}>พร้อมเพย์</label><input id={`mp-${p.id}`} class="num" type="text" inputmode="numeric" value={promptpay} onInput={(e) => setPromptpay(e.currentTarget.value)} /></div>
+                    {!isMe && <label class="check"><input type="checkbox" checked={admin} onChange={(e) => setAdmin(e.currentTarget.checked)} /><span>เป็นแอดมิน</span></label>}
+                    {err && <p class="msg" role="alert">{err}</p>}
+                    <div class="mact">
+                        <button type="submit" class="btn sm" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
+                        {!isMe && p.name !== "GAME" && (
+                            <DeleteButton label={p.name} onConfirm={async () => {
+                                try { await deleteMemberIfUnused(p); onToast(`ลบสมาชิก ${p.name} แล้ว`); onChanged(); } catch (ex) { setErr(ex.message); }
+                            }} />
+                        )}
+                    </div>
+                </form>
+            )}
+        </li>
+    );
+}
+
+export function MembersSheet({ profiles, me, onClose, onChanged, onToast }) {
+    const [name, setName] = useState("");
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState("");
+    const list = [...(profiles || [])].sort((a, b) => a.name.localeCompare(b.name));
+    async function add(e) {
+        e.preventDefault();
+        setErr("");
+        const n = name.replace(/\s+/g, " ").trim().toUpperCase();
+        if (!n) return setErr("กรอกชื่อสมาชิก");
+        if (list.some((p) => p.name === n)) return setErr("ชื่อนี้มีอยู่แล้ว");
+        setBusy(true);
+        try { await addMemberName(n); setName(""); onToast(`เพิ่มสมาชิก ${n} แล้ว`); onChanged(); } catch (ex) { setErr(ex.message); }
+        setBusy(false);
+    }
+    return (
+        <Sheet title="จัดการสมาชิก" onClose={onClose}>
+            <form class="madd" onSubmit={add}>
+                <div class="field grow"><label for="m-new">เพิ่มสมาชิกใหม่</label><input id="m-new" type="text" maxLength={30} placeholder="ชื่อเล่นหรือชื่อที่ใช้ในกลุ่ม" value={name} onInput={(e) => setName(e.currentTarget.value)} /></div>
+                <button type="submit" class="btn" disabled={busy}><Icon name="plus" size={16} />เพิ่ม</button>
+            </form>
+            {err && <p class="msg" role="alert">{err}</p>}
+            <p class="lbl">คนที่เพิ่มด้วยชื่อ จะผูกบัญชี LINE ของตัวเองได้ตอนเข้าใช้ครั้งแรก โดยเลือกชื่อนี้</p>
+            <ul class="plain mlist">{list.map((p) => <Row key={p.id} p={p} isMe={p.name === me} onChanged={onChanged} onToast={onToast} />)}</ul>
+        </Sheet>
+    );
+}

@@ -3,9 +3,10 @@ import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
 import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
-import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth } from "./model.js";
+import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState } from "./ui.jsx";
 import { AddSheet } from "./add.jsx";
+import { LinkPage, OnboardPage } from "./onboard.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 import { ClearPage } from "./pages/ClearPage.jsx";
 import { WalletPage } from "./pages/WalletPage.jsx";
@@ -31,10 +32,16 @@ function App() {
     const [toast, setToast] = useState("");
     const [reload, setReload] = useState(0);
 
+    // หลังล็อกอิน: ยังไม่ผูกบัญชี -> เลือกชื่อ / สมาชิกที่ยังไม่กรอกชื่อจริงและพร้อมเพย์ -> กรอกก่อน (แอดมินข้าม) / ไม่งั้นเข้าแอป
+    const accept = (u) => {
+        if (u.needLink) setAuth({ state: "link", profile: u.profile, candidates: u.candidates });
+        else if (!u.isAdmin && (!u.realName || !validPromptpay(u.promptpay))) setAuth({ state: "onboard", user: u });
+        else setAuth({ state: "ok", user: u });
+    };
     const patchMonth = (m, part) => setByMonth((cur) => ({ ...cur, [m]: { ...(cur[m] || {}), ...part } }));
 
     useEffect(() => {
-        signIn().then((u) => { if (u) setAuth({ state: "ok", user: u }); }).catch((e) => setAuth({ state: "error", message: e.message }));
+        signIn().then((u) => { if (u) accept(u); }).catch((e) => setAuth({ state: "error", message: e.message }));
     }, []);
     useEffect(() => {
         const h = () => setTab(location.hash.slice(1) || "home");
@@ -106,7 +113,9 @@ function App() {
     const refreshAll = () => { clearCache(); setByMonth({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
 
     if (auth.state === "loading") return <div class="center"><Mark size={64} /><p>กำลังเข้าสู่ระบบ</p></div>;
-    if (auth.state === "error") return <div class="center"><Mark size={64} /><p role="alert">{auth.message}</p><a class="btn" href="/index.html">ไปหน้าเดิม</a></div>;
+    if (auth.state === "error") return <div class="center"><Mark size={64} /><p role="alert">{auth.message}</p><button type="button" class="btn" onClick={() => location.reload()}>ลองใหม่</button></div>;
+    if (auth.state === "link") return <LinkPage profile={auth.profile} candidates={auth.candidates} onDone={accept} />;
+    if (auth.state === "onboard") return <OnboardPage user={auth.user} onDone={accept} />;
 
     const go = (k) => { location.hash = k; setTab(k); window.scrollTo(0, 0); };
     const page = ["home", "bills", "clear", "wallet", "me"].includes(tab) ? tab : "home";
@@ -117,7 +126,7 @@ function App() {
     else if (page === "bills") body = billsM ? <BillsPage model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={2} />;
     else if (page === "clear") body = clearM && profiles ? <ClearPage model={clearM} profiles={profiles} month={month} onChanged={() => changed()} /> : <Skeleton blocks={2} />;
     else if (page === "wallet") body = walletM ? <WalletPage model={walletM} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={3} />;
-    else body = profiles ? <MePage auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} /> : <Skeleton blocks={2} />;
+    else body = profiles ? <MePage auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} /> : <Skeleton blocks={2} />;
 
     return (
         <>
