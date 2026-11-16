@@ -8,8 +8,16 @@
  * เวอร์ชัน 2.1 แบบ "สองช่อง": รายรับ | ใช้ไป + แถบเทียบ + สุทธิและยอดค้าง (Device Token Auth)
  */
 
-const SCRIPT_VERSION = "2.1.0";
+const SCRIPT_VERSION = "2.1.1";
 const BASE_URL = "https://dept-game.vercel.app";
+
+// ==========================================
+// สีตาม design/tokens.json (โหมดมืด) ห้ามเพิ่มสีใหม่
+// ==========================================
+const C = {
+    bg: "#0B1113", surface: "#141D20", ink: "#E8EEEC", mute: "#93A3A0", line: "#25343A",
+    receive: "#3CC4B4", pay: "#FF9A6B"
+};
 
 // ==========================================
 // เริ่มต้นทำงาน
@@ -25,14 +33,6 @@ if (config.runsInWidget) {
     widget.presentMedium();
 }
 Script.complete();
-
-// ==========================================
-// สีตาม design/tokens.json (โหมดมืด) ห้ามเพิ่มสีใหม่
-// ==========================================
-const C = {
-    bg: "#0B1113", surface: "#141D20", ink: "#E8EEEC", mute: "#93A3A0", line: "#25343A",
-    receive: "#3CC4B4", pay: "#FF9A6B"
-};
 
 // ==========================================
 // สร้าง Widget UI
