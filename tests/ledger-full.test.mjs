@@ -106,7 +106,7 @@ test("toDisplayPlan: ปัดบาทเต็มต่อบรรทัด �
 
 test("2b: ทุกหน้าใช้แกนคำนวณกลาง ไม่เหลือสูตรหนี้ที่เขียนเอง", () => {
     const read = (f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
-    for (const f of ["index.html", "admin-app.js"]) {
+    for (const f of ["legacy-index.html", "admin-app.js"]) {
         const s = read(f);
         assert.match(s, /computeMonthLedger/, f);
         assert.match(s, /lib\/ledger\.mjs\?v=2/, f);

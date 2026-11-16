@@ -318,6 +318,12 @@ export async function manualSettle({ from, to, amount, month, adminName }) {
 }
 
 /** แอดมินลบประวัติเคลียร์เงิน (ยอดหนี้จะกลับมาค้างเหมือนเดิม) */
+/** ย้ายรายการเคลียร์เงินไปเดือนอื่น (กรณีบันทึกผิดเดือน) */
+export async function moveSettlementMonth(id, month) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("เดือนไม่ถูกต้อง");
+    await updateDoc(doc(db, "settlements", String(id)), { month });
+}
+
 export async function deleteSettlement(id) {
     await deleteDoc(doc(db, "settlements", String(id)));
 }

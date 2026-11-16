@@ -140,7 +140,7 @@ async function handleTextMessage(event) {
 
     // 2.1 ดูตัวอย่างข้อความเตือนวันที่ 25 (ข้อมูลตัวอย่าง ตอบกลับเฉพาะคนที่พิมพ์ ไม่ได้ส่งหาใคร)
     if (event.source.type === "user" && text === "ทดลองเตือน") {
-        const sample = buildReminderFlex([{ toDisplay: "GAME", amount: 1250.5 }, { toDisplay: "CARE", amount: 320 }]);
+        const sample = buildReminderFlex([{ toDisplay: "GAME", amount: 1250.5, promptpay: "0812345678" }, { toDisplay: "CARE", amount: 320 }]);
         sample.altText = "ตัวอย่างข้อความเตือนยอดค้างชำระ";
         return sendToLine(replyToken, sample);
     }

@@ -8,11 +8,11 @@
 ## 1. ระบบนี้คืออะไร
 
 แอปเคลียร์หนี้และดูรายจ่ายของกลุ่มเพื่อน (ไม่เกิน 20 คน) ประกอบด้วย
-- **เว็บแอปเดียว** ที่ `/app/` (หน้าแรก `/` พาไปที่นี่) เข้าสู่ระบบด้วย LINE (LIFF)
+- **เว็บแอปเดียว** เปิดที่ `https://dept-game.vercel.app/` (ไฟล์จริงอยู่ `/app/` แต่ `vercel.json` rewrite `/` มาให้ URL ไม่เปลี่ยน) เข้าสู่ระบบด้วย LINE (LIFF)
 - **บอท LINE** (พิมพ์ "สรุป" ในแชต 1:1 ได้การ์ดสรุปยอด, ปุ่มเตือนหนี้พร้อมขั้นตอนยืนยันก่อนส่ง, ตรวจสลิปในกลุ่ม)
 - **iPhone**: Widget และสคริปต์สแกนสลิป (Scriptable + Shortcuts)
 
-หน้าเก่า `index.html` และ `admin.html` ถูกปิดทางเข้าแล้ว (`vercel.json` พาไป `/app/`) ไฟล์ยังอยู่ใน repo เพื่อให้ย้อนกลับได้ ดูหัวข้อ 9
+หน้าเก่าถูกปิดทางเข้าแล้ว: `index.html` ถูกเปลี่ยนชื่อเป็น `legacy-index.html` และ `/index.html`, `/admin.html` พากลับมาที่เว็บใหม่ ไฟล์เก่ายังอยู่ใน repo เพื่อให้ย้อนกลับได้ ดูหัวข้อ 9
 
 ## 2. เว็บแอป (`web/`)
 
@@ -53,7 +53,7 @@ npm test                     # รันที่ราก ต้องผ่า
 | `lib/ledger.mjs` | แกนคำนวณเดียวของทั้งระบบ (เว็บ, LINE, Widget, ตรวจสลิป): สตางค์, แยกรายเดือน, แผนโอนขั้นต่ำ, กระเป๋า |
 | `lib/installments.mjs` · `lib/subscriptions.mjs` | แบ่งงวดผ่อน (สูงสุด 60) · สร้างบิลรายเดือนจาก `subscription_templates` |
 | `lib/shortcut-service.mjs` + `api/shortcut-transaction.js` | `action`: parse/auto/save/list/delete/wallet-add/wallet-list/wallet-summary/wallet-delete |
-| `lib/line-cards.mjs` · `line-report.mjs` · `line-signature.mjs` · `api/webhook.js` | การ์ด LINE, รายงาน "สรุป", ตรวจลายเซ็น webhook |
+| `lib/line-cards.mjs` · `line-report.mjs` · `line-signature.mjs` · `api/webhook.js` | การ์ด LINE, รายงาน "สรุป", ตรวจลายเซ็น webhook (การ์ดเตือนหนี้แนบ QR พร้อมเพย์ของผู้รับ สูงสุด 3 คน) พิมพ์ `ทดลองเตือน` ในแชตส่วนตัวเพื่อดูตัวอย่างการ์ด |
 | `api/widget-summary.js` | ข้อมูล Widget (มี `monthIncome`) |
 | `api/device-token.js` | ออก/ยกเลิกรหัสอุปกรณ์ของ iPhone (เก็บเฉพาะ SHA-256) |
 | `api/cron/*` | บิลรายเดือน (วันที่ 1) และเตือนหนี้ (วันที่ 25) |
@@ -106,5 +106,5 @@ git add <ไฟล์> && git commit -m "..." && git push
 
 ## 9. ย้อนกลับ
 
-- กลับไปใช้หน้าเก่า: ลบ 3 ช่วงใน `redirects` ของ `vercel.json` (`/`, `/index.html`, `/admin.html`) แล้ว push หรือกด Rollback ใน Vercel
-- หน้าเก่า (`index.html`, `admin.html`, `admin-app.js`, `iphone-setup.js`, `personal-expenses.js`, `sw.js`) ยังไม่ถูกลบ เทสต์บางตัวยังอ่านไฟล์เหล่านี้ เมื่อมั่นใจว่าไม่กลับไปใช้แล้วค่อยลบพร้อมเทสต์ที่เกี่ยวข้อง
+- กลับไปใช้หน้าเก่า: เปลี่ยนชื่อ `legacy-index.html` กลับเป็น `index.html`, ลบ rewrite `/` และ redirects ของ `/index.html` `/legacy-index.html` `/admin.html` ใน `vercel.json` แล้ว push หรือกด Rollback ใน Vercel (เทสต์ 5 ไฟล์อ้างชื่อ `legacy-index.html` ต้องแก้กลับด้วย)
+- หน้าเก่า (`legacy-index.html`, `admin.html`, `admin-app.js`, `iphone-setup.js`, `personal-expenses.js`) ส่วน `sw.js` ถูกแทนด้วยตัวที่ล้างแคชและยกเลิกตัวเองให้เครื่องที่เคยติดตั้งไว้ ยังไม่ถูกลบ เทสต์บางตัวยังอ่านไฟล์เหล่านี้ เมื่อมั่นใจว่าไม่กลับไปใช้แล้วค่อยลบพร้อมเทสต์ที่เกี่ยวข้อง

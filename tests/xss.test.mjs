@@ -5,7 +5,7 @@ import fs from "node:fs";
 
 const read = (f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8").replace(/\r\n/g, "\n");
 const admin = read("admin-app.js");
-const index = read("index.html");
+const index = read("legacy-index.html");
 
 function helpersFrom(src) {
     const a = src.indexOf("function escapeHtml(");
@@ -14,7 +14,7 @@ function helpersFrom(src) {
     return new Function(`${src.slice(a, b)}; return { escapeHtml, safeImgUrl, jsArg };`)();
 }
 
-for (const [label, src] of [["admin-app.js", admin], ["index.html", index]]) {
+for (const [label, src] of [["admin-app.js", admin], ["legacy-index.html", index]]) {
     test(`${label}: escapeHtml / safeImgUrl / jsArg ทำงานถูก`, () => {
         const h = helpersFrom(src);
         assert.equal(h.escapeHtml(`<img src=x onerror="a('b')">&`), "&lt;img src=x onerror=&quot;a(&#39;b&#39;)&quot;&gt;&amp;");

@@ -379,3 +379,7 @@ a { color: inherit; }
 .mform { margin-top: var(--s2); padding: var(--s3); background: var(--chip); border-radius: 12px; }
 .mform .field { margin-top: var(--s2); }
 .mact { display: flex; align-items: center; gap: var(--s3); margin-top: var(--s3); }
+
+.acts .mute { font-size: var(--fs-xs); }
+.acts .lbl { flex-basis: 100%; }
+.mini-select { max-width: 110px; padding: 6px var(--s2); border-radius: var(--r-md); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: var(--fs-xs); min-height: 36px; }

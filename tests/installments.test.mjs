@@ -47,7 +47,7 @@ test("splitInstallments: ตรวจค่าไม่ถูกต้อง", (
 import fs from "node:fs";
 test("หน้าเว็บและบอท LINE ใช้ตัวช่วยกลาง ไม่เหลือ setMonth/หารตรงๆ ในการผ่อน", () => {
     const read = (f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
-    const idx = read("index.html");
+    const idx = read("legacy-index.html");
     const hook = read("api/webhook.js");
     assert.match(idx, /import \{ splitInstallments \} from "\.\/lib\/installments\.mjs"/);
     assert.match(idx, /splitInstallments\(\{ amount, installments, splits, date \}\)/);

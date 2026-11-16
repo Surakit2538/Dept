@@ -2,8 +2,8 @@
 import { useState, useMemo } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
-import { baht, maskPromptpay, promptpayQrUrl, validPromptpay, monthLabel } from "../model.js";
-import { verifySlip, manualSettle, deleteSettlement } from "../data.js";
+import { baht, maskPromptpay, promptpayQrUrl, validPromptpay, monthLabel, lastMonths } from "../model.js";
+import { verifySlip, manualSettle, deleteSettlement, moveSettlementMonth, bangkokToday } from "../data.js";
 import { DeleteButton } from "../ui.jsx";
 
 function QrSheet({ line, profile, onClose }) {
@@ -19,7 +19,7 @@ function QrSheet({ line, profile, onClose }) {
                         <img src={url} alt={`QR พร้อมเพย์ของ ${line.to} จำนวน ${line.amount} บาท`} width="240" height="240" referrerpolicy="no-referrer" onError={() => setFailed(true)} />
                         <p class="big num">{baht(line.amount)}</p>
                         <p class="lbl">พร้อมเพย์ <span class="num">{maskPromptpay(profile.promptpay)}</span></p>
-                        <p class="lbl qr-help">สแกนด้วยแอปธนาคาร แล้วกลับมากด &ldquo;อัปโหลดสลิป&rdquo; เพื่อยืนยันว่าโอนแล้ว</p>
+                        <p class="lbl qr-help">สแกนด้วยแอปธนาคาร (หรือกดค้างที่รูปเพื่อบันทึก แล้วเลือกรูปจากอัลบั้มในแอปธนาคาร) จากนั้นกลับมากด &ldquo;อัปโหลดสลิป&rdquo; เพื่อยืนยันว่าโอนแล้ว</p>
                     </>
                 ) : (
                     <p class="empty" role="alert">{line.to} ยังไม่ได้ตั้งพร้อมเพย์ ให้เจ้าตัวตั้งในหน้า &ldquo;ฉัน&rdquo; หรือให้แอดมินกรอกให้</p>
@@ -71,6 +71,19 @@ function SlipSheet({ line, month, onClose, onDone }) {
     );
 }
 
+/** ปุ่มของแอดมิน: ยืนยันว่าคู่นี้โอนเคลียร์แล้ว (กดสองครั้งกันพลาด) */
+function AdminMark({ l, onMark }) {
+    const [state, setState] = useState("idle");
+    if (state === "idle") return <div class="acts"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="check" size={14} />ยืนยันว่าเคลียร์แล้ว</button><small class="mute">เฉพาะแอดมิน</small></div>;
+    return (
+        <div class="acts">
+            <span class="lbl">{l.from} โอนให้ {l.to} {baht(l.amount)} แล้วใช่ไหม</span>
+            <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { await onMark(l); } finally { setState("idle"); } }}>{state === "busy" ? "กำลังบันทึก" : "ใช่ เคลียร์แล้ว"}</button>
+            <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
+        </div>
+    );
+}
+
 function Line({ l, profile, onQr, onSlip, admin, onMark }) {
     const mine = l.role === "pay";
     const text = mine ? `โอนให้ ${l.to}` : l.role === "receive" ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`;
@@ -87,11 +100,7 @@ function Line({ l, profile, onQr, onSlip, admin, onMark }) {
                     <button type="button" class="btn sm ghost" onClick={() => onSlip(l)}><Icon name="up" size={14} />อัปโหลดสลิป</button>
                 </div>
             )}
-            {admin && (
-                <div class="acts">
-                    <DeleteButton icon="check" danger={false} verb="ยืนยันว่าโอนแล้ว" busyText="กำลังบันทึก" keepText="ยกเลิก" label={`${l.from} ให้ ${l.to}`} onConfirm={() => onMark(l)} />
-                </div>
-            )}
+            {admin && <AdminMark l={l} onMark={onMark} />}
         </li>
     );
 }
@@ -130,6 +139,12 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                             <span class="ico"><Icon name="check" class="rcv" /></span>
                             <div class="grow"><div class="t">{h.from} โอนให้ {h.to}</div><div class="s">{h.manual ? "แอดมินยืนยัน" : "ตรวจจากสลิป"}</div></div>
                             <span class="num rcv">{baht(h.amount)}</span>
+                            {isAdmin && (
+                                <select class="mini-select" aria-label={`ย้ายเดือนของ ${h.from} ให้ ${h.to}`} value={month}
+                                    onChange={async (e) => { try { await moveSettlementMonth(h.id, e.currentTarget.value); onChanged(); } catch (ex) { onError(ex.message); } }}>
+                                    {lastMonths(bangkokToday().slice(0, 7), 12).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
+                                </select>
+                            )}
                             {isAdmin && <DeleteButton label={`${h.from} ให้ ${h.to}`} onConfirm={async () => { try { await deleteSettlement(h.id); onChanged(); } catch (e) { onError(e.message); } }} />}
                         </li>
                     ))}</ul>

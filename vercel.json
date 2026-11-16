@@ -24,18 +24,18 @@
     ],
     "redirects": [
         {
-            "source": "/",
-            "destination": "/app/",
+            "source": "/index.html",
+            "destination": "/",
             "permanent": false
         },
         {
-            "source": "/index.html",
-            "destination": "/app/",
+            "source": "/legacy-index.html",
+            "destination": "/",
             "permanent": false
         },
         {
             "source": "/admin.html",
-            "destination": "/app/#clear",
+            "destination": "/#clear",
             "permanent": false
         }
     ],
@@ -43,6 +43,10 @@
         {
             "source": "/api/(.*)",
             "destination": "/api/$1"
+        },
+        {
+            "source": "/",
+            "destination": "/app/index.html"
         }
     ],
     "functions": {

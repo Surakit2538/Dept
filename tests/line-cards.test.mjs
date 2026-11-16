@@ -146,3 +146,26 @@ test("ข้อความที่ผู้ใช้เห็น (บอท, i
         assert.deepEqual(bad, [], `${f} ยังมี emoji: ${bad.join(" ")}`);
     }
 });
+
+test("การ์ดเตือนหนี้: แนบ QR เฉพาะผู้รับที่มีพร้อมเพย์ถูกต้อง สูงสุด 3 คน และลิงก์เปิดเว็บที่ราก", async () => {
+    const { buildReminderCard, promptpayQrUrl } = await import("../lib/line-cards.mjs");
+    assert.equal(promptpayQrUrl("081-234-5678", 100), "https://promptpay.io/0812345678/100.png");
+    assert.equal(promptpayQrUrl("12345", 100), "");
+    assert.equal(promptpayQrUrl("0812345678", 0), "");
+    const card = buildReminderCard({
+        monthLabel: "พ.ย. 2569",
+        debts: [
+            { to: "A", amount: 100.5, promptpay: "0812345678" },
+            { to: "B", amount: 50 },
+            { to: "C", amount: 20, promptpay: "1234567890123" },
+            { to: "D", amount: 10, promptpay: "0899999999" },
+            { to: "E", amount: 5, promptpay: "0877777777" }
+        ]
+    });
+    const images = card.contents.body.contents.filter((x) => x.type === "image");
+    assert.equal(images.length, 3);
+    assert.equal(images[0].url, "https://promptpay.io/0812345678/100.5.png");
+    assert.equal(card.contents.footer.contents[0].action.uri, "https://dept-game.vercel.app/#clear");
+    const none = buildReminderCard({ monthLabel: "x", debts: [{ to: "B", amount: 50 }] });
+    assert.equal(none.contents.body.contents.filter((x) => x.type === "image").length, 0);
+});
