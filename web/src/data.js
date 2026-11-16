@@ -328,6 +328,34 @@ export async function deleteSettlement(id) {
     await deleteDoc(doc(db, "settlements", String(id)));
 }
 
+/** แอดมินสั่งเตือนทุกคนที่ค้างชำระ (ส่งทาง LINE ส่วนตัวถึงลูกหนี้) คืนข้อความสรุป */
+export async function remindAllDebtors() {
+    const r = await api("/api/shortcut-transaction", { action: "remind-all" });
+    return r.message || "สั่งเตือนแล้ว";
+}
+
+/** แอดมินลบข้อมูลทั้งเดือน (บิลของเดือนนั้น + รายการผ่อนที่เกี่ยวข้องทุกงวด + ประวัติเคลียร์เงินของเดือนนั้น) คืนจำนวนที่ลบ */
+export async function clearMonthData(month) {
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new Error("เดือนไม่ถูกต้อง");
+    const tx = await getDocs(query(collection(db, "transactions"), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`)));
+    const refs = new Map();
+    tx.docs.forEach((d) => refs.set(d.id, d.ref));
+    const groups = [...new Set(tx.docs.map((d) => d.data().groupId).filter(Boolean))];
+    for (const g of groups) {
+        const more = await getDocs(query(collection(db, "transactions"), where("groupId", "==", g)));
+        more.docs.forEach((d) => refs.set(d.id, d.ref));
+    }
+    const st = await getDocs(query(collection(db, "settlements"), where("month", "==", month)));
+    const all = [...refs.values(), ...st.docs.map((d) => d.ref)];
+    for (let i = 0; i < all.length; i += 400) {
+        const batch = writeBatch(db);
+        all.slice(i, i + 400).forEach((r) => batch.delete(r));
+        await batch.commit();
+    }
+    invalidateMonth(month);
+    return { bills: refs.size, settlements: st.docs.length };
+}
+
 export async function deleteBill(id) {
     await deleteDoc(doc(db, "transactions", String(id)));
 }

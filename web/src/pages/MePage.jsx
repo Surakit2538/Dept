@@ -4,10 +4,11 @@ import { Icon } from "../icons.jsx";
 import { SectionTitle } from "../ui.jsx";
 import { IphoneSheet } from "../iphone.jsx";
 import { MembersSheet } from "../members.jsx";
+import { DataToolsSheet } from "../datatools.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
 
-export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast }) {
+export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {} }) {
     const mine = (profiles || []).find((p) => p.id === auth.user.memberId) || (profiles || []).find((p) => p.name === auth.user.name) || {};
     const [realName, setRealName] = useState("");
     const [promptpay, setPromptpay] = useState("");
@@ -15,6 +16,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast 
     const [busy, setBusy] = useState(false);
     const [iphone, setIphone] = useState(false);
     const [members, setMembers] = useState(false);
+    const [tools, setTools] = useState(false);
     useEffect(() => { setRealName(mine.realName || ""); setPromptpay(mine.promptpay || ""); }, [mine.id, mine.realName, mine.promptpay]);
 
     async function save(e) {
@@ -73,11 +75,13 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast 
                     <section class="card">
                         <SectionTitle icon="lock" title="สำหรับผู้ดูแล" />
                         <button type="button" class="opt-row" onClick={() => setMembers(true)}><span class="ico"><Icon name="people" /></span><span><b>จัดการสมาชิก</b><small>เพิ่มชื่อ แก้ชื่อจริง/พร้อมเพย์ ตั้งแอดมิน ลบ</small></span><Icon name="right" size={16} class="mute" /></button>
+                        <button type="button" class="opt-row" onClick={() => setTools(true)}><span class="ico"><Icon name="chart" /></span><span><b>จัดการข้อมูล</b><small>ส่งออกไฟล์ CSV และลบข้อมูลทั้งเดือน</small></span><Icon name="right" size={16} class="mute" /></button>
                         <a class="opt-row" href="/admin.html"><span class="ico"><Icon name="lock" /></span><span><b>หน้าแอดมิน</b><small>ยืนยันการจ่ายแทนคน ดูประวัติ</small></span><Icon name="right" size={16} class="mute" /></a>
                     </section>
                 )}
                 <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>
             </div>
+        {tools && <DataToolsSheet transactions={transactions} onClose={() => setTools(false)} onToast={onToast} onChanged={onDataChanged} />}
         {members && <MembersSheet profiles={profiles} me={auth.user.name} onClose={() => setMembers(false)} onChanged={onMembers} onToast={onToast} />}
         {iphone && <IphoneSheet onClose={() => setIphone(false)} />}
         </div>

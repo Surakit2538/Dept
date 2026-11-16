@@ -3,7 +3,7 @@ import { useState, useMemo } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
 import { baht, maskPromptpay, promptpayQrUrl, validPromptpay, monthLabel, lastMonths } from "../model.js";
-import { verifySlip, manualSettle, deleteSettlement, moveSettlementMonth, bangkokToday } from "../data.js";
+import { verifySlip, manualSettle, deleteSettlement, moveSettlementMonth, bangkokToday, remindAllDebtors } from "../data.js";
 import { DeleteButton } from "../ui.jsx";
 
 function QrSheet({ line, profile, onClose }) {
@@ -84,6 +84,19 @@ function AdminMark({ l, onMark }) {
     );
 }
 
+/** แอดมิน: ส่งข้อความเตือนยอดค้างให้ทุกคนที่ติดหนี้ (ทาง LINE ส่วนตัว พร้อม QR) ถามยืนยันก่อน และระบบกันส่งซ้ำภายใน 12 ชั่วโมง */
+function RemindAll({ onError, onInfo }) {
+    const [state, setState] = useState("idle");
+    if (state === "idle") return <div class="acts remind"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="bell" size={14} />ส่งเตือนทุกคนที่ค้าง</button><small class="mute">เฉพาะแอดมิน</small></div>;
+    return (
+        <div class="acts remind">
+            <span class="lbl">ส่งข้อความเตือนทาง LINE ให้ทุกคนที่ติดหนี้ในเดือนนี้ใช่ไหม</span>
+            <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { onInfo(await remindAllDebtors()); } catch (e) { onError(e.message); } setState("idle"); }}>{state === "busy" ? "กำลังส่ง" : "ใช่ ส่งเลย"}</button>
+            <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
+        </div>
+    );
+}
+
 function Line({ l, profile, onQr, onSlip, admin, onMark }) {
     const mine = l.role === "pay";
     const text = mine ? `โอนให้ ${l.to}` : l.role === "receive" ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`;
@@ -105,7 +118,7 @@ function Line({ l, profile, onQr, onSlip, admin, onMark }) {
     );
 }
 
-export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, adminName = "", onError = () => {} }) {
+export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, adminName = "", onError = () => {}, onInfo = () => {} }) {
     const mark = async (l) => { try { await manualSettle({ from: l.from, to: l.to, amount: l.amount, month, adminName }); onChanged(); } catch (e) { onError(e.message); } };
     const owedToMe = model.lines.filter((l) => l.role === "receive").reduce((a, l) => a + l.amount, 0);
     const iOwe = model.lines.filter((l) => l.role === "pay").reduce((a, l) => a + l.amount, 0);
@@ -125,6 +138,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                     </section>
                 )}
                 <section class="card">
+                    {isAdmin && !model.cleared && <RemindAll onError={onError} onInfo={onInfo} />}
                     <SectionTitle icon="swap" title="ยอดที่ต้องโอนเดือนนี้" note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
                     {model.cleared ? <p class="empty"><Icon name="check" size={16} class="rcv" />เคลียร์ครบแล้ว ไม่มียอดค้าง</p>
                         : <ul class="plain">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} onQr={setQr} onSlip={setSlip} admin={isAdmin} onMark={mark} />)}</ul>}

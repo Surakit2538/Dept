@@ -383,3 +383,8 @@ a { color: inherit; }
 .acts .mute { font-size: var(--fs-xs); }
 .acts .lbl { flex-basis: 100%; }
 .mini-select { max-width: 110px; padding: 6px var(--s2); border-radius: var(--r-md); border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: inherit; font-size: var(--fs-xs); min-height: 36px; }
+
+.danger-zone { margin-top: var(--s5); padding: var(--s4); border: 1px solid var(--pay); border-radius: 12px; }
+.danger-zone h3 { font-size: var(--fs-md); color: var(--pay); margin-bottom: var(--s1); }
+.danger-btn { background: var(--pay); color: #1a0d05; margin-top: var(--s3); }
+.acts.remind { padding-left: 0; margin-bottom: var(--s3); }

@@ -150,3 +150,18 @@ test("หน้าผูกบัญชี กรอกข้อมูลคร�
     const inst = toString(h(EditBillSheet, { bill: { id: "t", desc: "x (1/3)", icon: "", type: "installment" }, onClose() {}, onSaved() {} }));
     assert.match(inst, /แก้ได้เฉพาะหมวด/);
 });
+
+test("จัดการข้อมูล (แอดมิน): ส่งออก CSV ถูกรูปแบบและหน้าลบทั้งเดือนต้องยืนยัน", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { billsToCsv } = await bundle("web/src/export.js", "export");
+    const csv = billsToCsv([{ date: "2026-11-02", desc: 'ข้าว "ดี"', payer: "GAME", amount: 300, paymentType: "normal", splits: { GAME: 150, AOY: 150 } }]);
+    assert.ok(csv.startsWith("\uFEFF"), "ต้องมี BOM ให้ภาษาไทยไม่เพี้ยนใน Excel");
+    assert.match(csv, /"ข้าว ""ดี"""/);
+    assert.match(csv, /GAME=150; AOY=150/);
+    const { DataToolsSheet } = await bundle("web/src/datatools.jsx", "datatools");
+    const html = toString(h(DataToolsSheet, { transactions: [], onClose() {}, onToast() {}, onChanged() {} }));
+    assert.match(html, /ส่งออกบิลเป็นไฟล์ CSV/);
+    assert.match(html, /ลบข้อมูลทั้งเดือน/);
+    assert.match(html, /พิมพ์คำว่า ลบ เพื่อยืนยัน/);
+    assert.match(html, /disabled/, "ปุ่มลบต้องกดไม่ได้จนกว่าจะพิมพ์ยืนยัน");
+});
