@@ -89,13 +89,16 @@ export function DeleteButton({ label, onConfirm, verb = "ลบ", busyText = "�
 
 /** โหลดคอมโพเนนต์เมื่อต้องใช้ (แยกไฟล์ ลดขนาดที่ต้องโหลดตอนเปิดแอป) load = () => import("./x.jsx") */
 export function Lazy({ load, name, fallback = null, ...props }) {
-    const [C, setC] = useState(null);
+    // จำว่าโหลดคอมโพเนนต์ "ชื่อไหน" มา เพราะ Preact ใช้ Lazy ตัวเดิมซ้ำเมื่อสลับแท็บ ถ้าไม่เช็กชื่อจะเอาหน้าเก่ามาแสดงกับข้อมูลของหน้าใหม่
+    const [mod, setMod] = useState(null); // { name, C }
     useEffect(() => {
         let on = true;
-        load().then((m) => { if (on) setC(() => m[name]); }).catch(() => {});
+        load().then((m) => { if (on && m && m[name]) setMod({ name, C: m[name] }); }).catch(() => {});
         return () => { on = false; };
-    }, []);
-    return C ? <C {...props} /> : fallback;
+    }, [name]);
+    if (!mod || mod.name !== name) return fallback;
+    const C = mod.C;
+    return <C {...props} />;
 }
 
 /** โครงระหว่างรอข้อมูล: รูปร่างใกล้ของจริง ไม่ใช่ข้อความลอยๆ */

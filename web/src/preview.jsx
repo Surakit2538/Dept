@@ -4,13 +4,14 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, lastMonths, shiftMonth } from "./model.js";
-import { MonthPicker, Shell, Skeleton, ErrorState } from "./ui.jsx";
-import { AddSheet } from "./add.jsx";
+// โหลดหน้าแบบเดียวกับแอปจริง (Lazy) เพื่อให้ตรวจการสลับแท็บได้เหมือนของจริง
+import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
-import { ClearPage } from "./pages/ClearPage.jsx";
-import { WalletPage } from "./pages/WalletPage.jsx";
-import { BillsPage } from "./pages/BillsPage.jsx";
-import { MePage } from "./pages/MePage.jsx";
+const loadAdd = () => import("./add.jsx");
+const loadClear = () => import("./pages/ClearPage.jsx");
+const loadWallet = () => import("./pages/WalletPage.jsx");
+const loadBills = () => import("./pages/BillsPage.jsx");
+const loadMe = () => import("./pages/MePage.jsx");
 
 const today = "2026-11-14";
 const now = "2026-11";
@@ -63,15 +64,15 @@ function Preview() {
     let body;
     if (state === "loading") body = <Skeleton blocks={5} />;
     else if (state === "error") body = <ErrorState onRetry={() => {}} />;
-    else if (tab === "bills") body = <BillsPage model={buildBillsModel({ name: who, month, transactions: T, search })} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} />;
-    else if (tab === "clear") body = <ClearPage model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} onChanged={() => {}} />;
-    else if (tab === "wallet") body = <WalletPage model={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} />;
-    else if (tab === "me") body = <MePage auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} />;
+    else if (tab === "bills") body = <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={buildBillsModel({ name: who, month, transactions: T, search })} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} />;
+    else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} onChanged={() => {}} />;
+    else if (tab === "wallet") body = <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} />;
+    else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} />;
     else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} />;
     return (
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}>{body}</Shell>
-            {sheet && <AddSheet initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
+            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
     );

@@ -388,3 +388,12 @@ a { color: inherit; }
 .danger-zone h3 { font-size: var(--fs-md); color: var(--pay); margin-bottom: var(--s1); }
 .danger-btn { background: var(--pay); color: #1a0d05; margin-top: var(--s3); }
 .acts.remind { padding-left: 0; margin-bottom: var(--s3); }
+
+/* ---------- กันซูมบนมือถือ ----------
+   - touch-action: manipulation ปิดการแตะสองครั้งเพื่อซูม
+   - iOS จะซูมเองเมื่อแตะช่องกรอกที่ตัวอักษรเล็กกว่า 16px จึงให้ช่องกรอกบนมือถือเป็น 16px ขึ้นไป */
+html, body { touch-action: manipulation; }
+@media (max-width: 959px) {
+  input, select, textarea { font-size: max(16px, 1em); }
+  .mini-select { font-size: 16px; }
+}
