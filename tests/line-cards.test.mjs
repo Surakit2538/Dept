@@ -179,3 +179,14 @@ test("พิมพ์รายรับใน LINE: แปลงข้อคว�
     assert.deepEqual(parseIncomeText("โบนัส 5000.5"), { desc: "โบนัส", amount: 5000.5 });
     for (const t of ["ข้าวมันไก่ 50", "เงินเดือนออกแล้ว", "รายรับ 0", "เงินเดือน 25000 2", "สรุป", "", "เงินเดือน -5"]) assert.equal(parseIncomeText(t), null, t);
 });
+
+test("การ์ดยืนยันรายรับ: มียอด ชื่อรายการ และปุ่มเปิดกระเป๋า ไม่มี emoji", async () => {
+    const { buildIncomeSavedCard } = await import("../lib/line-cards.mjs");
+    const c = buildIncomeSavedCard({ monthLabel: "พ.ย. 2569", desc: "เงินเดือน", amount: 25000 });
+    const json = JSON.stringify(c);
+    assert.equal(c.type, "flex");
+    assert.match(c.altText, /฿25,000/);
+    assert.ok(json.includes("เงินเดือน") && json.includes("/#wallet"));
+    assert.ok(!/\p{Extended_Pictographic}/u.test(json), "การ์ดต้องไม่มี emoji");
+    assert.match(buildIncomeSavedCard({ monthLabel: "x", desc: "y", amount: 10.5 }).altText, /฿10\.50/);
+});

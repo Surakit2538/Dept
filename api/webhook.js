@@ -4,6 +4,7 @@ import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
 import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, executeRemind, remindResultText, parsePostback } from '../lib/line-report.mjs';
 import { buildReminderFlex } from '../lib/reminders.mjs';
 import { parseIncomeText } from '../lib/line-income.mjs';
+import { buildIncomeSavedCard, monthLabelTh } from '../lib/line-cards.mjs';
 import { buildWalletEntry, WALLET_COL } from '../lib/wallet-service.mjs';
 import * as fsApi from './auth-helpers.js';
 import {
@@ -156,10 +157,8 @@ async function handleTextMessage(event) {
             const built = buildWalletEntry({ type: "income", amount: income.amount, desc: income.desc, source: "line" }, { ownerName: memberName });
             if (!built.ok) return replyText(replyToken, built.message);
             await addDoc(collection(db, WALLET_COL), built.entry);
-            const money = income.amount.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-            return replyText(replyToken, `บันทึกรายรับแล้ว
-${income.desc} ฿${money}
-เห็นเฉพาะคุณ ไม่กระทบยอดหนี้ ถ้าบันทึกผิดลบได้ที่แท็บกระเป๋าในเว็บ`);
+            const month = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 7);
+            return sendToLine(replyToken, buildIncomeSavedCard({ monthLabel: monthLabelTh(month), desc: income.desc, amount: income.amount }));
         }
     }
 
