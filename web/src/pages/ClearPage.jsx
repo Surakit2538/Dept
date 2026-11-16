@@ -3,7 +3,8 @@ import { useState, useMemo } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
 import { baht, maskPromptpay, promptpayQrUrl, validPromptpay, monthLabel } from "../model.js";
-import { verifySlip } from "../data.js";
+import { verifySlip, manualSettle, deleteSettlement } from "../data.js";
+import { DeleteButton } from "../ui.jsx";
 
 function QrSheet({ line, profile, onClose }) {
     const url = promptpayQrUrl(profile && profile.promptpay, line.amount);
@@ -70,7 +71,7 @@ function SlipSheet({ line, month, onClose, onDone }) {
     );
 }
 
-function Line({ l, profile, onQr, onSlip }) {
+function Line({ l, profile, onQr, onSlip, admin, onMark }) {
     const mine = l.role === "pay";
     const text = mine ? `โอนให้ ${l.to}` : l.role === "receive" ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`;
     return (
@@ -86,11 +87,17 @@ function Line({ l, profile, onQr, onSlip }) {
                     <button type="button" class="btn sm ghost" onClick={() => onSlip(l)}><Icon name="up" size={14} />อัปโหลดสลิป</button>
                 </div>
             )}
+            {admin && (
+                <div class="acts">
+                    <DeleteButton icon="check" danger={false} verb="ยืนยันว่าโอนแล้ว" busyText="กำลังบันทึก" keepText="ยกเลิก" label={`${l.from} ให้ ${l.to}`} onConfirm={() => onMark(l)} />
+                </div>
+            )}
         </li>
     );
 }
 
-export function ClearPage({ model, profiles, month, onChanged }) {
+export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, adminName = "", onError = () => {} }) {
+    const mark = async (l) => { try { await manualSettle({ from: l.from, to: l.to, amount: l.amount, month, adminName }); onChanged(); } catch (e) { onError(e.message); } };
     const owedToMe = model.lines.filter((l) => l.role === "receive").reduce((a, l) => a + l.amount, 0);
     const iOwe = model.lines.filter((l) => l.role === "pay").reduce((a, l) => a + l.amount, 0);
     const [qr, setQr] = useState(null);
@@ -111,7 +118,7 @@ export function ClearPage({ model, profiles, month, onChanged }) {
                 <section class="card">
                     <SectionTitle icon="swap" title="ยอดที่ต้องโอนเดือนนี้" note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
                     {model.cleared ? <p class="empty"><Icon name="check" size={16} class="rcv" />เคลียร์ครบแล้ว ไม่มียอดค้าง</p>
-                        : <ul class="plain">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} onQr={setQr} onSlip={setSlip} />)}</ul>}
+                        : <ul class="plain">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} onQr={setQr} onSlip={setSlip} admin={isAdmin} onMark={mark} />)}</ul>}
                 </section>
             </div>
             <div class="col">
@@ -123,6 +130,7 @@ export function ClearPage({ model, profiles, month, onChanged }) {
                             <span class="ico"><Icon name="check" class="rcv" /></span>
                             <div class="grow"><div class="t">{h.from} โอนให้ {h.to}</div><div class="s">{h.manual ? "แอดมินยืนยัน" : "ตรวจจากสลิป"}</div></div>
                             <span class="num rcv">{baht(h.amount)}</span>
+                            {isAdmin && <DeleteButton label={`${h.from} ให้ ${h.to}`} onConfirm={async () => { try { await deleteSettlement(h.id); onChanged(); } catch (e) { onError(e.message); } }} />}
                         </li>
                     ))}</ul>
                 </section>

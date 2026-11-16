@@ -27,6 +27,16 @@
             "source": "/",
             "destination": "/app/",
             "permanent": false
+        },
+        {
+            "source": "/index.html",
+            "destination": "/app/",
+            "permanent": false
+        },
+        {
+            "source": "/admin.html",
+            "destination": "/app/#clear",
+            "permanent": false
         }
     ],
     "rewrites": [

@@ -1,7 +1,8 @@
 {
     "name": "Dept Money",
     "short_name": "DeptMoney",
-    "start_url": "./index.html",
+    "start_url": "/app/",
+    "scope": "/",
     "display": "standalone",
     "background_color": "#1e293b",
     "theme_color": "#1e293b",

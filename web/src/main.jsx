@@ -124,7 +124,7 @@ function App() {
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} /> : <Skeleton blocks={5} />;
     else if (page === "bills") body = billsM ? <BillsPage model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "clear") body = clearM && profiles ? <ClearPage model={clearM} profiles={profiles} month={month} onChanged={() => changed()} /> : <Skeleton blocks={2} />;
+    else if (page === "clear") body = clearM && profiles ? <ClearPage model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} /> : <Skeleton blocks={2} />;
     else if (page === "wallet") body = walletM ? <WalletPage model={walletM} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={3} />;
     else body = profiles ? <MePage auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} /> : <Skeleton blocks={2} />;
 

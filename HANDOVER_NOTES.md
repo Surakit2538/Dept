@@ -1,107 +1,110 @@
-# 📋 รายงานสรุปสถานะการพัฒนาและการส่งต่องาน (Handover Notes)
-**โปรเจกต์:** Dept Money (https://dept-game.vercel.app/)  
-**วันที่บันทึก:** 12 พฤศจิกายน 2026  
-**ผู้จัดทำ:** Antigravity AI  
-**เป้าหมาย:** ส่งต่องานให้ Claude ทำการตรวจสอบความถูกต้องของระบบ และแก้ไขปัญหาส่วนการเชื่อมต่อ iOS Shortcuts + Scriptable ต่อเนื่องได้ทันที  
+# Dept Money: เอกสารส่งต่อระบบ
+
+**อัปเดตล่าสุด:** 16 พฤศจิกายน 2569 · **เว็บ:** https://dept-game.vercel.app · **Repo:** `Surakit2538/Dept` (branch `main`, push แล้ว Vercel deploy เอง)
+ไฟล์นี้ไม่ถูกเผยแพร่บนเว็บ (อยู่ใน `.vercelignore`) ห้ามใส่รหัสลับหรือกุญแจใดๆ ลงในไฟล์นี้
 
 ---
 
-## 1. บริบทและเป้าหมายของงาน (Goal & Objective)
+## 1. ระบบนี้คืออะไร
 
-ผู้ใช้ต้องการพัฒนาระบบ **บันทึกรายจ่ายอัตโนมัติจากสลิปโอนเงินบน iPhone + แสดงผลเป็น Widget หน้าจอหลัก (Home Screen)** โดยต่อยอดจากเว็บเดิม (`Dept Money` ซึ่งเดิมเป็นระบบคำนวณและเคลียร์หนี้สินในกลุ่มเพื่อนผ่าน Firebase Firestore + Vercel):
-1. **Trigger:** เมื่อปิดแอปธนาคาร (`K PLUS`, `SCB`, `ttb`, `UOB`, `Kept`, `Dime` ฯลฯ) บน iPhone ให้รันระบบอัตโนมัติ
-2. **OCR & Parse:** อ่านรูปสลิปล่าสุดฟรีผ่าน Live Text ของ iOS เพื่อดึง ยอดเงิน, ร้านค้า/ผู้รับ, ธนาคาร, รหัสอ้างอิงสลิป
-3. **Interactive Menu:** เด้งถามผู้ใช้ว่าจะ **"👤 บันทึกส่วนตัว"** หรือ **"👥 หารกับเพื่อน"**
-   - ถ้าบันทึกส่วนตัว: บันทึกรายจ่ายลงระบบโดย **ต้องไม่กระทบยอดหนี้กลุ่ม**
-   - ถ้าหารกับเพื่อน: ดึงรายชื่อสมาชิกในกลุ่มมาให้เลือก แล้วคำนวณหารเท่า พร้อมแจ้งเตือนเข้า LINE กลุ่ม
-4. **Widget:** แสดงยอดใช้วันนี้, ยอดใช้เดือนนี้, รายการล่าสุด บนหน้าจอ Home Screen ผ่านแอป **Scriptable**
+แอปเคลียร์หนี้และดูรายจ่ายของกลุ่มเพื่อน (ไม่เกิน 20 คน) ประกอบด้วย
+- **เว็บแอปเดียว** ที่ `/app/` (หน้าแรก `/` พาไปที่นี่) เข้าสู่ระบบด้วย LINE (LIFF)
+- **บอท LINE** (พิมพ์ "สรุป" ในแชต 1:1 ได้การ์ดสรุปยอด, ปุ่มเตือนหนี้พร้อมขั้นตอนยืนยันก่อนส่ง, ตรวจสลิปในกลุ่ม)
+- **iPhone**: Widget และสคริปต์สแกนสลิป (Scriptable + Shortcuts)
 
----
+หน้าเก่า `index.html` และ `admin.html` ถูกปิดทางเข้าแล้ว (`vercel.json` พาไป `/app/`) ไฟล์ยังอยู่ใน repo เพื่อให้ย้อนกลับได้ ดูหัวข้อ 9
 
-## 2. สิ่งที่ได้ทำไปแล้ว (What Has Been Done)
+## 2. เว็บแอป (`web/`)
 
-### 2.1 ด้านความปลอดภัยและความเข้ากันได้กับระบบเดิม (Integrity & Safety)
-* **ไม่มีการแก้ไขหรือแตะต้องไฟล์เดิมของระบบเลย** (ไฟล์เดิมอย่าง `index.html`, `admin.html`, `api/webhook.js`, `api/verify-settlement-slip.js`, `api/send-line.js` ยังคงเหมือนเดิม 100%)
-* โค้ดทั้งหมดที่เพิ่มเข้ามาถูกสร้างเป็นไฟล์ใหม่แบบแยกส่วน (Modular) 
+Vite + Preact ต้นฉบับอยู่ `web/src/` **ผล build อยู่ `app/` และต้อง commit ด้วยทุกครั้ง** (Vercel เสิร์ฟโฟลเดอร์ `app/` ตรงๆ ไม่ได้ build ให้)
 
-### 2.2 ไฟล์ Backend API ใหม่บน Vercel (ทดสอบแล้ว ใช้งานได้จริงบน Production)
-ทุกไฟล์ถูก deploy ขึ้น `https://dept-game.vercel.app` เรียบร้อยแล้ว:
+```bash
+cd web && npm run build      # สร้าง ../app/
+npm test                     # รันที่ราก ต้องผ่านทุกเคสก่อน push
+```
 
-1. **`api/get-members.js`**
-   - ดึงรายชื่อสมาชิกทั้งหมดจาก Firestore คอลเลกชัน `members`
-   - *สถานะ:* ✅ ทดสอบแล้วผ่าน `GET https://dept-game.vercel.app/api/get-members` คืนค่าสมาชิก 15 คนถูกต้อง
-2. **`api/shortcut-transaction.js`**
-   - รับ `POST` บันทึกรายการลงคอลเลกชัน `transactions`
-   - มีระบบตรวจ `transRef` ป้องกันการบันทึกสลิปเดิมซ้ำ
-   - ถ้าเป็น `splitType: 'personal'` จะสร้าง `splits: { [payer]: amount }` ซึ่งในสูตรคำนวณของระบบเดิม ค่าสุทธิหนี้สินจะเท่ากับ 0 ทำให้ไม่กระทบยอดหนี้ของเพื่อน
-   - ถ้าเป็น `splitType: 'equal'` จะกระจายยอดให้สมาชิกใน `splitWith` และส่งข้อความแจ้งเตือนเข้า LINE กลุ่มอัตโนมัติ
-3. **`api/widget-summary.js`**
-   - รับ `GET ?user=NAME` สรุปยอด `todayExpense`, `monthExpense`, `lastTransaction`, และสถานะหนี้สินกลุ่ม
-   - *สถานะ:* ✅ ทดสอบแล้วผ่าน `GET https://dept-game.vercel.app/api/widget-summary?user=AOY` คำนวณถูกต้อง
+| ไฟล์ | หน้าที่ |
+|---|---|
+| `web/src/main.jsx` | ตัวแอป: ล็อกอิน, โหลดข้อมูล, เลือกหน้า (hash `#home #bills #clear #wallet #me`) |
+| `web/src/data.js` | ติดต่อ Firestore (เฉพาะคอลเลกชันที่กฎอนุญาต) และ API ของเรา + แคชในเครื่อง |
+| `web/src/model.js` | ตรรกะล้วน ไม่แตะ UI: โมเดลแต่ละหน้า, สร้างบิล, เดาหมวด, แนะนำคนหาร |
+| `web/src/pages/*.jsx` | หน้าแรก, บิล, เคลียร์เงิน, กระเป๋า, ฉัน |
+| `web/src/add.jsx` | ฟอร์มเพิ่มบิลหารกับเพื่อน / รายจ่ายส่วนตัว / รายรับ |
+| `web/src/onboard.jsx` | ครั้งแรกที่เข้า: ผูกบัญชี LINE กับสมาชิกเดิม (หรือสมัครใหม่) แล้วกรอกชื่อจริง/พร้อมเพย์ |
+| `web/src/members.jsx` · `editbill.jsx` · `iphone.jsx` | จัดการสมาชิก (แอดมิน), แก้ชื่อ/หมวดบิล, คัดลอกสคริปต์ติดตั้ง iPhone |
+| `web/src/styles.css` | โทเคนสีและคอมโพเนนต์ ตามระบบดีไซน์ `design/DESIGN.md` (ห้ามใช้ emoji ใช้ไอคอน SVG) |
+| `web/src/preview.jsx` + `web/preview.html` | หน้าตัวอย่างข้อมูลจำลองสำหรับตรวจหน้าตาตอนพัฒนา (ไม่ถูก deploy) |
 
-### 2.3 ไฟล์สำหรับฝั่ง iOS
-1. **`DeptWidget.js`**: สคริปต์ Scriptable สำหรับแสดงผล Widget สไตล์ Dark Mode มี Offline Cache ผ่าน `FileManager`
-2. **`DeptSlipApp.js`**: สคริปต์ Scriptable สำหรับทำหน้าที่เป็นสมองกล (Regex, Menu, Prompt, API Call, Notification)
-3. **`SHORTCUT_GUIDE.md`**: เอกสารขั้นตอนการติดตั้งคำสั่งลัดบน iPhone
+**การโหลดข้อมูล (ประหยัดโควต้า Firestore ฟรี 50,000 อ่าน/วัน):** เดือนนี้ฟังสด, เดือนที่ผ่านมาอ่านครั้งเดียวแล้วจำในเครื่อง 1 วัน (`localStorage` คีย์ `dm:v2:*`), กระเป๋าของทุกเดือนดึงด้วยการเรียก API ครั้งเดียว, หน้าแรกแสดงเมื่อมีเดือนนี้ กราฟย้อนหลังตามมา
 
----
+**ผูกบัญชีครั้งแรก:** ถ้าชื่อ LINE ตรงกับสมาชิกที่ยังไม่ผูก จะผูกให้เอง ไม่งั้นให้เลือกชื่อเอง หรือสมัครใหม่ ระบบ **ไม่เปลี่ยนชื่อสมาชิก** ตอนผูก (หน้าเก่าเคยเปลี่ยนชื่อเป็นชื่อ LINE และไล่แก้ทุกบิล) เพื่อให้ประวัติอยู่ครบและไม่ต้องอ่านทั้งคอลเลกชัน
 
-## 3. ปัญหาที่พบในปัจจุบัน (Current Issues & Error Trace)
+**แอดมินทำได้:** จัดการสมาชิก (เพิ่ม/แก้ชื่อจริงพร้อมเพย์/ตั้งแอดมิน/ลบเมื่อไม่มีชื่อในบิลหรือประวัติ), ยืนยันว่าคู่ไหนโอนแล้ว และลบประวัติเคลียร์เงิน (หน้าเคลียร์เงิน), แก้/ลบบิลของทุกคน
 
-เมื่อผู้ใช้ทดสอบกดรัน Shortcut บน iPhone (iOS ภาษาไทย):
+## 3. ฝั่งเซิร์ฟเวอร์ (`api/`, `lib/`)
 
-### ปัญหาที่ 1: `ReferenceError: Can't find variable: getLocalLastRef on line 52:36` (แก้ไขแล้ว)
-* **สาเหตุ:** ฟังก์ชันตัวช่วยอยู่ในตำแหน่งล่างสุดของสคริปต์ ใน JavaScriptCore ของ iOS การรันแบบ async top-level ทำให้ฟังก์ชันด้านล่างไม่ถูก hoist
-* **การแก้ไข:** ย้ายฟังก์ชันทั้งหมดขึ้นมาบนสุด และเปลี่ยนมาใช้ `Keychain` แทน
+- **Vercel Hobby จำกัด 12 Serverless Functions และทุกไฟล์ `.js` ใน `api/` นับเป็น 1 function (ตอนนี้ครบ 12)** ห้ามเพิ่มไฟล์ใหม่ใน `api/` ให้เพิ่ม `action` ใน `shortcut-transaction.js` และวางโค้ดไว้ใน `lib/*.mjs`
+- `lib/*.mjs` **ห้าม import แพ็กเกจ npm** (Vercel หาแพ็กเกจจากโฟลเดอร์ `api/`) มีเทสต์กันไว้แล้ว
+- ชั้นเชื่อมฐานข้อมูล (`collection/doc/query/getDocs/...`) อยู่ใน `api/auth-helpers.js` ใช้ firebase-admin เมื่อมี `FIREBASE_SERVICE_ACCOUNT` (โปรดักชันใช้โหมดนี้) ไม่งั้นใช้ client SDK
+- **ไฟล์ที่รากของ repo ถูกเผยแพร่บนเว็บสาธารณะ** ห้ามวางความลับ
 
-### ปัญหาที่ 2: `ติดปัญหาที่ line 294` (ปัญหาปัจจุบันที่ผู้ใช้พบ)
-* **รายละเอียด:**
-  - บรรทัดที่ 294 ใน `DeptSlipApp.js` เดิมคือ:
-    ```javascript
-    if (isNaN(amount) || amount <= 0) {
-        const err = new Alert();
-        err.title = "ยอดเงินไม่ถูกต้อง";
-        await err.presentAlert(); // <-- ไม่มีการใส่ addAction()
-        return;
-    }
-    ```
-  - ใน Scriptable หากเรียก `Alert.presentAlert()` โดยไม่มีการใส่ `.addAction("...")` ตัว Scriptable/UIKit จะ throw Exception ทันที
-  - **จุดที่ต้องวิเคราะห์ต่อเชิงลึก:**
-    ทำไมโค้ดถึงวิ่งเข้าไปที่ฟังก์ชัน `handleQuickAdd()` (จดสด) แทนที่จะเป็น `handleScanFromText()`?
-    - เมื่อผู้ใช้กดรัน Shortcut: ตัว Shortcut ดึงรูปภาพล่าสุด -> แยกข้อความ (OCR) -> ส่งเข้า Scriptable ผ่าน `args.shortcutParameter`
-    - หากรูปภาพล่าสุดในอัลบั้มของผู้ใช้ **ไม่ใช่สลิปโอนเงิน** หรือ **OCR อ่านข้อความไม่ได้เป็นสตริง** หรือ `args.shortcutParameter` ส่งมาเป็น `Array` / `null`
-    - เงื่อนไข `if (inputFromShortcut && typeof inputFromShortcut === 'string')` จะเป็นเท็จ และตกลงไปที่ `showMainMenu()` (ซึ่งผู้ใช้กดปุ่ม "จดสด" แล้วไม่ได้กรอกตัวเลข หรือตัวแปรไม่เข้าตามที่คาดไว้)
+| ไฟล์ | หน้าที่ |
+|---|---|
+| `lib/ledger.mjs` | แกนคำนวณเดียวของทั้งระบบ (เว็บ, LINE, Widget, ตรวจสลิป): สตางค์, แยกรายเดือน, แผนโอนขั้นต่ำ, กระเป๋า |
+| `lib/installments.mjs` · `lib/subscriptions.mjs` | แบ่งงวดผ่อน (สูงสุด 60) · สร้างบิลรายเดือนจาก `subscription_templates` |
+| `lib/shortcut-service.mjs` + `api/shortcut-transaction.js` | `action`: parse/auto/save/list/delete/wallet-add/wallet-list/wallet-summary/wallet-delete |
+| `lib/line-cards.mjs` · `line-report.mjs` · `line-signature.mjs` · `api/webhook.js` | การ์ด LINE, รายงาน "สรุป", ตรวจลายเซ็น webhook |
+| `api/widget-summary.js` | ข้อมูล Widget (มี `monthIncome`) |
+| `api/device-token.js` | ออก/ยกเลิกรหัสอุปกรณ์ของ iPhone (เก็บเฉพาะ SHA-256) |
+| `api/cron/*` | บิลรายเดือน (วันที่ 1) และเตือนหนี้ (วันที่ 25) |
 
----
+## 4. ข้อมูลและกฎ
 
-## 4. ข้อสังเกตและคำแนะนำเชิงสถาปัตยกรรมสำหรับ Claude (Recommendations)
+- คอลเลกชันที่เบราว์เซอร์เข้าถึงได้ตาม `firestore.rules`: `members`, `transactions`, `settlements`, `subscription_templates` ที่เหลือปิดหมด (เซิร์ฟเวอร์ใช้กุญแจแอดมินข้ามกฎ) ห้ามเพิ่มกฎ `match /{document=**} { allow ... }`
+- รายการส่วนตัวและรายรับเก็บใน `wallet_entries` (เห็นเฉพาะเจ้าของ) **รายรับไม่รวมเงินที่เพื่อนโอนคืนหนี้** (แสดงแยกเป็น "ได้คืนแล้ว")
+- ชื่อใน `payer`/`splits` เป็นตัวพิมพ์ใหญ่ ตัวเลขเก็บเป็นบาท คำนวณภายในเป็นสตางค์
 
-เพื่อให้ Claude แก้ไขปัญหานี้ได้อย่างรวดเร็วและตรงจุด มีข้อสังเกตและแนวทางแนะนำดังนี้:
+## 5. ตัวแปรสภาพแวดล้อมบน Vercel
 
-### ทางเลือกที่ A (แนะนำ): ย้าย Interactive Dialog ไปไว้ใน Apple Shortcuts โดยตรง
-ปัจจุบัน เราส่ง raw OCR text เข้า Scriptable เพื่อให้ Scriptable เปิด `new Alert()` เด้งถาม แต่บน iOS:
-* การเปิด UI ของ Scriptable ขณะที่ Shortcut ทำงานอยู่เบื้องหลัง บางครั้งติดเรื่อง Permissions หรือเบื้องหลัง Background Timeout
-* **วิธีที่เสถียรกว่ามาก:**
-  1. ให้ **Apple Shortcuts เป็นตัวถามเมนูเองโดยตรง** ด้วยคำสั่ง `เลือกจากเมนู (Choose from Menu)`:
-     - `1. บันทึกส่วนตัว`
-     - `2. หารกับเพื่อน`
-  2. ให้ Shortcuts ยิง `POST` เข้า `https://dept-game.vercel.app/api/shortcut-transaction` โดยตรงผ่านคำสั่ง `รับเนื้อหาของ URL (Get Contents of URL)`
-  3. **Scriptable มีหน้าที่เดียวคือ รัน Widget (`DeptWidget.js`)** บนหน้าจอ Home Screen เท่านั้น!
-  *ข้อดี:* ไม่ต้องพึ่งพา Scriptable ในการเปิด Alert ให้เกิดปัญหา JavaScriptCore อีกต่อไป และ Shortcuts ทำงานแบบ Native 100% เร็วกว่าและไม่เด้ง Error
+| ตัวแปร | สถานะ | ใช้ทำอะไร |
+|---|---|---|
+| `FIREBASE_SERVICE_ACCOUNT` | ตั้งแล้ว | ให้เซิร์ฟเวอร์ข้ามกฎ Firestore (ดู `FIREBASE_ADMIN_SETUP.md`) |
+| `CRON_SECRET` | ตั้งแล้ว | ไม่ตั้ง = บิลรายเดือนและการเตือนวันที่ 25 ไม่ทำงาน |
+| `LINE_LOGIN_CHANNEL_ID` · `LINE_CHANNEL_ACCESS_TOKEN` · `LINE_CHANNEL_SECRET` | ตั้งแล้ว | ยืนยัน LINE ID Token, ส่งข้อความ, ตรวจลายเซ็น |
+| `LINE_SIGNATURE_ENFORCE` | **ยังไม่ตั้ง** | ดูหัวข้อ 8 ข้อ 1 |
+| `GEMINI_API_KEY` | ตั้งแล้ว | บอท LINE |
+| `LINE_GROUP_ID` | ยังไม่ตั้ง | แจ้งกลุ่ม LINE ตอนหารกับเพื่อน (ไม่ตั้ง = ข้ามเงียบๆ) |
+| `SLIPOK_API_KEY` `SLIPOK_BRANCH_ID` | ตั้งแล้ว แต่โค้ดยังไม่ใช้ | ดูหัวข้อ 8 ข้อ 2 |
 
-### ทางเลือกที่ B: หากยังใช้ Scriptable ในการประมวลผล
-* ต้องตรวจสอบ format ของ `args.shortcutParameter` ให้รัดกุม รองรับทั้ง `string`, `Array<string>`, และกรณีรูปภาพล่าสุดไม่มีข้อความ
-* ต้องใส่ `.addAction("ตกลง")` ให้กับทุก `Alert` เสมอ (ใน commit ล่าสุด `7215513` ได้ใส่เพิ่มไปแล้ว)
-* ตรวจสอบว่าใน Scriptable มีการตั้งค่า `Runs in App` หรือต้องเปิดแอปขึ้นมาแสดง Alert หรือไม่
+## 6. iPhone
 
----
+- ติดตั้ง: เว็บ แท็บ "ฉัน" > "ตั้งค่า iPhone" > "สร้างรหัสและคัดลอกสคริปต์" แล้ววางใน Scriptable กด ▶ (สร้างรหัสใหม่ทุกครั้ง รหัสเก่าใช้ไม่ได้)
+- `scriptable/DeptWidget.js` (Widget สองช่อง รายรับ | ใช้ไป ตอนนี้ v2.1.1), `DeptSlip.js`, `DeptAuto.js` แก้ไฟล์เมื่อไรให้เพิ่ม `SCRIPT_VERSION` ทุกครั้ง ผู้ใช้ต้องรันตัวติดตั้งซ้ำเพื่ออัปเดต
+- ตัวแปรสีใน Widget ต้องประกาศ **ก่อน** บรรทัดที่เรียก `createWidget()` (เคยพังเพราะประกาศหลังบรรทัดนั้น)
+- คู่มือผู้ใช้ `/shortcut-guide.html`, รายละเอียด API `SHORTCUT_GUIDE.md`
 
-## 5. Git & Deployment Reference
+## 7. วิธีทำงานและ deploy
 
-* **Repository:** `https://github.com/Surakit2538/Dept.git`
-* **Branch:** `main`
-* **Live Production:** `https://dept-game.vercel.app`
-* **Commit ประวัติการทำงาน:**
-  - `c18db67`: เพิ่ม 3 API และไฟล์ Scriptable / Guide
-  - `7908ec9`: ปรับตำแหน่งฟังก์ชันแคชกันสลิปซ้ำขึ้นด้านบน
-  - `7215513`: เพิ่มปุ่ม Action ให้กับ Alert ทุกตัว และปรับปรุงการแปลง input จาก Shortcut
+```bash
+npm test                                  # ที่รากโปรเจกต์
+cd web && npm run build && cd ..          # ถ้าแก้ web/
+git add <ไฟล์> && git commit -m "..." && git push
+```
+- Claude Code ในโปรเจกต์นี้ push เองไม่ได้ ให้ผู้ใช้รัน `git push`
+- หลัง deploy: เปิด `/app/` ดูว่าไฟล์ `index-xxxx.js` ใหม่, ส่ง POST ไป `/api/webhook` ด้วย `{"events":[]}` ต้องตอบ 200
+- ข้อควรระวังตอนเขียนสคริปต์แก้ไฟล์ผ่านเชลล์: `\n` ในสตริงมักถูกแปลงเป็นขึ้นบรรทัดจริง ใช้เครื่องมือแก้ไฟล์ตรงๆ และรัน `node --check` เสมอ
+
+## 8. สิ่งที่ยังค้าง (เรียงตามความสำคัญ)
+
+1. **เปิด `LINE_SIGNATURE_ENFORCE=1`** ตอนนี้ระบบแค่บันทึกคำเตือนเมื่อลายเซ็น webhook ผิด ปุ่มเตือนหนี้ใน LINE ทำงานเมื่อลายเซ็นถูกเท่านั้น วิธี: ดู Runtime Logs ของ `/api/webhook` ใน Vercel หลังพิมพ์ในบอท ถ้าไม่มี `signature mismatch` ให้ตั้งค่านี้เป็น `1` แล้ว Redeploy
+2. **รหัส SlipOK เคยรั่ว** (เคยอยู่ในไฟล์ทดสอบที่เผยแพร่ ยังอยู่ในประวัติ git และฝังใน `api/slipok-helpers.js`) ควรขอรหัสใหม่และอ่านจากตัวแปรสภาพแวดล้อม
+3. ยังไม่มีสำรองข้อมูล Firebase ฟรีไม่สำรองให้
+4. เจ้าของยังไม่ได้ยืนยันบนเครื่องจริง: การเตือนหนี้ผ่านปุ่มใน LINE, `DeptAuto` ตอนปิด Run In App
+5. ส่งเตือนหนี้จากเว็บโดยแอดมิน (ของหน้าเก่า `sendLineMessage`) และส่งออก CSV / ล้างข้อมูลเดือน ยังไม่ได้ย้ายมาเว็บใหม่ (ไม่ได้ใช้บ่อย บอท LINE ทำการเตือนแทนอยู่)
+6. อ่าน SMS ธนาคารเป็นรายรับอัตโนมัติ และพิมพ์รายรับใน LINE (เช่น "เงินเดือน 25000") ยังไม่ได้ทำ
+7. ลบข้อมูลวินิจฉัยชั่วคราว `dbMode` ออกจากคำตอบ API
+
+## 9. ย้อนกลับ
+
+- กลับไปใช้หน้าเก่า: ลบ 3 ช่วงใน `redirects` ของ `vercel.json` (`/`, `/index.html`, `/admin.html`) แล้ว push หรือกด Rollback ใน Vercel
+- หน้าเก่า (`index.html`, `admin.html`, `admin-app.js`, `iphone-setup.js`, `personal-expenses.js`, `sw.js`) ยังไม่ถูกลบ เทสต์บางตัวยังอ่านไฟล์เหล่านี้ เมื่อมั่นใจว่าไม่กลับไปใช้แล้วค่อยลบพร้อมเทสต์ที่เกี่ยวข้อง

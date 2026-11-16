@@ -309,6 +309,19 @@ export async function deleteMemberIfUnused(p) {
     invalidateProfiles();
 }
 
+/** แอดมินยืนยันว่าคู่นี้โอนเคลียร์แล้ว (กรณีโอนนอกระบบ/ไม่มีสลิป) */
+export async function manualSettle({ from, to, amount, month, adminName }) {
+    await addDoc(collection(db, "settlements"), {
+        status: "verified", month, from, to, amount: Number(amount), transactionIds: [],
+        createdAt: new Date().toISOString(), verifiedByAdmin: true, adminId: adminName || "unknown"
+    });
+}
+
+/** แอดมินลบประวัติเคลียร์เงิน (ยอดหนี้จะกลับมาค้างเหมือนเดิม) */
+export async function deleteSettlement(id) {
+    await deleteDoc(doc(db, "settlements", String(id)));
+}
+
 export async function deleteBill(id) {
     await deleteDoc(doc(db, "transactions", String(id)));
 }
