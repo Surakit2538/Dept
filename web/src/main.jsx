@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
-import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWallet, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState } from "./ui.jsx";
 import { AddSheet } from "./add.jsx";
@@ -56,24 +56,32 @@ function App() {
         if (auth.state !== "ok") return undefined;
         return watchMonth(nowMonth, (d) => { if (d.error) setLoadError(true); else patchMonth(nowMonth, d); });
     }, [auth.state, nowMonth]);
-    useEffect(() => {
-        if (auth.state !== "ok") return;
-        loadWallet(nowMonth, { current: true }).then((w) => patchMonth(nowMonth, { wallet: w })).catch((e) => setToast(e.message));
-    }, [auth.state, nowMonth, reload]);
     // เดือนที่ผ่านมาแล้ว (สำหรับกราฟรายเดือน และเดือนที่เลือกดู): อ่านครั้งเดียวแล้วจำไว้ 1 วัน
     const wantedMonths = useMemo(() => [...new Set([...lastMonths(nowMonth, CHART_MONTHS), month])].filter((m) => m !== nowMonth), [nowMonth, month]);
+    // กระเป๋า: เรียก API ครั้งเดียวได้ทั้งเดือนนี้และเดือนที่ยังไม่มีในเครื่อง
+    useEffect(() => {
+        if (auth.state !== "ok") return;
+        const need = [nowMonth, ...wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].wallet))];
+        loadWalletMonths(need, nowMonth)
+            .then((r) => Object.entries(r).forEach(([m, w]) => patchMonth(m, { wallet: w })))
+            .catch((e) => setToast(e.message));
+    }, [auth.state, nowMonth, reload, wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].wallet)).join("|")]);
+    // บิลและประวัติเคลียร์เงินของเดือนที่ผ่านมา (อ่านจาก Firestore ตรงๆ พร้อมกันทุกเดือน)
     useEffect(() => {
         if (auth.state !== "ok") return;
         wantedMonths.forEach((m) => {
-            if (byMonth[m] && byMonth[m].transactions && byMonth[m].wallet) return;
-            Promise.all([loadPastMonth(m), loadWallet(m)])
-                .then(([g, w]) => patchMonth(m, { transactions: g.transactions, settlements: g.settlements, wallet: w }))
+            if (byMonth[m] && byMonth[m].transactions) return;
+            loadPastMonth(m)
+                .then((g) => patchMonth(m, { transactions: g.transactions, settlements: g.settlements }))
                 .catch(() => setLoadError(true));
         });
-    }, [auth.state, wantedMonths]);
+    }, [auth.state, wantedMonths, wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].transactions)).join("|")]);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
 
-    const monthsReady = auth.state === "ok" && members && wantedMonths.every((m) => byMonth[m] && byMonth[m].transactions && byMonth[m].wallet) && byMonth[nowMonth] && byMonth[nowMonth].transactions && byMonth[nowMonth].settlements && byMonth[nowMonth].wallet;
+    const done = (m) => byMonth[m] && byMonth[m].transactions && byMonth[m].settlements && byMonth[m].wallet;
+    // แสดงหน้าได้เมื่อมีเดือนนี้และเดือนที่เลือก (กราฟค่อยตามมาทีหลัง ไม่ต้องรอทุกเดือน)
+    const monthsReady = auth.state === "ok" && members && done(nowMonth) && done(month);
+    const chartReady = monthsReady && wantedMonths.every(done);
     const all = useMemo(() => {
         if (!monthsReady) return null;
         const vals = Object.values(byMonth);
@@ -85,7 +93,7 @@ function App() {
     }, [monthsReady, byMonth]);
     const suggested = useMemo(() => (all && members ? suggestPeople({ me: auth.user.name, members, transactions: all.transactions }) : []), [all, auth, members]);
     const model = useMemo(() => (all ? buildHomeModel({ name: auth.user.name, month, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, auth, members, month, today]);
-    const series = useMemo(() => (all ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : []), [all, auth, nowMonth]);
+    const series = useMemo(() => (all && chartReady ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, chartReady, auth, nowMonth]);
     const clearM = useMemo(() => (all ? buildClearModel({ name: auth.user.name, month, members, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, members, month]);
     const walletM = useMemo(() => (all ? buildWalletModel({ name: auth.user.name, month, walletItems: all.wallet, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, month]);
     const billsM = useMemo(() => (all ? buildBillsModel({ name: auth.user.name, month, transactions: all.transactions, search }) : null), [all, auth, month, search]);

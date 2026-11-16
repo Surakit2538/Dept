@@ -27,7 +27,9 @@ export async function signIn() {
         liff.login({ redirectUri: location.href });
         return null; // กำลังพาไปหน้าล็อกอิน
     }
-    const profile = await liff.getProfile();
+    // อ่านรหัสผู้ใช้จาก ID token ในเครื่องได้เลย (เร็วกว่าถามเซิร์ฟเวอร์ LINE) ถ้าไม่มีค่อยถามด้วย getProfile
+    const decoded = typeof liff.getDecodedIDToken === "function" ? liff.getDecodedIDToken() : null;
+    const profile = { userId: decoded && decoded.sub ? decoded.sub : (await liff.getProfile()).userId };
     const snap = await getDocs(query(collection(db, "members"), where("lineUserId", "==", profile.userId)));
     if (snap.empty) throw new Error("ยังไม่พบบัญชีสมาชิกที่ผูกกับ LINE นี้ กรุณาเข้าใช้งานจากหน้าเว็บเดิมครั้งแรกก่อน");
     const m = snap.docs.find((d) => d.data().realName) || snap.docs[0];
@@ -133,6 +135,49 @@ export async function loadWallet(month, { current = false } = {}) {
     const items = Array.isArray(r.items) ? r.items : [];
     if (!current) cacheSet("w:" + month, items);
     return items;
+}
+
+/**
+ * กระเป๋าของเดือนนี้ + เดือนที่ผ่านมาที่ยังไม่มีในแคช ด้วยการเรียก API ครั้งเดียว (เดิมเรียกทีละเดือน 6 ครั้ง)
+ * คืน { "2026-11": [...], "2026-10": [...] } เฉพาะเดือนที่ถามมา
+ */
+export async function loadWalletMonths(months, nowMonth) {
+    const out = {};
+    const missingPast = [];
+    for (const m of months) {
+        if (m === nowMonth) continue;
+        const hit = cacheGet("w:" + m, TTL_PAST);
+        if (hit) out[m] = hit; else missingPast.push(m);
+    }
+    if (missingPast.length === 0) {
+        out[nowMonth] = await loadWallet(nowMonth, { current: true });
+        return out;
+    }
+    const since = missingPast.slice().sort()[0];
+    const r = await api("/api/shortcut-transaction", { action: "wallet-list", since });
+    const items = Array.isArray(r.items) ? r.items : [];
+    out[nowMonth] = items.filter((x) => String(x.date || "").startsWith(nowMonth));
+    for (const m of missingPast) {
+        const list = items.filter((x) => String(x.date || "").startsWith(m));
+        out[m] = list;
+        cacheSet("w:" + m, list);
+    }
+    return out;
+}
+
+/** รหัสอุปกรณ์สำหรับ iPhone (Widget/คำสั่งลัด) สร้างใหม่ทับรหัสเก่า คืน { token, name } */
+export async function makeDeviceToken() {
+    const r = await api("/api/device-token", {});
+    if (!r.success || !r.token) throw new Error(r.message || "สร้างรหัสไม่สำเร็จ");
+    return r;
+}
+
+export async function revokeDeviceTokens() {
+    const res = await fetch("/api/device-token", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken: liff.getIDToken() }) });
+    let json = {};
+    try { json = await res.json(); } catch (e) { /* ไม่ใช่ JSON */ }
+    if (!res.ok || !json.success) throw new Error(json.message || "ยกเลิกรหัสไม่สำเร็จ");
+    return json;
 }
 
 export async function addWallet(entry) {

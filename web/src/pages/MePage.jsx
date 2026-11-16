@@ -2,6 +2,7 @@
 import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { SectionTitle } from "../ui.jsx";
+import { IphoneSheet } from "../iphone.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
 
@@ -11,6 +12,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh }) {
     const [promptpay, setPromptpay] = useState("");
     const [msg, setMsg] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [iphone, setIphone] = useState(false);
     useEffect(() => { setRealName(mine.realName || ""); setPromptpay(mine.promptpay || ""); }, [mine.id, mine.realName, mine.promptpay]);
 
     async function save(e) {
@@ -62,7 +64,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh }) {
             <div class="col">
                 <section class="card">
                     <SectionTitle icon="bell" title="ตั้งค่า" />
-                    <a class="opt-row" href="/shortcut-guide.html"><span class="ico"><Icon name="qr" /></span><span><b>ตั้งค่า iPhone</b><small>Widget และสแกนสลิปอัตโนมัติ</small></span><Icon name="right" size={16} class="mute" /></a>
+                    <button type="button" class="opt-row" onClick={() => setIphone(true)}><span class="ico"><Icon name="qr" /></span><span><b>ตั้งค่า iPhone</b><small>คัดลอกสคริปต์ติดตั้ง Widget และสแกนสลิปอัตโนมัติ</small></span><Icon name="right" size={16} class="mute" /></button>
                     <button type="button" class="opt-row" onClick={onRefresh}><span class="ico"><Icon name="swap" /></span><span><b>โหลดข้อมูลใหม่</b><small>ใช้เมื่อตัวเลขดูไม่อัปเดต</small></span></button>
                 </section>
                 {auth.user.isAdmin && (
@@ -74,6 +76,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh }) {
                 )}
                 <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>
             </div>
+        {iphone && <IphoneSheet onClose={() => setIphone(false)} />}
         </div>
     );
 }

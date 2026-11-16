@@ -113,3 +113,14 @@ test("ฟอร์มบิลหารกับเพื่อน: แสดง
     assert.ok(form.includes('aria-expanded="false"'), "หัวข้อตัวเลือกเพิ่มเติมต้องปิดอยู่ก่อน");
     assert.ok(!form.includes("ผ่อนชำระ") && !form.includes("เลือกวัน"), "รายละเอียดต้องซ่อนจนกว่าจะกดเปิดหัวข้อ");
 });
+
+test("ตั้งค่า iPhone: สคริปต์ติดตั้งเป็น JavaScript ที่ถูกต้อง ฝังรหัสและที่อยู่ได้ปลอดภัย", { skip: !hasTools }, async () => {
+    const { installerScript } = await bundle("web/src/iphone.jsx", "iphone");
+    const code = installerScript('tok"en`${x}', 'สมชาย"; evil()', "https://dept-game.vercel.app");
+    // ต้อง parse ได้ (Scriptable รัน top-level await จึงห่อเป็น async)
+    new Function(`return (async () => {${code}})`);
+    assert.match(code, /Keychain\.set\("dept_token", DEVICE_TOKEN\)/);
+    assert.match(code, /const DEVICE_TOKEN = "tok\\"en`\$\{x\}";/);
+    assert.ok(!code.includes('evil()";'), "ชื่อต้องไม่หลุดออกจากคอมเมนต์");
+    for (const f of ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"]) assert.ok(code.includes(f));
+});

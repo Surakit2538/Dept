@@ -164,10 +164,12 @@ export function HomePage({ model, series, month, onMonth, onAddIncome }) {
             <div class="col">
                 <Hero m={model} onAddIncome={onAddIncome} />
                 <Categories cats={model.categories} />
-                <section class="card">
-                    <Monthly series={series} selected={month} onSelect={onMonth} />
-                    <Daily month={month} daily={model.daily} hide={series.every((s) => s.spentSat === 0)} />
-                </section>
+                {series ? (
+                    <section class="card">
+                        <Monthly series={series} selected={month} onSelect={onMonth} />
+                        <Daily month={month} daily={model.daily} hide={series.every((s) => s.spentSat === 0)} />
+                    </section>
+                ) : <div class="card sk" style={{ height: "260px" }} aria-busy="true" aria-label="กำลังโหลดกราฟ" />}
             </div>
             <div class="col">
                 <Debts m={model} />

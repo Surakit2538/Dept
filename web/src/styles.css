@@ -264,7 +264,6 @@ a { color: inherit; }
 .chev { transition: transform .2s var(--ease); color: var(--mute); }
 .chev.up { transform: rotate(180deg); }
 .more-box { padding-bottom: var(--s2); }
-.field input[type="date"] { margin-top: var(--s2); }
 .link { border: 0; background: transparent; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; min-height: 32px; padding: 0; }
 .seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; background: var(--chip); border-radius: var(--r-md); padding: 3px; gap: 3px; }
 .seg button { border: 0; background: transparent; min-height: 40px; border-radius: var(--r-sm); font-size: var(--fs-sm); color: var(--mute); padding: 0 var(--s2); }
@@ -343,3 +342,16 @@ a { color: inherit; }
 .status .ok .ic { color: var(--receive); }
 .status .todo .ic { color: var(--pay); }
 .logout { color: var(--pay); }
+
+/* ---------- กันป๊อปอัปเลื่อนข้าง + กล่องวันที่ให้ขนาดเท่าช่องอื่น (iOS วาดช่องวันที่เล็กกว่าปกติ) ---------- */
+.sheet { overflow-x: hidden; overscroll-behavior-x: none; touch-action: pan-y; }
+.sheet .field, .sheet form { min-width: 0; max-width: 100%; }
+.field input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 46px; margin-top: 0; text-align: left; }
+.field input[type="date"]::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
+.cats-pick { touch-action: pan-x; overscroll-behavior-x: contain; max-width: 100%; }
+
+/* ---------- ตั้งค่า iPhone ---------- */
+.steps { margin: var(--s3) 0 var(--s4); padding-left: var(--s5); display: flex; flex-direction: column; gap: var(--s2); font-size: var(--fs-sm); }
+.steps a { color: var(--accent); }
+.copied { margin-top: var(--s3); display: flex; flex-direction: column; gap: var(--s2); }
+.danger-text { color: var(--pay); margin-top: var(--s3); }
