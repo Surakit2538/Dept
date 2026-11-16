@@ -2,6 +2,7 @@ import { readRawBody, decideWebhookAccess } from '../lib/line-signature.mjs';
 import { splitInstallments } from '../lib/installments.mjs';
 import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
 import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, executeRemind, remindResultText, parsePostback } from '../lib/line-report.mjs';
+import { buildReminderFlex } from '../lib/reminders.mjs';
 import * as fsApi from './auth-helpers.js';
 import {
     doc, getDoc, setDoc, deleteDoc,
@@ -135,6 +136,13 @@ async function handleTextMessage(event) {
         }
         await generateMemberReport(replyToken, memberName, event.source.type === 'user');
         return;
+    }
+
+    // 2.1 ดูตัวอย่างข้อความเตือนวันที่ 25 (ข้อมูลตัวอย่าง ตอบกลับเฉพาะคนที่พิมพ์ ไม่ได้ส่งหาใคร)
+    if (event.source.type === "user" && text === "ทดลองเตือน") {
+        const sample = buildReminderFlex([{ toDisplay: "GAME", amount: 1250.5 }, { toDisplay: "CARE", amount: 320 }]);
+        sample.altText = "ตัวอย่างข้อความเตือนยอดค้างชำระ";
+        return sendToLine(replyToken, sample);
     }
 
     const sessionSnap = await getDoc(sessionRef);
