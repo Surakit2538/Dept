@@ -1,8 +1,8 @@
 // ฉัน: โปรไฟล์ (ชื่อจริง พร้อมเพย์) ตั้งค่า iPhone ผู้ดูแล ออกจากระบบ
 import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
-import { Avatar, SectionTitle } from "../ui.jsx";
-import { validPromptpay } from "../model.js";
+import { SectionTitle } from "../ui.jsx";
+import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
 
 export function MePage({ auth, profiles, onSaved, onRefresh }) {
@@ -34,11 +34,15 @@ export function MePage({ auth, profiles, onSaved, onRefresh }) {
     return (
         <div class="home-grid">
             <div class="col">
-                <section class="card">
-                    <div class="sec-t">
-                        <Avatar name={auth.user.name} />
-                        <div><h2>{auth.user.name}</h2><p>{auth.user.isAdmin ? "ผู้ดูแล" : "สมาชิก"}</p></div>
+                <section class="card profile">
+                    <div class="who-big">
+                        <div class="av xl" aria-hidden="true">{[...String(auth.user.name || "?")][0]}</div>
+                        <div><h2>{auth.user.name}</h2><span class="tag-role">{auth.user.isAdmin ? "ผู้ดูแล" : "สมาชิก"}</span></div>
                     </div>
+                    <ul class="plain status">
+                        <li class={mine.realName ? "ok" : "todo"}><Icon name={mine.realName ? "check" : "alert"} size={16} /><span>{mine.realName ? `ชื่อจริง ${mine.realName}` : "ยังไม่ได้กรอกชื่อจริง"}</span></li>
+                        <li class={validPromptpay(mine.promptpay) ? "ok" : "todo"}><Icon name={validPromptpay(mine.promptpay) ? "check" : "alert"} size={16} /><span>{validPromptpay(mine.promptpay) ? <>พร้อมเพย์ <span class="num">{maskPromptpay(mine.promptpay)}</span></> : "ยังไม่ได้ตั้งพร้อมเพย์ เพื่อนจะโอนคืนผ่าน QR ไม่ได้"}</span></li>
+                    </ul>
                     <form onSubmit={save}>
                         <div class="field">
                             <label for="me-real">ชื่อจริงภาษาไทย</label>
@@ -59,11 +63,16 @@ export function MePage({ auth, profiles, onSaved, onRefresh }) {
                 <section class="card">
                     <SectionTitle icon="bell" title="ตั้งค่า" />
                     <a class="opt-row" href="/shortcut-guide.html"><span class="ico"><Icon name="qr" /></span><span><b>ตั้งค่า iPhone</b><small>Widget และสแกนสลิปอัตโนมัติ</small></span><Icon name="right" size={16} class="mute" /></a>
-                    {auth.user.isAdmin && <a class="opt-row" href="/index.html#members"><span class="ico"><Icon name="people" /></span><span><b>จัดการสมาชิก</b><small>เพิ่ม ลบ กรอกชื่อจริง/พร้อมเพย์ให้เพื่อน (หน้าเดิม)</small></span><Icon name="right" size={16} class="mute" /></a>}
-                    {auth.user.isAdmin && <a class="opt-row" href="/admin.html"><span class="ico"><Icon name="lock" /></span><span><b>หน้าแอดมิน</b><small>ยืนยันการจ่ายแทนคน ดูประวัติ</small></span><Icon name="right" size={16} class="mute" /></a>}
                     <button type="button" class="opt-row" onClick={onRefresh}><span class="ico"><Icon name="swap" /></span><span><b>โหลดข้อมูลใหม่</b><small>ใช้เมื่อตัวเลขดูไม่อัปเดต</small></span></button>
-                    <button type="button" class="opt-row" onClick={logout}><span class="ico"><Icon name="close" /></span><span><b>ออกจากระบบ</b></span></button>
                 </section>
+                {auth.user.isAdmin && (
+                    <section class="card">
+                        <SectionTitle icon="lock" title="สำหรับผู้ดูแล" />
+                        <a class="opt-row" href="/index.html#members"><span class="ico"><Icon name="people" /></span><span><b>จัดการสมาชิก</b><small>เพิ่ม ลบ กรอกชื่อจริง/พร้อมเพย์ให้เพื่อน (หน้าเดิม)</small></span><Icon name="right" size={16} class="mute" /></a>
+                        <a class="opt-row" href="/admin.html"><span class="ico"><Icon name="lock" /></span><span><b>หน้าแอดมิน</b><small>ยืนยันการจ่ายแทนคน ดูประวัติ</small></span><Icon name="right" size={16} class="mute" /></a>
+                    </section>
+                )}
+                <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>
             </div>
         </div>
     );

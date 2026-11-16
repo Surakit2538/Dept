@@ -331,3 +331,15 @@ a { color: inherit; }
 .dbar .who { font-size: var(--fs-md); }
 .dbar .amt { font-size: var(--fs-lg); }
 .row.bill .s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- หน้าฉัน ---------- */
+.who-big { display: flex; align-items: center; gap: var(--s4); margin-bottom: var(--s4); }
+.who-big h2 { font-size: var(--fs-xl); font-weight: 600; line-height: 1.2; }
+.av.xl { width: 64px; height: 64px; font-size: var(--fs-xl); background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+.tag-role { display: inline-block; margin-top: var(--s1); padding: 0 var(--s3); border-radius: 999px; background: var(--chip); font-size: var(--fs-sm); color: var(--mute); }
+.status { display: flex; flex-direction: column; gap: var(--s2); margin-bottom: var(--s4); padding: var(--s3); background: var(--chip); border-radius: 12px; }
+.status li { display: flex; align-items: flex-start; gap: var(--s2); font-size: var(--fs-sm); }
+.status li .ic { margin-top: 2px; }
+.status .ok .ic { color: var(--receive); }
+.status .todo .ic { color: var(--pay); }
+.logout { color: var(--pay); }
