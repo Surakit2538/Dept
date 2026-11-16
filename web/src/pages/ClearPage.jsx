@@ -91,12 +91,23 @@ function Line({ l, profile, onQr, onSlip }) {
 }
 
 export function ClearPage({ model, profiles, month, onChanged }) {
+    const owedToMe = model.lines.filter((l) => l.role === "receive").reduce((a, l) => a + l.amount, 0);
+    const iOwe = model.lines.filter((l) => l.role === "pay").reduce((a, l) => a + l.amount, 0);
     const [qr, setQr] = useState(null);
     const [slip, setSlip] = useState(null);
     const byName = useMemo(() => Object.fromEntries((profiles || []).map((p) => [p.name, p])), [profiles]);
     return (
         <div class="home-grid">
             <div class="col">
+                {!model.cleared && (
+                    <section class="card" aria-label="สรุปยอดค้าง">
+                        <div class="strip">
+                            <div><p class="lbl">เพื่อนต้องโอนให้ฉัน</p><p class="num mid rcv">{baht(owedToMe)}</p></div>
+                            <div class="vl" />
+                            <div><p class="lbl">ฉันต้องโอน</p><p class={`num mid ${iOwe > 0 ? "pay" : ""}`}>{baht(iOwe)}</p></div>
+                        </div>
+                    </section>
+                )}
                 <section class="card">
                     <SectionTitle icon="swap" title="ยอดที่ต้องโอนเดือนนี้" note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
                     {model.cleared ? <p class="empty"><Icon name="check" size={16} class="rcv" />เคลียร์ครบแล้ว ไม่มียอดค้าง</p>

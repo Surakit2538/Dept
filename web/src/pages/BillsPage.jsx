@@ -2,26 +2,38 @@
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor } from "../icons.jsx";
 import { SectionTitle, DeleteButton } from "../ui.jsx";
-import { baht } from "../model.js";
+import { baht, monthShort } from "../model.js";
 import { deleteBill, loadTemplates, stopTemplate } from "../data.js";
 
 function Bill({ b, canDelete, onDeleted, onError }) {
     const kind = b.type === "installment" ? "ผ่อน" : b.type === "subscription" ? "รายเดือน" : "";
     const name = b.desc || "ไม่ระบุ";
+    const has = b.myShareSat > 0;
     return (
-        <li class="row">
+        <li class="row bill">
             <span class="ico"><Icon name={iconFor(b.icon)} /></span>
             <div class="grow">
                 <div class="t">{name}</div>
-                <div class="s">{b.date.slice(8, 10)}/{b.date.slice(5, 7)} &middot; {b.payer} จ่าย{kind ? ` · ${kind}` : ""} &middot; {b.people.length} คน</div>
+                <div class="s">{b.payer} จ่าย &middot; {b.people.length} คน{kind ? <span class="tag">{kind}</span> : null}</div>
             </div>
             <div class="amt2">
-                <span class="num">{baht(b.amountSat / 100, { decimals: 2 })}</span>
-                {b.myShareSat > 0 && <small class="num">ส่วนฉัน {baht(b.myShareSat / 100, { decimals: 2 })}</small>}
+                {has ? <><span class="num pay mine">{baht(b.myShareSat / 100, { decimals: 2 })}</span><small>ส่วนฉัน &middot; บิล <span class="num">{baht(b.amountSat / 100, { decimals: 2 })}</span></small></>
+                    : <><span class="num mute">{baht(b.amountSat / 100, { decimals: 2 })}</span><small>ไม่มีส่วนของฉัน</small></>}
             </div>
             {canDelete && <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />}
         </li>
     );
+}
+
+const dayLabel = (d) => `${Number(d.slice(8, 10))} ${monthShort(d.slice(0, 7))}`;
+
+function groupByDay(list) {
+    const out = [];
+    for (const b of list) {
+        const last = out[out.length - 1];
+        if (last && last[0] === b.date) last[1].push(b); else out.push([b.date, [b]]);
+    }
+    return out;
 }
 
 function Recurring({ me, isAdmin, onError }) {
@@ -74,7 +86,12 @@ export function BillsPage({ model, search, onSearch, me, isAdmin, onChanged, onE
                     <button type="button" class={`btn sm ${mineOnly ? "" : "ghost"}`} aria-pressed={mineOnly} onClick={() => setMineOnly(!mineOnly)}>เฉพาะของฉัน</button>
                 </div>
                 {list.length === 0 ? <p class="empty">{search ? `ไม่พบบิลที่ตรงกับ "${search}"` : "ยังไม่มีบิลในเดือนนี้"}</p>
-                    : <ul class="plain">{list.map((b) => <Bill key={b.id} b={b} canDelete={isAdmin || b.payer.trim().toUpperCase() === me} onDeleted={onChanged} onError={onError} />)}</ul>}
+                    : groupByDay(list).map(([d, items]) => (
+                        <div class="day" key={d}>
+                            <h3 class="day-h">{dayLabel(d)}</h3>
+                            <ul class="plain">{items.map((b) => <Bill key={b.id} b={b} canDelete={isAdmin || b.payer.trim().toUpperCase() === me} onDeleted={onChanged} onError={onError} />)}</ul>
+                        </div>
+                    ))}
                 <a class="more" href="/index.html#history">แก้ไขบิลที่บันทึกไปแล้ว (หน้าเดิม)<Icon name="right" size={14} /></a>
             </section>
             <Recurring me={me} isAdmin={isAdmin} onError={onError} />

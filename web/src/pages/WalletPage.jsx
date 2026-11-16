@@ -26,6 +26,8 @@ function Line({ icon, title, note, value, tone = "" }) {
     );
 }
 
+const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
+
 export function WalletPage({ model, onChanged, onError }) {
     const m = model;
     const hasIncome = m.incomeSat > 0;
@@ -45,12 +47,22 @@ export function WalletPage({ model, onChanged, onError }) {
                 </section>
                 <section class="card">
                     <SectionTitle icon="wallet" title="ใช้ไปมาจากอะไร" note="เห็นเฉพาะคุณ เพื่อนไม่เห็น" />
-                    <ul class="plain">
-                        <Line icon="lock" title="ส่วนตัว" value={m.personalSat} />
-                        <Line icon="people" title="ส่วนของฉันในกลุ่ม" note="เฉพาะส่วนที่คุณรับผิดชอบ ไม่ใช่ยอดเต็มบิล" value={m.groupShareSat} />
-                        <Line icon="swap" title="ได้คืนจากเพื่อนแล้ว" note="ไม่นับเป็นรายรับ" value={m.receivedBackSat} tone="rcv" />
-                        {m.paidBackSat > 0 && <Line icon="swap" title="โอนคืนเพื่อนแล้ว" note="ไม่นับเป็นรายจ่ายซ้ำ" value={m.paidBackSat} />}
+                    {m.spentSat > 0 && (
+                        <div class="stack" role="img" aria-label={`ส่วนตัว ${pct(m.personalSat, m.spentSat)}% ส่วนในกลุ่ม ${pct(m.groupShareSat, m.spentSat)}%`}>
+                            <i class="a" style={{ width: `${(m.personalSat / m.spentSat) * 100}%` }} />
+                            <i class="b" style={{ width: `${(m.groupShareSat / m.spentSat) * 100}%` }} />
+                        </div>
+                    )}
+                    <ul class="plain legend">
+                        <li><i class="dot a" /><span class="grow">ส่วนตัว</span><b class="num">{baht(m.personalSat / 100, { decimals: 2 })}</b></li>
+                        <li><i class="dot b" /><span class="grow">ส่วนของฉันในกลุ่ม<small>เฉพาะส่วนที่ฉันรับผิดชอบ ไม่ใช่ยอดเต็มบิล</small></span><b class="num">{baht(m.groupShareSat / 100, { decimals: 2 })}</b></li>
                     </ul>
+                    {(m.receivedBackSat > 0 || m.paidBackSat > 0) && (
+                        <ul class="plain side-notes">
+                            {m.receivedBackSat > 0 && <li><Icon name="swap" size={16} /><span class="grow">ได้คืนจากเพื่อนแล้ว<small>ไม่นับเป็นรายรับ</small></span><span class="num rcv">{baht(m.receivedBackSat / 100, { decimals: 2 })}</span></li>}
+                            {m.paidBackSat > 0 && <li><Icon name="swap" size={16} /><span class="grow">โอนคืนเพื่อนแล้ว<small>ไม่นับเป็นรายจ่ายซ้ำ</small></span><span class="num">{baht(m.paidBackSat / 100, { decimals: 2 })}</span></li>}
+                        </ul>
+                    )}
                 </section>
             </div>
             <div class="col">
