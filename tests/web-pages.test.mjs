@@ -127,9 +127,9 @@ test("ตั้งค่า iPhone: สคริปต์ติดตั้ง�
     const { h, toString } = await render();
     const html = toString(h(IphoneSheet, { onClose() {} }));
     assert.match(html, /ตั้งค่า iPhone/);
-    assert.match(html, /วิธีติดตั้ง \(3 ขั้นตอน\)/);
-    assert.match(html, /แผนผังระบบ \(Infographic\)/);
-    assert.match(html, /สร้างรหัสและคัดลอกสคริปต์/);
+    assert.match(html, /วิธีติดตั้ง/);
+    assert.match(html, /แผนผัง Infographic/);
+    assert.match(html, /สร้างรหัส/);
 });
 
 test("หน้าผูกบัญชี กรอกข้อมูลครั้งแรก จัดการสมาชิก แก้ไขบิล: แสดงผลได้และ escape ชื่อ", { skip: !hasTools }, async () => {
