@@ -3,10 +3,12 @@ import { splitInstallments } from '../lib/installments.mjs';
 import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
 import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, executeRemind, remindResultText, parsePostback } from '../lib/line-report.mjs';
 import { buildReminderFlex } from '../lib/reminders.mjs';
+import { parseIncomeText } from '../lib/line-income.mjs';
+import { buildWalletEntry, WALLET_COL } from '../lib/wallet-service.mjs';
 import * as fsApi from './auth-helpers.js';
 import {
     doc, getDoc, setDoc, deleteDoc,
-    collection, getDocs, writeBatch, serverTimestamp, query, where
+    collection, getDocs, writeBatch, serverTimestamp, query, where, addDoc
 } from "./auth-helpers.js";
 import { getDbInstance } from "./auth-helpers.js";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -143,6 +145,22 @@ async function handleTextMessage(event) {
         const sample = buildReminderFlex([{ toDisplay: "GAME", amount: 1250.5, promptpay: "0812345678" }, { toDisplay: "CARE", amount: 320 }]);
         sample.altText = "ตัวอย่างข้อความเตือนยอดค้างชำระ";
         return sendToLine(replyToken, sample);
+    }
+
+    // 2.2 พิมพ์รายรับในแชตส่วนตัว เช่น "เงินเดือน 25000" -> บันทึกลงกระเป๋าของคนที่พิมพ์ (เห็นคนเดียว)
+    if (event.source.type === "user") {
+        const income = parseIncomeText(text);
+        if (income) {
+            const memberName = await getMemberNameByLineId(userId);
+            if (!memberName) return replyText(replyToken, "ไม่พบข้อมูลสมาชิก กรุณาเข้าใช้งานผ่านเว็บ Dept Money ครั้งแรกก่อน");
+            const built = buildWalletEntry({ type: "income", amount: income.amount, desc: income.desc, source: "line" }, { ownerName: memberName });
+            if (!built.ok) return replyText(replyToken, built.message);
+            await addDoc(collection(db, WALLET_COL), built.entry);
+            const money = income.amount.toLocaleString("th-TH", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            return replyText(replyToken, `บันทึกรายรับแล้ว
+${income.desc} ฿${money}
+เห็นเฉพาะคุณ ไม่กระทบยอดหนี้ ถ้าบันทึกผิดลบได้ที่แท็บกระเป๋าในเว็บ`);
+        }
     }
 
     const sessionSnap = await getDoc(sessionRef);

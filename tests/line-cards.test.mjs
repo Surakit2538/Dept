@@ -169,3 +169,13 @@ test("การ์ดเตือนหนี้: แนบ QR เฉพาะ�
     const none = buildReminderCard({ monthLabel: "x", debts: [{ to: "B", amount: 50 }] });
     assert.equal(none.contents.body.contents.filter((x) => x.type === "image").length, 0);
 });
+
+test("พิมพ์รายรับใน LINE: แปลงข้อความเป็นรายรับเฉพาะรูปแบบที่ชัดเจน", async () => {
+    const { parseIncomeText } = await import("../lib/line-income.mjs");
+    assert.deepEqual(parseIncomeText("เงินเดือน 25000"), { desc: "เงินเดือน", amount: 25000 });
+    assert.deepEqual(parseIncomeText("เงินเดือน 25,000 บาท"), { desc: "เงินเดือน", amount: 25000 });
+    assert.deepEqual(parseIncomeText("รายรับ ฟรีแลนซ์ 3000"), { desc: "ฟรีแลนซ์", amount: 3000 });
+    assert.deepEqual(parseIncomeText("รายรับ 3000 ฟรีแลนซ์"), { desc: "ฟรีแลนซ์", amount: 3000 });
+    assert.deepEqual(parseIncomeText("โบนัส 5000.5"), { desc: "โบนัส", amount: 5000.5 });
+    for (const t of ["ข้าวมันไก่ 50", "เงินเดือนออกแล้ว", "รายรับ 0", "เงินเดือน 25000 2", "สรุป", "", "เงินเดือน -5"]) assert.equal(parseIncomeText(t), null, t);
+});
