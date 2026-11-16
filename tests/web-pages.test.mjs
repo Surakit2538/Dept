@@ -115,7 +115,7 @@ test("ฟอร์มบิลหารกับเพื่อน: แสดง
 });
 
 test("ตั้งค่า iPhone: สคริปต์ติดตั้งเป็น JavaScript ที่ถูกต้อง ฝังรหัสและที่อยู่ได้ปลอดภัย", { skip: !hasTools }, async () => {
-    const { installerScript } = await bundle("web/src/iphone.jsx", "iphone");
+    const { installerScript, IphoneSheet } = await bundle("web/src/iphone.jsx", "iphone");
     const code = installerScript('tok"en`${x}', 'สมชาย"; evil()', "https://dept-game.vercel.app");
     // ต้อง parse ได้ (Scriptable รัน top-level await จึงห่อเป็น async)
     new Function(`return (async () => {${code}})`);
@@ -123,6 +123,13 @@ test("ตั้งค่า iPhone: สคริปต์ติดตั้ง�
     assert.match(code, /const DEVICE_TOKEN = "tok\\"en`\$\{x\}";/);
     assert.ok(!code.includes('evil()";'), "ชื่อต้องไม่หลุดออกจากคอมเมนต์");
     for (const f of ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"]) assert.ok(code.includes(f));
+
+    const { h, toString } = await render();
+    const html = toString(h(IphoneSheet, { onClose() {} }));
+    assert.match(html, /ตั้งค่า iPhone/);
+    assert.match(html, /วิธีติดตั้ง \(3 ขั้นตอน\)/);
+    assert.match(html, /แผนผังระบบ \(Infographic\)/);
+    assert.match(html, /สร้างรหัสและคัดลอกสคริปต์/);
 });
 
 test("หน้าผูกบัญชี กรอกข้อมูลครั้งแรก จัดการสมาชิก แก้ไขบิล: แสดงผลได้และ escape ชื่อ", { skip: !hasTools }, async () => {

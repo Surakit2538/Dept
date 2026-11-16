@@ -8,6 +8,13 @@ Mobile-first expense tracker web application with LINE Login support.
 - **Installment:** Support installment payments logic.
 - **PWA Ready:** Installable on mobile devices.
 - **LINE Login:** Authenticate using LINE account.
+- **iPhone slip scanning (Thai):** scan a bank slip with iOS Live Text, save as personal expense or split with friends; silent auto-save when a bank app closes; Home Screen widget. See `HANDOVER_NOTES.md` (system overview, security, known issues) and `SHORTCUT_GUIDE.md` (API). User guide: `/shortcut-guide.html`.
+- **Personal expenses page:** view/delete personal expenses (visible only to the owner).
+
+## Tests
+```bash
+npm test
+```
 
 ## Setup (For Developers)
 

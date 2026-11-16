@@ -38,7 +38,7 @@ export function Avatar({ name }) {
 }
 
 /** กล่องเลื่อนขึ้น (มือถือ) / กล่องกลางจอ (คอมพิวเตอร์): ปิดด้วย Esc หรือแตะพื้นหลัง คืนโฟกัสให้ปุ่มที่เปิด และล็อกการเลื่อนหน้าหลัง */
-export function Sheet({ title, onClose, children, as = "div", onSubmit, action }) {
+export function Sheet({ title, onClose, children, as = "div", onSubmit, action, class: cls = "" }) {
     const ref = useRef(null);
     useEffect(() => {
         const opener = document.activeElement;
@@ -57,7 +57,7 @@ export function Sheet({ title, onClose, children, as = "div", onSubmit, action }
     const Tag = as;
     return (
         <div class="scrim" onClick={(e) => e.target === e.currentTarget && onClose()}>
-            <Tag class="sheet" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref} onSubmit={onSubmit}>
+            <Tag class={`sheet ${cls}`.trim()} role="dialog" aria-modal="true" aria-label={title} tabIndex={-1} ref={ref} onSubmit={onSubmit}>
                 <div class="grab" aria-hidden="true" />
                 <div class="sheet-hd">
                     <h2>{title}</h2>
