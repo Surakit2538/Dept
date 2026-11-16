@@ -5,10 +5,10 @@
 /**
  * Dept Money - iOS Scriptable Widget
  * บันทึกและแสดงสรุปรายจ่ายแบบ Widget บน iPhone
- * เวอร์ชัน 2.0.1 (Device Token Auth)
+ * เวอร์ชัน 2.1 แบบ "สองช่อง": รายรับ | ใช้ไป + แถบเทียบ + สุทธิและยอดค้าง (Device Token Auth)
  */
 
-const SCRIPT_VERSION = "2.0.3";
+const SCRIPT_VERSION = "2.1.0";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ==========================================
@@ -27,11 +27,19 @@ if (config.runsInWidget) {
 Script.complete();
 
 // ==========================================
+// สีตาม design/tokens.json (โหมดมืด) ห้ามเพิ่มสีใหม่
+// ==========================================
+const C = {
+    bg: "#0B1113", surface: "#141D20", ink: "#E8EEEC", mute: "#93A3A0", line: "#25343A",
+    receive: "#3CC4B4", pay: "#FF9A6B"
+};
+
+// ==========================================
 // สร้าง Widget UI
 // ==========================================
 async function createWidget() {
     const listWidget = new ListWidget();
-    listWidget.backgroundColor = new Color("#16181D");
+    listWidget.backgroundColor = new Color(C.bg);
     listWidget.setPadding(14, 16, 12, 16);
     listWidget.url = BASE_URL;
 
@@ -43,7 +51,7 @@ async function createWidget() {
             listWidget,
             "ยังไม่ได้ตั้งค่าอุปกรณ์",
             "กรุณาเปิดเว็บ Dept Money แล้วแตะเมนู\n\"ตั้งค่า iPhone\" เพื่อติดตั้ง",
-            "#FBBF24"
+            C.pay
         );
     }
 
@@ -55,143 +63,152 @@ async function createWidget() {
             listWidget,
             "ไม่สามารถโหลดข้อมูลได้",
             result.message || "กรุณาตรวจสอบการเชื่อมต่อ",
-            result.status === 401 ? "#EF4444" : "#FBBF24"
+            C.pay
         );
     }
 
     const data = result.data;
     const isOffline = result.isOffline || false;
+    const income = Number(data.monthIncome) || 0;
+    const spent = Number(data.monthExpense) || 0;
+    const net = income - spent;
+    const small = config.widgetFamily === "small";
 
-    // 1. แถวบน: Header + ชื่อผู้ใช้/วันที่
+    // 1. แถวบน: โลโก้ + ชื่อแอป + วันที่
     const headerRow = listWidget.addStack();
     headerRow.layoutHorizontally();
     headerRow.centerAlignContent();
 
-    const titleText = headerRow.addText("DEPT TRACKER");
-    titleText.font = Font.boldSystemFont(11);
-    titleText.textColor = new Color("#94A3B8");
-
-    if (data.user) {
+    const logo = await loadLogo();
+    if (logo) {
+        const img = headerRow.addImage(logo);
+        img.imageSize = new Size(16, 16);
+        img.cornerRadius = 4;
         headerRow.addSpacer(6);
-        const userBadge = headerRow.addText(`· ${data.user}`);
-        userBadge.font = Font.systemFont(10);
-        userBadge.textColor = new Color("#64748B");
     }
-
+    const titleText = headerRow.addText("DEPT MONEY");
+    titleText.font = Font.semiboldSystemFont(10);
+    titleText.textColor = new Color(C.mute);
     headerRow.addSpacer();
-
     const dateText = headerRow.addText(data.dateHeader || "วันนี้");
-    dateText.font = Font.systemFont(11);
-    dateText.textColor = new Color("#64748B");
+    dateText.font = Font.systemFont(10);
+    dateText.textColor = new Color(C.mute);
 
-    listWidget.addSpacer(10);
+    listWidget.addSpacer(small ? 8 : 10);
 
-    // 2. แถวกลาง: ยอดใช้วันนี้ & ใช้เดือนนี้
-    const metricsRow = listWidget.addStack();
-    metricsRow.layoutHorizontally();
+    // 2. สองช่อง: รายรับ | ใช้ไป คั่นเส้นบาง
+    const cols = listWidget.addStack();
+    cols.layoutHorizontally();
+    if (!small) {
+        addColumn(cols, "รายรับเดือนนี้", income, C.receive);
+        cols.addSpacer(12);
+        const divider = cols.addStack();
+        divider.size = new Size(1, 40);
+        divider.backgroundColor = new Color(C.line);
+        cols.addSpacer(12);
+    }
+    addColumn(cols, "ใช้ไปเดือนนี้", spent, C.pay);
+    cols.addSpacer();
 
-    // ใช้วันนี้
-    const todayStack = metricsRow.addStack();
-    todayStack.layoutVertically();
-    const todayLabel = todayStack.addText("ใช้วันนี้");
-    todayLabel.font = Font.systemFont(11);
-    todayLabel.textColor = new Color("#94A3B8");
-
-    todayStack.addSpacer(2);
-
-    const todayVal = todayStack.addText(`฿${formatNumber(data.todayExpense)}`);
-    todayVal.font = Font.boldSystemFont(19);
-    todayVal.textColor = new Color("#F87171"); // แดงอมส้ม
-
-    metricsRow.addSpacer(24);
-
-    // ใช้เดือนนี้
-    const monthStack = metricsRow.addStack();
-    monthStack.layoutVertically();
-    const monthLabel = monthStack.addText("ใช้เดือนนี้");
-    monthLabel.font = Font.systemFont(11);
-    monthLabel.textColor = new Color("#94A3B8");
-
-    monthStack.addSpacer(2);
-
-    const monthVal = monthStack.addText(`฿${formatNumber(data.monthExpense)}`);
-    monthVal.font = Font.boldSystemFont(19);
-    monthVal.textColor = new Color("#38BDF8"); // ฟ้าสดใส
-
-    metricsRow.addSpacer();
-
-    listWidget.addSpacer(10);
-
-    // 3. แถวล่าง: รายการล่าสุด
-    const lastRow = listWidget.addStack();
-    lastRow.layoutHorizontally();
-    lastRow.centerAlignContent();
-    lastRow.backgroundColor = new Color("#1E222B");
-    lastRow.cornerRadius = 8;
-    lastRow.setPadding(6, 8, 6, 8);
-
-    if (data.lastTransaction) {
-        const last = data.lastTransaction;
-
-        // Badge ธนาคาร
-        const badge = lastRow.addStack();
-        badge.backgroundColor = new Color("#0F172A");
-        badge.cornerRadius = 4;
-        badge.setPadding(2, 5, 2, 5);
-
-        const badgeText = badge.addText(last.bank || "EXP");
-        badgeText.font = Font.boldSystemFont(9);
-        badgeText.textColor = new Color("#38BDF8");
-
-        lastRow.addSpacer(6);
-
-        // ชื่อรายการ
-        const descText = lastRow.addText(truncateString(last.desc, 18));
-        descText.font = Font.systemFont(12);
-        descText.textColor = new Color("#F1F5F9");
-
-        lastRow.addSpacer();
-
-        // ยอดเงินรายการล่าสุด
-        const amountText = lastRow.addText(`-฿${formatNumber(last.amount)}`);
-        amountText.font = Font.boldSystemFont(12);
-        amountText.textColor = new Color("#F87171");
-    } else {
-        const emptyText = lastRow.addText("ยังไม่มีรายการค่าใช้จ่ายในเดือนนี้");
-        emptyText.font = Font.systemFont(11);
-        emptyText.textColor = new Color("#64748B");
+    // 3. แถบเทียบ ใช้ไป ต่อ รายรับ (เห็นภาพว่าเหลือเท่าไร)
+    if (!small) {
+        listWidget.addSpacer(8);
+        const bar = listWidget.addImage(drawBar(income, spent, 296));
+        bar.imageSize = new Size(296, 6);
+        bar.resizable = false;
     }
 
-    // 4. แถวล่างสุด: สรุปหนี้สิน + ออฟไลน์/เวอร์ชัน
-    listWidget.addSpacer(6);
-    const footerRow = listWidget.addStack();
-    footerRow.layoutHorizontally();
-    footerRow.centerAlignContent();
+    listWidget.addSpacer();
 
-    if (data.debt && data.debt.balance !== 0) {
-        const debtLabel = footerRow.addText(`${data.debt.text}`);
-        debtLabel.font = Font.systemFont(10);
-        debtLabel.textColor = data.debt.type === 'receive' ? new Color("#34D399") : new Color("#FBBF24");
-    } else {
-        const settledLabel = footerRow.addText("เคลียร์หนี้ครบแล้ว");
-        settledLabel.font = Font.systemFont(10);
-        settledLabel.textColor = new Color("#64748B");
+    // 4. ล่างสุด: สุทธิ + ยอดที่เพื่อนค้าง/คุณค้าง
+    const footer = listWidget.addStack();
+    footer.layoutHorizontally();
+    footer.centerAlignContent();
+
+    if (income > 0 && !small) {
+        const netText = footer.addText(`${net >= 0 ? "เหลือ" : "เกิน"} ${money(Math.abs(net))}`);
+        netText.font = Font.semiboldSystemFont(11);
+        netText.textColor = new Color(net >= 0 ? C.receive : C.pay);
+        footer.addSpacer();
+    } else if (!small) {
+        const hint = footer.addText("ยังไม่มีรายรับเดือนนี้");
+        hint.font = Font.systemFont(10);
+        hint.textColor = new Color(C.mute);
+        footer.addSpacer();
     }
 
-    footerRow.addSpacer();
+    const hasDebt = data.debt && data.debt.balance !== 0;
+    const debtLabel = footer.addText(hasDebt ? `${data.debt.text}` : "เคลียร์หนี้ครบแล้ว");
+    debtLabel.font = Font.systemFont(10);
+    debtLabel.textColor = new Color(hasDebt ? (data.debt.type === "receive" ? C.receive : C.pay) : C.mute);
+    if (small) footer.addSpacer();
 
     if (isOffline) {
-        const offlineLabel = footerRow.addText(`ออฟไลน์ (${result.cachedAt || ""}) `);
-        offlineLabel.font = Font.systemFont(8);
-        offlineLabel.textColor = new Color("#F59E0B");
+        listWidget.addSpacer(2);
+        const off = listWidget.addText(`ออฟไลน์ ข้อมูลเมื่อ ${result.cachedAt || ""}  v${SCRIPT_VERSION}`);
+        off.font = Font.systemFont(8);
+        off.textColor = new Color(C.mute);
     }
 
-    // W4: แสดง SCRIPT_VERSION มุมล่าง
-    const verText = footerRow.addText(`v${SCRIPT_VERSION}`);
-    verText.font = Font.systemFont(8);
-    verText.textColor = new Color("#475569");
-
     return listWidget;
+}
+
+function addColumn(parent, label, value, color) {
+    const col = parent.addStack();
+    col.layoutVertically();
+    const l = col.addText(label);
+    l.font = Font.systemFont(10);
+    l.textColor = new Color(C.mute);
+    col.addSpacer(2);
+    const v = col.addText(money(value));
+    v.font = Font.boldSystemFont(22);
+    v.textColor = new Color(color);
+    v.minimumScaleFactor = 0.6;
+    v.lineLimit = 1;
+}
+
+// แถบสัดส่วน: พื้นรางสีเส้น, ส่วนที่ใช้ไปสีส้ม (เกินรายรับก็เต็มราง)
+function drawBar(income, spent, width) {
+    const h = 6;
+    const ctx = new DrawContext();
+    ctx.size = new Size(width, h);
+    ctx.opaque = false;
+    ctx.respectScreenScale = true;
+    ctx.setFillColor(new Color(C.line));
+    ctx.fillPath(roundedRect(0, 0, width, h, h / 2));
+    const ratio = income > 0 ? Math.min(spent / income, 1) : (spent > 0 ? 1 : 0);
+    if (ratio > 0) {
+        ctx.setFillColor(new Color(C.pay));
+        ctx.fillPath(roundedRect(0, 0, Math.max(width * ratio, h), h, h / 2));
+    }
+    return ctx.getImage();
+}
+
+function roundedRect(x, y, w, h, r) {
+    const path = new Path();
+    path.addRoundedRect(new Rect(x, y, w, h), r, r);
+    return path;
+}
+
+// โลโก้แอป โหลดครั้งเดียวแล้วเก็บในเครื่อง (โหลดไม่ได้ก็แสดงโดยไม่มีโลโก้)
+async function loadLogo() {
+    const fm = FileManager.local();
+    const path = fm.joinPath(fm.documentsDirectory(), "dept_logo_v1.png");
+    try {
+        if (fm.fileExists(path)) return fm.readImage(path);
+        const req = new Request(`${BASE_URL}/icons/icon-192.png`);
+        req.timeoutInterval = 5;
+        const img = await req.loadImage();
+        fm.writeImage(path, img);
+        return img;
+    } catch (e) {
+        return null;
+    }
+}
+
+function money(num) {
+    const val = Math.round(Number(num) || 0);
+    return `฿${val.toLocaleString("th-TH")}`;
 }
 
 // ==========================================
@@ -210,13 +227,13 @@ function renderErrorWidget(listWidget, title, message, colorHex = "#EF4444") {
 
     const msgText = stack.addText(message);
     msgText.font = Font.systemFont(11);
-    msgText.textColor = new Color("#94A3B8");
+    msgText.textColor = new Color(C.mute);
 
     stack.addSpacer(10);
 
     const hintText = stack.addText("แตะที่นี่เพื่อเปิดเว็บ");
     hintText.font = Font.systemFont(10);
-    hintText.textColor = new Color("#38BDF8");
+    hintText.textColor = new Color(C.receive);
 
     listWidget.addSpacer();
 
@@ -224,7 +241,7 @@ function renderErrorWidget(listWidget, title, message, colorHex = "#EF4444") {
     footer.addSpacer();
     const ver = footer.addText(`v${SCRIPT_VERSION}`);
     ver.font = Font.systemFont(8);
-    ver.textColor = new Color("#475569");
+    ver.textColor = new Color(C.mute);
 
     return listWidget;
 }

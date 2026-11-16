@@ -99,6 +99,7 @@ export default async function handler(req, res) {
 
         // รายจ่ายส่วนตัวของเจ้าของเท่านั้น เฉพาะเดือนนี้ (เดิมอ่านของทุกคน) กระเป๋าใหม่ + รายการเดิมที่ยังไม่ถูกย้าย ไม่ซ้ำ id
         let allPersonal = [];
+        let monthIncome = 0;
         try {
             const [walletSnap, legacySnap] = await Promise.all([
                 getDocs(query(collection(db, 'wallet_entries'), where('ownerName', '==', targetUser), where('month', '==', currentMonthStr))),
@@ -110,7 +111,8 @@ export default async function handler(req, res) {
             const seen = new Set(allPersonal.map(p => p.id));
             walletSnap.docs.forEach(d => {
                 const w = d.data();
-                if (seen.has(d.id) || w.type === 'income') return;
+                if (w.type === 'income') { monthIncome += Number(w.amount) || 0; return; }
+                if (seen.has(d.id)) return;
                 allPersonal.push({ id: d.id, ...w });
             });
         } catch (e) {
@@ -235,6 +237,7 @@ export default async function handler(req, res) {
             dateHeader: thaiDateHeader,
             todayExpense: todayExpense,
             monthExpense: monthExpense,
+            monthIncome: monthIncome,
             lastTransaction: lastTransaction,
             debt: {
                 balance: roundedBalance,
