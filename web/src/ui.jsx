@@ -87,6 +87,17 @@ export function DeleteButton({ label, onConfirm, verb = "ลบ", busyText = "�
     );
 }
 
+/** โหลดคอมโพเนนต์เมื่อต้องใช้ (แยกไฟล์ ลดขนาดที่ต้องโหลดตอนเปิดแอป) load = () => import("./x.jsx") */
+export function Lazy({ load, name, fallback = null, ...props }) {
+    const [C, setC] = useState(null);
+    useEffect(() => {
+        let on = true;
+        load().then((m) => { if (on) setC(() => m[name]); }).catch(() => {});
+        return () => { on = false; };
+    }, []);
+    return C ? <C {...props} /> : fallback;
+}
+
 /** โครงระหว่างรอข้อมูล: รูปร่างใกล้ของจริง ไม่ใช่ข้อความลอยๆ */
 export function Skeleton({ blocks = 3 }) {
     return (

@@ -1,10 +1,9 @@
 // บิล: รายการบิลของเดือน ค้นหา และลบ (เฉพาะคนจ่ายหรือแอดมิน) การเพิ่ม/แก้ไขบิลหารยังใช้ฟอร์มหน้าเดิมไปก่อน
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor } from "../icons.jsx";
-import { SectionTitle, DeleteButton } from "../ui.jsx";
+import { SectionTitle, DeleteButton, Lazy } from "../ui.jsx";
 import { baht, monthShort } from "../model.js";
 import { deleteBill, loadTemplates, stopTemplate } from "../data.js";
-import { EditBillSheet } from "../editbill.jsx";
 
 function Bill({ b, canDelete, onDeleted, onError, onEdit }) {
     const kind = b.type === "installment" ? "ผ่อน" : b.type === "subscription" ? "รายเดือน" : "";
@@ -97,7 +96,7 @@ export function BillsPage({ model, search, onSearch, me, isAdmin, onChanged, onE
                     ))}
             </section>
             <Recurring me={me} isAdmin={isAdmin} onError={onError} />
-            {editing && <EditBillSheet bill={editing} onClose={() => setEditing(null)} onSaved={() => { onChanged(); }} />}
+            {editing && <Lazy load={() => import("../editbill.jsx")} name="EditBillSheet" bill={editing} onClose={() => setEditing(null)} onSaved={() => { onChanged(); }} />}
         </div>
     );
 }

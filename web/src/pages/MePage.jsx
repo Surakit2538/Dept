@@ -2,9 +2,7 @@
 import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { SectionTitle } from "../ui.jsx";
-import { IphoneSheet } from "../iphone.jsx";
-import { MembersSheet } from "../members.jsx";
-import { DataToolsSheet } from "../datatools.jsx";
+import { Lazy } from "../ui.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
 
@@ -81,9 +79,9 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                 )}
                 <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>
             </div>
-        {tools && <DataToolsSheet transactions={transactions} onClose={() => setTools(false)} onToast={onToast} onChanged={onDataChanged} />}
-        {members && <MembersSheet profiles={profiles} me={auth.user.name} onClose={() => setMembers(false)} onChanged={onMembers} onToast={onToast} />}
-        {iphone && <IphoneSheet onClose={() => setIphone(false)} />}
+        {tools && <Lazy load={() => import("../datatools.jsx")} name="DataToolsSheet" transactions={transactions} onClose={() => setTools(false)} onToast={onToast} onChanged={onDataChanged} />}
+        {members && <Lazy load={() => import("../members.jsx")} name="MembersSheet" profiles={profiles} me={auth.user.name} onClose={() => setMembers(false)} onChanged={onMembers} onToast={onToast} />}
+        {iphone && <Lazy load={() => import("../iphone.jsx")} name="IphoneSheet" onClose={() => setIphone(false)} />}
         </div>
     );
 }

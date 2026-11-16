@@ -2,29 +2,39 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
-import { signIn, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { signIn, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
-import { MonthPicker, Shell, Skeleton, ErrorState } from "./ui.jsx";
-import { AddSheet } from "./add.jsx";
-import { LinkPage, OnboardPage } from "./onboard.jsx";
+import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
-import { ClearPage } from "./pages/ClearPage.jsx";
-import { WalletPage } from "./pages/WalletPage.jsx";
-import { BillsPage } from "./pages/BillsPage.jsx";
-import { MePage } from "./pages/MePage.jsx";
+
+// หน้าอื่นและหน้าต่างต่างๆ โหลดเมื่อต้องใช้ (หน้าแรกกับตัวแอปมาก่อน เปิดเร็วขึ้น)
+const loadAdd = () => import("./add.jsx");
+const loadClear = () => import("./pages/ClearPage.jsx");
+const loadWallet = () => import("./pages/WalletPage.jsx");
+const loadBills = () => import("./pages/BillsPage.jsx");
+const loadMe = () => import("./pages/MePage.jsx");
+const loadOnboard = () => import("./onboard.jsx");
+
+const CACHED_USER = getCachedUser();
+const nowMonth0 = bangkokToday().slice(0, 7);
 
 const MONTHS_BACK = 12; // เลือกย้อนหลังได้กี่เดือน
 const CHART_MONTHS = 6; // กราฟรายเดือนแสดงกี่เดือน
 
 function App() {
-    const [auth, setAuth] = useState({ state: "loading" });
+    // มีตัวตนที่จำไว้ -> เข้าแอปทันที (ยืนยันกับ LINE เบื้องหลัง) ไม่ต้องรอหน้า "กำลังเข้าสู่ระบบ"
+    const [auth, setAuth] = useState(CACHED_USER ? { state: "ok", user: CACHED_USER } : { state: "loading" });
     const [tab, setTab] = useState(location.hash.slice(1) || "home");
     const today = useMemo(() => bangkokToday(), []);
     const nowMonth = today.slice(0, 7);
     const since = useMemo(() => shiftMonth(nowMonth, -(MONTHS_BACK - 1)), [nowMonth]);
     const [month, setMonth] = useState(nowMonth);
-    const [members, setMembers] = useState(null);
-    const [byMonth, setByMonth] = useState({}); // { "2026-11": { transactions, settlements, wallet } }
+    const [members, setMembers] = useState(() => (CACHED_USER ? getStaleMembers() : null));
+    // { "2026-11": { transactions, settlements, wallet } } เริ่มจากภาพล่าสุดที่จำไว้ แล้วอัปเดตสดทับ
+    const [byMonth, setByMonth] = useState(() => {
+        const snap = CACHED_USER ? loadSnapshot(CACHED_USER.name, nowMonth0) : null;
+        return snap ? { [nowMonth0]: snap } : {};
+    });
     const [loadError, setLoadError] = useState(false);
     const [profiles, setProfiles] = useState(null);
     const [search, setSearch] = useState("");
@@ -34,14 +44,17 @@ function App() {
 
     // หลังล็อกอิน: ยังไม่ผูกบัญชี -> เลือกชื่อ / สมาชิกที่ยังไม่กรอกชื่อจริงและพร้อมเพย์ -> กรอกก่อน (แอดมินข้าม) / ไม่งั้นเข้าแอป
     const accept = (u) => {
+        // ที่จำไว้เป็นของคนอื่น (เปลี่ยนบัญชี LINE ในเบราว์เซอร์เดียวกัน): ล้างข้อมูลที่จำไว้ทั้งหมด ไม่ให้เห็นของกัน
+        if (CACHED_USER && !u.needLink && u.memberId !== CACHED_USER.memberId) { clearCache(); setByMonth({}); setMembers(null); setProfiles(null); }
         if (u.needLink) setAuth({ state: "link", profile: u.profile, candidates: u.candidates });
         else if (!u.isAdmin && (!u.realName || !validPromptpay(u.promptpay))) setAuth({ state: "onboard", user: u });
-        else setAuth({ state: "ok", user: u });
+        else setAuth((cur) => (cur.state === "ok" && JSON.stringify(cur.user) === JSON.stringify(u) ? cur : { state: "ok", user: u }));
+        if (!u.needLink) setCachedUser(u);
     };
     const patchMonth = (m, part) => setByMonth((cur) => ({ ...cur, [m]: { ...(cur[m] || {}), ...part } }));
 
     useEffect(() => {
-        signIn().then((u) => { if (u) accept(u); }).catch((e) => setAuth({ state: "error", message: e.message }));
+        signIn().then((u) => { if (u) accept(u); }).catch((e) => { if (!CACHED_USER) setAuth({ state: "error", message: e.message }); else console.warn("signIn:", e.message); });
     }, []);
     useEffect(() => {
         const h = () => setTab(location.hash.slice(1) || "home");
@@ -83,6 +96,17 @@ function App() {
                 .catch(() => setLoadError(true));
         });
     }, [auth.state, wantedMonths, wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].transactions)).join("|")]);
+    const curPart = byMonth[nowMonth];
+    useEffect(() => {
+        if (auth.state === "ok" && curPart && curPart.transactions && curPart.settlements && curPart.wallet) saveSnapshot(auth.user.name, nowMonth, curPart);
+    }, [curPart]);
+    // ว่างๆ ค่อยโหลดหน้าอื่นรอไว้ เวลากดเปลี่ยนแท็บจะได้ไม่ต้องรอ
+    useEffect(() => {
+        if (auth.state !== "ok") return undefined;
+        const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1500));
+        const h = idle(() => { [loadBills, loadClear, loadWallet, loadMe, loadAdd].forEach((l) => l().catch(() => {})); });
+        return () => { if (window.cancelIdleCallback) window.cancelIdleCallback(h); else clearTimeout(h); };
+    }, [auth.state]);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
 
     const done = (m) => byMonth[m] && byMonth[m].transactions && byMonth[m].settlements && byMonth[m].wallet;
@@ -114,8 +138,8 @@ function App() {
 
     if (auth.state === "loading") return <div class="center"><Mark size={64} /><p>กำลังเข้าสู่ระบบ</p></div>;
     if (auth.state === "error") return <div class="center"><Mark size={64} /><p role="alert">{auth.message}</p><button type="button" class="btn" onClick={() => location.reload()}>ลองใหม่</button></div>;
-    if (auth.state === "link") return <LinkPage profile={auth.profile} candidates={auth.candidates} onDone={accept} />;
-    if (auth.state === "onboard") return <OnboardPage user={auth.user} onDone={accept} />;
+    if (auth.state === "link") return <Lazy load={loadOnboard} name="LinkPage" profile={auth.profile} candidates={auth.candidates} onDone={accept} fallback={<div class="center"><Mark size={64} /></div>} />;
+    if (auth.state === "onboard") return <Lazy load={loadOnboard} name="OnboardPage" user={auth.user} onDone={accept} fallback={<div class="center"><Mark size={64} /></div>} />;
 
     const go = (k) => { location.hash = k; setTab(k); window.scrollTo(0, 0); };
     const page = ["home", "bills", "clear", "wallet", "me"].includes(tab) ? tab : "home";
@@ -123,10 +147,10 @@ function App() {
     let body;
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} /> : <Skeleton blocks={5} />;
-    else if (page === "bills") body = billsM ? <BillsPage model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "clear") body = clearM && profiles ? <ClearPage model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "wallet") body = walletM ? <WalletPage model={walletM} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={3} />;
-    else body = profiles ? <MePage auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} /> : <Skeleton blocks={2} />;
+    else if (page === "bills") body = billsM ? <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={2} />;
+    else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
+    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={3} />;
+    else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} /> : <Skeleton blocks={2} />;
 
     return (
         <>
@@ -134,7 +158,7 @@ function App() {
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 {body}
             </Shell>
-            {sheet && <AddSheet initial={sheet === "income" ? "income" : null} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => setSheet(null)}
+            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : null} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => setSheet(null)}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>

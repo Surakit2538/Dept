@@ -89,7 +89,7 @@ test("เคลียร์เงิน: คนที่ผู้รับยั
 
 test("เว็บใหม่: main.jsx ต่อหน้าครบ และไม่มี emoji", () => {
     const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
-    for (const p of ["ClearPage", "WalletPage", "BillsPage", "MePage"]) assert.ok(main.includes(`<${p} `), `main.jsx ต้องใช้ ${p}`);
+    for (const p of ["ClearPage", "WalletPage", "BillsPage", "MePage"]) assert.ok(main.includes(`pages/${p}.jsx`) && main.includes(`name="${p}"`), `main.jsx ต้องใช้ ${p}`);
     for (const f of ["web/src/ui.jsx", "web/src/add.jsx", "web/src/pages/HomePage.jsx", "web/src/pages/ClearPage.jsx", "web/src/pages/WalletPage.jsx", "web/src/pages/BillsPage.jsx", "web/src/pages/MePage.jsx", "web/src/data.js", "web/src/model.js"]) {
         const s = fs.readFileSync(path.join(root, f), "utf8");
         assert.ok(!/\p{Extended_Pictographic}/u.test(s), `${f} มี emoji`);

@@ -19,6 +19,22 @@ export function bangkokToday(now = new Date()) {
     return p; // YYYY-MM-DD
 }
 
+/** รอให้สคริปต์ LIFF (โหลดแบบ async) พร้อมใช้ ไม่เกิน 10 วินาที */
+export function waitForLiff() {
+    if (typeof liff !== "undefined") return Promise.resolve();
+    return new Promise((resolve, reject) => {
+        let tries = 0;
+        const t = setInterval(() => {
+            if (typeof liff !== "undefined") { clearInterval(t); resolve(); }
+            else if (++tries > 100) { clearInterval(t); reject(new Error("โหลดระบบ LINE ไม่สำเร็จ ลองรีเฟรชหน้านี้")); }
+        }, 100);
+    });
+}
+
+// API ที่ต้องใช้รหัสล็อกอิน LINE จะรอจนล็อกอินเสร็จ (แอปแสดงข้อมูลจากเครื่องก่อนได้ โดยไม่ต้องรอส่วนนี้)
+let markLiffReady = () => {};
+const liffReady = new Promise((r) => { markLiffReady = r; });
+
 const SUPER_ADMIN_LINE_ID = "U0d739eea39c312e11c487e22861920d1";
 const cleanName = (n) => String(n || "").replace(/\s+/g, " ").trim().toUpperCase();
 
@@ -41,12 +57,13 @@ function userFromMember(id, x, lineUserId) {
  *  - null                                                             กำลังพาไปหน้าล็อกอิน LINE
  */
 export async function signIn() {
-    if (typeof liff === "undefined") throw new Error("โหลดระบบ LINE ไม่สำเร็จ ลองรีเฟรชหน้านี้");
+    await waitForLiff();
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) {
         liff.login({ redirectUri: location.href });
         return null; // กำลังพาไปหน้าล็อกอิน
     }
+    markLiffReady();
     // อ่านรหัสผู้ใช้จาก ID token ในเครื่องได้เลย (เร็วกว่าถามเซิร์ฟเวอร์ LINE) ถ้าไม่มีค่อยถามด้วย getProfile
     const decoded = typeof liff.getDecodedIDToken === "function" ? liff.getDecodedIDToken() : null;
     let userId = decoded && decoded.sub ? decoded.sub : "";
@@ -108,6 +125,30 @@ function cacheGet(key, ttl) {
 function cacheSet(key, v) {
     try { localStorage.setItem(KEY + key, JSON.stringify({ t: Date.now(), v })); } catch (e) { /* เต็มหรือถูกปิด ไม่เป็นไร */ }
 }
+const TTL_USER = 14 * 24 * 60 * 60 * 1000;
+const TTL_SNAP = 7 * 24 * 60 * 60 * 1000;
+
+/** ตัวตนที่จำไว้ (ใช้แสดงแอปทันที ระหว่างนั้นระบบยืนยันกับ LINE เบื้องหลัง) */
+export function getCachedUser() {
+    const u = cacheGet("user", TTL_USER);
+    return u && u.name && u.memberId ? u : null;
+}
+export function setCachedUser(u) { if (u && u.name && u.memberId) cacheSet("user", u); }
+
+/** ภาพล่าสุดของข้อมูลเดือนนี้ (เก็บในเครื่องของเจ้าของ แยกตามชื่อ ล้างตอนออกจากระบบ) */
+export function loadSnapshot(name, month) {
+    const v = cacheGet(`snap:${name}:${month}`, TTL_SNAP);
+    return v && Array.isArray(v.transactions) && Array.isArray(v.settlements) && Array.isArray(v.wallet) ? v : null;
+}
+export function saveSnapshot(name, month, part) {
+    cacheSet(`snap:${name}:${month}`, { transactions: part.transactions, settlements: part.settlements, wallet: part.wallet });
+}
+
+/** รายชื่อสมาชิกที่จำไว้ (ไม่สนอายุ ใช้แสดงก่อน แล้วค่อยโหลดใหม่) */
+export function getStaleMembers() {
+    return cacheGet("members", Infinity);
+}
+
 export function clearCache() {
     try { Object.keys(localStorage).filter((k) => k.startsWith(KEY)).forEach((k) => localStorage.removeItem(k)); } catch (e) { /* ไม่มีอะไร */ }
 }
@@ -157,6 +198,7 @@ export function watchMonth(month, onData) {
 
 /** เรียก API ของเรา ใช้รหัสล็อกอิน LINE (หมดอายุ ~1 ชั่วโมง ถ้าหมดจะให้ล็อกอินใหม่) */
 export async function api(path, body) {
+    await Promise.race([liffReady, new Promise((_, rej) => setTimeout(() => rej(new Error("ยังเข้าสู่ระบบ LINE ไม่เสร็จ ลองใหม่อีกครั้ง")), 20000))]);
     const idToken = liff.getIDToken();
     const res = await fetch(path, {
         method: "POST",
@@ -387,7 +429,7 @@ export async function verifySlip(file, { to, amount, month }) {
 export function logout() {
     try { liff.logout(); } catch (e) { /* ไม่มีอะไร */ }
     clearCache();
-    location.href = "/app/";
+    location.href = "/";
 }
 
 /** บันทึกบิลหารกับเพื่อน (หนึ่งบิลหรือหลายงวด) และ template รายเดือน ในครั้งเดียว: สำเร็จทั้งหมดหรือไม่เลย */
