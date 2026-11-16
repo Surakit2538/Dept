@@ -1,9 +1,9 @@
 // บิล: รายการบิลของเดือน ค้นหา และลบ (เฉพาะคนจ่ายหรือแอดมิน) การเพิ่ม/แก้ไขบิลหารยังใช้ฟอร์มหน้าเดิมไปก่อน
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor } from "../icons.jsx";
 import { SectionTitle, DeleteButton } from "../ui.jsx";
 import { baht } from "../model.js";
-import { deleteBill } from "../data.js";
+import { deleteBill, loadTemplates, stopTemplate } from "../data.js";
 
 function Bill({ b, canDelete, onDeleted, onError }) {
     const kind = b.type === "installment" ? "ผ่อน" : b.type === "subscription" ? "รายเดือน" : "";
@@ -21,6 +21,34 @@ function Bill({ b, canDelete, onDeleted, onError }) {
             </div>
             {canDelete && <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />}
         </li>
+    );
+}
+
+function Recurring({ me, isAdmin, onError }) {
+    const [list, setList] = useState(null);
+    useEffect(() => { let on = true; loadTemplates().then((l) => on && setList(l)).catch(() => on && setList([])); return () => { on = false; }; }, []);
+    if (!list || list.length === 0) return null;
+    return (
+        <section class="card">
+            <SectionTitle icon="swap" title="บิลรายเดือนที่ตั้งไว้" note={`${list.length} รายการ`} />
+            <ul class="plain">
+                {list.map((t) => (
+                    <li class="row" key={t.id}>
+                        <span class="ico"><Icon name={iconFor(t.icon)} /></span>
+                        <div class="grow">
+                            <div class="t">{t.desc || "ไม่ระบุ"}</div>
+                            <div class="s">ทุกวันที่ {t.billingDay} &middot; {t.payer} จ่าย &middot; {Object.keys(t.splits || {}).length} คน</div>
+                        </div>
+                        <div class="amt2"><span class="num">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
+                        {(isAdmin || String(t.payer || "").trim().toUpperCase() === me) && (
+                            <DeleteButton verb="หยุด" busyText="กำลังหยุด" keepText="ไม่หยุด" label={t.desc || "บิลรายเดือน"}
+                                onConfirm={async () => { try { await stopTemplate(t.id); setList((cur) => cur.filter((x) => x.id !== t.id)); } catch (e) { onError(e.message); } }} />
+                        )}
+                    </li>
+                ))}
+            </ul>
+            <p class="lbl">หยุดแล้วเดือนถัดไปจะไม่สร้างบิลนี้ซ้ำ บิลที่สร้างไปแล้วยังอยู่</p>
+        </section>
     );
 }
 
@@ -49,6 +77,7 @@ export function BillsPage({ model, search, onSearch, me, isAdmin, onChanged, onE
                     : <ul class="plain">{list.map((b) => <Bill key={b.id} b={b} canDelete={isAdmin || b.payer.trim().toUpperCase() === me} onDeleted={onChanged} onError={onError} />)}</ul>}
                 <a class="more" href="/index.html#history">แก้ไขบิลที่บันทึกไปแล้ว (หน้าเดิม)<Icon name="right" size={14} /></a>
             </section>
+            <Recurring me={me} isAdmin={isAdmin} onError={onError} />
         </div>
     );
 }

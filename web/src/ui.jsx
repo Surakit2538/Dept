@@ -71,18 +71,18 @@ export function Sheet({ title, onClose, children, as = "div", onSubmit, action }
 }
 
 /** ปุ่มลบแบบยืนยันสองจังหวะ: แตะครั้งแรกขึ้น "ลบ / ยกเลิก" ถ้าไม่ทำอะไร 5 วินาทีจะกลับเอง */
-export function DeleteButton({ label, onConfirm }) {
+export function DeleteButton({ label, onConfirm, verb = "ลบ", busyText = "กำลังลบ", keepText = "ยกเลิก" }) {
     const [state, setState] = useState("idle"); // idle | confirm | busy
     useEffect(() => {
         if (state !== "confirm") return undefined;
         const t = setTimeout(() => setState("idle"), 5000);
         return () => clearTimeout(t);
     }, [state]);
-    if (state === "idle") return <button type="button" class="icon-btn" aria-label={`ลบ ${label}`} onClick={() => setState("confirm")}><Icon name="trash" size={17} /></button>;
+    if (state === "idle") return <button type="button" class="icon-btn" aria-label={`${verb} ${label}`} onClick={() => setState("confirm")}><Icon name="trash" size={17} /></button>;
     return (
         <span class="confirm">
-            <button type="button" class="btn sm danger" disabled={state === "busy"} onClick={async () => { setState("busy"); try { await onConfirm(); } finally { setState("idle"); } }}>{state === "busy" ? "กำลังลบ" : "ลบ"}</button>
-            <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
+            <button type="button" class="btn sm danger" disabled={state === "busy"} onClick={async () => { setState("busy"); try { await onConfirm(); } finally { setState("idle"); } }}>{state === "busy" ? busyText : verb}</button>
+            <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>{keepText}</button>
         </span>
     );
 }

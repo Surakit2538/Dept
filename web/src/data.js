@@ -170,6 +170,16 @@ export async function deleteWalletEntry(id) {
     return api("/api/shortcut-transaction", { action: "wallet-delete", id });
 }
 
+/** บิลรายเดือนที่ตั้งไว้ (เปิดอยู่เท่านั้น) */
+export async function loadTemplates() {
+    const snap = await getDocs(query(collection(db, "subscription_templates"), where("active", "==", true)));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+export async function stopTemplate(id) {
+    await updateDoc(doc(db, "subscription_templates", String(id)), { active: false, stoppedAt: new Date() });
+}
+
 export async function deleteBill(id) {
     await deleteDoc(doc(db, "transactions", String(id)));
 }
