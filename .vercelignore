@@ -20,3 +20,4 @@ tests/
 # ไฟล์ทดสอบ/ไฟล์เก่า ห้ามเผยแพร่บนเว็บ
 test_slipok.*
 HANDOVER_NOTES.md
+REVIEW_FIX_PLAN.md

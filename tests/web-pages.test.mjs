@@ -178,3 +178,9 @@ test("Lazy: สลับแท็บแล้วต้องไม่เอา�
     assert.match(ui, /mod\.name !== name/, "Lazy ต้องเช็กว่าคอมโพเนนต์ที่โหลดไว้ตรงกับชื่อที่ขอ");
     assert.match(ui, /\}, \[name\]\);/, "Lazy ต้องโหลดใหม่เมื่อชื่อเปลี่ยน");
 });
+
+test("Sheet ซ้อนกัน: กด Esc ปิดเฉพาะหน้าต่างบนสุด", () => {
+    const ui = fs.readFileSync(path.join(root, "web/src/ui.jsx"), "utf8");
+    assert.match(ui, /sheetStack\[sheetStack\.length - 1\] === me/);
+    assert.match(ui, /sheetStack\.splice\(i, 1\)/);
+});

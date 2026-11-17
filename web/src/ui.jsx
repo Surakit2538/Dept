@@ -286,17 +286,24 @@ export function DatePickerField({ id, label = "วันที่", value, onCha
 }
 
 /** กล่องเลื่อนขึ้น (มือถือ) / กล่องกลางจอ (คอมพิวเตอร์): ปิดด้วย Esc หรือแตะพื้นหลัง คืนโฟกัสให้ปุ่มที่เปิด และล็อกการเลื่อนหน้าหลัง */
+// หน้าต่างที่เปิดซ้อนกัน (เช่น ปฏิทินในฟอร์มบิล): กด Esc ปิดเฉพาะอันบนสุด ไม่ปิดทุกอันพร้อมกัน
+const sheetStack = [];
+
 export function Sheet({ title, onClose, children, as = "div", onSubmit, action, class: cls = "" }) {
     const ref = useRef(null);
     useEffect(() => {
         const opener = document.activeElement;
-        const onKey = (e) => { if (e.key === "Escape") onClose(); };
+        const me = {};
+        sheetStack.push(me);
+        const onKey = (e) => { if (e.key === "Escape" && sheetStack[sheetStack.length - 1] === me) onClose(); };
         document.addEventListener("keydown", onKey);
         const prev = document.body.style.overflow;
         document.body.style.overflow = "hidden";
         const first = ref.current && ref.current.querySelector("input, select, textarea");
         (first || ref.current).focus({ preventScroll: true });
         return () => {
+            const i = sheetStack.indexOf(me);
+            if (i >= 0) sheetStack.splice(i, 1);
             document.removeEventListener("keydown", onKey);
             document.body.style.overflow = prev;
             if (opener && opener.focus) opener.focus({ preventScroll: true });
