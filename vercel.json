@@ -49,6 +49,7 @@
             "destination": "/app/index.html"
         }
     ],
+    "regions": ["sin1"],
     "functions": {
         "api/shortcut-transaction.js": {
             "maxDuration": 30

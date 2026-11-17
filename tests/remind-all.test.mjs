@@ -7,7 +7,7 @@ import { createFakeFirestore, createFakeRes } from "./fake-firestore.mjs";
 
 const NOV13 = Date.parse("2026-11-13T05:00:00Z");
 
-function setup() {
+function setup({ tokenOwner = null } = {}) {
     const db = createFakeFirestore();
     db.seed("members", "a", { name: "GAME", lineUserId: "U_game", role: "admin", promptpay: "0812345678" });
     db.seed("members", "b", { name: "AOY", lineUserId: "U_aoy" });
@@ -24,11 +24,12 @@ function setup() {
     };
     const handler = createShortcutHandler({
         db: {}, fs: db.fs,
-        verifyDeviceToken: async () => ({ authenticated: false }),
+        // รหัสเว็บ/รหัสอุปกรณ์ (Bearer): ไม่มีข้อมูลแอดมินมาด้วย ระบบต้องอ่านจากสมาชิกเอง
+        verifyDeviceToken: async () => (tokenOwner ? { authenticated: true, ...tokenOwner } : { authenticated: false, status: 401, message: "x" }),
         authenticateIdToken: createLineIdAuthenticator({ db: {}, fs: db.fs, fetchFn, channelId: "1" }),
         env: { LINE_CHANNEL_ACCESS_TOKEN: "t" }, fetchFn, now: () => NOV13
     });
-    const call = async (body) => { const res = createFakeRes(); await handler({ method: "POST", headers: {}, body }, res); return res; };
+    const call = async (body, headers = {}) => { const res = createFakeRes(); await handler({ method: "POST", headers, body }, res); return res; };
     return { call, pushes };
 }
 
@@ -56,4 +57,15 @@ test("remind-all: กดซ้ำภายใน 12 ชั่วโมงถู�
     const again = await call({ action: "remind-all", idToken: "admin" });
     assert.equal(again.body.status, "cooldown");
     assert.equal(pushes.length, 1);
+});
+
+test("remind-all: เข้าด้วยรหัสเว็บ (Bearer) แอดมินใช้ได้ คนทั่วไปใช้ไม่ได้", async () => {
+    const admin = setup({ tokenOwner: { memberId: "a", name: "GAME", lineUserId: "U_game" } });
+    const ok = await admin.call({ action: "remind-all" }, { authorization: "Bearer web" });
+    assert.equal(ok.statusCode, 200);
+    assert.equal(ok.body.sent, 1);
+    const member = setup({ tokenOwner: { memberId: "b", name: "AOY", lineUserId: "U_aoy" } });
+    const no = await member.call({ action: "remind-all" }, { authorization: "Bearer web" });
+    assert.equal(no.statusCode, 403);
+    assert.equal(member.pushes.length, 0);
 });

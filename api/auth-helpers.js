@@ -195,6 +195,14 @@ export async function verifyDeviceToken(db, req) {
                 message: "รหัสนี้ถูกยกเลิกแล้ว กรุณาตั้งค่าใหม่จากเว็บ"
             };
         }
+        // รหัสของเว็บ (จำการล็อกอิน) มีวันหมดอายุ รหัส iPhone ไม่มี
+        if (tokenData.expiresAt && Date.parse(tokenData.expiresAt) < Date.now()) {
+            return {
+                authenticated: false,
+                status: 401,
+                message: "การจำการเข้าสู่ระบบหมดอายุ กรุณาเข้าสู่ระบบ LINE ใหม่"
+            };
+        }
 
         // อัปเดต lastUsedAt
         updateDoc(tokenDoc.ref, {

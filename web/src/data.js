@@ -54,6 +54,37 @@ function expired() {
     return err;
 }
 const liffReady = new Promise((r) => { markLiffReady = r; });
+let liffState = "pending"; // pending | in (ล็อกอิน LINE อยู่) | out (ไม่ได้ล็อกอิน LINE ในเบราว์เซอร์นี้)
+
+// รหัสเว็บ: หลังล็อกอิน LINE สำเร็จ เว็บขอรหัสของตัวเองไว้ (อายุ 30 วัน) เพื่อ
+//  - คอมไม่ต้องเข้าหน้า LINE ใหม่ทุกครั้งที่บัตร LINE หมดอายุ
+//  - เรียก API ได้ทันที ไม่ต้องรอ LINE เริ่มระบบ และเซิร์ฟเวอร์ไม่ต้องถาม LINE ทุกครั้ง
+// เก็บในเครื่องนี้เท่านั้น ล้างตอนออกจากระบบ ยกเลิกได้ด้วยปุ่ม "ยกเลิกรหัสอุปกรณ์ทั้งหมด"
+const WEB_TOKEN_KEY = "dm:v2:webtoken";
+const WEB_TOKEN_RENEW_MS = 20 * 24 * 60 * 60 * 1000; // ใช้มาเกิน 20 วันและล็อกอิน LINE อยู่: ขอใหม่ก่อนหมดอายุ
+function readWebToken() {
+    try {
+        const v = JSON.parse(localStorage.getItem(WEB_TOKEN_KEY) || "null");
+        return v && typeof v.token === "string" && v.token ? v : null;
+    } catch (e) { return null; }
+}
+function saveWebToken(token) {
+    try {
+        if (token) localStorage.setItem(WEB_TOKEN_KEY, JSON.stringify({ token, t: Date.now() }));
+        else localStorage.removeItem(WEB_TOKEN_KEY);
+    } catch (e) { /* ปิดที่เก็บข้อมูล ไม่เป็นไร ใช้ LINE ตามเดิม */ }
+}
+async function ensureWebToken() {
+    const cur = readWebToken();
+    if (cur && Date.now() - cur.t < WEB_TOKEN_RENEW_MS) return;
+    try {
+        const idToken = liff.getIDToken();
+        if (!idToken) return;
+        const res = await fetch("/api/device-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken, kind: "web" }) });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success && json.token) saveWebToken(json.token);
+    } catch (e) { /* ไม่ได้ก็ใช้ LINE ตามเดิม */ }
+}
 
 const SUPER_ADMIN_LINE_ID = "U0d739eea39c312e11c487e22861920d1";
 const cleanName = (n) => String(n || "").replace(/\s+/g, " ").trim().toUpperCase();
@@ -105,15 +136,27 @@ export async function signIn() {
     }
     cleanAuthParams();
     if (!liff.isLoggedIn()) {
+        liffState = "out";
         // เคยเข้าแล้ว (มีตัวตนที่จำไว้): ไม่เด้งไปหน้าล็อกอินทันที ให้ดูข้อมูลที่จำไว้ต่อ แล้วแจ้งให้กดเข้าสู่ระบบใหม่เอง
         loginDiag = loginDiag || (hadCode ? "ล็อกอินกลับมาแล้วแต่ LINE ไม่ยืนยันบัตร (ลองกดเข้าสู่ระบบใหม่อีกครั้ง)" : "บัตรล็อกอิน LINE ในเบราว์เซอร์นี้หมดอายุหรือยังไม่มี");
-        if (getCachedUser() && !hadCode) { loggedOut = true; return { needLogin: true }; }
+        const cached = getCachedUser();
+        // มีรหัสเว็บที่จำไว้: ใช้ต่อได้เลยโดยไม่ต้องเข้าหน้า LINE (อ่านข้อมูลสมาชิกล่าสุดมาแทนที่ที่จำไว้)
+        if (cached && readWebToken() && !hadCode) {
+            try {
+                const m = await getDoc(doc(db, "members", String(cached.memberId)));
+                if (m.exists()) return userFromMember(m.id, m.data(), m.data().lineUserId || "");
+            } catch (e) { /* อ่านไม่ได้ ใช้ที่จำไว้ */ }
+            return cached;
+        }
+        if (cached && !hadCode) { loggedOut = true; return { needLogin: true }; }
         const cleanUri = location.origin + location.pathname;
         try { sessionStorage.setItem("dept_auth_hash", location.hash || "#home"); } catch (e) {}
         liff.login({ redirectUri: cleanUri });
         return null; // กำลังพาไปหน้าล็อกอิน
     }
+    liffState = "in";
     markLiffReady();
+    ensureWebToken(); // จำการเข้าสู่ระบบไว้สำหรับครั้งหน้า (ไม่รอผล)
     try {
         const savedHash = sessionStorage.getItem("dept_auth_hash");
         if (savedHash) {
@@ -196,7 +239,7 @@ function cacheGet(key, ttl) {
 function cacheSet(key, v) {
     try { localStorage.setItem(KEY + key, JSON.stringify({ t: Date.now(), v })); } catch (e) { /* เต็มหรือถูกปิด ไม่เป็นไร */ }
 }
-const TTL_USER = 14 * 24 * 60 * 60 * 1000;
+const TTL_USER = 30 * 24 * 60 * 60 * 1000; // เท่ากับอายุรหัสเว็บ
 const TTL_SNAP = 7 * 24 * 60 * 60 * 1000;
 
 /** ตัวตนที่จำไว้ (ใช้แสดงแอปทันที ระหว่างนั้นระบบยืนยันกับ LINE เบื้องหลัง) */
@@ -268,8 +311,23 @@ export function watchMonth(month, onData) {
 }
 
 /** เรียก API ของเรา ใช้รหัสล็อกอิน LINE (หมดอายุ ~1 ชั่วโมง ถ้าหมดจะให้ล็อกอินใหม่) */
-export async function api(path, body) {
-    if (loggedOut) throw expired();
+export async function api(path, body, { line = false } = {}) {
+    const wt = line ? null : readWebToken();
+    if (wt) {
+        const res = await fetch(path, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + wt.token },
+            body: JSON.stringify(body)
+        });
+        let json = {};
+        try { json = await res.json(); } catch (e) { /* ไม่ใช่ JSON */ }
+        if (res.status !== 401) {
+            if (!res.ok) throw new Error(json.message || `เกิดข้อผิดพลาด (${res.status})`);
+            return json;
+        }
+        saveWebToken(""); // รหัสเว็บหมดอายุหรือถูกยกเลิก: กลับไปใช้ล็อกอิน LINE
+    }
+    if (loggedOut || liffState === "out") throw expired();
     await Promise.race([liffReady, new Promise((_, rej) => setTimeout(() => rej(new Error("ยังเข้าสู่ระบบ LINE ไม่เสร็จ ลองใหม่อีกครั้ง")), 20000))]);
     const idToken = liff.getIDToken();
     const res = await fetch(path, {
@@ -326,12 +384,13 @@ export async function loadWalletMonths(months, nowMonth) {
 
 /** รหัสอุปกรณ์สำหรับ iPhone (Widget/คำสั่งลัด) สร้างใหม่ทับรหัสเก่า คืน { token, name } */
 export async function makeDeviceToken() {
-    const r = await api("/api/device-token", {});
+    const r = await api("/api/device-token", {}, { line: true }); // สร้างรหัส iPhone ต้องยืนยันด้วย LINE จริงเสมอ
     if (!r.success || !r.token) throw new Error(r.message || "สร้างรหัสไม่สำเร็จ");
     return r;
 }
 
 export async function revokeDeviceTokens() {
+    if (liffState !== "in") throw expired();
     const res = await fetch("/api/device-token", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idToken: liff.getIDToken() }) });
     let json = {};
     try { json = await res.json(); } catch (e) { /* ไม่ใช่ JSON */ }
@@ -536,6 +595,7 @@ export async function verifySlip(file, { to, amount, month }) {
         r.onerror = () => reject(new Error("อ่านไฟล์รูปไม่สำเร็จ"));
         r.readAsDataURL(file);
     });
+    if (liffState !== "in") throw expired(); // ตรวจสลิปต้องยืนยันด้วย LINE
     const idToken = liff.getIDToken();
     const res = await fetch("/api/verify-settlement-slip", {
         method: "POST",

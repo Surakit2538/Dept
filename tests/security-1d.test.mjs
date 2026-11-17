@@ -83,3 +83,20 @@ test("LINE: พิมพ์ 'สรุป' สั้นๆ ดูรายงา
     assert.match(h, /REPORT_ALIASES = \["สรุป"/);
     assert.match(h, /event\.source\.type === "user" && REPORT_ALIASES\.includes\(text\)/);
 });
+
+test("จำการล็อกอินบนเว็บ: รหัสเว็บกับรหัส iPhone ไม่ยกเลิกกันเอง รหัสเว็บหมดอายุ 30 วัน และเว็บใช้รหัสเว็บก่อนรอ LINE", () => {
+    const dt = read("api/device-token.js");
+    assert.match(dt, /const kind = body\.kind === "web" \? "web" : "device";/);
+    assert.match(dt, /\(d\.data\(\)\.kind \|\| "device"\) === kind/, "ยกเลิกเฉพาะรหัสประเภทเดียวกัน");
+    assert.match(dt, /expiresAt: kind === "web" \?/);
+    assert.match(dt, /WEB_TOKEN_DAYS = 30/);
+    const helpers = read("api/auth-helpers.js");
+    assert.match(helpers, /tokenData\.expiresAt && Date\.parse\(tokenData\.expiresAt\) < Date\.now\(\)/);
+    const data = read("web/src/data.js");
+    assert.match(data, /Authorization: "Bearer " \+ wt\.token/);
+    assert.match(data, /api\("\/api\/device-token", \{\}, \{ line: true \}\)/, "สร้างรหัส iPhone ต้องใช้ LINE จริง");
+    assert.match(data, /if \(cached && readWebToken\(\) && !hadCode\)/);
+    assert.match(data, /ensureWebToken\(\)/);
+    assert.ok(read("web/src/data.js").includes('const WEB_TOKEN_KEY = "dm:v2:webtoken"'), "ต้องขึ้นต้นด้วย dm:v2: เพื่อให้ออกจากระบบแล้วถูกล้าง");
+    assert.deepEqual(JSON.parse(read("vercel.json")).regions, ["sin1"], "เซิร์ฟเวอร์ต้องอยู่สิงคโปร์ ใกล้ฐานข้อมูล");
+});
