@@ -1,6 +1,6 @@
 // กระเป๋า: รายรับ รายจ่ายส่วนตัว ส่วนของฉันในกลุ่ม สุทธิ (เห็นเฉพาะเจ้าของ)
 import { Icon, iconFor } from "../icons.jsx";
-import { SectionTitle, DeleteButton, Lazy } from "../ui.jsx";
+import { SectionTitle, DeleteButton, Lazy, Collapsible } from "../ui.jsx";
 import { baht } from "../model.js";
 import { useState, useEffect } from "preact/hooks";
 import { deleteWalletEntry, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries } from "../data.js";
@@ -45,8 +45,7 @@ function RecurringWallet({ version, onError }) {
     useEffect(() => { let on = true; loadWalletTemplates().then((l) => on && setList(l)).catch(() => on && setList([])); return () => { on = false; }; }, [version]);
     if (!list || list.length === 0) return null;
     return (
-        <section class="card">
-            <SectionTitle icon="swap" title="รายจ่ายรายเดือนที่ตั้งไว้" note={`${list.length} รายการ`} />
+        <Collapsible icon="swap" title="รายจ่ายรายเดือนที่ตั้งไว้" summary={`${list.length} รายการ · รวม ${baht(list.reduce((a, t) => a + (Number(t.amount) || 0), 0))} ต่อเดือน`}>
             <ul class="plain">
                 {list.map((t) => (
                     <li class="row" key={t.id}>
@@ -59,7 +58,7 @@ function RecurringWallet({ version, onError }) {
                 ))}
             </ul>
             <p class="lbl">หยุดแล้วเดือนถัดไปจะไม่สร้างซ้ำ รายการที่สร้างไปแล้วยังอยู่</p>
-        </section>
+        </Collapsible>
     );
 }
 

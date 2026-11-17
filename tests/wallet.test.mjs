@@ -224,3 +224,25 @@ test("wallet-update แบบหลายรายการ: จัดหมว�
     assert.notEqual(byDesc["ของคนอื่น"], "fa-bolt");
     assert.equal((await call({ action: "wallet-update", items: [], idToken: "good-me" })).statusCode, 400);
 });
+
+test("แก้หมวดของรายการที่มาจากรายเดือน: แม่แบบถูกแก้ตามด้วย (เดือนถัดไปไม่ต้องแก้ซ้ำ) รวมรายการเก่าที่ยังไม่ผูกแม่แบบ", async () => {
+    const { call, db } = setup();
+    // รายการใหม่: ผูกแม่แบบด้วย templateId
+    const r = await call({ action: "wallet-add", type: "expense", amount: 599, desc: "ค่าเน็ต", date: "2026-11-10", recurring: true, idToken: "good-me" });
+    const entry = db.all("wallet_entries").find((e) => e.desc === "ค่าเน็ต");
+    assert.ok(entry.templateId, "รายการต้องผูก templateId");
+    await call({ action: "wallet-update", id: r.body.id, icon: "fa-bolt", desc: "ค่าเน็ตบ้าน", idToken: "good-me" });
+    let tpl = db.all("wallet_templates").find((t) => Number(t.amount) === 599);
+    assert.equal(tpl.icon, "fa-bolt");
+    assert.equal(tpl.desc, "ค่าเน็ตบ้าน");
+    // รายการเก่า (ไม่มี templateId) จับคู่ด้วยชื่อ+ยอดเดิม
+    db.seed("wallet_entries", "old1", { ownerName: "G A M E 👾", payer: "G A M E 👾", type: "expense", amount: 518, desc: "Netflix", date: "2026-11-01", month: "2026-11", icon: "fa-wallet", timestamp: 1 });
+    db.seed("wallet_templates", "tOld", { ownerName: "G A M E 👾", type: "expense", amount: 518, desc: "Netflix", icon: "fa-wallet", billingDay: 1, active: true, lastGeneratedMonth: "2026-11" });
+    await call({ action: "wallet-update", id: "old1", icon: "fa-film", idToken: "good-me" });
+    tpl = db.all("wallet_templates").find((t) => Number(t.amount) === 518);
+    assert.equal(tpl.icon, "fa-film");
+    // แม่แบบของคนอื่น (ชื่อซ้ำ ยอดซ้ำ) ไม่ถูกแตะ
+    db.seed("wallet_templates", "tOther", { ownerName: "AOY", type: "expense", amount: 518, desc: "Netflix", icon: "fa-wallet", billingDay: 1, active: true });
+    await call({ action: "wallet-update", id: "old1", icon: "fa-bolt", idToken: "good-me" });
+    assert.equal(db.all("wallet_templates").find((t) => t.ownerName === "AOY").icon, "fa-wallet");
+});

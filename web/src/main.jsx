@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
-import { signIn, onLoginExpired, relogin, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -159,7 +159,7 @@ function App() {
         <>
             {loginExpired && (
                 <div class="login-banner" role="alert">
-                    <span>เซสชัน LINE หมดอายุ ยังดูข้อมูลที่จำไว้ได้ แต่ข้อมูลกระเป๋าและการบันทึกต้องเข้าสู่ระบบใหม่</span>
+                    <span>เซสชัน LINE หมดอายุ ยังดูข้อมูลที่จำไว้ได้ แต่ข้อมูลกระเป๋าและการบันทึกต้องเข้าสู่ระบบใหม่{getLoginDiag() && <small class="diag">{getLoginDiag()}</small>}</span>
                     <button type="button" class="btn sm" onClick={relogin}>เข้าสู่ระบบใหม่</button>
                 </div>
             )}

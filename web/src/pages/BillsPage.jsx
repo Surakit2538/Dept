@@ -1,7 +1,7 @@
 // บิล: รายการบิลของเดือน ค้นหา และลบ (เฉพาะคนจ่ายหรือแอดมิน) การเพิ่ม/แก้ไขบิลหารยังใช้ฟอร์มหน้าเดิมไปก่อน
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor } from "../icons.jsx";
-import { SectionTitle, DeleteButton, Lazy } from "../ui.jsx";
+import { SectionTitle, DeleteButton, Lazy, Collapsible } from "../ui.jsx";
 import { baht, monthShort } from "../model.js";
 import { deleteBill, loadTemplates, stopTemplate } from "../data.js";
 
@@ -42,8 +42,7 @@ function Recurring({ me, isAdmin, onError }) {
     useEffect(() => { let on = true; loadTemplates().then((l) => on && setList(l)).catch(() => on && setList([])); return () => { on = false; }; }, []);
     if (!list || list.length === 0) return null;
     return (
-        <section class="card">
-            <SectionTitle icon="swap" title="บิลรายเดือนที่ตั้งไว้" note={`${list.length} รายการ`} />
+        <Collapsible icon="swap" title="บิลรายเดือนที่ตั้งไว้" summary={`${list.length} รายการ · รวม ${baht(list.reduce((a, t) => a + (Number(t.amount) || 0), 0))} ต่อเดือน`}>
             <ul class="plain">
                 {list.map((t) => (
                     <li class="row" key={t.id}>
@@ -61,7 +60,7 @@ function Recurring({ me, isAdmin, onError }) {
                 ))}
             </ul>
             <p class="lbl">หยุดแล้วเดือนถัดไปจะไม่สร้างบิลนี้ซ้ำ บิลที่สร้างไปแล้วยังอยู่</p>
-        </section>
+        </Collapsible>
     );
 }
 

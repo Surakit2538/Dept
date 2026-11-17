@@ -244,3 +244,24 @@ test("กระเป๋า: ปุ่มจัดหมวดอัตโนม
     const done = toString(h(WalletPage, { model: mk([{ id: "1", type: "expense", desc: "ผ่อน CIVIC", amount: 100, date: "2026-11-04", icon: "fa-car" }]), onChanged() {}, onError() {} }));
     assert.ok(!done.includes("จัดหมวดอัตโนมัติ"));
 });
+
+test("กล่องรายเดือนที่ตั้งไว้เป็นแบบพับได้ ปิดไว้ก่อน (บิลและกระเป๋า)", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { Collapsible } = await bundle("web/src/ui.jsx", "ui2");
+    const closed = toString(h(Collapsible, { icon: "swap", title: "รายจ่ายรายเดือนที่ตั้งไว้", summary: "5 รายการ" }, h("p", null, "เนื้อหาข้างใน")));
+    assert.match(closed, /รายจ่ายรายเดือนที่ตั้งไว้/);
+    assert.match(closed, /aria-expanded="false"/);
+    assert.ok(!closed.includes("เนื้อหาข้างใน"), "ปิดอยู่ต้องไม่แสดงรายการ");
+    const open = toString(h(Collapsible, { icon: "swap", title: "x", summary: "y", defaultOpen: true }, h("p", null, "เนื้อหาข้างใน")));
+    assert.ok(open.includes("เนื้อหาข้างใน"));
+    for (const f of ["web/src/pages/BillsPage.jsx", "web/src/pages/WalletPage.jsx"]) assert.match(fs.readFileSync(path.join(root, f), "utf8"), /<Collapsible /);
+});
+
+test("ล็อกอินบนคอม: ล้างรหัส code เก่าออกจากที่อยู่ และลองใหม่ครั้งเดียวถ้าเริ่มระบบไม่สำเร็จ", () => {
+    const data = fs.readFileSync(path.join(root, "web/src/data.js"), "utf8");
+    assert.match(data, /function cleanAuthParams/);
+    assert.match(data, /history\.replaceState/);
+    assert.match(data, /if \(hadCode\) \{ cleanAuthParams\(\); await liff\.init/);
+    const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
+    assert.match(main, /getLoginDiag\(\)/);
+});

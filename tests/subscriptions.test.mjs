@@ -100,3 +100,17 @@ test("รายจ่ายส่วนตัวรายเดือน: cron �
     assert.equal(again.created, 0);
     assert.equal(db.count("wallet_entries"), 1);
 });
+
+test("รายจ่ายส่วนตัวรายเดือน: แม่แบบที่ยังไม่มีหมวด ระบบเดาจากชื่อตอนสร้างให้ ไม่ต้องแก้ทุกเดือน", async () => {
+    const { createWalletSubscriptionJob } = await import("../lib/subscriptions.mjs");
+    const db = createFakeFirestore();
+    const run = createWalletSubscriptionJob({ db: {}, fs: db.fs, now: NOV });
+    db.seed("wallet_templates", "a", { ownerName: "GAME", type: "expense", desc: "ผ่อน CIVIC", amount: 14140, billingDay: 4, icon: "fa-wallet", active: true, lastGeneratedMonth: "2026-10" });
+    db.seed("wallet_templates", "b", { ownerName: "GAME", type: "expense", desc: "Netflix", amount: 518, billingDay: 1, active: true, lastGeneratedMonth: "2026-10" });
+    db.seed("wallet_templates", "c", { ownerName: "GAME", type: "expense", desc: "ของที่เดาไม่ได้", amount: 10, billingDay: 1, icon: "fa-paw", active: true, lastGeneratedMonth: "2026-10" });
+    await run();
+    const byDesc = Object.fromEntries(db.all("wallet_entries").map((e) => [e.desc, e.icon]));
+    assert.equal(byDesc["ผ่อน CIVIC"], "fa-car");
+    assert.equal(byDesc["Netflix"], "fa-bolt");
+    assert.equal(byDesc["ของที่เดาไม่ได้"], "fa-paw"); // หมวดที่ผู้ใช้เลือกไว้แล้วไม่ถูกเดาทับ
+});

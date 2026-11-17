@@ -70,11 +70,35 @@ function userFromMember(id, x, lineUserId) {
  *  - { needLink: true, profile, candidates:[{id,name}] }             ยังไม่ผูกบัญชี ให้เลือกว่าเป็นสมาชิกคนไหน หรือสมัครใหม่
  *  - null                                                             กำลังพาไปหน้าล็อกอิน LINE
  */
+// พารามิเตอร์ที่ LINE ต่อท้ายที่อยู่ตอนล็อกอินกลับมา รหัส code ใช้ได้ครั้งเดียว ถ้าค้างอยู่ในที่อยู่แล้วเปิดซ้ำ (เช่น คืนแท็บเดิม/รีเฟรช) จะล็อกอินไม่ผ่าน
+const AUTH_PARAMS = ["code", "state", "liffClientId", "liffRedirectUri", "error", "error_description"];
+const hasAuthParams = () => { const p = new URLSearchParams(location.search); return p.has("code") || p.has("liffClientId"); };
+function cleanAuthParams() {
+    try {
+        const u = new URL(location.href);
+        let changed = false;
+        for (const k of AUTH_PARAMS) if (u.searchParams.has(k)) { u.searchParams.delete(k); changed = true; }
+        if (changed) history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+    } catch (e) { /* ไม่เป็นไร */ }
+}
+let loginDiag = "";
+/** เหตุผลสั้นๆ ที่ล็อกอินไม่สำเร็จ (ไว้แสดงในแถบแจ้งเตือน ช่วยไล่ปัญหา) */
+export function getLoginDiag() { return loginDiag; }
+
 export async function signIn() {
     await waitForLiff();
-    await liff.init({ liffId: LIFF_ID });
+    const hadCode = hasAuthParams();
+    try {
+        await liff.init({ liffId: LIFF_ID });
+    } catch (e) {
+        loginDiag = `เริ่มระบบ LINE ไม่สำเร็จ: ${(e && e.message) || e}`;
+        // รหัส code เก่าค้างในที่อยู่: ล้างออกแล้วลองใหม่ครั้งเดียว (ใช้บัตรที่เก็บไว้ในเครื่องแทน)
+        if (hadCode) { cleanAuthParams(); await liff.init({ liffId: LIFF_ID }); } else throw e;
+    }
+    cleanAuthParams();
     if (!liff.isLoggedIn()) {
         // เคยเข้าแล้ว (มีตัวตนที่จำไว้): ไม่เด้งไปหน้าล็อกอินทันที ให้ดูข้อมูลที่จำไว้ต่อ แล้วแจ้งให้กดเข้าสู่ระบบใหม่เอง
+        loginDiag = loginDiag || (hadCode ? "ล็อกอินกลับมาแล้วแต่ LINE ไม่ยืนยันบัตร (ลองกดเข้าสู่ระบบใหม่อีกครั้ง)" : "บัตรล็อกอิน LINE ในเบราว์เซอร์นี้หมดอายุหรือยังไม่มี");
         if (getCachedUser()) { loggedOut = true; return { needLogin: true }; }
         liff.login({ redirectUri: location.href });
         return null; // กำลังพาไปหน้าล็อกอิน

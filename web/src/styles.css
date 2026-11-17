@@ -576,3 +576,15 @@ html, body { touch-action: manipulation; }
 .login-banner { position: fixed; top: 0; left: 0; right: 0; z-index: 70; display: flex; align-items: center; gap: var(--s3); padding: calc(var(--s2) + env(safe-area-inset-top, 0px)) var(--s4) var(--s2); background: var(--pay); color: #1a0d05; font-size: var(--fs-sm); font-weight: 500; }
 .login-banner span { flex: 1; min-width: 0; }
 .login-banner .btn { background: #1a0d05; color: #fff; flex: none; }
+
+/* ---------- กล่องพับได้ + ข้อความวินิจฉัยในแถบล็อกอิน ---------- */
+.collapsible { padding: 0; overflow: hidden; }
+.coll-head { width: 100%; display: flex; align-items: center; gap: var(--s3); padding: var(--s4); border: 0; background: transparent; color: inherit; text-align: left; min-height: 64px; }
+.coll-head .grow { flex: 1; min-width: 0; }
+.coll-head b { display: block; font-weight: 600; font-size: var(--fs-md); }
+.coll-head small { display: block; color: var(--mute); font-size: var(--fs-sm); }
+.coll-head .ico.accent { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.coll-chev { transition: transform .2s var(--ease); color: var(--mute); flex: none; }
+.coll-chev.up { transform: rotate(180deg); }
+.coll-body { padding: 0 var(--s4) var(--s4); border-top: 1px solid var(--line); padding-top: var(--s3); }
+.login-banner .diag { display: block; font-weight: 400; opacity: .85; margin-top: 2px; }

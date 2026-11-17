@@ -356,6 +356,21 @@ export function Lazy({ load, name, fallback = null, ...props }) {
     return <C {...props} />;
 }
 
+/** กล่องพับได้: ปิดไว้ก่อน เห็นแค่หัวข้อกับสรุปบรรทัดเดียว แตะเพื่อเปิดดูรายการ */
+export function Collapsible({ icon, title, summary, children, defaultOpen = false }) {
+    const [open, setOpen] = useState(defaultOpen);
+    return (
+        <section class="card collapsible">
+            <button type="button" class="coll-head" aria-expanded={open} onClick={() => setOpen(!open)}>
+                <span class="ico accent"><Icon name={icon} /></span>
+                <span class="grow"><b>{title}</b><small>{summary}</small></span>
+                <Icon name="down" size={16} class={`coll-chev ${open ? "up" : ""}`} />
+            </button>
+            {open && <div class="coll-body">{children}</div>}
+        </section>
+    );
+}
+
 /** โครงระหว่างรอข้อมูล: รูปร่างใกล้ของจริง ไม่ใช่ข้อความลอยๆ */
 export function Skeleton({ blocks = 3 }) {
     return (
