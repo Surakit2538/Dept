@@ -20,7 +20,7 @@
 
 ทางเลือกให้เด้งอัตโนมัติเมื่อปิดแอปธนาคาร: เพิ่มตัวกรอง "วันที่สร้าง อยู่ใน 5 นาที" และคำสั่ง If ในคำสั่งลัดเดิม (ดู `shortcut-guide.html`) หรือแบบละเอียดที่เรียก API เองทั้งหมด
 
-`DeptInstaller` (สร้างจากหน้าเว็บ `iphone-setup.js`) ติดตั้ง `DeptWidget.js`, `DeptSlip.js` และ `DeptAuto.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง รหัสอยู่ใน Keychain (`dept_token`)
+`DeptInstaller` (สร้างจากหน้า "ตั้งค่า iPhone" ในเว็บ `web/src/iphone.jsx`) ติดตั้ง `DeptWidget.js`, `DeptSlip.js` และ `DeptAuto.js` จาก `/scriptable/` พร้อมกัน โดยโหลดและตรวจความครบ (`SCRIPT_VERSION` + `Script.complete();`) ของทั้งสองไฟล์ก่อนเขียนไฟล์ใดๆ ลงเครื่อง รหัสอยู่ใน Keychain (`dept_token`)
 
 ## API
 
@@ -41,8 +41,10 @@
 ### `action: "auto"` — body `{ text }` (บันทึกอัตโนมัติ ไม่ถามอะไร)
 แกะสลิปแล้วบันทึกเป็น **ส่วนตัว** ทันที (parse + save personal ในครั้งเดียว) ใช้กับ `scriptable/DeptAuto.js` ที่คำสั่งลัด "สลิปอัตโนมัติ" เรียกเมื่อปิดแอปธนาคาร (Run In App ปิด) แล้วส่ง `message` กลับผ่าน `Script.setShortcutOutput` ให้คำสั่งลัดแสดงเป็นแจ้งเตือน ถ้าซ้ำ/ไม่ใช่สลิป (`duplicate`, `no_amount`, `convert`) จะ **เงียบ** (`message: ""`) เพราะคำสั่งลัดอัตโนมัติทำงานทุกครั้งที่ปิดแอปธนาคารโดยไม่กรองเวลา คำสั่งลัดจึงแสดงแจ้งเตือนเฉพาะเมื่อ `message` มีค่า (If has any value) และวันที่บันทึกใช้วันที่ในสลิป (`slipDateToIso`, ถ้าแปลงไม่ได้/เก่าเกิน 2 ปี/อนาคตเกิน 2 วัน ใช้วันนี้เวลาไทย)
 
+ตั้งแต่ DeptAuto v1.2.0 `auto` รับ "ข้อความแจ้งเตือนบัตร/บัญชี" ด้วย (SMS KTC/CardX/ttb, อีเมลธนาคาร, ข้อความจากภาพหน้าจอแจ้งเตือน) ผ่าน `lib/card-alert.mjs` บันทึกเป็นรายจ่ายส่วนตัว กันซ้ำและจับคู่รายเดือนที่ตั้งไว้ รหัส OTP ถูกซ่อนในเครื่องก่อนส่ง ดู `shortcut-guide.html` ส่วนที่ 5
+
 ### `action: "list"` / `action: "delete"` (หน้าเว็บ "รายจ่ายส่วนตัว")
-ใช้กับ `personal-expenses.js` (โมดัลใน `index.html` ปุ่มในเมนูข้างและหน้าตั้งค่า) ยืนยันตัวตนด้วย **LINE ID Token** (`body.idToken` จาก `liff.getIDToken()`, ตรวจผ่าน `lib/line-auth.mjs`) หรือ Bearer รหัสอุปกรณ์ก็ได้ — idToken ใช้ได้เฉพาะ `list`/`delete` เท่านั้น ไม่ใช้กับ `parse`/`save`/`auto`
+ใช้กับหน้ารายจ่ายส่วนตัวของเว็บเดิม (ถูกลบแล้ว เว็บใหม่เรียก `wallet-*` ด้วยวิธีเดียวกัน) ยืนยันตัวตนด้วย **LINE ID Token** (`body.idToken` จาก `liff.getIDToken()`, ตรวจผ่าน `lib/line-auth.mjs`) หรือ Bearer รหัสอุปกรณ์ก็ได้ — idToken ใช้ได้เฉพาะ `list`/`delete` เท่านั้น ไม่ใช้กับ `parse`/`save`/`auto`
 - `list` — `{ month?: "YYYY-MM" }` คืนรายการ `personal_expenses` ของเจ้าของ (payer ตรงชื่อ) เรียงใหม่ไปเก่า พร้อม `total`, `count`
 - `delete` — `{ id }` ลบได้เฉพาะรายการที่ payer เป็นเจ้าของบัญชีเท่านั้น (คนอื่น → 403)
 ข้อมูลที่มาจากสลิป (เช่น ชื่อรายการ) แสดงด้วย `textContent` ห้ามใช้ `innerHTML`
