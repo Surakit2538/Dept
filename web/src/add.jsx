@@ -2,6 +2,7 @@
 import { useState, useMemo } from "preact/hooks";
 import { Icon } from "./icons.jsx";
 import { Sheet, Avatar, DatePickerField } from "./ui.jsx";
+import { CategoryPicker, faOf } from "./cats.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
 
 export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null }) {
@@ -36,7 +37,10 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
     const [monthly, setMonthly] = useState(false);
+    const [iconKey, setIconKey] = useState("other");
+    const [iconTouched, setIconTouched] = useState(false);
     const income = type === "income";
+    const onDesc = (v) => { setDesc(v); if (!iconTouched && !income) setIconKey(guessBillIcon(v)); };
     async function submit(e) {
         e.preventDefault();
         setErr("");
@@ -45,7 +49,7 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) { setErr("เลือกวันที่ไม่เกินวันนี้"); return; }
         setBusy(true);
         try {
-            await save({ type, amount: n, desc: desc.trim() || undefined, date, ...(monthly && !income ? { recurring: true } : {}) });
+            await save({ type, amount: n, desc: desc.trim() || undefined, date, ...(income ? {} : { icon: faOf(iconKey) }), ...(monthly && !income ? { recurring: true } : {}) });
             onSaved(income ? "บันทึกรายรับแล้ว" : monthly ? "บันทึกรายจ่ายแล้ว และจะสร้างซ้ำทุกเดือน" : "บันทึกรายจ่ายแล้ว", [date.slice(0, 7)]);
             onClose();
         } catch (ex) {
@@ -60,7 +64,8 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
                 <label for="f-amount">จำนวนเงิน (บาท)</label>
                 <input id="f-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required value={amount} aria-invalid={err && !(Number(amount) > 0) ? "true" : undefined} onInput={(e) => setAmount(e.currentTarget.value)} />
             </div>
-            <div class="field"><label for="f-desc">รายการ</label><input id="f-desc" type="text" maxLength={100} placeholder={income ? "เช่น เงินเดือน" : "เช่น กาแฟ"} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
+            <div class="field"><label for="f-desc">รายการ</label><input id="f-desc" type="text" maxLength={100} placeholder={income ? "เช่น เงินเดือน" : "เช่น กาแฟ"} value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
+            {!income && <CategoryPicker value={iconKey} onPick={(k) => { setIconKey(k); setIconTouched(true); }} labelId="f-cat-l" hint={!iconTouched && desc.trim() ? "เลือกให้อัตโนมัติ" : ""} />}
             <DatePickerField id="f-date" label="วันที่" value={date} onChange={setDate} max={today} today={today} />
             {!income && (
                 <div class="field">

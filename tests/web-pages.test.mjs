@@ -215,3 +215,22 @@ test("ลิงก์ในการ์ด LINE เปิดแบบ LIFF (ล�
     assert.match(cards, /LIFF_URL = "https:\/\/liff\.line\.me\/2008948704-db2goT00"/);
     assert.ok(!/uri: `\$\{APP_URL\}\//.test(cards), "ปุ่มในการ์ดต้องใช้ LIFF_URL ไม่ใช่ APP_URL");
 });
+
+test("รายจ่ายส่วนตัวเลือกหมวดได้ รายรับไม่มี และหน้าแก้ไขรายการส่วนตัวแสดงผลได้", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { AddSheet } = await bundle("web/src/add.jsx", "add");
+    const props = { today: "2026-11-14", members: ["GAME"], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} };
+    const expense = toString(h(AddSheet, { ...props, initial: "expense" }));
+    assert.match(expense, /หมวด/);
+    assert.match(expense, /สัตว์เลี้ยง/);
+    const income = toString(h(AddSheet, { ...props, initial: "income" }));
+    assert.ok(!income.includes("สัตว์เลี้ยง"), "รายรับไม่มีหมวด");
+    const { EditWalletSheet } = await bundle("web/src/editbill.jsx", "editbill2");
+    const ex = toString(h(EditWalletSheet, { item: { id: "w", type: "expense", desc: "<b onclick=x>", icon: "fa-car" }, onClose() {}, onSaved() {} }));
+    assert.match(ex, /แก้ไขรายจ่ายส่วนตัว/);
+    assert.match(ex, /เดินทาง/);
+    assert.ok(!ex.includes("<b onclick"));
+    const inc = toString(h(EditWalletSheet, { item: { id: "w", type: "income", desc: "เงินเดือน", icon: "" }, onClose() {}, onSaved() {} }));
+    assert.match(inc, /แก้ไขรายรับ/);
+    assert.ok(!inc.includes("สัตว์เลี้ยง"));
+});

@@ -1,17 +1,18 @@
 // กระเป๋า: รายรับ รายจ่ายส่วนตัว ส่วนของฉันในกลุ่ม สุทธิ (เห็นเฉพาะเจ้าของ)
 import { Icon, iconFor } from "../icons.jsx";
-import { SectionTitle, DeleteButton } from "../ui.jsx";
+import { SectionTitle, DeleteButton, Lazy } from "../ui.jsx";
 import { baht } from "../model.js";
 import { useState, useEffect } from "preact/hooks";
 import { deleteWalletEntry, loadWalletTemplates, stopWalletTemplate } from "../data.js";
 
-function Item({ it, onDeleted, onError }) {
+function Item({ it, onDeleted, onError, onEdit }) {
     const name = it.desc || (it.type === "income" ? "รายรับ" : "รายจ่าย");
     return (
         <li class="row">
             <span class="ico"><Icon name={it.type === "income" ? "down" : iconFor(it.icon)} /></span>
             <div class="grow"><div class="t">{name}</div><div class="s">{it.type === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {it.date.slice(8, 10)}/{it.date.slice(5, 7)}</div></div>
             <span class={`num ${it.type === "income" ? "rcv" : ""}`}>{baht(it.amount, { decimals: 2 })}</span>
+            <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(it)}><Icon name="pencil" size={17} /></button>
             <DeleteButton label={name} onConfirm={async () => { try { await deleteWalletEntry(it.id); onDeleted(); } catch (e) { onError(e.message); } }} />
         </li>
     );
@@ -55,6 +56,7 @@ const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
 export function WalletPage({ model, onChanged, onError, version = 0 }) {
     const m = model;
+    const [editing, setEditing] = useState(null);
     const hasIncome = m.incomeSat > 0;
     const over = m.netSat < 0;
     return (
@@ -94,10 +96,11 @@ export function WalletPage({ model, onChanged, onError, version = 0 }) {
                 <section class="card">
                     <SectionTitle icon="bill" title="รายการของฉัน" note="รายรับและรายจ่ายส่วนตัว" />
                     {m.items.length === 0 ? <p class="empty">ยังไม่มีรายการในเดือนนี้ กดปุ่ม &ldquo;บันทึก&rdquo; เพื่อเพิ่ม</p>
-                        : <ul class="plain">{m.items.map((it) => <Item key={it.id} it={it} onDeleted={onChanged} onError={onError} />)}</ul>}
+                        : <ul class="plain">{m.items.map((it) => <Item key={it.id} it={it} onDeleted={onChanged} onError={onError} onEdit={setEditing} />)}</ul>}
                 </section>
                 <RecurringWallet version={version} onError={onError} />
             </div>
+            {editing && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editing} onClose={() => setEditing(null)} onSaved={() => onChanged()} />}
         </div>
     );
 }

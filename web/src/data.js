@@ -297,6 +297,11 @@ export async function revokeDeviceTokens() {
 }
 
 /** รายจ่ายส่วนตัวรายเดือนที่ตั้งไว้ (เห็นเฉพาะของตัวเอง) */
+/** แก้ชื่อรายการ/หมวดของรายการส่วนตัวที่บันทึกแล้ว (ไม่แก้ยอดและวันที่) */
+export async function updateWalletEntry(id, fields) {
+    await api("/api/shortcut-transaction", { action: "wallet-update", id, ...fields });
+}
+
 export async function loadWalletTemplates() {
     const r = await api("/api/shortcut-transaction", { action: "wallet-template-list" });
     return Array.isArray(r.items) ? r.items : [];

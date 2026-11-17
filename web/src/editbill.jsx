@@ -3,7 +3,8 @@ import { useState } from "preact/hooks";
 import { Sheet } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
 import { BILL_ICONS } from "./model.js";
-import { updateBillFields } from "./data.js";
+import { updateBillFields, updateWalletEntry } from "./data.js";
+import { CategoryPicker, faOf, keyOfFa } from "./cats.jsx";
 
 export function EditBillSheet({ bill, onClose, onSaved }) {
     const grouped = bill.type === "installment";
@@ -32,6 +33,34 @@ export function EditBillSheet({ bill, onClose, onSaved }) {
                 </div>
             </div>
             <p class="lbl">ยอดเงินและคนหารแก้ไม่ได้ เพราะกระทบยอดหนี้ของเพื่อน ถ้าผิดให้ลบบิลแล้วเพิ่มใหม่</p>
+            {err && <p class="msg" role="alert">{err}</p>}
+            <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
+        </Sheet>
+    );
+}
+
+/** แก้รายการส่วนตัว (กระเป๋า): เปลี่ยนชื่อและหมวดได้ ยอดและวันที่ไม่แก้ ถ้าผิดให้ลบแล้วเพิ่มใหม่ */
+export function EditWalletSheet({ item, onClose, onSaved }) {
+    const isIncome = item.type === "income";
+    const [desc, setDesc] = useState(item.desc || "");
+    const [iconKey, setIconKey] = useState(keyOfFa(item.icon));
+    const [busy, setBusy] = useState(false);
+    const [err, setErr] = useState("");
+    async function save(e) {
+        e.preventDefault();
+        setErr("");
+        setBusy(true);
+        try {
+            await updateWalletEntry(item.id, { desc: desc.trim() || (isIncome ? "รายรับ" : "รายจ่าย"), ...(isIncome ? {} : { icon: faOf(iconKey) }) });
+            onSaved();
+            onClose();
+        } catch (ex) { setErr(ex.message || "บันทึกไม่สำเร็จ"); setBusy(false); }
+    }
+    return (
+        <Sheet as="form" title={isIncome ? "แก้ไขรายรับ" : "แก้ไขรายจ่ายส่วนตัว"} onClose={onClose} onSubmit={save}>
+            <div class="field"><label for="ew-desc">ชื่อรายการ</label><input id="ew-desc" type="text" maxLength={100} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
+            {!isIncome && <CategoryPicker value={iconKey} onPick={setIconKey} labelId="ew-cat-l" />}
+            <p class="lbl">ยอดเงินและวันที่แก้ไม่ได้ ถ้าผิดให้ลบแล้วเพิ่มใหม่</p>
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
         </Sheet>

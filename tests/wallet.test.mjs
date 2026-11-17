@@ -186,3 +186,25 @@ test("wallet-add แบบรายเดือน: บันทึกราย�
     const after = await call({ action: "wallet-template-list", idToken: "good-me" });
     assert.equal(after.body.items.length, 0);
 });
+
+test("wallet-update: แก้ชื่อ/หมวดของรายการส่วนตัวของตัวเอง (รวมรายการเก่าใน personal_expenses) แก้ของคนอื่นไม่ได้", async () => {
+    const { call, db } = setup();
+    const add = await call({ action: "wallet-add", type: "expense", amount: 500, desc: "ผ่อน CIVIC", idToken: "good-me" });
+    const id = add.body.id;
+    const bad = await call({ action: "wallet-update", id, icon: "fa-car", idToken: "good-other" });
+    assert.equal(bad.statusCode, 403);
+    const ok = await call({ action: "wallet-update", id, icon: "fa-car", desc: "ผ่อนรถ", idToken: "good-me" });
+    assert.equal(ok.statusCode, 200);
+    const e = db.all("wallet_entries").find((x) => x.amount === 500);
+    assert.equal(e.icon, "fa-car");
+    assert.equal(e.desc, "ผ่อนรถ");
+    assert.equal(e.amount, 500);
+    // รายการเก่า (personal_expenses) ก็แก้ได้
+    const old = await call({ action: "wallet-update", id: "p1", icon: "fa-bolt", idToken: "good-me" });
+    assert.equal(old.statusCode, 200);
+    assert.equal(db.all("personal_expenses")[0].icon, "fa-bolt");
+    // ไอคอนที่ไม่ถูกรูปแบบ / ไม่มีข้อมูล / ไม่พบรายการ
+    assert.equal((await call({ action: "wallet-update", id, icon: "<img>", idToken: "good-me" })).statusCode, 400);
+    assert.equal((await call({ action: "wallet-update", id, idToken: "good-me" })).statusCode, 400);
+    assert.equal((await call({ action: "wallet-update", id: "nope", icon: "fa-car", idToken: "good-me" })).statusCode, 404);
+});
