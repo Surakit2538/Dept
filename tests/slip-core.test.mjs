@@ -246,3 +246,12 @@ test("สลิปจริง K PLUS / SCB: slipIso ตรงกับวัน
     const s = parseSlipText(SCB_BILL);
     assert.equal(slipDateToIso(s.slipDate, NOW), "2026-11-09");
 });
+
+test("ผู้รับ: ข้อความท้ายสลิป (สามารถสแกนคิวอาร์โค้ด...) ไม่ถูกเอามาเป็นชื่อผู้รับ", async () => {
+    const { extractPayee, buildDescription } = await import("../lib/slip-core.mjs");
+    const text = ["โอนเงินสำเร็จ", "15 พ.ย. 69 10:00", "จาก", "นาย สมชาย ใจดี", "ไปยัง", "สามารถสแกนคิวอาร์โค้ดนี้เพื่อตรวจสอบสลิป", "จำนวน", "1,000.00 บาท"].join("\n");
+    assert.ok(!/สามารถสแกน/.test(extractPayee(text)), "ต้องไม่ใช้ข้อความท้ายสลิปเป็นผู้รับ");
+    const real = ["ไปยัง", "สามารถสแกนคิวอาร์โค้ดนี้เพื่อตรวจสอบสลิป", "นาย ศุภชัย รักดี", "1,000.00 บาท"].join("\n");
+    assert.equal(extractPayee(real), "นาย ศุภชัย รักดี");
+    assert.ok(buildDescription("", "KBANK").length > 0);
+});
