@@ -4,6 +4,8 @@ import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
 import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, executeRemind, remindResultText, parsePostback } from '../lib/line-report.mjs';
 import { buildReminderFlex } from '../lib/reminders.mjs';
 import { parseIncomeText } from '../lib/line-income.mjs';
+import { parseQuickExpense, createQuickExpenseService, UNDO_COMMAND } from '../lib/line-expense.mjs';
+import { formatBaht } from '../lib/slip-core.mjs';
 import { buildIncomeSavedCard, monthLabelTh } from '../lib/line-cards.mjs';
 import { buildWalletEntry, WALLET_COL } from '../lib/wallet-service.mjs';
 import * as fsApi from './auth-helpers.js';
@@ -32,6 +34,7 @@ import {
 
 // --- CONFIGURATION ---
 const db = getDbInstance(); // ใช้ firebase-admin ถ้าตั้ง FIREBASE_SERVICE_ACCOUNT ไม่งั้นแบบเดิม
+const quickExpense = createQuickExpenseService({ db, fs: fsApi });
 
 // --- TIMEZONE HELPERS ---
 function getBangkokDateString(date = new Date()) {
@@ -162,8 +165,29 @@ async function handleTextMessage(event) {
         }
     }
 
+    // 2.3 ลบรายจ่ายที่เพิ่งพิมพ์บันทึกในแชต (ภายใน 15 นาที) ใช้คำว่า "ลบรายการล่าสุด" (ไม่ใช้ "ยกเลิก" เพราะใช้ยกเลิกการจดบันทึกอยู่แล้ว)
+    if (event.source.type === "user" && text === UNDO_COMMAND) {
+        const undone = await quickExpense.undo(userId);
+        if (undone.ok) return replyText(replyToken, `ลบรายการล่าสุดแล้ว\n${undone.desc} ${formatBaht(undone.amount)}`);
+        return replyText(replyToken, undone.reason === "expired"
+            ? "รายการล่าสุดเกิน 15 นาทีแล้ว ลบไม่ได้จากแชต ไปลบที่แท็บ กระเป๋า ในเว็บ Dept Money ได้เลย"
+            : "ไม่มีรายการที่บันทึกจากแชตให้ลบ");
+    }
+
     const sessionSnap = await getDoc(sessionRef);
     let session = sessionSnap.exists() ? sessionSnap.data() : null;
+
+    // 2.4 พิมพ์รายจ่ายสั้นๆ เช่น "กาแฟ 65" -> บันทึกลงกระเป๋าของคนที่พิมพ์ (ไม่ทำถ้ากำลังจดบันทึกอยู่ เพื่อไม่แย่งคำตอบของขั้นตอนเดิม)
+    if (!session && event.source.type === "user") {
+        const quick = parseQuickExpense(text);
+        if (quick) {
+            const memberName = await getMemberNameByLineId(userId);
+            if (!memberName) return replyText(replyToken, "ไม่พบข้อมูลสมาชิก กรุณาเข้าใช้งานผ่านเว็บ Dept Money ครั้งแรกก่อน");
+            const saved = await quickExpense.save(userId, memberName, quick);
+            if (!saved.ok) return replyText(replyToken, saved.message);
+            return replyText(replyToken, `บันทึกรายจ่ายส่วนตัวแล้ว\n${quick.desc} ${formatBaht(quick.amount)}\n(บันทึกผิด พิมพ์ ${UNDO_COMMAND})`);
+        }
+    }
 
     // --- STEP 0: จุดเริ่มต้น (ไม่มี Session ค้าง) ---
     if (!session) {
