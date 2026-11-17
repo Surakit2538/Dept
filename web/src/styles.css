@@ -564,3 +564,10 @@ html, body { touch-action: manipulation; }
   input, select, textarea { font-size: max(16px, 1em); }
   .mini-select { font-size: 16px; }
 }
+
+/* ---------- แถบรายชื่อหารกับใคร: แถวเดียวเลื่อนข้าง ไม่กินที่ ---------- */
+.pstrip { display: flex; flex-wrap: nowrap; gap: var(--s2); overflow-x: auto; padding: var(--s2) 2px var(--s2); margin-inline: -2px; scroll-snap-type: x proximity; scrollbar-width: none; touch-action: pan-x; overscroll-behavior-x: contain; }
+.pstrip::-webkit-scrollbar { display: none; }
+.pstrip .pchip { flex: none; scroll-snap-align: start; border-style: solid; padding-left: 6px; }
+.pstrip .pchip:not(.on) { background: var(--bg); }
+.pstrip .pchip.on { border-color: var(--accent); }

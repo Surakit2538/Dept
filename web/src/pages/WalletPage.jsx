@@ -2,7 +2,8 @@
 import { Icon, iconFor } from "../icons.jsx";
 import { SectionTitle, DeleteButton } from "../ui.jsx";
 import { baht } from "../model.js";
-import { deleteWalletEntry } from "../data.js";
+import { useState, useEffect } from "preact/hooks";
+import { deleteWalletEntry, loadWalletTemplates, stopWalletTemplate } from "../data.js";
 
 function Item({ it, onDeleted, onError }) {
     const name = it.desc || (it.type === "income" ? "รายรับ" : "รายจ่าย");
@@ -13,6 +14,30 @@ function Item({ it, onDeleted, onError }) {
             <span class={`num ${it.type === "income" ? "rcv" : ""}`}>{baht(it.amount, { decimals: 2 })}</span>
             <DeleteButton label={name} onConfirm={async () => { try { await deleteWalletEntry(it.id); onDeleted(); } catch (e) { onError(e.message); } }} />
         </li>
+    );
+}
+
+/** รายจ่ายส่วนตัวแบบรายเดือนที่ตั้งไว้ (สร้างให้อัตโนมัติทุกเดือน หยุดได้) */
+function RecurringWallet({ version, onError }) {
+    const [list, setList] = useState(null);
+    useEffect(() => { let on = true; loadWalletTemplates().then((l) => on && setList(l)).catch(() => on && setList([])); return () => { on = false; }; }, [version]);
+    if (!list || list.length === 0) return null;
+    return (
+        <section class="card">
+            <SectionTitle icon="swap" title="รายจ่ายรายเดือนที่ตั้งไว้" note={`${list.length} รายการ`} />
+            <ul class="plain">
+                {list.map((t) => (
+                    <li class="row" key={t.id}>
+                        <span class="ico"><Icon name={iconFor(t.icon)} /></span>
+                        <div class="grow"><div class="t">{t.desc || "รายจ่าย"}</div><div class="s">สร้างให้ทุกวันที่ {t.billingDay} ของเดือน</div></div>
+                        <span class="num">{baht(Number(t.amount) || 0, { decimals: 2 })}</span>
+                        <DeleteButton verb="หยุด" busyText="กำลังหยุด" keepText="ไม่หยุด" label={t.desc || "รายจ่ายรายเดือน"}
+                            onConfirm={async () => { try { await stopWalletTemplate(t.id); setList((cur) => cur.filter((x) => x.id !== t.id)); } catch (e) { onError(e.message); } }} />
+                    </li>
+                ))}
+            </ul>
+            <p class="lbl">หยุดแล้วเดือนถัดไปจะไม่สร้างซ้ำ รายการที่สร้างไปแล้วยังอยู่</p>
+        </section>
     );
 }
 
@@ -28,7 +53,7 @@ function Line({ icon, title, note, value, tone = "" }) {
 
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
-export function WalletPage({ model, onChanged, onError }) {
+export function WalletPage({ model, onChanged, onError, version = 0 }) {
     const m = model;
     const hasIncome = m.incomeSat > 0;
     const over = m.netSat < 0;
@@ -71,6 +96,7 @@ export function WalletPage({ model, onChanged, onError }) {
                     {m.items.length === 0 ? <p class="empty">ยังไม่มีรายการในเดือนนี้ กดปุ่ม &ldquo;บันทึก&rdquo; เพื่อเพิ่ม</p>
                         : <ul class="plain">{m.items.map((it) => <Item key={it.id} it={it} onDeleted={onChanged} onError={onError} />)}</ul>}
                 </section>
+                <RecurringWallet version={version} onError={onError} />
             </div>
         </div>
     );

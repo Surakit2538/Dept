@@ -77,3 +77,26 @@ test("cron: ต้องมี CRON_SECRET และหัว Authorization ถ�
     assert.ok(!/req\.query/.test(mod), "ห้ามรับ secret ผ่าน URL");
     void createFakeRes;
 });
+
+test("รายจ่ายส่วนตัวรายเดือน: cron สร้างรายการลงกระเป๋าของเจ้าของ ไม่ซ้ำ และข้ามที่สร้างแล้ว", async () => {
+    const { createWalletSubscriptionJob } = await import("../lib/subscriptions.mjs");
+    const db = createFakeFirestore();
+    const run = createWalletSubscriptionJob({ db: {}, fs: db.fs, now: NOV });
+    db.seed("wallet_templates", "w1", { ownerName: "GAME", type: "expense", desc: "ค่าเน็ต", amount: 599, billingDay: 31, icon: "fa-bolt", active: true, lastGeneratedMonth: "2026-10" });
+    db.seed("wallet_templates", "w2", { ownerName: "GAME", type: "expense", desc: "ค่าเก่า", amount: 100, billingDay: 5, active: true, lastGeneratedMonth: "2026-11" });
+    db.seed("wallet_templates", "w3", { ownerName: "GAME", type: "expense", desc: "หยุดแล้ว", amount: 100, billingDay: 5, active: false, lastGeneratedMonth: "2026-10" });
+    const r = await run();
+    assert.deepEqual([r.month, r.created, r.skipped], ["2026-11", 1, 1]);
+    const entries = db.all("wallet_entries");
+    assert.equal(entries.length, 1);
+    assert.equal(entries[0].ownerName, "GAME");
+    assert.equal(entries[0].type, "expense");
+    assert.equal(entries[0].amount, 599);
+    assert.equal(entries[0].date, "2026-11-30"); // วันที่ 31 ปรับเป็นวันสุดท้ายของเดือน
+    assert.equal(entries[0].month, "2026-11");
+    assert.ok(db.has("wallet_entries", "wsub_w1_2026-11"));
+    assert.equal(db.all("wallet_templates").find((t) => t.desc === "ค่าเน็ต").lastGeneratedMonth, "2026-11");
+    const again = await run();
+    assert.equal(again.created, 0);
+    assert.equal(db.count("wallet_entries"), 1);
+});

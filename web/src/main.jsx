@@ -149,7 +149,7 @@ function App() {
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} /> : <Skeleton blocks={5} />;
     else if (page === "bills") body = billsM ? <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={2} />;
     else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} version={reload} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={3} />;
     else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} /> : <Skeleton blocks={2} />;
 
     return (

@@ -284,6 +284,16 @@ export async function revokeDeviceTokens() {
     return json;
 }
 
+/** รายจ่ายส่วนตัวรายเดือนที่ตั้งไว้ (เห็นเฉพาะของตัวเอง) */
+export async function loadWalletTemplates() {
+    const r = await api("/api/shortcut-transaction", { action: "wallet-template-list" });
+    return Array.isArray(r.items) ? r.items : [];
+}
+
+export async function stopWalletTemplate(id) {
+    await api("/api/shortcut-transaction", { action: "wallet-template-stop", id });
+}
+
 export async function addWallet(entry) {
     return api("/api/shortcut-transaction", { action: "wallet-add", ...entry, source: "web" });
 }

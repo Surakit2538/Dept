@@ -35,6 +35,7 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
     const [date, setDate] = useState(today);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
+    const [monthly, setMonthly] = useState(false);
     const income = type === "income";
     async function submit(e) {
         e.preventDefault();
@@ -44,8 +45,8 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) { setErr("เลือกวันที่ไม่เกินวันนี้"); return; }
         setBusy(true);
         try {
-            await save({ type, amount: n, desc: desc.trim() || undefined, date });
-            onSaved(income ? "บันทึกรายรับแล้ว" : "บันทึกรายจ่ายแล้ว", [date.slice(0, 7)]);
+            await save({ type, amount: n, desc: desc.trim() || undefined, date, ...(monthly && !income ? { recurring: true } : {}) });
+            onSaved(income ? "บันทึกรายรับแล้ว" : monthly ? "บันทึกรายจ่ายแล้ว และจะสร้างซ้ำทุกเดือน" : "บันทึกรายจ่ายแล้ว", [date.slice(0, 7)]);
             onClose();
         } catch (ex) {
             setErr(ex.message || "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
@@ -61,6 +62,16 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
             </div>
             <div class="field"><label for="f-desc">รายการ</label><input id="f-desc" type="text" maxLength={100} placeholder={income ? "เช่น เงินเดือน" : "เช่น กาแฟ"} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
             <DatePickerField id="f-date" label="วันที่" value={date} onChange={setDate} max={today} today={today} />
+            {!income && (
+                <div class="field">
+                    <span class="fl" id="f-type-l">ชำระแบบ</span>
+                    <div class="seg" role="group" aria-labelledby="f-type-l">
+                        <button type="button" class={!monthly ? "on" : ""} aria-pressed={!monthly} onClick={() => setMonthly(false)}>ครั้งเดียว</button>
+                        <button type="button" class={monthly ? "on" : ""} aria-pressed={monthly} onClick={() => setMonthly(true)}>รายเดือน</button>
+                    </div>
+                    {monthly && <small>ระบบสร้างรายจ่ายนี้ให้เองทุกเดือน ตามวันที่ {Number(date.slice(8, 10))} ของเดือน (วันที่ 29 ถึง 31 จะปรับเป็นวันสุดท้ายของเดือนที่สั้นกว่า) หยุดได้ที่หน้ากระเป๋า</small>}
+                </div>
+            )}
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : income ? "บันทึกรายรับ" : "บันทึกรายจ่าย"}</button>
         </Sheet>
@@ -73,7 +84,6 @@ const TYPES = [
     { key: "subscription", label: "รายเดือน" }
 ];
 const MODES = [{ key: "equal", label: "หารเท่ากัน" }, { key: "custom", label: "กำหนดยอดเอง" }];
-const LAST_KEY = "dm:v2:lastPeople";
 
 function Segmented({ id, label, value, options, onChange }) {
     return (
@@ -92,13 +102,6 @@ export function addDays(dateStr, delta) {
     return `${t.getUTCFullYear()}-${String(t.getUTCMonth() + 1).padStart(2, "0")}-${String(t.getUTCDate()).padStart(2, "0")}`;
 }
 
-function readLast(all) {
-    try {
-        const v = JSON.parse(localStorage.getItem(LAST_KEY) || "[]").filter((n) => all.includes(n));
-        return v.length > 0 ? v : null;
-    } catch (e) { return null; }
-}
-
 const PANELS = [
     { key: "payer", label: "คนจ่าย" },
     { key: "split", label: "วิธีแบ่ง" },
@@ -113,12 +116,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const [desc, setDesc] = useState("");
     const [date, setDate] = useState(today);
     const [payer, setPayer] = useState(me);
-    const [people, setPeople] = useState(() => {
-        const last = readLast(all);
-        if (last) return new Set(last);
-        const start = [me, ...quick.slice(0, 2)].filter((m) => all.includes(m));
-        return new Set(start.length > 0 ? start : all.slice(0, 1));
-    });
+    const [people, setPeople] = useState(() => new Set()); // เริ่มต้นไม่เลือกใครให้ ผู้ใช้เลือกเอง
     const [more, setMore] = useState(false);
     const [find, setFind] = useState("");
     const [mode, setMode] = useState("equal");
@@ -139,8 +137,10 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const toggle = (m) => setPeople((cur) => { const s = new Set(cur); if (s.has(m)) s.delete(m); else s.add(m); return s; });
     const onDesc = (v) => { setDesc(v); if (!iconTouched) setIconKey(guessBillIcon(v)); };
     const label = (m) => (m === me ? "ฉัน" : m);
-    const addable = quick.filter((m) => !people.has(m));
-    const others = all.filter((m) => !people.has(m) && (!find.trim() || m.toLowerCase().includes(find.trim().toLowerCase())));
+    // แถบเดียวเลื่อนข้าง: ฉัน + คนที่หารด้วยบ่อย (ลำดับคงที่ ไม่สลับตอนแตะ) + คนที่เลือกเพิ่มจากการค้นหา
+    const base = [...new Set([me, ...quick])].filter((m) => all.includes(m));
+    const strip = [...base, ...chosen.filter((m) => !base.includes(m))];
+    const others = all.filter((m) => !strip.includes(m) && (!find.trim() || m.toLowerCase().includes(find.trim().toLowerCase())));
 
     let resultText = "เลือกคนหารอย่างน้อย 1 คน";
     let resultTone = "mute";
@@ -176,7 +176,6 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
         setBusy(true);
         try {
             await saveBill(r);
-            try { localStorage.setItem(LAST_KEY, JSON.stringify(chosen)); } catch (ex) { /* ไม่เป็นไร */ }
             onSaved(`บันทึกบิลแล้ว ${r.summary}`, [...new Set(r.docs.map((d) => d.date.slice(0, 7)))]);
             onClose();
         } catch (ex) {
@@ -196,23 +195,16 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
             <div class="field"><label for="b-desc">รายการ</label><input id="b-desc" type="text" maxLength={100} placeholder="เช่น ข้าวมันไก่" value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
 
             <div class="field">
-                <span class="fl" id="b-people-l">หารกับใคร <span class="mute">({chosen.length} คน)</span></span>
-                <div class="pchips" role="group" aria-labelledby="b-people-l">
-                    {chosen.map((m) => (
-                        <button type="button" key={m} class="pchip on" aria-label={`เอา ${label(m)} ออก`} onClick={() => toggle(m)}>
-                            <span class="pav-s">{[...m][0]}</span>{label(m)}<Icon name="close" size={14} />
+                <div class="hd-row">
+                    <span class="fl" id="b-people-l">หารกับใคร <span class="mute">({chosen.length} คน)</span></span>
+                    {(others.length > 0 || more) && <button type="button" class="link" aria-expanded={more} aria-controls="b-pick" onClick={() => { setMore(!more); setFind(""); }}>{more ? "ปิดค้นหา" : "ค้นหาคนอื่น"}</button>}
+                </div>
+                <div class="pstrip" role="group" aria-labelledby="b-people-l">
+                    {strip.map((m) => (
+                        <button type="button" key={m} class={`pchip ${people.has(m) ? "on" : ""}`} aria-pressed={people.has(m)} onClick={() => toggle(m)}>
+                            <span class="pav-s">{people.has(m) ? <Icon name="check" size={14} /> : [...m][0]}</span>{label(m)}
                         </button>
                     ))}
-                    {addable.map((m) => (
-                        <button type="button" key={m} class="pchip" aria-label={`เพิ่ม ${label(m)}`} onClick={() => toggle(m)}>
-                            <Icon name="plus" size={14} />{label(m)}
-                        </button>
-                    ))}
-                    {others.length > 0 || more ? (
-                        <button type="button" class={`pchip ghost ${more ? "open" : ""}`} aria-expanded={more} aria-controls="b-pick" onClick={() => { setMore(!more); setFind(""); }}>
-                            <Icon name="search" size={14} />คนอื่น
-                        </button>
-                    ) : null}
                 </div>
                 {more && (
                     <div id="b-pick" class="picker">

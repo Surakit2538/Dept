@@ -110,6 +110,9 @@ test("ฟอร์มบิลหารกับเพื่อน: แสดง
     assert.ok(!form.includes("<script>alert"), "ชื่อต้องถูก escape");
     assert.ok(form.includes("&lt;script"), "ชื่อที่แนะนำต้องแสดงแบบ escape");
     assert.ok(!form.includes("Pim7"), "ต้องไม่แสดงสมาชิกทั้งกลุ่ม แสดงแค่ที่เลือกและคนที่แนะนำ");
+    assert.ok(form.includes("(0 คน)"), "เริ่มต้นต้องไม่เลือกใครให้");
+    assert.ok(form.includes("pstrip"), "รายชื่อต้องเป็นแถบเดียวเลื่อนข้าง");
+    assert.ok(!form.includes('aria-pressed="true"') || !/pchip on/.test(form), "เริ่มต้นห้ามมีชิปที่ถูกเลือก");
     assert.ok(form.includes('aria-expanded="false"'), "หัวข้อตัวเลือกเพิ่มเติมต้องปิดอยู่ก่อน");
     assert.ok(!form.includes("ผ่อนชำระ") && !form.includes("เลือกวัน"), "รายละเอียดต้องซ่อนจนกว่าจะกดเปิดหัวข้อ");
 });
@@ -183,4 +186,15 @@ test("Sheet ซ้อนกัน: กด Esc ปิดเฉพาะหน้�
     const ui = fs.readFileSync(path.join(root, "web/src/ui.jsx"), "utf8");
     assert.match(ui, /sheetStack\[sheetStack\.length - 1\] === me/);
     assert.match(ui, /sheetStack\.splice\(i, 1\)/);
+});
+
+test("รายจ่ายส่วนตัว: มีตัวเลือกชำระแบบรายเดือน ส่วนรายรับไม่มี", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { AddSheet } = await bundle("web/src/add.jsx", "add");
+    const props = { today: "2026-11-14", members: ["GAME"], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} };
+    const expense = toString(h(AddSheet, { ...props, initial: "expense" }));
+    assert.match(expense, /ชำระแบบ/);
+    assert.match(expense, /รายเดือน/);
+    const income = toString(h(AddSheet, { ...props, initial: "income" }));
+    assert.ok(!income.includes("รายเดือน"), "รายรับไม่มีตัวเลือกรายเดือน");
 });

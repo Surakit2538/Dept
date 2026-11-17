@@ -159,3 +159,30 @@ test("ประหยัดการอ่าน: wallet-list อ่านเฉ
     await call({ action: "wallet-list", since: "2026-09", idToken: "good-me" });
     assert.ok(db.reads() < 60, `since อ่าน ${db.reads()} เอกสาร`);
 });
+
+test("wallet-add แบบรายเดือน: บันทึกรายการ + แม่แบบ, ดู/หยุดได้เฉพาะของตัวเอง", async () => {
+    const { call, db } = setup();
+    const r = await call({ action: "wallet-add", type: "expense", amount: 599, desc: "ค่าเน็ต", date: "2026-11-10", recurring: true, idToken: "good-me" });
+    assert.equal(r.body.status, "saved");
+    assert.equal(r.body.recurring, true);
+    assert.equal(db.count("wallet_entries"), 1);
+    assert.equal(db.count("wallet_templates"), 1);
+    const tpl = db.all("wallet_templates")[0];
+    assert.equal(tpl.billingDay, 10);
+    assert.equal(tpl.lastGeneratedMonth, "2026-11");
+    // รายรับไม่ทำแม่แบบ และไม่ส่ง recurring ก็ไม่ทำ
+    await call({ action: "wallet-add", type: "income", amount: 100, recurring: true, idToken: "good-me" });
+    await call({ action: "wallet-add", type: "expense", amount: 10, idToken: "good-me" });
+    assert.equal(db.count("wallet_templates"), 1);
+    const mine = await call({ action: "wallet-template-list", idToken: "good-me" });
+    assert.equal(mine.body.items.length, 1);
+    const other = await call({ action: "wallet-template-list", idToken: "good-other" });
+    assert.equal(other.body.items.length, 0);
+    const id = mine.body.items[0].id;
+    const bad = await call({ action: "wallet-template-stop", id, idToken: "good-other" });
+    assert.equal(bad.statusCode, 403);
+    const ok = await call({ action: "wallet-template-stop", id, idToken: "good-me" });
+    assert.equal(ok.statusCode, 200);
+    const after = await call({ action: "wallet-template-list", idToken: "good-me" });
+    assert.equal(after.body.items.length, 0);
+});
