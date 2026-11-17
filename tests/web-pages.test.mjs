@@ -301,3 +301,73 @@ test("เปลี่ยนรายการส่วนตัวเป็น�
     const src = fs.readFileSync(path.join(root, "web/src/add.jsx"), "utf8");
     assert.ok(src.indexOf("await saveBill(r);") < src.indexOf("await convertWallet(prefill.convertId)"), "ต้องบันทึกบิลสำเร็จก่อนค่อยลบรายการส่วนตัวเดิม");
 });
+
+test("ตัวติดตั้ง iPhone: ติดตั้ง 3 สคริปต์ แสดงเวอร์ชัน ถามก่อนลบสคริปต์ Dept เก่า และไม่แตะสคริปต์อื่น", { skip: !hasTools }, async () => {
+    const vm = await import("node:vm");
+    const { installerScript } = await bundle("web/src/iphone.jsx", "iphone");
+    const code = installerScript("tok123", "GAME", "https://dept-game.vercel.app");
+
+    async function runInstaller({ pick, brokenFile = "" }) {
+        const files = new Map([
+            ["OldSlip.js", 'const t = Keychain.get("dept_token");'],
+            ["MyOwn.js", "console.log('ไม่เกี่ยวกับ Dept');"],
+            ["DeptInstaller.js", 'Keychain.set("dept_token", "x");'],
+            ["Untitled Script 3.js", 'Keychain.set("dept_token", "x"); // ตัวติดตั้งที่กำลังรันอยู่']
+        ]);
+        const alerts = [];
+        const sources = (name) => name === brokenFile ? "<!DOCTYPE html><html></html>" : `const SCRIPT_VERSION = "9.9.9"; // ${name}\nScript.complete();`;
+        class Request {
+            constructor(url) { this.url = url; }
+            async loadString() { return sources(this.url.split("/").pop()); }
+            async loadJSON() { return { success: true, user: "GAME" }; }
+        }
+        class Alert {
+            constructor() { this.actions = []; }
+            addAction(t) { this.actions.push(t); }
+            addDestructiveAction(t) { this.actions.push(t); }
+            addCancelAction(t) { this.cancel = t; }
+            async present() { alerts.push(this); return 0; }
+            async presentAlert() { alerts.push(this); return pick; }
+        }
+        const fm = {
+            documentsDirectory: () => "/docs",
+            joinPath: (a, b) => a + "/" + b,
+            writeString: (p, s) => files.set(p.replace("/docs/", ""), s),
+            readString: (p) => files.get(p.replace("/docs/", "")),
+            listContents: () => [...files.keys()],
+            remove: (p) => files.delete(p.replace("/docs/", ""))
+        };
+        const kc = new Map();
+        const sandbox = {
+            Keychain: { set: (k, v) => kc.set(k, v) },
+            Request, Alert,
+            FileManager: { iCloud: () => null, local: () => fm },
+            Script: { name: () => "Untitled Script 3", complete() {} }
+        };
+        vm.createContext(sandbox);
+        await vm.runInContext("(async () => {\n" + code + "\n})()", sandbox);
+        return { files, alerts, kc };
+    }
+
+    // เลือกลบ
+    const del = await runInstaller({ pick: 0 });
+    assert.equal(del.kc.get("dept_token"), "tok123");
+    for (const f of ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"]) assert.ok(del.files.has(f), f);
+    assert.match(del.alerts[0].message, /DeptAuto v9\.9\.9/);
+    assert.match(del.alerts[0].message, /DeptWidget v9\.9\.9/);
+    assert.match(del.alerts[1].message, /OldSlip\.js/);
+    assert.ok(!del.alerts[1].message.includes("MyOwn.js"), "ไม่ใช่ของ Dept ห้ามเสนอให้ลบ");
+    assert.ok(!del.files.has("OldSlip.js"), "ลบสคริปต์ Dept เก่าที่ผู้ใช้ยืนยัน");
+    assert.ok(del.files.has("MyOwn.js"), "สคริปต์อื่นต้องอยู่");
+    assert.ok(del.files.has("DeptInstaller.js") && del.files.has("Untitled Script 3.js"), "ตัวติดตั้งและตัวที่กำลังรันต้องอยู่");
+
+    // เลือกเก็บไว้
+    const keep = await runInstaller({ pick: -1 });
+    assert.ok(keep.files.has("OldSlip.js"));
+
+    // ดาวน์โหลดไม่ครบ: ไม่เปลี่ยนอะไรเลย
+    const broken = await runInstaller({ pick: 0, brokenFile: "DeptAuto.js" });
+    assert.ok(!broken.files.has("DeptWidget.js") && !broken.files.has("DeptAuto.js"));
+    assert.ok(broken.files.has("OldSlip.js"));
+    assert.match(broken.alerts[0].message, /DeptAuto\.js/);
+});

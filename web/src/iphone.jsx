@@ -19,43 +19,70 @@ export function installerScript(token, userName, baseUrl) {
         `const DEVICE_TOKEN = ${JSON.stringify(String(token))};`,
         `const BASE_URL = ${JSON.stringify(String(baseUrl))};`,
         "",
-        'Keychain.set("dept_token", DEVICE_TOKEN);',
+        "Keychain.set(\"dept_token\", DEVICE_TOKEN);",
         "",
-        'const FILES = ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"];',
+        "const FILES = [\"DeptWidget.js\", \"DeptSlip.js\", \"DeptAuto.js\"];",
         "const downloaded = {};",
-        'let failedFile = "";',
+        "let failedFile = \"\";",
         "for (const name of FILES) {",
         "    try {",
         "        const code = await new Request(`${BASE_URL}/scriptable/${name}`).loadString();",
-        '        if (!code.includes("SCRIPT_VERSION") || !code.includes("Script.complete();") || code.includes("<!DOCTYPE html>")) { failedFile = name; break; }',
+        "        if (!code.includes(\"SCRIPT_VERSION\") || !code.includes(\"Script.complete();\") || code.includes(\"<!DOCTYPE html>\")) { failedFile = name; break; }",
         "        downloaded[name] = code;",
         "    } catch (e) { failedFile = name; break; }",
         "}",
         "",
         "if (failedFile) {",
         "    const errAlert = new Alert();",
-        '    errAlert.title = "ติดตั้งไม่สำเร็จ";',
+        "    errAlert.title = \"ติดตั้งไม่สำเร็จ\";",
         "    errAlert.message = `ดาวน์โหลดไฟล์ ${failedFile} ไม่สมบูรณ์ (ยังไม่มีการเปลี่ยนแปลงใดๆ) กรุณาตรวจสอบอินเทอร์เน็ตแล้วลองใหม่อีกครั้ง`;",
-        '    errAlert.addAction("ตกลง");',
+        "    errAlert.addAction(\"ตกลง\");",
         "    await errAlert.present();",
         "    Script.complete();",
         "} else {",
         "    const fm = FileManager.iCloud() ? FileManager.iCloud() : FileManager.local();",
+        "    const dir = fm.documentsDirectory();",
+        "    const installed = [];",
         "    for (const name of FILES) {",
-        "        fm.writeString(fm.joinPath(fm.documentsDirectory(), name), downloaded[name]);",
+        "        fm.writeString(fm.joinPath(dir, name), downloaded[name]);",
+        "        const v = /SCRIPT_VERSION\\s*=\\s*\"([^\"]+)\"/.exec(downloaded[name]);",
+        "        installed.push(name.replace(\".js\", \"\") + \" v\" + (v ? v[1] : \"?\"));",
         "    }",
-        '    let confirmedUser = "";',
+        "    let confirmedUser = \"\";",
         "    try {",
         "        const testReq = new Request(`${BASE_URL}/api/widget-summary`);",
-        '        testReq.headers = { "Authorization": `Bearer ${DEVICE_TOKEN}` };',
+        "        testReq.headers = { \"Authorization\": `Bearer ${DEVICE_TOKEN}` };",
         "        const testRes = await testReq.loadJSON();",
-        '        if (testRes && testRes.success) { confirmedUser = testRes.user || ""; }',
+        "        if (testRes && testRes.success) { confirmedUser = testRes.user || \"\"; }",
         "    } catch (e) {}",
+        "",
+        "    // สคริปต์ Dept ตัวเก่าหรือชื่ออื่นที่ระบบปัจจุบันไม่ใช้แล้ว (ดูจากเนื้อหาที่มีรหัสอุปกรณ์หรือที่อยู่เว็บ Dept)",
+        "    const keep = FILES.concat([\"DeptInstaller.js\", Script.name() + \".js\"]);",
+        "    const stale = [];",
+        "    for (const f of fm.listContents(dir)) {",
+        "        if (!f.endsWith(\".js\") || keep.includes(f)) continue;",
+        "        try {",
+        "            if (/dept_token|dept-game/i.test(fm.readString(fm.joinPath(dir, f)))) stale.push(f);",
+        "        } catch (e) {}",
+        "    }",
+        "",
         "    const successAlert = new Alert();",
-        '    successAlert.title = "ติดตั้งสำเร็จ";',
-        '    successAlert.message = `ติดตั้ง DeptWidget, DeptSlip และ DeptAuto เรียบร้อยแล้ว\\n\\nสมาชิก: ${confirmedUser}\\nต่อไปให้เพิ่ม Widget บนหน้าจอโฮม และสร้างคำสั่งลัดสแกนสลิปตามคู่มือครับ`;',
-        '    successAlert.addAction("เรียบร้อย");',
+        "    successAlert.title = \"ติดตั้งสำเร็จ\";",
+        "    successAlert.message = `สมาชิก: ${confirmedUser}\\n\\n${installed.join(\"\\n\")}\\n\\nต่อไปให้เพิ่ม Widget บนหน้าจอโฮม และตั้งคำสั่งลัดตามคู่มือครับ`;",
+        "    successAlert.addAction(\"เรียบร้อย\");",
         "    await successAlert.present();",
+        "",
+        "    if (stale.length > 0) {",
+        "        const staleAlert = new Alert();",
+        "        staleAlert.title = \"พบสคริปต์ Dept ที่ไม่ใช้แล้ว\";",
+        "        staleAlert.message = `${stale.join(\"\\n\")}\\n\\nระบบปัจจุบันไม่เรียกสคริปต์เหล่านี้ ลบออกไหม (ถ้าคำสั่งลัดของคุณยังเรียกชื่อเหล่านี้อยู่ ให้เลือก เก็บไว้ ก่อน)`;",
+        "        staleAlert.addDestructiveAction(\"ลบทั้งหมด\");",
+        "        staleAlert.addCancelAction(\"เก็บไว้\");",
+        "        const pick = await staleAlert.presentAlert();",
+        "        if (pick === 0) {",
+        "            for (const f of stale) fm.remove(fm.joinPath(dir, f));",
+        "        }",
+        "    }",
         "    Script.complete();",
         "}",
         ""
@@ -177,7 +204,7 @@ export function IphoneSheet({ onClose }) {
     return (
         <Sheet title="ตั้งค่า iPhone" onClose={onClose} class="sheet-wide">
             <div class="ip-wrap">
-                <p class="ip-desc">ติดตั้ง Widget และสแกนสลิปอัตโนมัติ ทำครั้งเดียวต่อเครื่อง</p>
+                <p class="ip-desc">ติดตั้ง Widget และบันทึกรายจ่ายอัตโนมัติ (สลิป, SMS บัตร, อีเมลธนาคาร) ทำครั้งเดียวต่อเครื่อง</p>
                 
                 {/* สลับมุมมอง */}
                 <div class="seg ip-seg" role="tablist" aria-label="เลือกมุมมอง">
@@ -275,7 +302,7 @@ export function IphoneSheet({ onClose }) {
 
                             <div class="ip-highlight-box">
                                 <Icon name="sparkle" size={16} />
-                                <span>เมื่อขึ้น &ldquo;ติดตั้งสำเร็จ&rdquo; จะได้สคริปต์ <b>DeptWidget</b> และ <b>DeptSlip</b> ในแอป</span>
+                                <span>เมื่อขึ้น &ldquo;ติดตั้งสำเร็จ&rdquo; จะได้สคริปต์ <b>DeptWidget</b>, <b>DeptSlip</b> และ <b>DeptAuto</b> ในแอป</span>
                             </div>
 
                             <div>
@@ -308,6 +335,35 @@ export function IphoneSheet({ onClose }) {
                                 </div>
                             </div>
                         </section>
+
+                        {/* ขั้นที่ 4 */}
+                        <section class="ip-card">
+                            <div class="ip-step-hd">
+                                <div class="ip-badge">4</div>
+                                <div class="ip-step-t">
+                                    <h3>ขั้นที่ 4: ตั้งระบบอัตโนมัติ (ไม่ต้องกดเอง)</h3>
+                                </div>
+                            </div>
+                            <p class="ip-desc">ทุกแบบเรียกสคริปต์ <b>DeptAuto</b> ตัวเดียวกัน ต่างกันแค่สิ่งที่ทำให้เริ่มทำงาน</p>
+                            <div class="ip-substeps">
+                                <div class="ip-substep-item"><span><b>ปิดแอปธนาคาร</b> บันทึกสลิปและภาพหน้าจอล่าสุด</span></div>
+                                <div class="ip-substep-item"><span><b>ข้อความ SMS ที่มีคำว่า THB</b> รายจ่ายบัตร KTC, CardX, ttb</span></div>
+                                <div class="ip-substep-item"><span><b>อีเมลจากธนาคาร</b> รายจ่ายบัตรหรือบัญชีที่ธนาคารส่งอีเมลแจ้ง</span></div>
+                                <div class="ip-substep-item"><span><b>แตะหลังเครื่อง 2 ครั้ง</b> บันทึกแจ้งเตือนที่เห็นอยู่บนหน้าจอ</span></div>
+                            </div>
+                            <a href="/shortcut-guide.html#auto-more" target="_blank" rel="noopener" class="btn sm ghost ip-guide-btn">
+                                <Icon name="external" size={14} /> วิธีตั้งแต่ละแบบ
+                            </a>
+                        </section>
+
+                        <details class="ip-details">
+                            <summary>บนเครื่องควรมีอะไร และลบอะไรได้</summary>
+                            <div class="ip-substeps" style="margin-top: 8px;">
+                                <div class="ip-substep-item"><span><b>Scriptable ควรมี 4 ตัว</b> DeptInstaller, DeptWidget, DeptSlip, DeptAuto</span></div>
+                                <div class="ip-substep-item"><span><b>คำสั่งลัดควรมี</b> สแกนสลิป, สลิปอัตโนมัติ (และ บันทึกจากหน้าจอ ถ้าใช้แตะหลังเครื่อง)</span></div>
+                                <div class="ip-substep-item"><span><b>ลบได้</b> สคริปต์หรือคำสั่งลัดเก่าของ Dept ที่ไม่อยู่ในรายการข้างบน ตัวติดตั้งจะถามก่อนลบสคริปต์เก่าให้เอง</span></div>
+                            </div>
+                        </details>
 
                         {/* ความปลอดภัยย่อ */}
                         <div class="ip-sec-card">
