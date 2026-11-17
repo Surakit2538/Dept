@@ -265,3 +265,13 @@ test("ล็อกอินบนคอม: ล้างรหัส code เก
     const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
     assert.match(main, /getLoginDiag\(\)/);
 });
+
+test("แก้รายจ่ายรายเดือนที่ตั้งไว้: หน้าต่างแก้ไขแสดงชื่อ ยอด หมวด และ escape ชื่อ", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { EditTemplateSheet } = await bundle("web/src/editbill.jsx", "editbill3");
+    const html = toString(h(EditTemplateSheet, { template: { id: "t", desc: "<b onclick=x>", amount: 518, icon: "" }, onClose() {}, onSaved() {} }));
+    assert.match(html, /แก้รายจ่ายรายเดือน/);
+    assert.match(html, /ยอดต่อเดือน/);
+    assert.match(html, /เดินทาง/);
+    assert.ok(!html.includes("<b onclick"));
+});

@@ -337,6 +337,11 @@ export async function loadWalletTemplates() {
     return Array.isArray(r.items) ? r.items : [];
 }
 
+/** แก้รายจ่ายรายเดือนที่ตั้งไว้ (ชื่อ ยอด หมวด) fields = { desc?, amount?, icon? } */
+export async function updateWalletTemplate(id, fields) {
+    await api("/api/shortcut-transaction", { action: "wallet-template-update", id, ...fields });
+}
+
 export async function stopWalletTemplate(id) {
     await api("/api/shortcut-transaction", { action: "wallet-template-stop", id });
 }

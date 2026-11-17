@@ -246,3 +246,18 @@ test("แก้หมวดของรายการที่มาจาก�
     await call({ action: "wallet-update", id: "old1", icon: "fa-bolt", idToken: "good-me" });
     assert.equal(db.all("wallet_templates").find((t) => t.ownerName === "AOY").icon, "fa-wallet");
 });
+
+test("wallet-template-update: แก้ชื่อ ยอด หมวดของรายเดือน เฉพาะของตัวเอง และตรวจค่า", async () => {
+    const { call, db } = setup();
+    await call({ action: "wallet-add", type: "expense", amount: 518, desc: "Netflx", date: "2026-11-01", recurring: true, idToken: "good-me" });
+    const id = (await call({ action: "wallet-template-list", idToken: "good-me" })).body.items[0].id;
+    assert.equal((await call({ action: "wallet-template-update", id, desc: "x", idToken: "good-other" })).statusCode, 403);
+    const ok = await call({ action: "wallet-template-update", id, desc: "Netflix", amount: 599, icon: "fa-film", idToken: "good-me" });
+    assert.equal(ok.statusCode, 200);
+    const t = db.all("wallet_templates")[0];
+    assert.deepEqual([t.desc, t.amount, t.icon], ["Netflix", 599, "fa-film"]);
+    assert.equal((await call({ action: "wallet-template-update", id, amount: -5, idToken: "good-me" })).statusCode, 400);
+    assert.equal((await call({ action: "wallet-template-update", id, icon: "<x>", idToken: "good-me" })).statusCode, 400);
+    assert.equal((await call({ action: "wallet-template-update", id, idToken: "good-me" })).statusCode, 400);
+    assert.equal((await call({ action: "wallet-template-update", id: "nope", desc: "x", idToken: "good-me" })).statusCode, 404);
+});

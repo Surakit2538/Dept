@@ -42,7 +42,9 @@ function AutoCategorize({ items, onDone, onError, onInfo }) {
 
 function RecurringWallet({ version, onError }) {
     const [list, setList] = useState(null);
-    useEffect(() => { let on = true; loadWalletTemplates().then((l) => on && setList(l)).catch(() => on && setList([])); return () => { on = false; }; }, [version]);
+    const [editing, setEditing] = useState(null);
+    const [tick, setTick] = useState(0);
+    useEffect(() => { let on = true; loadWalletTemplates().then((l) => on && setList(l)).catch(() => on && setList([])); return () => { on = false; }; }, [version, tick]);
     if (!list || list.length === 0) return null;
     return (
         <Collapsible icon="swap" title="รายจ่ายรายเดือนที่ตั้งไว้" summary={`${list.length} รายการ · รวม ${baht(list.reduce((a, t) => a + (Number(t.amount) || 0), 0))} ต่อเดือน`}>
@@ -52,12 +54,14 @@ function RecurringWallet({ version, onError }) {
                         <span class="ico"><Icon name={iconFor(t.icon)} /></span>
                         <div class="grow"><div class="t">{t.desc || "รายจ่าย"}</div><div class="s">สร้างให้ทุกวันที่ {t.billingDay} ของเดือน</div></div>
                         <span class="num">{baht(Number(t.amount) || 0, { decimals: 2 })}</span>
+                        <button type="button" class="icon-btn" aria-label={`แก้ไข ${t.desc || "รายจ่ายรายเดือน"}`} onClick={() => setEditing(t)}><Icon name="pencil" size={17} /></button>
                         <DeleteButton verb="หยุด" busyText="กำลังหยุด" keepText="ไม่หยุด" label={t.desc || "รายจ่ายรายเดือน"}
                             onConfirm={async () => { try { await stopWalletTemplate(t.id); setList((cur) => cur.filter((x) => x.id !== t.id)); } catch (e) { onError(e.message); } }} />
                     </li>
                 ))}
             </ul>
             <p class="lbl">หยุดแล้วเดือนถัดไปจะไม่สร้างซ้ำ รายการที่สร้างไปแล้วยังอยู่</p>
+            {editing && <Lazy load={() => import("../editbill.jsx")} name="EditTemplateSheet" template={editing} onClose={() => setEditing(null)} onSaved={() => setTick((n) => n + 1)} />}
         </Collapsible>
     );
 }
