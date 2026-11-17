@@ -17,3 +17,5 @@ export function CategoryPicker({ value, onPick, labelId = "cat-l", hint = "" }) 
 export const faOf = (key) => (BILL_ICONS.find((i) => i.key === key) || BILL_ICONS[BILL_ICONS.length - 1]).fa;
 /** ชื่อหมวดจากรหัสไอคอนที่เก็บไว้ (ไม่รู้จัก = อื่นๆ) */
 export const keyOfFa = (fa) => (BILL_ICONS.find((i) => i.fa === fa) || BILL_ICONS[BILL_ICONS.length - 1]).key;
+/** รายการนี้มีหมวดที่เลือกไว้แล้วหรือยัง (ไม่มีไอคอน หรือเป็นไอคอนเริ่มต้นของกระเป๋า fa-wallet = ยังไม่มี) */
+export const hasCategory = (fa) => Boolean(fa) && fa !== "fa-wallet";

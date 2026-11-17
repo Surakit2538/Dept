@@ -2,9 +2,9 @@
 import { useState } from "preact/hooks";
 import { Sheet } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
-import { BILL_ICONS } from "./model.js";
+import { BILL_ICONS, guessBillIcon } from "./model.js";
 import { updateBillFields, updateWalletEntry } from "./data.js";
-import { CategoryPicker, faOf, keyOfFa } from "./cats.jsx";
+import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 
 export function EditBillSheet({ bill, onClose, onSaved }) {
     const grouped = bill.type === "installment";
@@ -43,7 +43,8 @@ export function EditBillSheet({ bill, onClose, onSaved }) {
 export function EditWalletSheet({ item, onClose, onSaved }) {
     const isIncome = item.type === "income";
     const [desc, setDesc] = useState(item.desc || "");
-    const [iconKey, setIconKey] = useState(keyOfFa(item.icon));
+    // รายการที่ยังไม่มีหมวด: เดาจากชื่อให้เลย (เปลี่ยนเองได้)
+    const [iconKey, setIconKey] = useState(() => (hasCategory(item.icon) ? keyOfFa(item.icon) : guessBillIcon(item.desc)));
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
     async function save(e) {

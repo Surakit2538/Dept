@@ -3,7 +3,9 @@ import { Icon, iconFor } from "../icons.jsx";
 import { SectionTitle, DeleteButton, Lazy } from "../ui.jsx";
 import { baht } from "../model.js";
 import { useState, useEffect } from "preact/hooks";
-import { deleteWalletEntry, loadWalletTemplates, stopWalletTemplate } from "../data.js";
+import { deleteWalletEntry, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries } from "../data.js";
+import { guessBillIcon } from "../model.js";
+import { faOf, hasCategory } from "../cats.jsx";
 
 function Item({ it, onDeleted, onError, onEdit }) {
     const name = it.desc || (it.type === "income" ? "รายรับ" : "รายจ่าย");
@@ -19,6 +21,25 @@ function Item({ it, onDeleted, onError, onEdit }) {
 }
 
 /** รายจ่ายส่วนตัวแบบรายเดือนที่ตั้งไว้ (สร้างให้อัตโนมัติทุกเดือน หยุดได้) */
+/** รายจ่ายที่ยังไม่มีหมวด: เดาหมวดจากชื่อรายการแล้วจัดให้ทีเดียว (ถามยืนยันก่อน) */
+function AutoCategorize({ items, onDone, onError, onInfo }) {
+    const [state, setState] = useState("idle");
+    const todo = items
+        .filter((it) => it.type === "expense" && !hasCategory(it.icon))
+        .map((it) => ({ id: it.id, key: guessBillIcon(it.desc) }))
+        .filter((x) => x.key !== "other")
+        .map((x) => ({ id: x.id, icon: faOf(x.key) }));
+    if (todo.length === 0) return null;
+    if (state === "idle") return <div class="acts remind"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="sliders" size={14} />จัดหมวดอัตโนมัติ ({todo.length} รายการ)</button></div>;
+    return (
+        <div class="acts remind">
+            <span class="lbl">ระบบจะเดาหมวดจากชื่อรายการให้ {todo.length} รายการที่ยังไม่มีหมวด (แก้ทีหลังได้ทีละรายการ) ทำเลยไหม</span>
+            <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { const n = await categorizeWalletEntries(todo); onInfo(`จัดหมวดให้ ${n} รายการแล้ว`); onDone(); } catch (e) { onError(e.message); } setState("idle"); }}>{state === "busy" ? "กำลังจัด" : "ทำเลย"}</button>
+            <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
+        </div>
+    );
+}
+
 function RecurringWallet({ version, onError }) {
     const [list, setList] = useState(null);
     useEffect(() => { let on = true; loadWalletTemplates().then((l) => on && setList(l)).catch(() => on && setList([])); return () => { on = false; }; }, [version]);
@@ -54,7 +75,7 @@ function Line({ icon, title, note, value, tone = "" }) {
 
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
-export function WalletPage({ model, onChanged, onError, version = 0 }) {
+export function WalletPage({ model, onChanged, onError, onInfo = () => {}, version = 0 }) {
     const m = model;
     const [editing, setEditing] = useState(null);
     const hasIncome = m.incomeSat > 0;
@@ -95,6 +116,7 @@ export function WalletPage({ model, onChanged, onError, version = 0 }) {
             <div class="col">
                 <section class="card">
                     <SectionTitle icon="bill" title="รายการของฉัน" note="รายรับและรายจ่ายส่วนตัว" />
+                    <AutoCategorize items={m.items} onDone={onChanged} onError={onError} onInfo={onInfo} />
                     {m.items.length === 0 ? <p class="empty">ยังไม่มีรายการในเดือนนี้ กดปุ่ม &ldquo;บันทึก&rdquo; เพื่อเพิ่ม</p>
                         : <ul class="plain">{m.items.map((it) => <Item key={it.id} it={it} onDeleted={onChanged} onError={onError} onEdit={setEditing} />)}</ul>}
                 </section>

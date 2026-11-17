@@ -208,3 +208,19 @@ test("wallet-update: แก้ชื่อ/หมวดของรายกา�
     assert.equal((await call({ action: "wallet-update", id, idToken: "good-me" })).statusCode, 400);
     assert.equal((await call({ action: "wallet-update", id: "nope", icon: "fa-car", idToken: "good-me" })).statusCode, 404);
 });
+
+test("wallet-update แบบหลายรายการ: จัดหมวดทีเดียว แก้เฉพาะของตัวเอง รายงานตัวที่ล้มเหลว", async () => {
+    const { call, db } = setup();
+    const a = (await call({ action: "wallet-add", type: "expense", amount: 100, desc: "ผ่อน CIVIC", idToken: "good-me" })).body.id;
+    const b = (await call({ action: "wallet-add", type: "expense", amount: 50, desc: "Netflix", idToken: "good-me" })).body.id;
+    const theirs = (await call({ action: "wallet-add", type: "expense", amount: 20, desc: "ของคนอื่น", idToken: "good-other" })).body.id;
+    const r = await call({ action: "wallet-update", items: [{ id: a, icon: "fa-car" }, { id: b, icon: "fa-bolt" }, { id: theirs, icon: "fa-bolt" }, { id: "nope", icon: "fa-bolt" }, { id: a, icon: "<x>" }], idToken: "good-me" });
+    assert.equal(r.statusCode, 200);
+    assert.equal(r.body.updated, 2);
+    assert.equal(r.body.failed.length, 3);
+    const byDesc = Object.fromEntries(db.all("wallet_entries").map((e) => [e.desc, e.icon]));
+    assert.equal(byDesc["ผ่อน CIVIC"], "fa-car");
+    assert.equal(byDesc["Netflix"], "fa-bolt");
+    assert.notEqual(byDesc["ของคนอื่น"], "fa-bolt");
+    assert.equal((await call({ action: "wallet-update", items: [], idToken: "good-me" })).statusCode, 400);
+});

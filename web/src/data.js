@@ -302,6 +302,12 @@ export async function updateWalletEntry(id, fields) {
     await api("/api/shortcut-transaction", { action: "wallet-update", id, ...fields });
 }
 
+/** จัดหมวดหลายรายการพร้อมกัน items = [{ id, icon }] คืนจำนวนที่แก้สำเร็จ */
+export async function categorizeWalletEntries(items) {
+    const r = await api("/api/shortcut-transaction", { action: "wallet-update", items });
+    return Number(r.updated) || 0;
+}
+
 export async function loadWalletTemplates() {
     const r = await api("/api/shortcut-transaction", { action: "wallet-template-list" });
     return Array.isArray(r.items) ? r.items : [];

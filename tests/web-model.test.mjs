@@ -182,6 +182,11 @@ test("guessBillIcon / BILL_ICONS", () => {
     assert.equal(guessBillIcon("ของขวัญวันเกิดเพื่อน"), "gift");
     assert.equal(guessBillIcon("อาหารแมว"), "pet");
     assert.equal(guessBillIcon("Netflix"), "bills");
+    assert.equal(guessBillIcon("ผ่อน CIVIC"), "travel");
+    assert.equal(guessBillIcon("Claude"), "bills");
+    assert.equal(guessBillIcon("APPLE Icloud"), "bills");
+    assert.equal(guessBillIcon("AIS"), "bills");
+    assert.equal(guessBillIcon("ตัดผม"), "goods");
     assert.ok(BILL_ICONS.every((i) => i.fa.startsWith("fa-")));
 });
 

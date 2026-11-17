@@ -234,3 +234,13 @@ test("รายจ่ายส่วนตัวเลือกหมวดไ�
     assert.match(inc, /แก้ไขรายรับ/);
     assert.ok(!inc.includes("สัตว์เลี้ยง"));
 });
+
+test("กระเป๋า: ปุ่มจัดหมวดอัตโนมัติโผล่เมื่อมีรายจ่ายที่ยังไม่มีหมวดและเดาได้ ไม่โผล่เมื่อครบแล้ว", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { WalletPage } = await bundle("web/src/pages/WalletPage.jsx", "wallet2");
+    const mk = (items) => ({ spentSat: 0, incomeSat: 0, netSat: 0, personalSat: 0, groupShareSat: 0, receivedBackSat: 0, paidBackSat: 0, items });
+    const withTodo = toString(h(WalletPage, { model: mk([{ id: "1", type: "expense", desc: "ผ่อน CIVIC", amount: 100, date: "2026-11-04", icon: "" }, { id: "2", type: "expense", desc: "อะไรสักอย่าง", amount: 5, date: "2026-11-04", icon: "" }]), onChanged() {}, onError() {} }));
+    assert.match(withTodo, /จัดหมวดอัตโนมัติ \(1 รายการ\)/);
+    const done = toString(h(WalletPage, { model: mk([{ id: "1", type: "expense", desc: "ผ่อน CIVIC", amount: 100, date: "2026-11-04", icon: "fa-car" }]), onChanged() {}, onError() {} }));
+    assert.ok(!done.includes("จัดหมวดอัตโนมัติ"));
+});
