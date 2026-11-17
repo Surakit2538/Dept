@@ -328,8 +328,12 @@ export async function updateWalletEntry(id, fields) {
 
 /** จัดหมวดหลายรายการพร้อมกัน items = [{ id, icon }] คืนจำนวนที่แก้สำเร็จ */
 export async function categorizeWalletEntries(items) {
-    const r = await api("/api/shortcut-transaction", { action: "wallet-update", items });
-    return Number(r.updated) || 0;
+    let n = 0;
+    for (let i = 0; i < items.length; i += 100) { // เซิร์ฟเวอร์รับครั้งละไม่เกิน 100 รายการ
+        const r = await api("/api/shortcut-transaction", { action: "wallet-update", items: items.slice(i, i + 100) });
+        n += Number(r.updated) || 0;
+    }
+    return n;
 }
 
 export async function loadWalletTemplates() {
@@ -379,6 +383,18 @@ export function invalidateProfiles() {
 
 export async function deleteWalletEntry(id) {
     return api("/api/shortcut-transaction", { action: "wallet-delete", id });
+}
+
+/** ลบหลายรายการส่วนตัวพร้อมกัน (เซิร์ฟเวอร์รับครั้งละไม่เกิน 50) คืนจำนวนที่ลบได้และที่ลบไม่ได้ */
+export async function deleteWalletEntries(ids) {
+    let deleted = 0;
+    let failed = 0;
+    for (let i = 0; i < ids.length; i += 50) {
+        const r = await api("/api/shortcut-transaction", { action: "wallet-delete-many", ids: ids.slice(i, i + 50) });
+        deleted += Number(r.deleted) || 0;
+        failed += Array.isArray(r.failed) ? r.failed.length : 0;
+    }
+    return { deleted, failed };
 }
 
 /** บิลรายเดือนที่ตั้งไว้ (เปิดอยู่เท่านั้น) */
@@ -474,6 +490,18 @@ export async function clearMonthData(month) {
 
 export async function deleteBill(id) {
     await deleteDoc(doc(db, "transactions", String(id)));
+}
+
+/** เปลี่ยนหมวดของหลายบิลพร้อมกัน (ไม่แก้ยอดและคนหาร) */
+export async function updateBillIcons(ids, icon) {
+    for (let i = 0; i < ids.length; i += 10) await Promise.all(ids.slice(i, i + 10).map((id) => updateBillFields(id, { icon })));
+    return ids.length;
+}
+
+/** ลบหลายบิลพร้อมกัน */
+export async function deleteBills(ids) {
+    for (let i = 0; i < ids.length; i += 10) await Promise.all(ids.slice(i, i + 10).map((id) => deleteBill(id)));
+    return ids.length;
 }
 
 export async function saveMyProfile(memberId, fields) {

@@ -3,17 +3,24 @@ import { Icon, iconFor } from "../icons.jsx";
 import { SectionTitle, DeleteButton, Lazy, Collapsible } from "../ui.jsx";
 import { baht } from "../model.js";
 import { useState, useEffect } from "preact/hooks";
-import { deleteWalletEntry, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries } from "../data.js";
+import { deleteWalletEntry, deleteWalletEntries, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries } from "../data.js";
+import { SelectToggle, SelectRow, BulkBar } from "../bulk.jsx";
 import { guessBillIcon } from "../model.js";
 import { faOf, hasCategory } from "../cats.jsx";
 
-function Item({ it, onDeleted, onError, onEdit }) {
+function Item({ it, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
     const name = it.desc || (it.type === "income" ? "รายรับ" : "รายจ่าย");
-    return (
-        <li class="row">
+    const body = (
+        <>
             <span class="ico"><Icon name={it.type === "income" ? "down" : iconFor(it.icon)} /></span>
             <div class="grow"><div class="t">{name}</div><div class="s">{it.type === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {it.date.slice(8, 10)}/{it.date.slice(5, 7)}</div></div>
             <span class={`num ${it.type === "income" ? "rcv" : ""}`}>{baht(it.amount, { decimals: 2 })}</span>
+        </>
+    );
+    if (selecting) return <SelectRow picked={picked} label={name} onToggle={() => onToggle(it.id)}>{body}</SelectRow>;
+    return (
+        <li class="row">
+            {body}
             <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(it)}><Icon name="pencil" size={17} /></button>
             <DeleteButton label={name} onConfirm={async () => { try { await deleteWalletEntry(it.id); onDeleted(); } catch (e) { onError(e.message); } }} />
         </li>
@@ -81,8 +88,32 @@ const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
 export function WalletPage({ model, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0 }) {
     const m = model;
     const [editing, setEditing] = useState(null);
+    const [selecting, setSelecting] = useState(false);
+    const [picked, setPicked] = useState([]);
     const hasIncome = m.incomeSat > 0;
     const over = m.netSat < 0;
+    const ids = m.items.map((it) => it.id);
+    const live = picked.filter((id) => ids.includes(id));
+    const toggle = (id) => setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+    const stopSelecting = () => { setSelecting(false); setPicked([]); };
+    async function bulkDelete() {
+        try {
+            const r = await deleteWalletEntries(live);
+            onInfo(`ลบแล้ว ${r.deleted} รายการ${r.failed ? ` (ลบไม่ได้ ${r.failed} รายการ)` : ""}`);
+            stopSelecting();
+            onChanged();
+        } catch (e) { onError(e.message); }
+    }
+    async function bulkCategory(fa) {
+        const chosen = m.items.filter((it) => live.includes(it.id) && it.type === "expense").map((it) => ({ id: it.id, icon: fa }));
+        if (chosen.length === 0) { onError("รายรับไม่มีหมวด เลือกรายจ่ายอย่างน้อย 1 รายการ"); return; }
+        try {
+            const n = await categorizeWalletEntries(chosen);
+            onInfo(`เปลี่ยนหมวดแล้ว ${n} รายการ`);
+            stopSelecting();
+            onChanged();
+        } catch (e) { onError(e.message); }
+    }
     return (
         <div class="home-grid">
             <div class="col">
@@ -119,9 +150,11 @@ export function WalletPage({ model, onChanged, onError, onInfo = () => {}, onSpl
             <div class="col">
                 <section class="card">
                     <SectionTitle icon="bill" title="รายการของฉัน" note="รายรับและรายจ่ายส่วนตัว" />
-                    <AutoCategorize items={m.items} onDone={onChanged} onError={onError} onInfo={onInfo} />
+                    {m.items.length > 1 && <SelectToggle on={selecting} onToggle={() => (selecting ? stopSelecting() : setSelecting(true))} />}
+                    {!selecting && <AutoCategorize items={m.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
                     {m.items.length === 0 ? <p class="empty">ยังไม่มีรายการในเดือนนี้ กดปุ่ม &ldquo;บันทึก&rdquo; เพื่อเพิ่ม</p>
-                        : <ul class="plain">{m.items.map((it) => <Item key={it.id} it={it} onDeleted={onChanged} onError={onError} onEdit={setEditing} />)}</ul>}
+                        : <ul class="plain">{m.items.map((it) => <Item key={it.id} it={it} onDeleted={onChanged} onError={onError} onEdit={setEditing} selecting={selecting} picked={live.includes(it.id)} onToggle={toggle} />)}</ul>}
+                    {selecting && <BulkBar count={live.length} total={ids.length} onAll={() => setPicked(ids)} onNone={() => setPicked([])} onCategory={bulkCategory} onDelete={bulkDelete} note="รายรับจะไม่ถูกเปลี่ยนหมวด (เปลี่ยนเฉพาะรายจ่ายที่เลือก)" />}
                 </section>
                 <RecurringWallet version={version} onError={onError} />
             </div>

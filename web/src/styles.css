@@ -588,3 +588,20 @@ html, body { touch-action: manipulation; }
 .coll-chev.up { transform: rotate(180deg); }
 .coll-body { padding: 0 var(--s4) var(--s4); border-top: 1px solid var(--line); padding-top: var(--s3); }
 .login-banner .diag { display: block; font-weight: 400; opacity: .85; margin-top: 2px; }
+
+/* เลือกหลายรายการ (กระเป๋าและบิล) */
+.row.sel { cursor: pointer; }
+.row.sel.on { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.row.sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row.dim { opacity: .5; }
+.pick { width: 22px; height: 22px; flex: none; border-radius: var(--r-sm); border: 1.5px solid var(--line); background: var(--surface); color: var(--accent-ink); display: grid; place-items: center; }
+.pick.on { background: var(--accent); border-color: var(--accent); }
+.bulk-bar { position: sticky; bottom: var(--s3); z-index: 5; display: flex; flex-direction: column; gap: var(--s2); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); padding: var(--s3); margin-top: var(--s3); }
+.bulk-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); flex-wrap: wrap; }
+.bulk-sel { display: inline-flex; gap: var(--s2); }
+.bulk-bar .acts.remind { margin-bottom: 0; }
+/* มือถือ: ยกแถบเลือกขึ้นเหนือแท็บล่าง และซ่อนปุ่มบันทึกลอยตอนอยู่ในโหมดเลือก ไม่ให้ทับกัน */
+@media (max-width: 959px) {
+  .bulk-bar { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+  body:has(.bulk-bar) .fab { display: none; }
+}

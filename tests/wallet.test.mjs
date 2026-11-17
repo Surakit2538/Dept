@@ -261,3 +261,28 @@ test("wallet-template-update: แก้ชื่อ ยอด หมวดขอ
     assert.equal((await call({ action: "wallet-template-update", id, idToken: "good-me" })).statusCode, 400);
     assert.equal((await call({ action: "wallet-template-update", id: "nope", desc: "x", idToken: "good-me" })).statusCode, 404);
 });
+
+test("wallet-delete-many: ลบหลายรายการของตัวเอง ข้ามของคนอื่น/ไม่มีอยู่ และจำกัดจำนวน", async () => {
+    const { db, call } = setup();
+    const mine = [];
+    for (const [d, a] of [["ข้าว", 50], ["กาแฟ", 65], ["ค่าไฟ", 900]]) {
+        const r = await call({ action: "wallet-add", type: "expense", amount: a, desc: d, idToken: "good-me" });
+        mine.push(r.body.id);
+    }
+    const other = (await call({ action: "wallet-add", type: "expense", amount: 40, desc: "ชานม", idToken: "good-other" })).body.id;
+
+    const r = await call({ action: "wallet-delete-many", ids: [mine[0], mine[1], other, "nope", mine[0]], idToken: "good-me" });
+    assert.equal(r.statusCode, 200);
+    assert.equal(r.body.status, "deleted");
+    assert.equal(r.body.deleted, 2);
+    assert.equal(r.body.failed.length, 2);
+    assert.equal(db.has("wallet_entries", mine[0]), false);
+    assert.equal(db.has("wallet_entries", mine[1]), false);
+    assert.equal(db.has("wallet_entries", mine[2]), true, "ที่ไม่ได้เลือกต้องอยู่");
+    assert.equal(db.has("wallet_entries", other), true, "ของคนอื่นต้องไม่ถูกลบ");
+
+    const tooMany = await call({ action: "wallet-delete-many", ids: Array.from({ length: 51 }, (_, i) => "x" + i), idToken: "good-me" });
+    assert.equal(tooMany.statusCode, 400);
+    assert.equal((await call({ action: "wallet-delete-many", ids: [], idToken: "good-me" })).statusCode, 400);
+    assert.equal((await call({ action: "wallet-delete-many", ids: [mine[2]], idToken: "bad" })).statusCode, 401);
+});

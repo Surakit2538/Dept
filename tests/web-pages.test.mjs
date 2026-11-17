@@ -371,3 +371,29 @@ test("ตัวติดตั้ง iPhone: ติดตั้ง 3 สคร�
     assert.ok(broken.files.has("OldSlip.js"));
     assert.match(broken.alerts[0].message, /DeptAuto\.js/);
 });
+
+test("เลือกหลายรายการ: ปุ่มเลือกโผล่เมื่อมี 2 รายการขึ้นไป แถวที่เลือกเป็น checkbox และแถบล่างแสดงจำนวน", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { WalletPage } = await bundle("web/src/pages/WalletPage.jsx", "wallet3");
+    const { BulkBar, SelectRow, SelectToggle } = await bundle("web/src/bulk.jsx", "bulk");
+    const mk = (items) => ({ spentSat: 0, incomeSat: 0, netSat: 0, personalSat: 0, groupShareSat: 0, receivedBackSat: 0, paidBackSat: 0, items });
+    const two = [{ id: "1", type: "expense", desc: "กาแฟ", amount: 65, date: "2026-11-04", icon: "fa-mug-hot" }, { id: "2", type: "expense", desc: "ข้าว", amount: 50, date: "2026-11-04", icon: "fa-utensils" }];
+    const html = toString(h(WalletPage, { model: mk(two), onChanged() {}, onError() {} }));
+    assert.match(html, /เลือกหลายรายการ/);
+    assert.ok(!html.includes("bulk-bar"), "ยังไม่เข้าโหมดเลือก ต้องไม่มีแถบล่าง");
+    const one = toString(h(WalletPage, { model: mk(two.slice(0, 1)), onChanged() {}, onError() {} }));
+    assert.ok(!one.includes("เลือกหลายรายการ"), "มีรายการเดียวไม่ต้องมีปุ่มเลือก");
+
+    const row = toString(h(SelectRow, { picked: true, label: "กาแฟ", onToggle() {} }, h("span", null, "เนื้อหาแถว")));
+    assert.match(row, /role="checkbox"/);
+    assert.match(row, /aria-checked="true"/);
+    assert.match(row, /เนื้อหาแถว/);
+    const bar = toString(h(BulkBar, { count: 3, total: 5, onAll() {}, onNone() {}, onCategory() {}, onDelete() {} }));
+    assert.match(bar, /เลือกแล้ว 3 รายการ/);
+    assert.match(bar, /เปลี่ยนหมวด/);
+    assert.match(bar, /ลบ/);
+    const empty = toString(h(BulkBar, { count: 0, total: 5, onAll() {}, onNone() {}, onCategory() {}, onDelete() {} }));
+    assert.match(empty, /แตะรายการที่ต้องการ/);
+    assert.ok(!empty.includes("เปลี่ยนหมวด"), "ยังไม่เลือกอะไร ต้องไม่มีปุ่มทำรายการ");
+    assert.match(toString(h(SelectToggle, { on: true, onToggle() {} })), /เสร็จสิ้น/);
+});
