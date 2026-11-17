@@ -275,3 +275,12 @@ test("แก้รายจ่ายรายเดือนที่ตั้�
     assert.match(html, /เดินทาง/);
     assert.ok(!html.includes("<b onclick"));
 });
+
+test("ลิงก์ #add (ปุ่มเพิ่มบิลใน Rich menu) เปิดหน้าต่างบันทึกทันที ทั้งจากที่อยู่และจาก liff.state", () => {
+    const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
+    assert.match(main, /function readTarget\(\)/);
+    assert.match(main, /liff\.state/);
+    assert.match(main, /t === "add"\) \{ setSheet\("menu"\)/);
+    const readme = fs.readFileSync(path.join(root, "design/richmenu/README.md"), "utf8");
+    assert.match(readme, /2008948704-db2goT00#add/);
+});

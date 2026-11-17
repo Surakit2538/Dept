@@ -16,6 +16,13 @@ const loadMe = () => import("./pages/MePage.jsx");
 const loadOnboard = () => import("./onboard.jsx");
 
 const CACHED_USER = getCachedUser();
+
+// ปลายทางที่ต้องการเปิด: จากที่อยู่ (#clear, #add) หรือจากลิงก์ LIFF (liff.state) เช่น ปุ่มใน Rich menu ที่เปิด https://liff.line.me/...#add
+function readTarget() {
+    const st = new URLSearchParams(location.search).get("liff.state") || "";
+    const h = location.hash || (st.includes("#") ? st.slice(st.indexOf("#")) : "");
+    return h.slice(1);
+}
 const nowMonth0 = bangkokToday().slice(0, 7);
 
 const MONTHS_BACK = 12; // เลือกย้อนหลังได้กี่เดือน
@@ -24,7 +31,7 @@ const CHART_MONTHS = 6; // กราฟรายเดือนแสดงก�
 function App() {
     // มีตัวตนที่จำไว้ -> เข้าแอปทันที (ยืนยันกับ LINE เบื้องหลัง) ไม่ต้องรอหน้า "กำลังเข้าสู่ระบบ"
     const [auth, setAuth] = useState(CACHED_USER ? { state: "ok", user: CACHED_USER } : { state: "loading" });
-    const [tab, setTab] = useState(location.hash.slice(1) || "home");
+    const [tab, setTab] = useState(() => { const t = readTarget(); return !t || t === "add" ? "home" : t; });
     const today = useMemo(() => bangkokToday(), []);
     const nowMonth = today.slice(0, 7);
     const since = useMemo(() => shiftMonth(nowMonth, -(MONTHS_BACK - 1)), [nowMonth]);
@@ -38,7 +45,7 @@ function App() {
     const [loadError, setLoadError] = useState(false);
     const [profiles, setProfiles] = useState(null);
     const [search, setSearch] = useState("");
-    const [sheet, setSheet] = useState(null); // null | "menu" | "income"
+    const [sheet, setSheet] = useState(() => (CACHED_USER && readTarget() === "add" ? "menu" : null)); // null | "menu" | "income"
     const [toast, setToast] = useState("");
     const [reload, setReload] = useState(0);
     const [loginExpired, setLoginExpired] = useState(false); // บัตรล็อกอิน LINE หมดอายุ
@@ -56,7 +63,14 @@ function App() {
     const patchMonth = (m, part) => setByMonth((cur) => ({ ...cur, [m]: { ...(cur[m] || {}), ...part } }));
 
     useEffect(() => {
-        signIn().then((u) => { if (u) accept(u); }).catch((e) => { if (!CACHED_USER) setAuth({ state: "error", message: e.message }); else console.warn("signIn:", e.message); });
+        signIn().then((u) => {
+            if (!u) return;
+            accept(u);
+            // ลิงก์จากแชต (#add เปิดหน้าต่างบันทึกทันที / #clear ฯลฯ) LIFF อาจใส่ที่อยู่ปลายทางหลังเริ่มระบบเสร็จ จึงอ่านอีกครั้งตรงนี้
+            const t = readTarget();
+            if (t === "add") { setSheet("menu"); setTab("home"); try { history.replaceState(null, "", location.pathname + "#home"); } catch (e) { /* ไม่เป็นไร */ } }
+            else if (t && ["home", "bills", "clear", "wallet", "me"].includes(t)) setTab(t);
+        }).catch((e) => { if (!CACHED_USER) setAuth({ state: "error", message: e.message }); else console.warn("signIn:", e.message); });
     }, []);
     useEffect(() => { onLoginExpired(() => setLoginExpired(true)); }, []);
     useEffect(() => {
