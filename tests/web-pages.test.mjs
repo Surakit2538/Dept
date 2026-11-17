@@ -397,3 +397,60 @@ test("เลือกหลายรายการ: ปุ่มเลือก
     assert.ok(!empty.includes("เปลี่ยนหมวด"), "ยังไม่เลือกอะไร ต้องไม่มีปุ่มทำรายการ");
     assert.match(toString(h(SelectToggle, { on: true, onToggle() {} })), /เสร็จสิ้น/);
 });
+
+test("ปฏิทินรายวัน: แสดงปฏิทิน สรุปเดือน รายการในวัน และ escape ข้อความ", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const model = await import("../web/src/model.js");
+    const { DailyCalendarSheet, HomePage } = await bundle("web/src/pages/HomePage.jsx", "homepage");
+    const evil = '<script>alert("hack")</script>';
+
+    const calDays = [
+        { day: 1, date: "2026-11-01", satang: 0, today: false, isFuture: false, items: [] },
+        { day: 2, date: "2026-11-02", satang: 15000, today: true, isFuture: false, items: [{ desc: evil, icon: "fa-utensils", satang: 15000, kind: "personal" }] },
+        { day: 3, date: "2026-11-03", satang: 0, today: false, isFuture: false, items: [] }
+    ];
+
+    const calHtml = toString(h(DailyCalendarSheet, {
+        month: "2026-11",
+        calendarDays: calDays,
+        spentSat: 15000,
+        average: 50,
+        onMonth() {},
+        onClose() {}
+    }));
+
+    assert.match(calHtml, /ปฏิทินรายวัน/);
+    assert.match(calHtml, /พฤศจิกายน 2569/);
+    assert.match(calHtml, /ใช้ไปทั้งเดือน/);
+    assert.match(calHtml, /เฉลี่ยต่อวัน/);
+    assert.match(calHtml, /มากสุดวันที่/);
+    assert.match(calHtml, /daily-cell/);
+    // ตรวจสอบการ escape ข้อความอันตราย
+    assert.ok(!calHtml.includes('<script>alert'), "คำอธิบายต้องถูก escape");
+    assert.ok(calHtml.includes('&lt;script'), "คำอธิบายต้องแสดงแบบ escape");
+
+    // HomePage ต้องมีปุ่มเปิดปฏิทินรายวัน
+    const homeModel = {
+        month: "2026-11",
+        incomeSat: 0,
+        spentSat: 15000,
+        personalSat: 15000,
+        groupShareSat: 0,
+        netSat: -15000,
+        net: "-150",
+        spentPercent: null,
+        categories: [],
+        daily: [{ day: 1, satang: 0, today: false }],
+        calendarDays: calDays,
+        average: 50,
+        owedToMe: [],
+        owedTotal: 0,
+        iOwe: [],
+        iOweTotal: 0,
+        recent: []
+    };
+    const series = [{ month: "2026-11", spentSat: 15000, incomeSat: 0 }];
+    const homeHtml = toString(h(HomePage, { model: homeModel, series, month: "2026-11", onMonth() {} }));
+    assert.match(homeHtml, /ดูตารางปฏิทินรายวัน/);
+    assert.ok(!homeHtml.includes("มากสุดวันที่ 4"), "ต้องไม่มีกราฟแท่งรายวันเดิมใต้กราฟเดือน");
+});

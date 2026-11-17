@@ -79,6 +79,8 @@ img.av { object-fit: cover; }
 .empty { color: var(--mute); font-size: var(--fs-sm); display: flex; align-items: center; gap: var(--s2); padding: var(--s1) 0; }
 .more { display: inline-flex; align-items: center; gap: var(--s1); margin-top: var(--s3); min-height: 44px; font-size: var(--fs-sm); font-weight: 600; color: var(--accent); text-decoration: none; }
 .more:hover { text-decoration: underline; text-underline-offset: 3px; }
+button.more { background: transparent; border: 0; cursor: pointer; padding: 0; font-family: inherit; }
+.cal-open-btn { margin-top: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--line); width: 100%; justify-content: flex-start; }
 
 /* ---------- สรุปเดือน ---------- */
 .hero { display: flex; align-items: center; justify-content: space-between; gap: var(--s4); padding: var(--s5) var(--s4); }
@@ -550,6 +552,40 @@ img.av { object-fit: cover; }
 .cal-day-btn.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; border-color: var(--accent); }
 .cal-day-btn:disabled { opacity: .25; cursor: default; }
 .cal-actions { display: grid; grid-template-columns: 1fr 2fr; gap: var(--s2); margin-top: var(--s3); padding-top: var(--s3); border-top: 1px solid var(--line); }
+
+/* ---------- ปฏิทินรายวัน (Daily Calendar Sheet) ---------- */
+.daily-cal-box { display: flex; flex-direction: column; gap: var(--s3); }
+.cal-summary-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s2); padding: var(--s3); background: var(--chip); border: 1px solid var(--line); border-radius: var(--r-md); }
+.cal-stat { display: flex; flex-direction: column; gap: 2px; }
+.cal-stat .lbl { font-size: var(--fs-xs); color: var(--mute); white-space: nowrap; }
+.cal-stat b { font-size: var(--fs-sm); font-weight: 600; }
+
+.daily-cal-table { display: flex; flex-direction: column; gap: 6px; }
+.daily-dow-row { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; gap: 4px; padding: 0 2px; }
+.daily-dow { font-size: var(--fs-xs); font-weight: 600; color: var(--mute); padding: 4px 0; }
+.daily-dow.weekend { color: var(--pay); opacity: .85; }
+.daily-days-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; padding: 0 2px; }
+.daily-cell { aspect-ratio: 1; min-height: 48px; display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4px 2px; border-radius: var(--r-sm); border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; transition: background-color .1s, border-color .1s, transform .08s; }
+.daily-cell.empty { border-color: transparent; background: transparent; cursor: default; }
+.daily-cell:hover:not(.empty):not(:disabled) { background: var(--chip); }
+.daily-cell:active:not(.empty):not(:disabled) { transform: scale(.95); }
+.daily-cell.today { border-color: var(--accent); }
+.daily-cell.today .daily-cell-num { font-weight: 700; color: var(--accent); }
+.daily-cell.has-spend { background: color-mix(in srgb, var(--pay) 5%, var(--surface)); }
+.daily-cell.peak { border-color: color-mix(in srgb, var(--pay) 45%, var(--line)); }
+.daily-cell.on { background: var(--chip); border: 1.5px solid var(--accent); }
+.daily-cell.future { opacity: .35; cursor: default; }
+.daily-cell-num { font-size: var(--fs-xs); line-height: 1.1; font-weight: 500; }
+.daily-cell-amt { font-size: 10px; line-height: 1; font-weight: 600; color: var(--pay); text-align: center; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.daily-cell-amt.empty { color: var(--mute); opacity: .35; font-size: 13px; }
+
+.daily-detail-box { margin-top: var(--s2); padding: var(--s3); background: var(--chip); border: 1px solid var(--line); border-radius: var(--r-md); display: flex; flex-direction: column; gap: var(--s2); }
+.daily-detail-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); padding-bottom: var(--s2); border-bottom: 1px solid var(--line); }
+.daily-detail-date { display: inline-flex; align-items: center; gap: var(--s2); }
+.daily-detail-date b { font-size: var(--fs-sm); font-weight: 600; color: var(--ink); }
+.tag-today { display: inline-block; padding: 2px 7px; font-size: 11px; font-weight: 600; border-radius: 999px; background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+.daily-items-list { display: flex; flex-direction: column; }
+.daily-items-list .row { min-height: 48px; padding: var(--s2) 0; }
 
 .danger-zone { margin-top: var(--s5); padding: var(--s4); border: 1px solid var(--pay); border-radius: 12px; }
 .danger-zone h3 { font-size: var(--fs-md); color: var(--pay); margin-bottom: var(--s1); }

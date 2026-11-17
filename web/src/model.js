@@ -40,18 +40,21 @@ export function buildHomeModel({ name, month, today = "", members, transactions,
     // หมวด และรายวัน (หน่วยสตางค์) นับ ส่วนของฉันในกลุ่ม + รายจ่ายส่วนตัว
     const catSat = Object.fromEntries(CATEGORIES.map((c) => [c.key, 0]));
     const daySat = {};
-    const addSpend = (date, icon, sat) => {
+    const dayItems = {};
+    const addSpend = (date, desc, icon, sat, kind) => {
         if (!sat || !String(date).startsWith(month)) return;
         catSat[categoryOf(icon)] += sat;
         const d = Number(String(date).slice(8, 10));
         daySat[d] = (daySat[d] || 0) + sat;
+        if (!dayItems[d]) dayItems[d] = [];
+        dayItems[d].push({ desc: desc || "ไม่ระบุ", icon, satang: sat, kind });
     };
     for (const t of transactions) {
         if (!t || monthOfDate(t.date) !== month) continue;
-        addSpend(t.date, t.icon, shareOf(t, me));
+        addSpend(t.date, t.desc, t.icon, shareOf(t, me), "group");
     }
     for (const x of walletItems) {
-        if (x.type === "expense") addSpend(x.date, x.icon, Math.round(Number(x.amount) * 100));
+        if (x.type === "expense") addSpend(x.date, x.desc, x.icon, Math.round(Number(x.amount) * 100), "personal");
     }
     const totalSat = Object.values(catSat).reduce((a, b) => a + b, 0);
     const categories = CATEGORIES.map((c) => ({
@@ -63,7 +66,27 @@ export function buildHomeModel({ name, month, today = "", members, transactions,
 
     const lastDay = today.startsWith(month) ? Number(today.slice(8, 10)) : daysInMonth(month);
     const daily = [];
-    for (let d = 1; d <= lastDay; d++) daily.push({ day: d, satang: daySat[d] || 0, today: today === `${month}-${String(d).padStart(2, "0")}` });
+    for (let d = 1; d <= lastDay; d++) {
+        daily.push({
+            day: d,
+            satang: daySat[d] || 0,
+            today: today === `${month}-${String(d).padStart(2, "0")}`,
+            items: dayItems[d] || []
+        });
+    }
+
+    const totalDaysInM = daysInMonth(month);
+    const calendarDays = [];
+    for (let d = 1; d <= totalDaysInM; d++) {
+        calendarDays.push({
+            day: d,
+            date: `${month}-${String(d).padStart(2, "0")}`,
+            satang: daySat[d] || 0,
+            today: today === `${month}-${String(d).padStart(2, "0")}`,
+            isFuture: today.startsWith(month) && d > Number(today.slice(8, 10)),
+            items: dayItems[d] || []
+        });
+    }
     const spentSat = w.expenseTotal;
     const average = lastDay > 0 ? Math.round(spentSat / lastDay / 100) : 0;
 
@@ -103,6 +126,7 @@ export function buildHomeModel({ name, month, today = "", members, transactions,
         receivedBackSat: w.receivedBack,
         categories,
         daily,
+        calendarDays,
         average,
         owedToMe,
         owedTotal: owedToMe.reduce((a, o) => a + o.amount, 0),

@@ -1,7 +1,8 @@
 // หน้าแรก: สรุปเดือน (เลขเดียวก่อน) หมวด กราฟรายเดือนแตะดูรายวัน หนี้ และรายการล่าสุด
+import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor } from "../icons.jsx";
-import { Avatar, SectionTitle } from "../ui.jsx";
-import { monthLabel, monthShort, baht } from "../model.js";
+import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
+import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS_FULL } from "../model.js";
 
 const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", other: "dots" };
 
@@ -66,17 +67,27 @@ function Categories({ cats }) {
 
 const shortBaht = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n)));
 
-function Monthly({ series, selected, onSelect }) {
+function Monthly({ series, selected, onSelect, onOpenCalendar }) {
     const max = Math.max(1, ...series.map((s) => s.spentSat));
     if (series.every((s) => s.spentSat === 0)) return <><SectionTitle icon="chart" title="ใช้ไปรายเดือน" /><p class="empty">ยังไม่มีรายจ่ายใน 6 เดือนที่ผ่านมา บันทึกรายการแรกได้จากปุ่ม &ldquo;บันทึก&rdquo;</p></>;
     return (
         <>
-            <SectionTitle icon="chart" title="ใช้ไปรายเดือน" note="แตะแท่งเพื่อดูรายวันของเดือนนั้น" />
+            <SectionTitle icon="chart" title="ใช้ไปรายเดือน" note="แตะแท่งเดือนเพื่อดูปฏิทินรายวัน" />
             <div class="months" role="group" aria-label="ใช้ไปรายเดือน">
                 {series.map((s) => {
                     const on = s.month === selected;
                     return (
-                        <button type="button" class={`mcol ${on ? "on" : ""}`} key={s.month} aria-pressed={on} aria-label={`${monthLabel(s.month)} ใช้ไป ${baht(s.spentSat / 100)}`} onClick={() => onSelect(s.month)}>
+                        <button
+                            type="button"
+                            class={`mcol ${on ? "on" : ""}`}
+                            key={s.month}
+                            aria-pressed={on}
+                            aria-label={`${monthLabel(s.month)} ใช้ไป ${baht(s.spentSat / 100)}`}
+                            onClick={() => {
+                                onSelect(s.month);
+                                onOpenCalendar(s.month);
+                            }}
+                        >
                             <span class="mval num">{s.spentSat > 0 ? shortBaht(s.spentSat / 100) : ""}</span>
                             <span class="mplot">
                                 <i class="mbar" style={{ height: `${Math.max(2, Math.round((s.spentSat / max) * 100))}%` }} />
@@ -86,27 +97,149 @@ function Monthly({ series, selected, onSelect }) {
                     );
                 })}
             </div>
+            <button
+                type="button"
+                class="more cal-open-btn"
+                onClick={() => onOpenCalendar(selected)}
+            >
+                <Icon name="calendar" size={16} />
+                <span>ดูตารางปฏิทินรายวัน ({monthLabel(selected)})</span>
+                <Icon name="right" size={14} />
+            </button>
         </>
     );
 }
 
-function Daily({ month, daily, hide }) {
-    if (!daily.length || hide) return null;
-    const max = Math.max(1, ...daily.map((d) => d.satang));
-    const top = daily.reduce((a, d) => (d.satang > a.satang ? d : a), daily[0]);
-    const total = daily.reduce((a, d) => a + d.satang, 0);
+export function DailyCalendarSheet({ month, calendarDays = [], spentSat = 0, average = 0, onMonth, onClose }) {
+    const totalDays = daysInMonth(month);
+    const [y, m] = month.split("-").map(Number);
+    const mIndex = m - 1;
+    const firstDow = new Date(Date.UTC(y, mIndex, 1)).getUTCDay();
+
+    const topDay = calendarDays.length > 0
+        ? calendarDays.reduce((a, d) => (d.satang > a.satang ? d : a), calendarDays[0])
+        : null;
+
+    const findDefaultDay = () => {
+        const todayDay = (calendarDays || []).find((d) => d.today)?.day;
+        if (todayDay) return todayDay;
+        if (topDay && topDay.satang > 0) return topDay.day;
+        return 1;
+    };
+
+    const [selectedDay, setSelectedDay] = useState(findDefaultDay);
+
+    useEffect(() => {
+        setSelectedDay(findDefaultDay());
+    }, [month]);
+
+    const activeDay = Math.min(Math.max(1, selectedDay || 1), totalDays);
+    const activeDayData = (calendarDays || []).find((d) => d.day === activeDay);
+
+    const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
+
+    const emptySlots = [];
+    for (let i = 0; i < firstDow; i++) emptySlots.push(i);
+
     return (
-        <div class="daily">
-            <div class="hd-row"><h3>รายวันของ {monthLabel(month)}</h3>{total > 0 && <span class="lbl">มากสุดวันที่ {top.day} <span class="num">{baht(top.satang / 100)}</span></span>}</div>
-            {total === 0 ? <p class="empty">ยังไม่มีรายจ่ายในเดือนนี้</p> : (
-                <>
-                    <div class="days" role="img" aria-label={`ใช้ไปรายวัน มากสุดวันที่ ${top.day}`}>
-                        {daily.map((d) => <i key={d.day} class={d.satang === top.satang ? "peak" : d.today ? "today" : ""} style={{ height: `${Math.max(3, Math.round((d.satang / max) * 100))}%` }} />)}
+        <Sheet title="ปฏิทินรายวัน" onClose={onClose}>
+            <div class="daily-cal-box">
+                <div class="cal-hd">
+                    <button
+                        type="button"
+                        class="icon-btn"
+                        aria-label="เดือนก่อนหน้า"
+                        onClick={() => onMonth(shiftMonth(month, -1))}
+                    >
+                        <Icon name="left" size={16} />
+                    </button>
+                    <span class="cal-month-title num">{monthFullLabel(month)}</span>
+                    <button
+                        type="button"
+                        class="icon-btn"
+                        aria-label="เดือนถัดไป"
+                        onClick={() => onMonth(shiftMonth(month, 1))}
+                    >
+                        <Icon name="right" size={16} />
+                    </button>
+                </div>
+
+                <div class="cal-summary-strip">
+                    <div class="cal-stat">
+                        <span class="lbl">ใช้ไปทั้งเดือน</span>
+                        <b class="num pay">{baht(spentSat / 100)}</b>
                     </div>
-                    <div class="axis num" aria-hidden="true"><span>1</span><span>{Math.ceil(daily.length / 2)}</span><span>{daily.length}</span></div>
-                </>
-            )}
-        </div>
+                    <div class="cal-stat">
+                        <span class="lbl">เฉลี่ยต่อวัน</span>
+                        <b class="num">{baht(average)}</b>
+                    </div>
+                    <div class="cal-stat">
+                        <span class="lbl">มากสุดวันที่</span>
+                        <b class="num">{topDay && topDay.satang > 0 ? `${topDay.day} (${shortBaht(topDay.satang / 100)})` : "-"}</b>
+                    </div>
+                </div>
+
+                <div class="daily-cal-table">
+                    <div class="daily-dow-row" role="row">
+                        {DOW.map((w, i) => (
+                            <span key={w} class={`daily-dow ${i === 0 || i === 6 ? "weekend" : ""}`} role="columnheader">
+                                {w}
+                            </span>
+                        ))}
+                    </div>
+                    <div class="daily-days-grid" role="grid">
+                        {emptySlots.map((i) => <span key={`empty-${i}`} class="daily-cell empty" />)}
+                        {calendarDays.map((d) => {
+                            const isSel = d.day === activeDay;
+                            const isPeak = topDay && topDay.satang > 0 && d.satang === topDay.satang;
+                            return (
+                                <button
+                                    type="button"
+                                    key={d.day}
+                                    class={`daily-cell ${isSel ? "on" : ""} ${d.today ? "today" : ""} ${d.isFuture ? "future" : ""} ${d.satang > 0 ? "has-spend" : ""} ${isPeak ? "peak" : ""}`}
+                                    onClick={() => setSelectedDay(d.day)}
+                                    aria-pressed={isSel}
+                                    aria-label={`วันที่ ${d.day} ใช้ไป ${d.satang > 0 ? baht(d.satang / 100) : "0 บาท"}`}
+                                >
+                                    <span class="daily-cell-num num">{d.day}</span>
+                                    {d.satang > 0 ? (
+                                        <span class="daily-cell-amt num">{shortBaht(d.satang / 100)}</span>
+                                    ) : (
+                                        <span class="daily-cell-amt empty">&middot;</span>
+                                    )}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                <div class="daily-detail-box">
+                    <div class="daily-detail-hd">
+                        <span class="daily-detail-date">
+                            <b>วันที่ {activeDay} {TH_MONTHS_FULL[mIndex]}</b>
+                            {activeDayData && activeDayData.today && <span class="tag-today">วันนี้</span>}
+                        </span>
+                        <span class="num pay">{activeDayData && activeDayData.satang > 0 ? `รวม ${baht(activeDayData.satang / 100)}` : "฿0"}</span>
+                    </div>
+                    {activeDayData && activeDayData.items && activeDayData.items.length > 0 ? (
+                        <ul class="daily-items-list plain">
+                            {activeDayData.items.map((it, idx) => (
+                                <li key={idx} class="row">
+                                    <span class="ico"><Icon name={iconFor(it.icon)} size={16} /></span>
+                                    <div class="grow">
+                                        <div class="t">{it.desc || "ไม่ระบุ"}</div>
+                                        <div class="s">{it.kind === "group" ? "ส่วนของฉันในกลุ่ม" : "ส่วนตัว"}</div>
+                                    </div>
+                                    <span class="num pay">{baht(it.satang / 100, { decimals: 2 })}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p class="empty"><Icon name="check" size={16} class="rcv" />ไม่มีรายจ่ายในวันนี้</p>
+                    )}
+                </div>
+            </div>
+        </Sheet>
     );
 }
 
@@ -159,6 +292,13 @@ function Recent({ items }) {
 }
 
 export function HomePage({ model, series, month, onMonth, onAddIncome }) {
+    const [calOpen, setCalOpen] = useState(false);
+
+    const handleSelectMonth = (m) => {
+        onMonth(m);
+        setCalOpen(true);
+    };
+
     return (
         <div class="home-grid">
             <div class="col">
@@ -166,8 +306,12 @@ export function HomePage({ model, series, month, onMonth, onAddIncome }) {
                 <Categories cats={model.categories} />
                 {series ? (
                     <section class="card">
-                        <Monthly series={series} selected={month} onSelect={onMonth} />
-                        <Daily month={month} daily={model.daily} hide={series.every((s) => s.spentSat === 0)} />
+                        <Monthly
+                            series={series}
+                            selected={month}
+                            onSelect={handleSelectMonth}
+                            onOpenCalendar={() => setCalOpen(true)}
+                        />
                     </section>
                 ) : <div class="card sk" style={{ height: "260px" }} aria-busy="true" aria-label="กำลังโหลดกราฟ" />}
             </div>
@@ -175,6 +319,17 @@ export function HomePage({ model, series, month, onMonth, onAddIncome }) {
                 <Debts m={model} />
                 <Recent items={model.recent} />
             </div>
+
+            {calOpen && (
+                <DailyCalendarSheet
+                    month={month}
+                    calendarDays={model.calendarDays}
+                    spentSat={model.spentSat}
+                    average={model.average}
+                    onMonth={onMonth}
+                    onClose={() => setCalOpen(false)}
+                />
+            )}
         </div>
     );
 }
