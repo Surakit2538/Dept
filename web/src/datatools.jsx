@@ -1,6 +1,6 @@
 // เครื่องมือข้อมูลสำหรับแอดมิน: ส่งออก CSV และลบข้อมูลทั้งเดือน (พิมพ์คำว่า ลบ ยืนยันก่อน)
 import { useState } from "preact/hooks";
-import { Sheet } from "./ui.jsx";
+import { Sheet, CustomSelect } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
 import { lastMonths, monthLabel } from "./model.js";
 import { bangkokToday, clearMonthData } from "./data.js";
@@ -40,9 +40,14 @@ export function DataToolsSheet({ transactions, onClose, onToast, onChanged }) {
             <form class="danger-zone" onSubmit={wipe}>
                 <h3>ลบข้อมูลทั้งเดือน</h3>
                 <p class="lbl">ลบบิลทุกใบของเดือนที่เลือก รวมรายการผ่อนที่เกี่ยวข้องทุกงวด และประวัติเคลียร์เงินของเดือนนั้น กู้คืนไม่ได้ แนะนำให้ส่งออก CSV เก็บไว้ก่อน</p>
-                <div class="field"><label for="dt-month">เดือนที่จะลบ</label>
-                    <select id="dt-month" value={month} onChange={(e) => setMonth(e.currentTarget.value)}>{months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}</select>
-                </div>
+                <CustomSelect
+                    id="dt-month"
+                    label="เดือนที่จะลบ"
+                    value={month}
+                    options={months.map((m) => ({ value: m, label: monthLabel(m) }))}
+                    onChange={setMonth}
+                    title="เลือกเดือนที่จะลบ"
+                />
                 <div class="field"><label for="dt-word">พิมพ์คำว่า ลบ เพื่อยืนยัน</label><input id="dt-word" type="text" autocomplete="off" value={word} onInput={(e) => setWord(e.currentTarget.value)} /></div>
                 {err && <p class="msg" role="alert">{err}</p>}
                 <button type="submit" class="btn block danger-btn" disabled={busy || word.trim() !== "ลบ"}>{busy ? "กำลังลบ" : "ลบข้อมูลเดือนนี้"}</button>

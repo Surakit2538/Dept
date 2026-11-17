@@ -1,10 +1,30 @@
 // ฉัน: โปรไฟล์ (ชื่อจริง พร้อมเพย์) ตั้งค่า iPhone ผู้ดูแล ออกจากระบบ
 import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
-import { SectionTitle } from "../ui.jsx";
-import { Lazy } from "../ui.jsx";
+import { Avatar, SectionTitle, Sheet, Lazy } from "../ui.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
+
+function EditProfileSheet({ realName, promptpay, onSave, onClose, busy, msg, setRealName, setPromptpay }) {
+    return (
+        <Sheet title="แก้ไขข้อมูลส่วนตัว" onClose={onClose}>
+            <form onSubmit={onSave}>
+                <div class="field">
+                    <label for="me-real">ชื่อจริงภาษาไทย</label>
+                    <input id="me-real" type="text" maxLength={80} autocomplete="name" aria-describedby="me-real-h" placeholder="เช่น สมชาย ใจดี" value={realName} onInput={(e) => setRealName(e.currentTarget.value)} />
+                    <small id="me-real-h">ใช้เทียบกับชื่อบนสลิป เพื่อแยกรายรับออกจากเพื่อนโอนคืนหนี้</small>
+                </div>
+                <div class="field">
+                    <label for="me-pp">พร้อมเพย์</label>
+                    <input id="me-pp" class="num" type="text" inputmode="numeric" autocomplete="off" aria-describedby="me-pp-h" placeholder="เบอร์มือถือ 10 หลัก หรือบัตรประชาชน 13 หลัก" value={promptpay} onInput={(e) => setPromptpay(e.currentTarget.value)} />
+                    <small id="me-pp-h">ใช้สร้าง QR ให้เพื่อนโอนเงินคืนคุณ</small>
+                </div>
+                {msg && <p class={`msg ${msg.ok ? "ok" : ""}`} role={msg.ok ? "status" : "alert"}>{msg.text}</p>}
+                <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึกข้อมูล"}</button>
+            </form>
+        </Sheet>
+    );
+}
 
 export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {} }) {
     const mine = (profiles || []).find((p) => p.id === auth.user.memberId) || (profiles || []).find((p) => p.name === auth.user.name) || {};
@@ -12,6 +32,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
     const [promptpay, setPromptpay] = useState("");
     const [msg, setMsg] = useState(null);
     const [busy, setBusy] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
     const [iphone, setIphone] = useState(false);
     const [members, setMembers] = useState(false);
     const [tools, setTools] = useState(false);
@@ -28,7 +49,9 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
         try {
             await saveMyProfile(auth.user.memberId, { realName: rn, promptpay: pp });
             setMsg({ ok: true, text: "บันทึกแล้ว" });
+            if (onToast) onToast("บันทึกข้อมูลส่วนตัวแล้ว");
             onSaved();
+            setEditOpen(false);
         } catch (ex) {
             setMsg({ ok: false, text: ex.message });
         }
@@ -40,27 +63,42 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
             <div class="col">
                 <section class="card profile">
                     <div class="who-big">
-                        <div class="av xl" aria-hidden="true">{[...String(auth.user.name || "?")][0]}</div>
-                        <div><h2>{auth.user.name}</h2><span class="tag-role">{auth.user.isAdmin ? "ผู้ดูแล" : "สมาชิก"}</span></div>
+                        <Avatar name={auth.user.name} pictureUrl={auth.user.pictureUrl || mine.pictureUrl} size="xl" />
+                        <div>
+                            <h2>{auth.user.name}</h2>
+                            <span class="tag-role">{auth.user.isAdmin ? "ผู้ดูแล" : "สมาชิก"}</span>
+                        </div>
                     </div>
-                    <ul class="plain status">
-                        <li class={mine.realName ? "ok" : "todo"}><Icon name={mine.realName ? "check" : "alert"} size={16} /><span>{mine.realName ? `ชื่อจริง ${mine.realName}` : "ยังไม่ได้กรอกชื่อจริง"}</span></li>
-                        <li class={validPromptpay(mine.promptpay) ? "ok" : "todo"}><Icon name={validPromptpay(mine.promptpay) ? "check" : "alert"} size={16} /><span>{validPromptpay(mine.promptpay) ? <>พร้อมเพย์ <span class="num">{maskPromptpay(mine.promptpay)}</span></> : "ยังไม่ได้ตั้งพร้อมเพย์ เพื่อนจะโอนคืนผ่าน QR ไม่ได้"}</span></li>
-                    </ul>
-                    <form onSubmit={save}>
-                        <div class="field">
-                            <label for="me-real">ชื่อจริงภาษาไทย</label>
-                            <input id="me-real" type="text" maxLength={80} autocomplete="name" aria-describedby="me-real-h" value={realName} onInput={(e) => setRealName(e.currentTarget.value)} />
-                            <small id="me-real-h">ใช้เทียบกับชื่อบนสลิป เพื่อแยกรายรับออกจากเพื่อนโอนคืนหนี้</small>
-                        </div>
-                        <div class="field">
-                            <label for="me-pp">พร้อมเพย์</label>
-                            <input id="me-pp" class="num" type="text" inputmode="numeric" autocomplete="off" aria-describedby="me-pp-h" placeholder="เบอร์มือถือ 10 หลัก หรือบัตรประชาชน 13 หลัก" value={promptpay} onInput={(e) => setPromptpay(e.currentTarget.value)} />
-                            <small id="me-pp-h">ใช้สร้าง QR ให้เพื่อนโอนเงินคืนคุณ</small>
-                        </div>
-                        {msg && <p class={`msg ${msg.ok ? "ok" : ""}`} role={msg.ok ? "status" : "alert"}>{msg.text}</p>}
-                        <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึกข้อมูล"}</button>
-                    </form>
+
+                    <div class="info-cards">
+                        <button type="button" class="info-card" onClick={() => { setMsg(null); setEditOpen(true); }}>
+                            <span class="ico"><Icon name="user" /></span>
+                            <div class="info-card-body">
+                                <span class="info-card-label">ชื่อจริงภาษาไทย</span>
+                                <span class={`info-card-val ${mine.realName ? "" : "placeholder"}`}>
+                                    {mine.realName || "ยังไม่ได้กรอกชื่อจริง"}
+                                </span>
+                                <span class="info-card-desc">ใช้เทียบกับชื่อบนสลิปโอนเงิน</span>
+                            </div>
+                            <span class="info-card-act"><Icon name="pencil" size={16} /></span>
+                        </button>
+
+                        <button type="button" class="info-card" onClick={() => { setMsg(null); setEditOpen(true); }}>
+                            <span class="ico"><Icon name="qr" /></span>
+                            <div class="info-card-body">
+                                <span class="info-card-label">พร้อมเพย์</span>
+                                <span class={`info-card-val num ${validPromptpay(mine.promptpay) ? "" : "placeholder"}`}>
+                                    {validPromptpay(mine.promptpay) ? maskPromptpay(mine.promptpay) : "ยังไม่ได้ตั้งพร้อมเพย์"}
+                                </span>
+                                <span class="info-card-desc">ใช้สร้าง QR ให้เพื่อนโอนเงินคืน</span>
+                            </div>
+                            <span class="info-card-act"><Icon name="pencil" size={16} /></span>
+                        </button>
+                    </div>
+
+                    <button type="button" class="btn ghost block edit-profile-btn" onClick={() => { setMsg(null); setEditOpen(true); }}>
+                        <Icon name="pencil" size={16} />แก้ไขข้อมูล
+                    </button>
                 </section>
             </div>
             <div class="col">
@@ -79,6 +117,18 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                 )}
                 <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>
             </div>
+        {editOpen && (
+            <EditProfileSheet
+                realName={realName}
+                promptpay={promptpay}
+                onSave={save}
+                onClose={() => setEditOpen(false)}
+                busy={busy}
+                msg={msg}
+                setRealName={setRealName}
+                setPromptpay={setPromptpay}
+            />
+        )}
         {tools && <Lazy load={() => import("../datatools.jsx")} name="DataToolsSheet" transactions={transactions} onClose={() => setTools(false)} onToast={onToast} onChanged={onDataChanged} />}
         {members && <Lazy load={() => import("../members.jsx")} name="MembersSheet" profiles={profiles} me={auth.user.name} onClose={() => setMembers(false)} onChanged={onMembers} onToast={onToast} />}
         {iphone && <Lazy load={() => import("../iphone.jsx")} name="IphoneSheet" onClose={() => setIphone(false)} />}

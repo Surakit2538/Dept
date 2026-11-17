@@ -97,14 +97,17 @@ function RemindAll({ onError, onInfo }) {
     );
 }
 
-function Line({ l, profile, onQr, onSlip, admin, onMark }) {
+function Line({ l, profile, targetProfile, onQr, onSlip, admin, onMark }) {
     const mine = l.role === "pay";
     const text = mine ? `โอนให้ ${l.to}` : l.role === "receive" ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`;
     return (
         <li class="dbar">
             <div class="r1">
-                <Avatar name={mine ? l.to : l.from} />
-                <span class="who">{text}{mine && !validPromptpay(profile && profile.promptpay) && <small>ผู้รับยังไม่ได้ตั้งพร้อมเพย์</small>}</span>
+                <Avatar name={mine ? l.to : l.from} pictureUrl={targetProfile && targetProfile.pictureUrl} />
+                <div class="who-col grow">
+                    <span class="who">{text}</span>
+                    {mine && !validPromptpay(profile && profile.promptpay) && <small class="warn-pp">ผู้รับยังไม่ได้ตั้งพร้อมเพย์</small>}
+                </div>
                 <span class={`num amt ${mine ? "pay" : l.role === "receive" ? "rcv" : ""}`}>{baht(l.amount)}</span>
             </div>
             {mine && (
@@ -124,6 +127,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
     const iOwe = model.lines.filter((l) => l.role === "pay").reduce((a, l) => a + l.amount, 0);
     const [qr, setQr] = useState(null);
     const [slip, setSlip] = useState(null);
+    const [moveTarget, setMoveTarget] = useState(null);
     const byName = useMemo(() => Object.fromEntries((profiles || []).map((p) => [p.name, p])), [profiles]);
     return (
         <div class="home-grid">
@@ -140,8 +144,19 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                 <section class="card">
                     {isAdmin && !model.cleared && <RemindAll onError={onError} onInfo={onInfo} />}
                     <SectionTitle icon="swap" title="ยอดที่ต้องโอนเดือนนี้" note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
-                    {model.cleared ? <p class="empty"><Icon name="check" size={16} class="rcv" />เคลียร์ครบแล้ว ไม่มียอดค้าง</p>
-                        : <ul class="plain">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} onQr={setQr} onSlip={setSlip} admin={isAdmin} onMark={mark} />)}</ul>}
+                    {model.cleared ? (
+                        <div class="cleared-box">
+                            <div class="cleared-ico">
+                                <Icon name="check" size={24} />
+                            </div>
+                            <div class="cleared-body">
+                                <h3 class="cleared-t">เคลียร์ครบแล้ว</h3>
+                                <p class="cleared-s">ไม่มียอดค้างชำระในเดือนนี้ ทุกคนจ่ายครบเรียบร้อย</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <ul class="plain">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} targetProfile={byName[l.role === "pay" ? l.to : l.from]} onQr={setQr} onSlip={setSlip} admin={isAdmin} onMark={mark} />)}</ul>
+                    )}
                 </section>
             </div>
             <div class="col">
@@ -154,10 +169,15 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                             <div class="grow"><div class="t">{h.from} โอนให้ {h.to}</div><div class="s">{h.manual ? "แอดมินยืนยัน" : "ตรวจจากสลิป"}</div></div>
                             <span class="num rcv">{baht(h.amount)}</span>
                             {isAdmin && (
-                                <select class="mini-select" aria-label={`ย้ายเดือนของ ${h.from} ให้ ${h.to}`} value={month}
-                                    onChange={async (e) => { try { await moveSettlementMonth(h.id, e.currentTarget.value); onChanged(); } catch (ex) { onError(ex.message); } }}>
-                                    {lastMonths(bangkokToday().slice(0, 7), 12).map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-                                </select>
+                                <button
+                                    type="button"
+                                    class="mini-month-btn num"
+                                    aria-label={`ย้ายเดือนของ ${h.from} ให้ ${h.to}`}
+                                    onClick={() => setMoveTarget(h)}
+                                >
+                                    <span>{monthLabel(h.month || month)}</span>
+                                    <Icon name="down" size={12} class="mute" />
+                                </button>
                             )}
                             {isAdmin && <DeleteButton label={`${h.from} ให้ ${h.to}`} onConfirm={async () => { try { await deleteSettlement(h.id); onChanged(); } catch (e) { onError(e.message); } }} />}
                         </li>
@@ -166,6 +186,35 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
             </div>
             {qr && <QrSheet line={qr} profile={byName[qr.to]} onClose={() => setQr(null)} />}
             {slip && <SlipSheet line={slip} month={month} onClose={() => setSlip(null)} onDone={onChanged} />}
+            {moveTarget && (
+                <Sheet title={`ย้ายเดือน (${moveTarget.from} ให้ ${moveTarget.to})`} onClose={() => setMoveTarget(null)}>
+                    <p class="lbl">เลือกเดือนที่ต้องการย้ายรายการนี้ไป</p>
+                    <div class="c-select-list">
+                        {lastMonths(bangkokToday().slice(0, 7), 12).map((m) => {
+                            const isCur = m === (moveTarget.month || month);
+                            return (
+                                <button
+                                    type="button"
+                                    key={m}
+                                    class={`c-select-item ${isCur ? "on" : ""}`}
+                                    onClick={async () => {
+                                        try {
+                                            await moveSettlementMonth(moveTarget.id, m);
+                                            setMoveTarget(null);
+                                            onChanged();
+                                        } catch (ex) {
+                                            onError(ex.message);
+                                        }
+                                    }}
+                                >
+                                    <span class="c-select-item-text num">{monthLabel(m)}</span>
+                                    {isCur && <Icon name="check" size={18} class="rcv" />}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </Sheet>
+            )}
         </div>
     );
 }

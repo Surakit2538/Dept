@@ -1,8 +1,8 @@
 // จัดการสมาชิก (เฉพาะแอดมิน): เพิ่มชื่อ แก้ชื่อจริง/พร้อมเพย์ ตั้งสิทธิ์แอดมิน ลบ (ลบได้เมื่อไม่มีชื่อนี้ในบิลหรือประวัติเคลียร์เงิน)
 import { useState } from "preact/hooks";
-import { Sheet, DeleteButton } from "./ui.jsx";
+import { Avatar, Sheet, DeleteButton } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
-import { validPromptpay } from "./model.js";
+import { validPromptpay, maskPromptpay } from "./model.js";
 import { addMemberName, updateMember, deleteMemberIfUnused } from "./data.js";
 
 function Row({ p, isMe, onChanged, onToast }) {
@@ -32,12 +32,22 @@ function Row({ p, isMe, onChanged, onToast }) {
     return (
         <li class="mrow">
             <div class="mtop">
-                <span class="av">{[...p.name][0]}</span>
+                <Avatar name={p.name} pictureUrl={p.pictureUrl} />
                 <div class="grow">
-                    <div class="t">{p.name}{isMe ? " (ฉัน)" : ""}</div>
+                    <div class="t-line">
+                        <span class="t">{p.name}</span>
+                        {isMe && <span class="tag-me">ฉัน</span>}
+                    </div>
+                    {(p.realName || p.promptpay) && (
+                        <div class="m-sub">
+                            {p.realName && <span>{p.realName}</span>}
+                            {p.realName && p.promptpay && <span class="dot-sep">&middot;</span>}
+                            {p.promptpay && <span class="num">{maskPromptpay(p.promptpay)}</span>}
+                        </div>
+                    )}
                     <div class="s">
-                        {p.role === "admin" && <span class="tag">แอดมิน</span>}
-                        {!p.hasLine && <span class="tag">ยังไม่ผูก LINE</span>}
+                        {p.role === "admin" && <span class="tag tag-admin">แอดมิน</span>}
+                        {!p.hasLine && <span class="tag tag-mute">ยังไม่ผูก LINE</span>}
                         {!complete && <span class="tag warn">ข้อมูลไม่ครบ</span>}
                     </div>
                 </div>
@@ -80,12 +90,15 @@ export function MembersSheet({ profiles, me, onClose, onChanged, onToast }) {
     }
     return (
         <Sheet title="จัดการสมาชิก" onClose={onClose}>
-            <form class="madd" onSubmit={add}>
-                <div class="field grow"><label for="m-new">เพิ่มสมาชิกใหม่</label><input id="m-new" type="text" maxLength={30} placeholder="ชื่อเล่นหรือชื่อที่ใช้ในกลุ่ม" value={name} onInput={(e) => setName(e.currentTarget.value)} /></div>
-                <button type="submit" class="btn" disabled={busy}><Icon name="plus" size={16} />เพิ่ม</button>
-            </form>
-            {err && <p class="msg" role="alert">{err}</p>}
-            <p class="lbl">คนที่เพิ่มด้วยชื่อ จะผูกบัญชี LINE ของตัวเองได้ตอนเข้าใช้ครั้งแรก โดยเลือกชื่อนี้</p>
+            <div class="madd-box">
+                <form class="madd" onSubmit={add}>
+                    <div class="field grow"><label for="m-new">เพิ่มสมาชิกใหม่</label><input id="m-new" type="text" maxLength={30} placeholder="ชื่อเล่นหรือชื่อที่ใช้ในกลุ่ม" value={name} onInput={(e) => setName(e.currentTarget.value)} /></div>
+                    <button type="submit" class="btn" disabled={busy}><Icon name="plus" size={16} />เพิ่ม</button>
+                </form>
+                {err && <p class="msg" role="alert">{err}</p>}
+                <p class="lbl madd-hint">คนที่เพิ่มด้วยชื่อ จะผูกบัญชี LINE ของตัวเองได้ตอนเข้าใช้ครั้งแรก โดยเลือกชื่อนี้</p>
+            </div>
+            <div class="mlist-head"><span class="lbl">สมาชิก ({list.length} คน)</span></div>
             <ul class="plain mlist">{list.map((p) => <Row key={p.id} p={p} isMe={p.name === me} onChanged={onChanged} onToast={onToast} />)}</ul>
         </Sheet>
     );

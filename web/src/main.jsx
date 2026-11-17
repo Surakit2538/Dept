@@ -154,7 +154,7 @@ function App() {
 
     return (
         <>
-            <Shell tab={page} onTab={go} userName={auth.user.name} onAdd={() => setSheet("menu")}
+            <Shell tab={page} onTab={go} userName={auth.user.name} userPicture={auth.user.pictureUrl} onAdd={() => setSheet("menu")}
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 {body}
             </Shell>

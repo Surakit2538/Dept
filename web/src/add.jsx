@@ -1,7 +1,7 @@
 // ปุ่มบันทึก: เลือกประเภท แล้วกรอก บิลหารกับเพื่อน / รายจ่ายส่วนตัว / รายรับ
 import { useState, useMemo } from "preact/hooks";
 import { Icon } from "./icons.jsx";
-import { Sheet } from "./ui.jsx";
+import { Sheet, Avatar, DatePickerField } from "./ui.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
 
 export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null }) {
@@ -60,7 +60,7 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
                 <input id="f-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required value={amount} aria-invalid={err && !(Number(amount) > 0) ? "true" : undefined} onInput={(e) => setAmount(e.currentTarget.value)} />
             </div>
             <div class="field"><label for="f-desc">รายการ</label><input id="f-desc" type="text" maxLength={100} placeholder={income ? "เช่น เงินเดือน" : "เช่น กาแฟ"} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
-            <div class="field"><label for="f-date">วันที่</label><input id="f-date" type="date" max={today} value={date} onInput={(e) => setDate(e.currentTarget.value)} /></div>
+            <DatePickerField id="f-date" label="วันที่" value={date} onChange={setDate} max={today} today={today} />
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : income ? "บันทึกรายรับ" : "บันทึกรายจ่าย"}</button>
         </Sheet>
@@ -188,7 +188,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     return (
         <Sheet as="form" title="บิลหารกับเพื่อน" onClose={onClose} onSubmit={submit}
             action={<button type="button" class="btn sm ghost" onClick={onBack}>เปลี่ยนประเภท</button>}>
-            <div class="field"><label for="b-date">วันที่</label><input id="b-date" type="date" max={today} value={date} onInput={(e) => setDate(e.currentTarget.value)} /></div>
+            <DatePickerField id="b-date" label="วันที่" value={date} onChange={setDate} max={today} today={today} />
             <div class="field amount">
                 <label for="b-amount">ยอดเต็มของบิล (บาท)</label>
                 <input id="b-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
@@ -250,9 +250,27 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
                 </div>
                 {panel === "payer" && (
                     <div id="b-p-payer" class="opt-panel">
-                        <label for="b-payer" class="fl">ใครจ่ายเงินก่อน</label>
-                        <select id="b-payer" value={payer} onChange={(e) => setPayer(e.currentTarget.value)}>{all.map((m) => <option key={m} value={m}>{m === me ? `${m} (ฉัน)` : m}</option>)}</select>
-                        {!people.has(payer) && people.size > 0 && <small>{payer} ไม่ได้อยู่ในคนหาร: เป็นการจ่ายแทนเพื่อน ไม่มีส่วนของ {payer}</small>}
+                        <span class="fl" id="b-payer-l">ใครจ่ายเงินก่อน</span>
+                        <div class="payer-pick-grid" role="radiogroup" aria-labelledby="b-payer-l">
+                            {all.map((m) => {
+                                const isSel = payer === m;
+                                return (
+                                    <button
+                                        type="button"
+                                        key={m}
+                                        class={`payer-card ${isSel ? "on" : ""}`}
+                                        role="radio"
+                                        aria-checked={isSel}
+                                        onClick={() => setPayer(m)}
+                                    >
+                                        <Avatar name={m} size="sm" />
+                                        <span class="payer-card-name">{m === me ? `${m} (ฉัน)` : m}</span>
+                                        {isSel && <Icon name="check" size={16} class="payer-card-chk" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {!people.has(payer) && people.size > 0 && <small class="payer-note">{payer} ไม่ได้อยู่ในคนหาร: เป็นการจ่ายแทนเพื่อน ไม่มีส่วนของ {payer}</small>}
                     </div>
                 )}
                 {panel === "split" && (

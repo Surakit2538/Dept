@@ -67,12 +67,24 @@ export async function signIn() {
     // อ่านรหัสผู้ใช้จาก ID token ในเครื่องได้เลย (เร็วกว่าถามเซิร์ฟเวอร์ LINE) ถ้าไม่มีค่อยถามด้วย getProfile
     const decoded = typeof liff.getDecodedIDToken === "function" ? liff.getDecodedIDToken() : null;
     let userId = decoded && decoded.sub ? decoded.sub : "";
+    let pictureUrl = decoded && decoded.picture ? decoded.picture : "";
     let profile = null;
-    if (!userId) { profile = await liff.getProfile(); userId = profile.userId; }
+    if (!userId || !pictureUrl) {
+        try {
+            profile = await liff.getProfile();
+            if (!userId) userId = profile.userId;
+            if (!pictureUrl) pictureUrl = profile.pictureUrl || "";
+        } catch (e) { /* profile fetch fallback */ }
+    }
     const snap = await getDocs(query(collection(db, "members"), where("lineUserId", "==", userId)));
     if (!snap.empty) {
         const m = snap.docs.find((d) => d.data().realName) || snap.docs[0];
-        return userFromMember(m.id, m.data(), userId);
+        const d = m.data();
+        const pic = pictureUrl || d.pictureUrl || "";
+        if (pictureUrl && d.pictureUrl !== pictureUrl) {
+            updateDoc(doc(db, "members", m.id), { pictureUrl }).catch(() => {});
+        }
+        return userFromMember(m.id, { ...d, pictureUrl: pic }, userId);
     }
 
     // ยังไม่เคยผูกบัญชี: หาจากชื่อ LINE ที่ตรงกับสมาชิกที่ยังไม่ผูก ถ้าไม่พบให้ผู้ใช้เลือกเอง
@@ -286,9 +298,9 @@ export async function loadProfiles() {
         const x = d.data();
         const name = upName(x.name);
         if (!name) return;
-        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), role: x.role === "admin" ? "admin" : "member" };
+        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), pictureUrl: /^https?:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "", role: x.role === "admin" ? "admin" : "member" };
         const cur = byName.get(name);
-        if (!cur || (!cur.hasLine && p.hasLine) || (!cur.promptpay && p.promptpay)) byName.set(name, p);
+        if (!cur || (!cur.hasLine && p.hasLine) || (!cur.promptpay && p.promptpay) || (!cur.pictureUrl && p.pictureUrl)) byName.set(name, p);
     });
     const list = [...byName.values()];
     cacheSet("profiles", list);

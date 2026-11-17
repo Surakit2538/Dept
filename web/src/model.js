@@ -123,10 +123,15 @@ export function shiftMonth(month, delta) {
     return `${ny}-${String(total - ny * 12 + 1).padStart(2, "0")}`;
 }
 
-const TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+export const TH_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+export const TH_MONTHS_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 export function monthLabel(month) {
     const [y, m] = month.split("-").map(Number);
     return `${TH_MONTHS[m - 1]} ${y + 543}`;
+}
+export function monthFullLabel(month) {
+    const [y, m] = month.split("-").map(Number);
+    return `${TH_MONTHS_FULL[m - 1]} ${y + 543}`;
 }
 
 /** เงินบาท: ตัวเลขหลักปัดบาท รายการแสดงทศนิยม 2 ตำแหน่ง */
