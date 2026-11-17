@@ -1,8 +1,8 @@
 // หน้าแรก: สรุปเดือน (เลขเดียวก่อน) หมวด กราฟรายเดือนแตะดูรายวัน หนี้ และรายการล่าสุด
-import { useState, useEffect } from "preact/hooks";
+import { useState, useEffect, useMemo } from "preact/hooks";
 import { Icon, iconFor } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
-import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS_FULL } from "../model.js";
+import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS_FULL, buildHomeModel } from "../model.js";
 
 const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", other: "dots" };
 
@@ -131,7 +131,7 @@ export function DailyCalendarSheet({ month, calendarDays = [], spentSat = 0, ave
 
     useEffect(() => {
         setSelectedDay(findDefaultDay());
-    }, [month]);
+    }, [month, calendarDays]);
 
     const activeDay = Math.min(Math.max(1, selectedDay || 1), totalDays);
     const activeDayData = (calendarDays || []).find((d) => d.day === activeDay);
@@ -257,11 +257,14 @@ function DebtRow({ d, tone, action }) {
     );
 }
 
-function Debts({ m }) {
+function Debts({ m, month, nowMonth }) {
+    const isCurrent = !month || !nowMonth || month === nowMonth;
+    const title = isCurrent ? "เพื่อนค้างฉัน" : `เพื่อนค้างฉัน (${monthShort(month)})`;
+    const emptyMsg = isCurrent ? "ไม่มีใครค้างคุณในเดือนนี้" : `ไม่มีใครค้างคุณในเดือน ${monthLabel(month)}`;
     return (
         <section class="card">
-            <SectionTitle icon="people" title="เพื่อนค้างฉัน" note={m.owedTotal > 0 ? `รอรับคืนรวม ${baht(m.owedTotal)}` : undefined} />
-            {m.owedToMe.length === 0 ? <p class="empty"><Icon name="check" size={16} class="rcv" />ไม่มีใครค้างคุณในเดือนนี้</p> : <ul class="plain">{m.owedToMe.map((o) => <DebtRow key={o.name} d={o} tone="g" action="ดู" />)}</ul>}
+            <SectionTitle icon="people" title={title} note={m.owedTotal > 0 ? `รอรับคืนรวม ${baht(m.owedTotal)}` : undefined} />
+            {m.owedToMe.length === 0 ? <p class="empty"><Icon name="check" size={16} class="rcv" />{emptyMsg}</p> : <ul class="plain">{m.owedToMe.map((o) => <DebtRow key={o.name} d={o} tone="g" action="ดู" />)}</ul>}
             {m.iOweTotal > 0 && (
                 <>
                     <h3 class="sub-t">ฉันค้างเพื่อน <span class="num pay">{baht(m.iOweTotal)}</span></h3>
@@ -291,13 +294,34 @@ function Recent({ items }) {
     );
 }
 
-export function HomePage({ model, series, month, onMonth, onAddIncome }) {
+export function HomePage({ model, series, month, onMonth, onAddIncome, all, members, userName, today, nowMonth }) {
     const [calOpen, setCalOpen] = useState(false);
+    const [calMonth, setCalMonth] = useState(month);
 
-    const handleSelectMonth = (m) => {
-        onMonth(m);
+    useEffect(() => {
+        setCalMonth(month);
+    }, [month]);
+
+    const handleOpenCalendarForMonth = (m) => {
+        setCalMonth(m);
         setCalOpen(true);
     };
+
+    const calModel = useMemo(() => {
+        if (calMonth === month) return model;
+        if (all && all.transactions && userName) {
+            return buildHomeModel({
+                name: userName,
+                month: calMonth,
+                today,
+                members,
+                transactions: all.transactions,
+                settlements: all.settlements,
+                walletItems: all.wallet || []
+            });
+        }
+        return model;
+    }, [calMonth, month, model, all, userName, today, members]);
 
     return (
         <div class="home-grid">
@@ -309,24 +333,24 @@ export function HomePage({ model, series, month, onMonth, onAddIncome }) {
                         <Monthly
                             series={series}
                             selected={month}
-                            onSelect={handleSelectMonth}
-                            onOpenCalendar={() => setCalOpen(true)}
+                            onSelect={handleOpenCalendarForMonth}
+                            onOpenCalendar={handleOpenCalendarForMonth}
                         />
                     </section>
                 ) : <div class="card sk" style={{ height: "260px" }} aria-busy="true" aria-label="กำลังโหลดกราฟ" />}
             </div>
             <div class="col">
-                <Debts m={model} />
+                <Debts m={model} month={month} nowMonth={nowMonth} />
                 <Recent items={model.recent} />
             </div>
 
             {calOpen && (
                 <DailyCalendarSheet
-                    month={month}
-                    calendarDays={model.calendarDays}
-                    spentSat={model.spentSat}
-                    average={model.average}
-                    onMonth={onMonth}
+                    month={calMonth}
+                    calendarDays={calModel.calendarDays}
+                    spentSat={calModel.spentSat}
+                    average={calModel.average}
+                    onMonth={setCalMonth}
                     onClose={() => setCalOpen(false)}
                 />
             )}

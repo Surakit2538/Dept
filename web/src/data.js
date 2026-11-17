@@ -39,7 +39,13 @@ export const EXPIRED_MSG = "เซสชัน LINE หมดอายุ กด
 /** ให้แอปรู้ตอนบัตรล็อกอินหมดอายุ เพื่อแสดงแถบแจ้งเตือน */
 export function onLoginExpired(fn) { expiredListener = fn; if (loggedOut) fn(); }
 /** ขอล็อกอิน LINE ใหม่ (ในแอป LINE มักผ่านเงียบๆ) */
-export function relogin() { try { liff.login({ redirectUri: location.href }); } catch (e) { /* ไม่มีอะไร */ } }
+export function relogin() {
+    try {
+        const cleanUri = location.origin + location.pathname;
+        try { sessionStorage.setItem("dept_auth_hash", location.hash || "#home"); } catch (e) {}
+        liff.login({ redirectUri: cleanUri });
+    } catch (e) { /* ไม่มีอะไร */ }
+}
 function expired() {
     loggedOut = true;
     expiredListener();
@@ -78,7 +84,9 @@ function cleanAuthParams() {
         const u = new URL(location.href);
         let changed = false;
         for (const k of AUTH_PARAMS) if (u.searchParams.has(k)) { u.searchParams.delete(k); changed = true; }
-        if (changed) history.replaceState(null, "", u.pathname + (u.search || "") + u.hash);
+        let h = u.hash;
+        if (h === "#_=_") { h = ""; changed = true; }
+        if (changed) history.replaceState(null, "", u.pathname + (u.search || "") + h);
     } catch (e) { /* ไม่เป็นไร */ }
 }
 let loginDiag = "";
@@ -99,11 +107,22 @@ export async function signIn() {
     if (!liff.isLoggedIn()) {
         // เคยเข้าแล้ว (มีตัวตนที่จำไว้): ไม่เด้งไปหน้าล็อกอินทันที ให้ดูข้อมูลที่จำไว้ต่อ แล้วแจ้งให้กดเข้าสู่ระบบใหม่เอง
         loginDiag = loginDiag || (hadCode ? "ล็อกอินกลับมาแล้วแต่ LINE ไม่ยืนยันบัตร (ลองกดเข้าสู่ระบบใหม่อีกครั้ง)" : "บัตรล็อกอิน LINE ในเบราว์เซอร์นี้หมดอายุหรือยังไม่มี");
-        if (getCachedUser()) { loggedOut = true; return { needLogin: true }; }
-        liff.login({ redirectUri: location.href });
+        if (getCachedUser() && !hadCode) { loggedOut = true; return { needLogin: true }; }
+        const cleanUri = location.origin + location.pathname;
+        try { sessionStorage.setItem("dept_auth_hash", location.hash || "#home"); } catch (e) {}
+        liff.login({ redirectUri: cleanUri });
         return null; // กำลังพาไปหน้าล็อกอิน
     }
     markLiffReady();
+    try {
+        const savedHash = sessionStorage.getItem("dept_auth_hash");
+        if (savedHash) {
+            sessionStorage.removeItem("dept_auth_hash");
+            if (!location.hash || location.hash === "#" || location.hash === "#_=_") {
+                location.hash = savedHash;
+            }
+        }
+    } catch (e) { /* ไม่เป็นไร */ }
     // อ่านรหัสผู้ใช้จาก ID token ในเครื่องได้เลย (เร็วกว่าถามเซิร์ฟเวอร์ LINE) ถ้าไม่มีค่อยถามด้วย getProfile
     const decoded = typeof liff.getDecodedIDToken === "function" ? liff.getDecodedIDToken() : null;
     let userId = decoded && decoded.sub ? decoded.sub : "";

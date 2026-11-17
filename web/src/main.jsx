@@ -164,7 +164,7 @@ function App() {
     const needsData = page !== "me";
     let body;
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
-    else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} /> : <Skeleton blocks={5} />;
+    else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} all={all} members={members} userName={auth.user?.name} today={today} nowMonth={nowMonth} /> : <Skeleton blocks={5} />;
     else if (page === "bills") body = billsM ? <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
     else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
     else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} version={reload} onSplit={(it) => { setPrefill({ amount: it.amount, desc: it.desc, date: it.date, icon: it.icon, convertId: it.id, month: String(it.date).slice(0, 7) }); setSheet("bill"); }} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;

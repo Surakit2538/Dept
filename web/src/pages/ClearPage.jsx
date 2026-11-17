@@ -143,7 +143,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                 )}
                 <section class="card">
                     {isAdmin && !model.cleared && <RemindAll onError={onError} onInfo={onInfo} />}
-                    <SectionTitle icon="swap" title="ยอดที่ต้องโอนเดือนนี้" note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
+                    <SectionTitle icon="swap" title={month === bangkokToday().slice(0, 7) ? "ยอดที่ต้องโอนเดือนนี้" : `ยอดที่ต้องโอนของเดือน ${monthLabel(month)}`} note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
                     {model.cleared ? (
                         <div class="cleared-box">
                             <div class="cleared-ico">
@@ -151,7 +151,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                             </div>
                             <div class="cleared-body">
                                 <h3 class="cleared-t">เคลียร์ครบแล้ว</h3>
-                                <p class="cleared-s">ไม่มียอดค้างชำระในเดือนนี้ ทุกคนจ่ายครบเรียบร้อย</p>
+                                <p class="cleared-s">{month === bangkokToday().slice(0, 7) ? "ไม่มียอดค้างชำระในเดือนนี้ ทุกคนจ่ายครบเรียบร้อย" : `ไม่มียอดค้างชำระในเดือน ${monthLabel(month)} ทุกคนจ่ายครบเรียบร้อย`}</p>
                             </div>
                         </div>
                     ) : (
@@ -162,7 +162,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
             <div class="col">
                 <section class="card">
                     <SectionTitle icon="check" title="ประวัติที่ยืนยันแล้ว" />
-                    {model.history.length === 0 && <p class="empty">ยังไม่มีรายการเคลียร์เงินในเดือนนี้</p>}
+                    {model.history.length === 0 && <p class="empty">{month === bangkokToday().slice(0, 7) ? "ยังไม่มีรายการเคลียร์เงินในเดือนนี้" : `ยังไม่มีรายการเคลียร์เงินในเดือน ${monthLabel(month)}`}</p>}
                     <ul class="plain">{model.history.map((h) => (
                         <li class="row" key={h.id}>
                             <span class="ico"><Icon name="check" class="rcv" /></span>
