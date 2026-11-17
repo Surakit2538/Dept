@@ -4,7 +4,7 @@ import { Icon, iconFor } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
 import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS_FULL, buildHomeModel } from "../model.js";
 
-const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", other: "dots" };
+const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", fun: "film", other: "dots" };
 
 function Ring({ percent }) {
     const r = 42, c = 2 * Math.PI * r;

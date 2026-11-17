@@ -1,7 +1,7 @@
 // เว็บใหม่ (web/src/model.js): ตัวเลขหน้าแรกต้องตรงกับแกนคำนวณกลาง
 import test from "node:test";
 import assert from "node:assert/strict";
-import { buildHomeModel, categoryOf, shiftMonth, monthLabel, baht, daysInMonth } from "../web/src/model.js";
+import { buildHomeModel, categoryOf, CATEGORIES, shiftMonth, monthLabel, baht, daysInMonth } from "../web/src/model.js";
 
 const members = ["GAME", "CARE", "AOY"];
 const transactions = [
@@ -206,4 +206,14 @@ test("suggestPeople: เรียงตามที่หารด้วยบ�
     assert.deepEqual(suggestPeople({ me: "game", members, transactions: txs }), ["CARE", "AOY"]);
     assert.deepEqual(suggestPeople({ me: "GAME", members, transactions: txs, limit: 1 }), ["CARE"]);
     assert.deepEqual(suggestPeople({ me: "GAME", members, transactions: [] }), []);
+});
+
+test("หน้าแรก: ทุกกลุ่มหมวดมีไอคอนของตัวเอง (บันเทิงไม่ใช่จุดสามจุดเหมือนอื่นๆ)", async () => {
+    const fs = await import("node:fs");
+    const src = fs.readFileSync(new URL("../web/src/pages/HomePage.jsx", import.meta.url), "utf8");
+    const m = /const CAT_ICON = (\{[^}]*\});/.exec(src);
+    assert.ok(m, "ไม่พบ CAT_ICON");
+    const map = Function("return " + m[1])();
+    for (const c of CATEGORIES) assert.ok(map[c.key], "ไม่มีไอคอนของหมวด " + c.key);
+    assert.equal(map.fun, "film");
 });
