@@ -9,7 +9,8 @@ import {
     parseNameList,
     resolveParticipants,
     normalizeOcrText,
-    extractAmount
+    extractAmount,
+    isCardPaymentPayee
 } from "../lib/slip-core.mjs";
 
 const KPLUS = `K PLUS
@@ -254,4 +255,13 @@ test("ผู้รับ: ข้อความท้ายสลิป (สา�
     const real = ["ไปยัง", "สามารถสแกนคิวอาร์โค้ดนี้เพื่อตรวจสอบสลิป", "นาย ศุภชัย รักดี", "1,000.00 บาท"].join("\n");
     assert.equal(extractPayee(real), "นาย ศุภชัย รักดี");
     assert.ok(buildDescription("", "KBANK").length > 0);
+});
+
+test("ผู้รับเป็นบัตรเครดิต = จ่ายบิลบัตร (ไม่นับเป็นรายจ่ายใหม่)", () => {
+    assert.equal(isCardPaymentPayee("UOB Master Card"), true);
+    assert.equal(isCardPaymentPayee("บัตรเครดิต KTC"), true);
+    assert.equal(isCardPaymentPayee("CARDX VISA"), true);
+    assert.equal(isCardPaymentPayee("ร้าน ข้าวมันไก่ป้าแดง"), false);
+    assert.equal(isCardPaymentPayee("นาย กิตติ ก"), false);
+    assert.equal(isCardPaymentPayee(""), false);
 });

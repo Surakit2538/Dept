@@ -323,3 +323,24 @@ test("สลิปไม่มีวันที่ที่แปลงได�
     await call({ action: "auto", text: "ไปยัง ร้านน้ำ\nจำนวน 20.00 บาท" });
     assert.equal(db.all("wallet_entries")[0].date, "2026-11-13");
 });
+
+const SLIP_CARD_BILL = `UOB TMRW
+โอนเงินสำเร็จ
+24 ต.ค. 69 02:33 น.
+ไปยัง
+UOB Master Card
+จำนวน
+14,780.16 บาท
+เลขที่รายการ:
+202610240233123456`;
+
+test("auto: สลิปจ่ายบิลบัตรเครดิต → ไม่บันทึกเป็นรายจ่าย (กันนับซ้ำกับรายจ่ายของบัตร)", async () => {
+    const { db, call } = setup();
+    const r = await call({ action: "auto", text: SLIP_CARD_BILL });
+    assert.equal(r.statusCode, 200);
+    assert.equal(r.body.status, "ignored");
+    assert.equal(r.body.kind, "card_payment");
+    assert.match(r.body.message, /บิลบัตรเครดิต/);
+    assert.equal(db.count("wallet_entries"), 0);
+    assert.equal(db.count("transactions"), 0);
+});

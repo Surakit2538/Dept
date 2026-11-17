@@ -65,6 +65,7 @@ test("รายการล่าสุด: รวมกลุ่ม ส่ว�
 
 test("ตัวช่วย: หมวด เดือน การแสดงเงิน", () => {
     assert.equal(categoryOf("fa-gas-pump"), "travel");
+    assert.equal(categoryOf("fa-film"), "fun");
     assert.equal(categoryOf("fa-unknown"), "other");
     assert.equal(shiftMonth("2026-01", -1), "2025-12");
     assert.equal(shiftMonth("2026-12", 1), "2027-01");

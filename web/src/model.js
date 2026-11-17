@@ -11,6 +11,7 @@ export const CATEGORIES = [
     { key: "bills", label: "บิลและค่าบริการ", icons: ["fa-bolt", "fa-house", "fa-mobile-screen", "fa-mobile-screen-button"] },
     { key: "goods", label: "ของใช้", icons: ["fa-cart-shopping", "fa-basket-shopping", "fa-scissors", "fa-pills", "fa-paw", "fa-gift"] },
     { key: "travel", label: "เดินทาง", icons: ["fa-car", "fa-gas-pump", "fa-bus", "fa-plane"] },
+    { key: "fun", label: "บันเทิง", icons: ["fa-film"] },
     { key: "other", label: "อื่นๆ", icons: [] }
 ];
 
