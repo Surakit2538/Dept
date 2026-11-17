@@ -69,8 +69,6 @@ test("เส้นทางที่เสี่ยงต้องตรวจ�
     const hook = read("api/webhook.js");
     assert.match(hook, /bodyParser: false/);
     assert.match(hook, /decideWebhookAccess/);
-    const idx = read("legacy-index.html");
-    assert.equal((idx.match(/idToken: \(typeof liff/g) || []).length, 2);
 });
 
 test("1g: ไม่มีคีย์ SlipOK ฝังในโค้ด ต้องอ่านจาก env", () => {

@@ -45,13 +45,10 @@ test("splitInstallments: ตรวจค่าไม่ถูกต้อง", (
 });
 
 import fs from "node:fs";
-test("หน้าเว็บและบอท LINE ใช้ตัวช่วยกลาง ไม่เหลือ setMonth/หารตรงๆ ในการผ่อน", () => {
+test("เว็บและบอท LINE ใช้ตัวช่วยกลาง ไม่เหลือ setMonth/หารตรงๆ ในการผ่อน", () => {
     const read = (f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
-    const idx = read("legacy-index.html");
     const hook = read("api/webhook.js");
-    assert.match(idx, /import \{ splitInstallments \} from "\.\/lib\/installments\.mjs"/);
-    assert.match(idx, /splitInstallments\(\{ amount, installments, splits, date \}\)/);
-    assert.ok(!/currentInstallmentDate/.test(idx));
+    assert.match(read("web/src/model.js"), /lib\/installments\.mjs/);
     assert.match(hook, /splitInstallments\(\{/);
     assert.ok(!/nextDate\.setMonth/.test(hook));
 });

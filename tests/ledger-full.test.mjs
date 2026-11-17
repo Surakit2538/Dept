@@ -106,17 +106,14 @@ test("toDisplayPlan: ปัดบาทเต็มต่อบรรทัด �
 
 test("2b: ทุกหน้าใช้แกนคำนวณกลาง ไม่เหลือสูตรหนี้ที่เขียนเอง", () => {
     const read = (f) => fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
-    for (const f of ["legacy-index.html", "admin-app.js"]) {
-        const s = read(f);
-        assert.match(s, /computeMonthLedger/, f);
-        assert.match(s, /lib\/ledger\.mjs\?v=2/, f);
-        assert.ok(!/balances\[[a-zA-Z]+\] \+= Number\(t\.amount\)/.test(s), `${f} ยังมีสูตรเดิม`);
-    }
+    const model = read("web/src/model.js");
+    assert.match(model, /computeMonthLedger/);
+    assert.match(model, /lib\/ledger\.mjs/);
+    assert.ok(!/balances\[[a-zA-Z]+\] \+= Number\(t\.amount\)/.test(model), "web/src/model.js ยังมีสูตรเดิม");
     assert.match(read("api/widget-summary.js"), /memberMonthSummary/);
     assert.ok(!/balance \+= /.test(read("api/widget-summary.js")));
     const hook = read("api/webhook.js");
     assert.match(hook, /buildMemberReportMessage\(/);
     assert.match(read("lib/line-report.mjs"), /computeMonthLedger\(\{/);
     assert.ok(!/balances\[payer\] \+= Number\(t\.amount\)/.test(hook));
-    assert.match(read("admin.html"), /admin-app\.js\?v=4/);
 });

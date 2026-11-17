@@ -138,7 +138,7 @@ test("buildRemindConfirm: ทั้งกลุ่ม", () => {
 test("ข้อความที่ผู้ใช้เห็น (บอท, iPhone, เว็บ) ไม่มี emoji เหลือ ยกเว้นเครื่องหมายในข้อมูล", () => {
     const files = ["api/webhook.js", "api/firestore-helpers.js", "api/send-line.js", "api/slipok-helpers.js", "api/cron/send-reminders.js",
         "lib/shortcut-service.mjs", "lib/line-cards.mjs", "lib/line-report.mjs", "scriptable/DeptSlip.js", "scriptable/DeptAuto.js", "scriptable/DeptWidget.js",
-        "iphone-setup.js", "personal-expenses.js", "web/src/main.jsx", "web/src/icons.jsx", "api/get-members.js"];
+        "web/src/main.jsx", "web/src/icons.jsx", "api/get-members.js"];
     const allowed = new Set(["\u{1F4C5}", "\u{1F47E}", "\u{1F996}"]); // 📅 เครื่องหมายรายการรายเดือนในข้อมูล, ชื่อตัวอย่าง
     for (const f of files) {
         const s = fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
