@@ -125,7 +125,8 @@ test("ตั้งค่า iPhone: สคริปต์ติดตั้ง�
     assert.match(code, /Keychain\.set\("dept_token", DEVICE_TOKEN\)/);
     assert.match(code, /const DEVICE_TOKEN = "tok\\"en`\$\{x\}";/);
     assert.ok(!code.includes('evil()";'), "ชื่อต้องไม่หลุดออกจากคอมเมนต์");
-    for (const f of ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"]) assert.ok(code.includes(f));
+    for (const f of ["DeptWidget.js", "DeptAuto.js"]) assert.ok(code.includes(f));
+    assert.ok(!code.includes("DeptSlip.js"), "ไม่ติดตั้ง DeptSlip แล้ว");
 
     const { h, toString } = await render();
     const html = toString(h(IphoneSheet, { onClose() {} }));
@@ -310,6 +311,7 @@ test("ตัวติดตั้ง iPhone: ติดตั้ง 3 สคร�
     async function runInstaller({ pick, brokenFile = "" }) {
         const files = new Map([
             ["OldSlip.js", 'const t = Keychain.get("dept_token");'],
+            ["DeptSlip.js", 'const t = Keychain.get("dept_token"); // สแกนสลิปแบบเดิม'],
             ["MyOwn.js", "console.log('ไม่เกี่ยวกับ Dept');"],
             ["DeptInstaller.js", 'Keychain.set("dept_token", "x");'],
             ["Untitled Script 3.js", 'Keychain.set("dept_token", "x"); // ตัวติดตั้งที่กำลังรันอยู่']
@@ -352,7 +354,9 @@ test("ตัวติดตั้ง iPhone: ติดตั้ง 3 สคร�
     // เลือกลบ
     const del = await runInstaller({ pick: 0 });
     assert.equal(del.kc.get("dept_token"), "tok123");
-    for (const f of ["DeptWidget.js", "DeptSlip.js", "DeptAuto.js"]) assert.ok(del.files.has(f), f);
+    for (const f of ["DeptWidget.js", "DeptAuto.js"]) assert.ok(del.files.has(f), f);
+    assert.match(del.alerts[1].message, /DeptSlip\.js/, "DeptSlip เดิมต้องถูกเสนอให้ลบ");
+    assert.ok(!del.files.has("DeptSlip.js"));
     assert.match(del.alerts[0].message, /DeptAuto v9\.9\.9/);
     assert.match(del.alerts[0].message, /DeptWidget v9\.9\.9/);
     assert.match(del.alerts[1].message, /OldSlip\.js/);

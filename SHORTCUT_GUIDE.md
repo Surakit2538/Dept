@@ -83,3 +83,7 @@
 3. แก้ `lib/slip-core.mjs` จนผ่าน → `npm test` → deploy
 
 เคสตัวอย่างในไฟล์ทดสอบตอนนี้เป็นข้อความ **จำลอง** ตามรูปแบบสลิปทั่วไป ยังไม่ผ่านการทดสอบกับสลิปจริงของทุกธนาคาร
+
+## DeptAuto 2.0.0 (18 พ.ย. 2569)
+
+DeptAuto เด้งแจ้งเตือนเอง (ไม่ส่งข้อความกลับให้คำสั่งลัดแล้ว) รายการที่บันทึกจาก `auto` มี `unconfirmed: true` ปุ่มในแจ้งเตือนเรียก `scriptable:///run/DeptAuto?confirm=<id>` (`wallet-confirm`) หรือเปิดเว็บ `#split=<id>` / `#edit=<id>` ดูรายละเอียดใน `HANDOVER_NOTES.md` หัวข้อ 13 และคู่มือผู้ใช้ `shortcut-guide.html`

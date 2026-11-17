@@ -641,3 +641,8 @@ html, body { touch-action: manipulation; }
   .bulk-bar { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
   body:has(.bulk-bar) .fab { display: none; }
 }
+
+/* รายการที่บันทึกอัตโนมัติ ยังไม่ยืนยัน (ใช้สี pay แบบจาง ตาม design/tokens.json "warn") */
+.unconfirmed-note { display: flex; gap: var(--s2); align-items: flex-start; padding: var(--s3); border-radius: var(--r-md); background: color-mix(in srgb, var(--pay) 8%, transparent); border: 1px solid color-mix(in srgb, var(--pay) 30%, transparent); color: var(--ink); font-size: var(--fs-sm); line-height: 1.5; margin: 0 0 var(--s3); }
+.unconfirmed-note .ic { color: var(--pay); flex: none; margin-top: 2px; }
+.unconfirmed-bar .lbl .ic { color: var(--pay); vertical-align: -2px; }

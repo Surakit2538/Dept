@@ -3,7 +3,7 @@ import { Icon, iconFor } from "../icons.jsx";
 import { SectionTitle, DeleteButton, Lazy, Collapsible } from "../ui.jsx";
 import { baht } from "../model.js";
 import { useState, useEffect } from "preact/hooks";
-import { deleteWalletEntry, deleteWalletEntries, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries } from "../data.js";
+import { deleteWalletEntry, deleteWalletEntries, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries, confirmWalletEntries } from "../data.js";
 import { SelectToggle, SelectRow, BulkBar } from "../bulk.jsx";
 import { guessBillIcon } from "../model.js";
 import { faOf, hasCategory } from "../cats.jsx";
@@ -13,7 +13,7 @@ function Item({ it, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
     const body = (
         <>
             <span class="ico"><Icon name={it.type === "income" ? "down" : iconFor(it.icon)} /></span>
-            <div class="grow"><div class="t">{name}</div><div class="s">{it.type === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {it.date.slice(8, 10)}/{it.date.slice(5, 7)}</div></div>
+            <div class="grow"><div class="t">{name}</div><div class="s">{it.type === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {it.date.slice(8, 10)}/{it.date.slice(5, 7)}{it.unconfirmed ? <span class="tag warn">ยังไม่ยืนยัน</span> : null}</div></div>
             <span class={`num ${it.type === "income" ? "rcv" : ""}`}>{baht(it.amount, { decimals: 2 })}</span>
         </>
     );
@@ -43,6 +43,23 @@ function AutoCategorize({ items, onDone, onError, onInfo }) {
             <span class="lbl">ระบบจะเดาหมวดจากชื่อรายการให้ {todo.length} รายการที่ยังไม่มีหมวด (แก้ทีหลังได้ทีละรายการ) ทำเลยไหม</span>
             <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { const n = await categorizeWalletEntries(todo); onInfo(`จัดหมวดให้ ${n} รายการแล้ว`); onDone(); } catch (e) { onError(e.message); } setState("idle"); }}>{state === "busy" ? "กำลังจัด" : "ทำเลย"}</button>
             <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
+        </div>
+    );
+}
+
+/** รายการที่บันทึกอัตโนมัติ (สลิป, SMS, อีเมล) ยังไม่ยืนยัน: แจ้งไว้ และยืนยันทั้งหมดได้ทีเดียว (ถามก่อน) */
+function UnconfirmedBar({ items, onDone, onError, onInfo }) {
+    const [state, setState] = useState("idle");
+    const ids = items.filter((it) => it.unconfirmed).map((it) => it.id);
+    if (ids.length === 0) return null;
+    return (
+        <div class="acts remind unconfirmed-bar" role="status">
+            <span class="lbl"><Icon name="alert" size={14} /> มี {ids.length} รายการที่บันทึกอัตโนมัติ <b>ยังไม่ยืนยัน</b> แตะรายการเพื่อตรวจหรือแก้ไข</span>
+            {state === "idle" && <button type="button" class="btn sm ghost" onClick={() => setState("ask")}>ยืนยันทั้งหมด</button>}
+            {state !== "idle" && <>
+                <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { const n = await confirmWalletEntries(ids); onInfo(`ยืนยันแล้ว ${n} รายการ`); onDone(); } catch (e) { onError(e.message); } setState("idle"); }}>{state === "busy" ? "กำลังยืนยัน" : `ยืนยัน ${ids.length} รายการ`}</button>
+                <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
+            </>}
         </div>
     );
 }
@@ -85,9 +102,11 @@ function Line({ icon, title, note, value, tone = "" }) {
 
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
-export function WalletPage({ model, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0 }) {
+export function WalletPage({ model, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null }) {
     const m = model;
     const [editing, setEditing] = useState(null);
+    // เปิดหน้าแก้ไขจากลิงก์ในแจ้งเตือน (#edit=รหัส)
+    useEffect(() => { if (openEdit) setEditing(openEdit); }, [openEdit]);
     const [selecting, setSelecting] = useState(false);
     const [picked, setPicked] = useState([]);
     const hasIncome = m.incomeSat > 0;
@@ -151,6 +170,7 @@ export function WalletPage({ model, onChanged, onError, onInfo = () => {}, onSpl
                 <section class="card">
                     <SectionTitle icon="bill" title="รายการของฉัน" note="รายรับและรายจ่ายส่วนตัว" />
                     {m.items.length > 1 && <SelectToggle on={selecting} onToggle={() => (selecting ? stopSelecting() : setSelecting(true))} />}
+                    {!selecting && <UnconfirmedBar items={m.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
                     {!selecting && <AutoCategorize items={m.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
                     {m.items.length === 0 ? <p class="empty">ยังไม่มีรายการในเดือนนี้ กดปุ่ม &ldquo;บันทึก&rdquo; เพื่อเพิ่ม</p>
                         : <ul class="plain">{m.items.map((it) => <Item key={it.id} it={it} onDeleted={onChanged} onError={onError} onEdit={setEditing} selecting={selecting} picked={live.includes(it.id)} onToggle={toggle} />)}</ul>}

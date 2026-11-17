@@ -4,7 +4,7 @@ import { Icon, Mark } from "./icons.jsx";
 import { Sheet } from "./ui.jsx";
 import { makeDeviceToken, revokeDeviceTokens } from "./data.js";
 
-/** สคริปต์ติดตั้งที่ผู้ใช้วางใน Scriptable (ตรงกับของหน้าเดิม: เก็บรหัสใน Keychain แล้วโหลด 3 สคริปต์ล่าสุด) */
+/** สคริปต์ติดตั้งที่ผู้ใช้วางใน Scriptable: เก็บรหัสใน Keychain แล้วโหลดสคริปต์ล่าสุด (DeptWidget, DeptAuto) และเสนอลบสคริปต์ Dept เก่า */
 export function installerScript(token, userName, baseUrl) {
     const safeName = String(userName || "สมาชิก").replace(/[`$\\"\r\n]/g, "");
     return [
@@ -21,7 +21,7 @@ export function installerScript(token, userName, baseUrl) {
         "",
         "Keychain.set(\"dept_token\", DEVICE_TOKEN);",
         "",
-        "const FILES = [\"DeptWidget.js\", \"DeptSlip.js\", \"DeptAuto.js\"];",
+        "const FILES = [\"DeptWidget.js\", \"DeptAuto.js\"];",
         "const downloaded = {};",
         "let failedFile = \"\";",
         "for (const name of FILES) {",
@@ -136,7 +136,7 @@ function IphoneInfographicSvg() {
             <text x="243" y="70" fill="var(--ink)" font-size="11" font-weight="600" text-anchor="middle">รัน DeptInstaller ▶</text>
 
             <text x="243" y="102" fill="var(--mute)" font-size="11" text-anchor="middle">บันทึกลง Keychain</text>
-            <text x="243" y="118" fill="var(--mute)" font-size="11" text-anchor="middle">โหลด 3 สคริปต์ลงเครื่อง</text>
+            <text x="243" y="118" fill="var(--mute)" font-size="11" text-anchor="middle">โหลด 2 สคริปต์ลงเครื่อง</text>
 
             {/* เชื่อม 2 -> 3 */}
             <path d="M 310 65 L 326 65 L 326 42 L 340 42" stroke="var(--accent)" stroke-width="1.8" fill="none" stroke-dasharray="3 3" />
@@ -152,12 +152,12 @@ function IphoneInfographicSvg() {
             <text x="376" y="32" fill="var(--ink)" font-size="12" font-weight="600">DeptWidget</text>
             <text x="356" y="52" fill="var(--mute)" font-size="11">วิดเจ็ต 2 ช่องหน้าโฮม</text>
 
-            {/* โหนด 3B: DeptSlip */}
+            {/* โหนด 3B: DeptAuto */}
             <rect x="346" y="80" width="126" height="60" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="1" />
             <circle cx="362" cy="98" r="8" fill="var(--receive)" />
             <text x="362" y="102" fill="var(--accent-ink)" font-size="11" font-weight="600" text-anchor="middle">3</text>
-            <text x="376" y="102" fill="var(--ink)" font-size="12" font-weight="600">DeptSlip</text>
-            <text x="356" y="122" fill="var(--mute)" font-size="11">สแกนสลิป Live Text</text>
+            <text x="376" y="102" fill="var(--ink)" font-size="12" font-weight="600">DeptAuto</text>
+            <text x="356" y="122" fill="var(--mute)" font-size="11">บันทึกเอง แล้วถาม</text>
         </svg>
     );
 }
@@ -302,7 +302,7 @@ export function IphoneSheet({ onClose }) {
 
                             <div class="ip-highlight-box">
                                 <Icon name="sparkle" size={16} />
-                                <span>เมื่อขึ้น &ldquo;ติดตั้งสำเร็จ&rdquo; จะได้สคริปต์ <b>DeptWidget</b>, <b>DeptSlip</b> และ <b>DeptAuto</b> ในแอป</span>
+                                <span>เมื่อขึ้น &ldquo;ติดตั้งสำเร็จ&rdquo; จะได้สคริปต์ <b>DeptWidget</b> และ <b>DeptAuto</b> ในแอป</span>
                             </div>
 
                             <div>
@@ -327,8 +327,8 @@ export function IphoneSheet({ onClose }) {
                                     <p>กดค้างหน้าจอโฮม &gt; กด + &gt; Scriptable &gt; เลือก DeptWidget</p>
                                 </div>
                                 <div class="ip-subcard">
-                                    <h4><Icon name="qr" size={16} /> สแกนสลิป Live Text</h4>
-                                    <p>แตะไอคอนสแกนสลิป รูปไม่ออกจากเครื่อง</p>
+                                    <h4><Icon name="qr" size={16} /> บันทึกรายจ่ายเอง</h4>
+                                    <p>สร้างคำสั่งลัด Dept บันทึก แล้วตั้งให้ทำงานเองตามคู่มือ</p>
                                     <a href="/shortcut-guide.html" target="_blank" rel="noopener" class="btn sm ghost ip-guide-btn">
                                         <Icon name="external" size={14} /> คู่มือคำสั่งลัด
                                     </a>
@@ -344,12 +344,11 @@ export function IphoneSheet({ onClose }) {
                                     <h3>ขั้นที่ 4: ตั้งระบบอัตโนมัติ (ไม่ต้องกดเอง)</h3>
                                 </div>
                             </div>
-                            <p class="ip-desc">ทุกแบบเรียกสคริปต์ <b>DeptAuto</b> ตัวเดียวกัน ต่างกันแค่สิ่งที่ทำให้เริ่มทำงาน</p>
+                            <p class="ip-desc">ทุกแบบเรียกคำสั่งลัด <b>Dept บันทึก</b> ตัวเดียว แล้ว iPhone จะเด้งถาม <b>ส่วนตัว</b> หรือ <b>หารกับเพื่อน</b></p>
                             <div class="ip-substeps">
-                                <div class="ip-substep-item"><span><b>ปิดแอปธนาคาร</b> บันทึกสลิปและภาพหน้าจอล่าสุด</span></div>
+                                <div class="ip-substep-item"><span><b>ปิดแอปธนาคาร</b> อ่านสลิปหรือภาพหน้าจอล่าสุด</span></div>
                                 <div class="ip-substep-item"><span><b>ข้อความ SMS ที่มีคำว่า THB</b> รายจ่ายบัตร KTC, CardX, ttb</span></div>
                                 <div class="ip-substep-item"><span><b>อีเมลจากธนาคาร</b> รายจ่ายบัตรหรือบัญชีที่ธนาคารส่งอีเมลแจ้ง</span></div>
-                                <div class="ip-substep-item"><span><b>แตะหลังเครื่อง 2 ครั้ง</b> บันทึกแจ้งเตือนที่เห็นอยู่บนหน้าจอ</span></div>
                             </div>
                             <a href="/shortcut-guide.html#auto-more" target="_blank" rel="noopener" class="btn sm ghost ip-guide-btn">
                                 <Icon name="external" size={14} /> วิธีตั้งแต่ละแบบ
@@ -359,8 +358,8 @@ export function IphoneSheet({ onClose }) {
                         <details class="ip-details">
                             <summary>บนเครื่องควรมีอะไร และลบอะไรได้</summary>
                             <div class="ip-substeps" style="margin-top: 8px;">
-                                <div class="ip-substep-item"><span><b>Scriptable ควรมี 4 ตัว</b> DeptInstaller, DeptWidget, DeptSlip, DeptAuto</span></div>
-                                <div class="ip-substep-item"><span><b>คำสั่งลัดควรมี</b> สแกนสลิป, สลิปอัตโนมัติ (และ บันทึกจากหน้าจอ ถ้าใช้แตะหลังเครื่อง)</span></div>
+                                <div class="ip-substep-item"><span><b>Scriptable ควรมี 3 ตัว</b> DeptInstaller, DeptWidget, DeptAuto</span></div>
+                                <div class="ip-substep-item"><span><b>คำสั่งลัดควรมี</b> Dept บันทึก ตัวเดียว (ลบ สแกนสลิป และ สลิปอัตโนมัติ ได้)</span></div>
                                 <div class="ip-substep-item"><span><b>ลบได้</b> สคริปต์หรือคำสั่งลัดเก่าของ Dept ที่ไม่อยู่ในรายการข้างบน ตัวติดตั้งจะถามก่อนลบสคริปต์เก่าให้เอง</span></div>
                             </div>
                         </details>
@@ -368,7 +367,7 @@ export function IphoneSheet({ onClose }) {
                         {/* ความปลอดภัยย่อ */}
                         <div class="ip-sec-card">
                             <Icon name="shield" size={16} />
-                            <span>รหัสเก็บใน iOS Keychain · สแกนสลิปด้วย Live Text ในเครื่อง รูปไม่ออกนอกเครื่อง</span>
+                            <span>รหัสเก็บใน iOS Keychain · อ่านสลิปด้วย Live Text ในเครื่อง รูปไม่ออกนอกเครื่อง · ซ่อนรหัส OTP ก่อนส่ง</span>
                         </div>
 
                         {msg && <p class={`msg ${msg.ok ? "ok" : ""}`} role={msg.ok ? "status" : "alert"}>{msg.text}</p>}

@@ -37,7 +37,9 @@ lastMonths(now, 6).forEach((m, mi) => {
 const settlements = [{ id: "s1", status: "verified", month: now, from: "BEN", to: "GAME", amount: 300, createdAt: "2026-11-10", verifiedByAdmin: false }];
 const wallet = lastMonths(now, 6).flatMap((m, i) => [
     { id: `inc${i}`, type: "income", amount: 25000, date: `${m}-01`, desc: "เงินเดือน", timestamp: 1 },
-    { id: `ex${i}`, type: "expense", amount: 320 + i * 40, date: `${m}-05`, desc: "ตัดผม", icon: "fa-scissors", timestamp: 2 }
+    { id: `ex${i}`, type: "expense", amount: 320 + i * 40, date: `${m}-05`, desc: "ตัดผม", icon: "fa-scissors", timestamp: 2 },
+    // รายการที่บันทึกอัตโนมัติจาก SMS บัตร (ยังไม่ยืนยัน) ดูป้ายและแถบยืนยัน
+    { id: `auto${i}`, type: "expense", amount: 175, date: `${m}-17`, desc: "LINE MAN Dragon", icon: "fa-utensils", card: "ttb-0518", source: "card_alert", unconfirmed: true, timestamp: 3 }
 ]);
 const profiles = [
     { id: "m1", name: "GAME", promptpay: "0812345678", realName: "สมชาย ใจดี" },

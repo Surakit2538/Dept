@@ -4,327 +4,133 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>คู่มือสแกนสลิปด้วย iPhone</title>
+<title>ตั้งค่า iPhone ให้บันทึกเอง</title>
 <style>
-  :root { --bg:#16181d; --card:#1f232b; --line:#2e343f; --text:#f1f5f9; --muted:#94a3b8; --accent:#34d399; --warn:#fbbf24; --chip:#0f172a; }
+  /* สีจาก design/tokens.json */
+  :root { --bg:#e9ecea; --card:#ffffff; --ink:#14202b; --mute:#5d6b76; --line:#d7dedc; --chip:#eef2f1; --accent:#0b6e69; --accent-ink:#ffffff; --pay:#b8470f; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0b1113; --card:#141d20; --ink:#e8eeec; --mute:#93a3a0; --line:#25343a; --chip:#1c282c; --accent:#3cc4b4; --accent-ink:#06201d; --pay:#ff9a6b; }
+  }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:16px/1.7 -apple-system, "Sarabun", "Noto Sans Thai", sans-serif; }
-  main { max-width: 680px; margin: 0 auto; padding: 20px 16px 64px; }
-  h1 { font-size: 28px; line-height: 1.3; margin: 8px 0 6px; }
-  h2 { font-size: 21px; line-height: 1.4; margin: 36px 0 10px; color: var(--accent); }
-  h3 { font-size: 17px; line-height: 1.4; margin: 20px 0 6px; color: var(--text); }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.7 "IBM Plex Sans Thai", "Noto Sans Thai", -apple-system, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 64px; }
+  h1 { font-size: 26px; line-height: 1.3; margin: 8px 0 4px; }
+  h2 { font-size: 20px; line-height: 1.4; margin: 36px 0 8px; }
+  h2 .no { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--accent); color:var(--accent-ink); font-size:15px; margin-right:8px; vertical-align: 2px; }
+  h3 { font-size: 17px; margin: 22px 0 6px; }
   p { margin: 8px 0; }
-  .muted { color: var(--muted); font-size: 14px; }
+  .muted { color: var(--mute); font-size: 14px; }
   .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 12px 0; }
-  .warn { border-color: #7c5e10; background: #2a2412; color: #fde68a; }
+  .note { border-color: color-mix(in srgb, var(--pay) 35%, transparent); background: color-mix(in srgb, var(--pay) 8%, var(--card)); }
   ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
-  ol.steps > li { counter-increment: s; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 12px 52px; margin: 10px 0; }
-  ol.steps > li::before { content: counter(s); position: absolute; left: 12px; top: 12px; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #062; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-  ol.steps > li.sub { margin-left: 18px; border-left: 3px solid var(--accent); }
-  ol.steps > li.sub2 { margin-left: 36px; border-left: 3px solid #38bdf8; }
+  ol.steps > li { counter-increment: s; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 12px 50px; margin: 8px 0; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 12px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--chip); border: 1px solid var(--line); font-weight: 700; font-size: 14px; display: grid; place-items: center; }
+  ol.steps > li.in { margin-left: 22px; border-left: 3px solid var(--accent); }
   .act { font-weight: 700; }
-  .en { color: var(--muted); font-weight: 400; font-size: 13px; }
-  code, .chip { font: 14px ui-monospace, Menlo, monospace; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; word-break: break-all; }
-  .chip { cursor: pointer; display: inline-block; margin: 2px 0; color: #7dd3fc; }
-  .chip::after { content: " ⧉"; color: var(--muted); }
-  .chip.done { color: var(--accent); }
-  .chip.done::after { content: " ✓ คัดลอกแล้ว"; color: var(--accent); }
+  .en { color: var(--mute); font-size: 13px; }
+  .chip { font: 14px ui-monospace, Menlo, monospace; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; cursor: pointer; display: inline-block; color: var(--accent); }
+  .chip::after { content: " คัดลอก"; color: var(--mute); font-size: 12px; }
+  .chip.done::after { content: " คัดลอกแล้ว"; color: var(--accent); }
+  .flow { display: grid; gap: 6px; }
+  .flow div { background: var(--chip); border-radius: 10px; padding: 8px 12px; }
   ul { padding-left: 20px; margin: 6px 0; }
-  table { width: 100%; border-collapse: collapse; margin: 6px 0; font-size: 14px; }
-  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 600; }
-  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin: 10px 0; }
-  summary { cursor: pointer; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { color: var(--mute); width: 34%; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin: 8px 0; }
+  summary { cursor: pointer; font-weight: 600; }
 </style>
 </head>
 <body>
 <main>
-  <h1>📱 สแกนสลิปด้วย iPhone</h1>
-  <p class="muted">ติดตั้งครั้งเดียวประมาณ 5 นาที (สร้างคำสั่งลัด 3 คำสั่ง) หลังจากนั้นโอนเงินเสร็จ แตะไอคอนเดียวก็บันทึกได้</p>
+  <h1>ตั้งค่า iPhone ให้บันทึกรายจ่ายเอง</h1>
+  <p class="muted">อัปเดต 18 พ.ย. 2569 · ใช้กับสคริปต์ DeptAuto รุ่น 2.0.0 · ทำครั้งเดียวประมาณ 10 นาที</p>
 
   <div class="card">
-    <b>ก่อนเริ่มต้องมี</b>
-    <ul>
-      <li>ติดตั้งแอป <b>Scriptable</b> แล้ว และเคยรันโค้ดติดตั้ง Widget มาแล้ว (ส่วนที่ 1 ด้านล่างจะติดตั้งสคริปต์สแกนสลิปให้ด้วยในขั้นตอนเดียวกัน)</li>
-      <li>รหัสของคุณจะถูกเก็บไว้ในมือถือโดยตัวติดตั้งให้เอง ไม่ต้องกรอกอะไรเพิ่ม</li>
-    </ul>
+    <b>ใช้งานจริงเป็นแบบนี้</b>
+    <div class="flow">
+      <div>1. จ่ายเงินตามปกติ (โอนแล้วแคปสลิป, รูดบัตรแล้วมี SMS หรืออีเมลจากธนาคาร)</div>
+      <div>2. iPhone เด้งแจ้งเตือน <b>"พบรายจ่าย ... บันทึกแบบไหน"</b> กดค้างหรือปัดลงเพื่อเห็นปุ่ม</div>
+      <div>3. กด <b>ส่วนตัว</b> หรือ <b>หารกับเพื่อน</b></div>
+      <div>4. กดส่วนตัวแล้วจะมีแจ้งเตือนอีกอันพร้อมปุ่ม <b>แก้ไขรายละเอียด</b> (กดหรือไม่กดก็ได้)</div>
+    </div>
+    <p class="muted">ถ้าไม่กดอะไร ระบบเก็บเป็นรายจ่ายส่วนตัวไว้ให้ และในเว็บจะมีป้าย <b>ยังไม่ยืนยัน</b> จนกว่าจะเข้าไปตรวจ</p>
   </div>
 
-  <h2>ส่วนที่ 1: ติดตั้งสคริปต์ลงมือถือ</h2>
+  <h2><span class="no">1</span>ติดตั้งสคริปต์</h2>
   <ol class="steps">
-    <li>ในหน้า "ตั้งค่า iPhone" บนเว็บ กด <b>"สร้างรหัสสำหรับเครื่องนี้"</b> โค้ดติดตั้งจะถูกคัดลอกให้อัตโนมัติ</li>
-    <li>เปิดแอป <b>Scriptable</b> → เปิดสคริปต์ <b>DeptInstaller</b> ตัวเดิม (หรือกด + สร้างใหม่) → ลบโค้ดเก่าทั้งหมด → <b>วาง</b>โค้ดใหม่ → กด <b>▶</b></li>
-    <li>ต้องขึ้น <b>"ติดตั้งสำเร็จ ✅"</b> และในรายการสคริปต์จะมี <b>DeptWidget</b> กับ <b>DeptSlip</b> เพิ่มขึ้นมา</li>
+    <li>ติดตั้งแอป <b>Scriptable</b> จาก App Store (ฟรี)</li>
+    <li>เปิดเว็บ Dept Money → แท็บ <b>ฉัน</b> → <b>ตั้งค่า iPhone</b> → กด <b>สร้างรหัสและคัดลอกสคริปต์</b></li>
+    <li>เปิด Scriptable → กด <b>+</b> → ลบข้อความเดิม แล้ว <b>วาง</b> → กดปุ่ม <b>เล่น</b> (สามเหลี่ยม)</li>
+    <li>ขึ้น <b>ติดตั้งสำเร็จ</b> และเห็น <b>DeptWidget</b> กับ <b>DeptAuto v2.0.0</b><br>
+      <span class="muted">ถ้ามีหน้าต่าง "พบสคริปต์ Dept ที่ไม่ใช้แล้ว" กด <b>ลบทั้งหมด</b></span></li>
+  </ol>
+  <p class="muted">ครั้งแรกที่ระบบจะเด้งแจ้งเตือน iPhone จะถามว่าให้ Scriptable แจ้งเตือนได้ไหม ให้กด <b>อนุญาต</b></p>
+
+  <h2><span class="no">2</span>สร้างคำสั่งลัด "Dept บันทึก"</h2>
+  <p class="muted">คำสั่งลัดเดียว ใช้ได้ทั้งสลิป SMS และอีเมล ไม่ต้องใส่คำสั่งแสดงการแจ้งเตือน เพราะ DeptAuto เด้งให้เอง</p>
+  <ol class="steps">
+    <li>เปิดแอป <b>คำสั่งลัด</b> → แท็บ <b>คำสั่งลัด</b> → <b>+</b> → ตั้งชื่อ <span class="chip" data-copy="Dept บันทึก">Dept บันทึก</span></li>
+    <li><span class="act">ถ้า</span> <span class="en">(If)</span> เลือก <b>ข้อมูลเข้าของคำสั่งลัด</b> → <b>มีค่าใดค่าหนึ่ง</b><br>
+      <span class="muted">ด้านบนจะมีการ์ด "รับ ... จาก ไม่มีที่ไหน" โผล่มาเอง ไม่ต้องแก้</span></li>
+    <li class="in"><span class="act">Run DeptAuto with</span> <span class="en">(Run Script ของ Scriptable)</span> ช่องหลังเลือก <b>ข้อมูลเข้าของคำสั่งลัด</b><br>
+      แตะลูกศรวงกลมท้ายแถว แล้วปิด <b>Run In App</b> และ <b>แสดงเมื่อสั่งทำงาน</b></li>
+    <li><span class="act">มิฉะนั้น</span> <span class="en">(Otherwise)</span> แล้วใส่ 3 คำสั่งต่อไปนี้ใต้คำว่ามิฉะนั้น</li>
+    <li class="in"><span class="act">รับรูปภาพล่าสุด</span> จำนวน <b>1</b> และเปิด <b>รวมภาพถ่ายหน้าจอ</b></li>
+    <li class="in"><span class="act">แยก ข้อความ ออกจาก</span> <b>รูปภาพล่าสุด</b></li>
+    <li class="in"><span class="act">Run DeptAuto with</span> ช่องหลังเลือก <b>ข้อความที่แยกออก</b> แล้วปิด Run In App และ แสดงเมื่อสั่งทำงาน เหมือนข้อ 3</li>
+    <li><span class="act">สิ้นสุดถ้า</span> <span class="muted">(แอปเติมให้เอง)</span></li>
   </ol>
 
-  <h2>ส่วนที่ 2: สร้างคำสั่งลัด "สแกนสลิป" แล้วเพิ่มลงหน้าจอโฮม (ทำครั้งเดียว)</h2>
-  <p class="muted">ใช้ Live Text ของ iPhone อ่านข้อความจากรูปสลิป แล้วส่งเฉพาะข้อความให้ระบบ (รูปไม่ออกจากเครื่อง) อย่าใช้ปุ่ม Add to Home Screen ในแอป Scriptable เพราะ iOS รุ่นใหม่จะขึ้นหน้า Safari ผิดพลาด</p>
-  <ol class="steps">
-    <li>เปิดแอป <b>คำสั่งลัด (Shortcuts)</b> → แตะ <b>+</b> → ตั้งชื่อว่า <span class="chip" data-copy="สแกนสลิป">สแกนสลิป</span></li>
-    <li><span class="act">ค้นหารูปภาพ</span> <span class="en">(Find Photos)</span><br>
-      ตั้ง: จัดเรียงตาม <b>วันที่สร้าง</b> / <b>ล่าสุดก่อน</b> / เปิด <b>จำกัด</b> เป็น <b>1</b> รายการ</li>
-    <li><span class="act">แยกข้อความจากรูปภาพ</span> <span class="en">(Extract Text from Image)</span><br>
-      ข้อมูลนำเข้า: <b>รูปภาพ</b> จากขั้นที่ 2 (ปกติเลือกให้เองอัตโนมัติ)</li>
-    <li><span class="act">เรียกใช้สคริปต์</span> <span class="en">(Run Script — ของแอป Scriptable)</span><br>
-      <ul>
-        <li>แตะช่อง <b>Script</b> แล้วเลือก <span class="chip" data-copy="DeptSlip">DeptSlip</span></li>
-        <li>แตะช่อง <b>Parameter</b> แล้วเลือกตัวแปร <b>ข้อความจากรูปภาพ</b> (ผลจากขั้นที่ 3) <b>ห้ามเลือก "รูปภาพ"</b> ไม่เช่นนั้นจะขึ้นว่า "ไม่พบยอดเงิน" พร้อมชื่อไฟล์ยาวๆ</li>
-        <li>แตะลูกศรเล็กข้างๆ เพื่อแสดงตัวเลือก: เปิดสวิตช์ <b>Run In App</b> (เขียว) และปิดสวิตช์ <b>แสดงเมื่อสั่งทำงาน</b> (เทา)</li>
-      </ul></li>
-    <li>แตะปุ่ม <b>แชร์</b> (สี่เหลี่ยมมีลูกศรชี้ขึ้น) → <b>เพิ่มไปยังหน้าจอโฮม</b> → <b>เพิ่ม</b> แล้วกด <b>เสร็จสิ้น</b></li>
-  </ol>
-  <div class="card">
-    <b>ถ้าเคยสร้างคำสั่งลัดแบบ 1 คำสั่งไว้แล้ว:</b> เปิดขึ้นมาแก้ เพิ่ม "ค้นหารูปภาพ" และ "แยกข้อความจากรูปภาพ" ไว้เหนือ "เรียกใช้สคริปต์" แล้วตั้งช่อง Parameter ตามขั้นที่ 4 ไม่ต้องสร้างใหม่
-  </div>
-  <div class="card">
-    <b>เสริม (ไม่บังคับ):</b> ให้แตะด้านหลังเครื่องสองครั้งแล้วสแกนสลิปเลย: ตั้งค่า → การช่วยการเข้าถึง → สัมผัส → แตะด้านหลัง → แตะสองครั้ง → เลือกคำสั่งลัด <b>สแกนสลิป</b>
-  </div>
+  <h2><span class="no">3</span>ตั้งให้ทำงานเอง</h2>
+  <p class="muted">แอปคำสั่งลัด → แท็บ <b>การทำงานอัตโนมัติ</b> → <b>+</b> ทำเฉพาะแบบที่ใช้ ทุกแบบเลือก <b>รันทันที</b> และมีคำสั่งเดียวคือ <b>เรียกใช้คำสั่งลัด Dept บันทึก</b></p>
 
-  <h2>ส่วนที่ 3: วิธีใช้ทุกครั้งที่จ่ายเงิน</h2>
+  <h3>แบบ A: ปิดแอปธนาคาร (สลิปโอนเงิน)</h3>
   <ol class="steps">
-    <li>โอนเงินเสร็จ → <b>แคปหน้าจอสลิป</b> (หรือกดบันทึกสลิปลงรูปภาพจากแอปธนาคาร)</li>
-    <li>แตะไอคอน <b>สแกนสลิป</b> บนหน้าจอโฮม → แอป Scriptable เปิดขึ้นมา รอสักครู่ (iPhone กำลังอ่านข้อความจากรูป)<br>
-      <span class="muted">ครั้งแรกจะถามสิทธิ์เข้าถึงรูปภาพและการเรียกสคริปต์ ให้กด <b>อนุญาต</b> / <b>อนุญาตให้เข้าถึงทุกรูปภาพ</b></span></li>
-    <li>จะเห็นกล่อง <b>"🧾 พบบิล ฿xxx"</b> ให้เลือก <b>👤 ส่วนตัว</b> หรือ <b>👥 หารกับเพื่อน</b></li>
+    <li>เลือก <b>แอป</b> → เลือกแอปธนาคารที่ใช้ (เลือกได้หลายแอป) → ติ๊ก <b>ถูกปิด</b> → <b>รันทันที</b></li>
+    <li>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → เลือก <b>Dept บันทึก</b></li>
   </ol>
 
+  <h3>แบบ B: SMS บัตรเครดิต (KTC, CardX, ttb)</h3>
+  <ol class="steps">
+    <li>เลือก <b>ข้อความ</b> → <b>ข้อความประกอบด้วย</b> พิมพ์ <span class="chip" data-copy="THB">THB</span> → <b>รันทันที</b></li>
+    <li>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → เลือก <b>Dept บันทึก</b> แล้วตั้งข้อมูลเข้าเป็น <b>ข้อมูลเข้าของคำสั่งลัด</b></li>
+  </ol>
+  <div class="card note">ถ้าด้านบนขึ้นว่า <b>กำหนดค่า "ผู้ส่ง" เพื่อเปิดใช้งาน</b> ให้กดปุ่มลบที่ท้ายแถว "ผู้ส่ง คือ" ถ้ายังเปิดใช้ไม่ได้ ให้ทำแบบ B แยกทีละผู้ส่ง (KTC, CardX, ttbbank) <span class="muted">(ส่วนนี้ยังอยู่ระหว่างทดสอบบนเครื่องจริง)</span></div>
+
+  <h3>แบบ C: อีเมลจากธนาคาร</h3>
+  <ol class="steps">
+    <li>ในแอปธนาคาร เปิดการส่งอีเมลแจ้งทุกรายการ และเพิ่มอีเมลนั้นในแอป <b>Mail</b> ของ iPhone</li>
+    <li>เลือก <b>อีเมล</b> → <b>ผู้ส่ง</b> เป็นอีเมลของธนาคาร → <b>รันทันที</b></li>
+    <li>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → <b>Dept บันทึก</b> ข้อมูลเข้าเป็น <b>ข้อมูลเข้าของคำสั่งลัด</b></li>
+  </ol>
+  <p class="muted">ตอนนี้ระบบอ่านรูปแบบของ KTC, CardX, ttb และ SCB ได้ ธนาคารอื่นส่งตัวอย่างข้อความให้ผู้ดูแลเพื่อเพิ่มได้</p>
+
+  <h2><span class="no">4</span>ลบของเก่าที่ไม่ใช้แล้ว</h2>
   <div class="card">
-    <b>ถ้าเลือก "หารกับเพื่อน"</b>
-    <ul>
-      <li>แตะชื่อเพื่อนเพื่อเลือก (เลือกได้หลายคน) แตะซ้ำเพื่อยกเลิก แล้วกด <b>✔︎ เสร็จ</b></li>
-      <li><b>เลือกชื่อตัวเอง (⭐ ... (ฉัน))</b> = หารรวมตัวเองด้วย</li>
-      <li><b>ไม่เลือกชื่อตัวเอง</b> = จ่ายแทนเพื่อน (ไม่มีส่วนของตัวเอง เพื่อนที่เลือกค้างคุณคนละเท่าๆ กัน)</li>
-      <li>ต้องเลือกเพื่อนอย่างน้อย 1 คน</li>
-    </ul>
+    <table>
+      <tr><td>Scriptable ควรเหลือ</td><td><b>DeptInstaller</b>, <b>DeptWidget</b>, <b>DeptAuto</b></td></tr>
+      <tr><td>คำสั่งลัดควรเหลือ</td><td><b>Dept บันทึก</b> (ลบ "สแกนสลิป" และ "สลิปอัตโนมัติ" ได้)</td></tr>
+      <tr><td>การทำงานอัตโนมัติ</td><td>เหลือแค่แบบ A, B, C ที่ใช้ แต่ละอันมีคำสั่งเดียว (ของเดิมที่มีหลายคำสั่ง เช่น AutoSMS ลบแล้วสร้างใหม่ได้เลย)</td></tr>
+    </table>
   </div>
 
-  <div class="card">
-    <b>ดู / ลบรายการส่วนตัว:</b> เข้าเว็บ dept-game.vercel.app (ล็อกอิน LINE) → เมนู <b>🧾 รายจ่ายส่วนตัว</b> (หรือหน้า ตั้งค่า) เลือกเดือนได้ ดูยอดรวม และกดถังขยะเพื่อลบรายการที่ไม่ต้องการ (เห็นและลบได้เฉพาะของตัวเอง ลบแล้วกู้คืนไม่ได้)
-  </div>
-
-  <div class="card">
-    <b>ความเป็นส่วนตัว:</b> iPhone อ่านข้อความจากรูปเอง <b>รูปสลิปไม่ออกจากเครื่อง</b> ระบบ Dept Money ได้รับแค่ข้อความ แล้วเก็บเฉพาะยอด ผู้รับ เลขอ้างอิงและวันเวลา<br>
-    <span class="muted">ถ้ายอดหรือชื่อผู้รับอ่านผิด กดปุ่ม <b>🔍 ดูข้อความที่อ่านได้</b> ในกล่องสแกน เพื่อดู/คัดลอกข้อความที่ iPhone อ่านได้</span>
-  </div>
-
-  <h2>ส่วนที่ 4: บันทึกอัตโนมัติเมื่อปิดแอปธนาคาร</h2>
-  <p class="muted">โอนเงินเสร็จ แคปสลิป แล้วปิดแอปธนาคาร ระบบจะบันทึกเป็น <b>ส่วนตัว</b> ให้เองแบบเงียบๆ (ไม่เด้งแอป Scriptable ไม่ถามอะไร) และขึ้นแจ้งเตือนสั้นๆ ว่าบันทึกแล้ว ถ้าบิลไหนจะหารกับเพื่อน ให้แตะไอคอน "สแกนสลิป" ทีหลัง ระบบจะเสนอให้ <b>เปลี่ยนเป็นหารกับเพื่อน</b> โดยไม่บันทึกซ้ำ</p>
-  <details open>
-    <summary>วิธีตั้งค่า (ประมาณ 5 นาที)</summary>
-    <h3>ขั้นที่ A: สร้างคำสั่งลัดที่ 2 ชื่อ "สลิปอัตโนมัติ"</h3>
-    <p class="muted">เปิดแอป <b>คำสั่งลัด</b> → แตะ <b>+</b> → ตั้งชื่อว่า <span class="chip" data-copy="สลิปอัตโนมัติ">สลิปอัตโนมัติ</span> แล้วเพิ่มคำสั่งตามลำดับ (ไม่ต้องเพิ่มลงหน้าจอโฮม)</p>
-    <ol class="steps">
-      <li><span class="act">รับรูปภาพล่าสุด</span> <span class="en">(Get Latest Photos)</span><br>
-        จำนวน <b>1</b> รูป และเปิดสวิตช์ <b>รวมภาพถ่ายหน้าจอ</b> (คำสั่งนี้ไม่ต้องตั้งตัวกรองอะไร)</li>
-      <li><span class="act">แยก ข้อความ ออกจาก</span> <span class="en">(Extract Text from Image)</span><br>
-        ช่องแรกต้องเป็น <b>ข้อความ</b> และช่องหลังเป็น <b>รูปภาพล่าสุด</b></li>
-      <li><span class="act">เรียกใช้สคริปต์</span> <span class="en">(Run Script — ของแอป Scriptable)</span>
-        <ul>
-          <li>Script: เลือก <span class="chip" data-copy="DeptAuto">DeptAuto</span> (ไม่ใช่ DeptSlip)</li>
-          <li>Parameter: เลือกตัวแปร <b>ข้อความที่แยกออก</b> (ไอคอน Aa ห้ามเลือกตัวแปรรูปภาพ)</li>
-          <li>แตะลูกศรวงกลมท้ายบรรทัด แล้ว <b>ปิด</b> สวิตช์ <b>Run In App</b> (เทา) และ <b>ปิด</b> สวิตช์ <b>แสดงเมื่อสั่งทำงาน</b> (เทา)</li>
-        </ul></li>
-      <li><span class="act">ถ้า</span> <span class="en">(If)</span><br>
-        แตะช่องแรกแล้วเลือกตัวแปรผลลัพธ์ของ <b>เรียกใช้สคริปต์</b> (ตัวแปรที่มีไอคอน Scriptable) → เงื่อนไข <b>มีค่าใดๆ</b> <span class="en">(has any value)</span></li>
-      <li class="sub"><span class="act">แสดงการแจ้งเตือน</span> <span class="en">(Show Notification)</span><br>
-        ข้อความ: เลือกตัวแปรผลลัพธ์ของ <b>เรียกใช้สคริปต์</b> ตัวเดียวกัน / ชื่อเรื่อง: <span class="chip" data-copy="Dept Money">Dept Money</span><br>
-        <span class="muted">(แอปจะเติม "จบ If" ให้เอง)</span></li>
-    </ol>
-    <div class="card">
-      <b>ทำไมไม่ต้องกรองเวลา:</b> ระบบจะ <b>เงียบ</b> เมื่อสลิปนั้นเคยบันทึกแล้ว หรือรูปล่าสุดไม่ใช่สลิป จะแจ้งเตือนเฉพาะตอนบันทึกสำเร็จหรือมีปัญหา และจะบันทึกด้วย <b>วันที่ที่ระบุในสลิป</b> (ไม่ใช่วันที่ปิดแอป) จึงไม่เกิดความสับสนถ้ารูปล่าสุดเป็นสลิปเก่า
-    </div>
-
-    <h3>ขั้นที่ B: ตั้งให้ทำงานเมื่อปิดแอปธนาคาร</h3>
-    <ol class="steps">
-      <li>ในแอปคำสั่งลัด ไปแท็บ <b>การทำงานอัตโนมัติ</b> → <b>+</b> → <b>แอป</b></li>
-      <li>เลือกแอปธนาคารที่ใช้ (K PLUS, SCB EASY, ttb touch, Krungthai NEXT, UOB TMRW, Kept ฯลฯ) → ติ๊ก <b>ถูกปิด</b></li>
-      <li>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> (Run Shortcut) แล้วเลือก <b>สลิปอัตโนมัติ</b> (ถ้ามีคำสั่งอื่นอยู่ในหน้านี้ ให้ลบทิ้งให้เหลือคำสั่งเดียว)</li>
-      <li>แตะลูกศรวงกลมท้ายแถวบนสุด (ที่มีคำว่า "ปิด") ตั้งเป็น <b>รันทันที</b> และปิด <b>แจ้งเตือนเมื่อทำงาน</b></li>
-    </ol>
-    <div class="card">
-      <b>วิธีใช้งานจริง:</b> โอนเงินเสร็จ → แคปสลิป → ปิดแอปธนาคาร → ได้แจ้งเตือน "✅ บันทึกส่วนตัวแล้ว ฿... " ถ้าจะหารกับเพื่อน แตะไอคอน <b>สแกนสลิป</b> แล้วเลือก "เปลี่ยนเป็นหารกับเพื่อน"<br>
-      <span class="muted">ทดสอบก่อนตั้งอัตโนมัติ: แคปสลิปไว้ แล้วเปิดคำสั่งลัด "สลิปอัตโนมัติ" กดปุ่ม ▶ ควรขึ้นแจ้งเตือนผลลัพธ์ ถ้าเงียบ/ขึ้นผิดพลาดเกี่ยวกับรหัส ให้ลองเปิดสวิตช์ Run In App (แอป Scriptable จะเด้งแวบเดียว)</span>
-    </div>
-
-  
-    <details>
-    <summary>ทางเลือก: แบบละเอียด (ไม่เปิดแอป Scriptable ขึ้นมาบัง แต่ต้องสร้างหลายคำสั่งและวางรหัสเอง)</summary>
-    <p class="muted">แบบนี้ต้องกดปุ่ม <b>"คัดลอกรหัส"</b> ในหน้า "ตั้งค่า iPhone" ไว้ก่อน แล้ววางรหัสในขั้นที่ 1 ของคำสั่งลัด</p>
-      <p class="muted">เปิดแอป <b>คำสั่งลัด (Shortcuts)</b> → แตะ <b>+</b> → ตั้งชื่อว่า <b>สแกนสลิป</b> → แตะ "เพิ่มการทำงาน" แล้วค้นหาชื่อคำสั่งตามข้างล่าง (ถ้าค้นชื่อไทยไม่เจอ ให้ลองคำในวงเล็บ)</p>
-    
-      <ol class="steps">
-        <li><span class="act">ข้อความ</span> <span class="en">(Text)</span><br>
-          แตะในช่องข้อความ แล้ววางรหัสที่คัดลอกมา จะเห็นเป็น <code>Bearer ตามด้วยตัวอักษรยาวๆ</code></li>
-    
-        <li><span class="act">ตั้งค่าตัวแปร</span> <span class="en">(Set Variable)</span><br>
-          ตั้งชื่อตัวแปรว่า <span class="chip" data-copy="รหัส">รหัส</span></li>
-    
-        <li><span class="act">ค้นหารูปภาพ</span> <span class="en">(Find Photos)</span><br>
-          แตะ "เพิ่มตัวกรอง" แล้วตั้งค่า:
-          <ul>
-            <li>วันที่สร้าง → <b>อยู่ใน</b> → <b>5</b> → <b>นาที</b> (ล่าสุด 5 นาที)</li>
-            <li>จัดเรียงตาม: <b>วันที่สร้าง</b> / ลำดับ: <b>ล่าสุดก่อน</b></li>
-            <li>เปิด <b>จำกัด</b> → <b>1</b> รายการ</li>
-          </ul>
-          <span class="muted">ทำไมต้อง 5 นาที: ถ้าไม่มีสลิปใหม่ คำสั่งลัดจะไม่ทำอะไร และไม่ถามซ้ำทุกครั้งที่เปิด–ปิดแอปธนาคาร</span></li>
-    
-        <li><span class="act">ถ้า</span> <span class="en">(If)</span><br>
-          ตั้งเงื่อนไข: <b>รูปภาพ</b> (ผลลัพธ์จากขั้นที่ 3) → <b>มีค่าใดๆ</b> <span class="en">(has any value)</span><br>
-          <span class="muted">ขั้นที่ 5 ถึง 11 ต้องอยู่ "ภายใน" ถ้านี้ ทั้งหมด</span></li>
-    
-        <li class="sub"><span class="act">แยกข้อความจากรูปภาพ</span> <span class="en">(Extract Text from Image)</span><br>
-          ข้อมูลนำเข้า: <b>รูปภาพ</b> จากขั้นที่ 3</li>
-    
-        <li class="sub"><span class="act">รับเนื้อหาของ URL</span> <span class="en">(Get Contents of URL)</span><br>
-          <table>
-            <tr><th>ช่อง</th><th>ค่า</th></tr>
-            <tr><td>URL</td><td><span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span></td></tr>
-            <tr><td>วิธี</td><td>แตะ "แสดงเพิ่มเติม" → วิธี: <b>POST</b></td></tr>
-            <tr><td>ส่วนหัว</td><td>เพิ่มส่วนหัว: ชื่อ <span class="chip" data-copy="Authorization">Authorization</span> ค่า = ตัวแปร <b>รหัส</b> (แตะช่องค่า แล้วเลือกตัวแปร "รหัส")</td></tr>
-            <tr><td>เนื้อหาคำขอ</td><td><b>JSON</b> แล้วกด "เพิ่มช่องใหม่" 2 ช่อง (ชนิด <b>ข้อความ</b> ทั้งคู่):<br>
-              • คีย์ <span class="chip" data-copy="action">action</span> ค่า <span class="chip" data-copy="parse">parse</span><br>
-              • คีย์ <span class="chip" data-copy="text">text</span> ค่า = ตัวแปร <b>ข้อความจากรูปภาพ</b> (ผลจากขั้นที่ 5)</td></tr>
-          </table></li>
-    
-        <li class="sub"><span class="act">รับค่าพจนานุกรม</span> <span class="en">(Get Dictionary Value)</span><br>
-          รับ <b>ค่า</b> สำหรับคีย์ <span class="chip" data-copy="message">message</span> ใน <b>เนื้อหาของ URL</b> (ผลจากขั้นที่ 6)</li>
-    
-        <li class="sub"><span class="act">เลือกจากเมนู</span> <span class="en">(Choose from Menu)</span><br>
-          <ul>
-            <li>ข้อความแจ้ง (Prompt): แตะแล้วเลือกตัวแปร <b>ค่าพจนานุกรม</b> (ผลจากขั้นที่ 7)</li>
-            <li>ตัวเลือก 3 อัน ตั้งชื่อตามนี้: <span class="chip" data-copy="👤 ส่วนตัว">👤 ส่วนตัว</span> &nbsp; <span class="chip" data-copy="👥 หารกับเพื่อน">👥 หารกับเพื่อน</span> &nbsp; <span class="chip" data-copy="❌ ปิด">❌ ปิด</span></li>
-          </ul>
-          <span class="muted">หลังเพิ่มแล้ว จะมี 3 ช่องว่างให้ใส่คำสั่ง ทำตามขั้นที่ 9, 10, 11</span></li>
-    
-        <li class="sub2"><b>ใต้ตัวเลือก "👤 ส่วนตัว"</b> — เพิ่ม 3 คำสั่งต่อไปนี้:<br>
-          ① <span class="act">รับเนื้อหาของ URL</span>: URL เดิม, วิธี POST, ส่วนหัว Authorization = <b>รหัส</b>, เนื้อหา JSON 2 ช่อง:<br>
-          &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
-          &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="personal">personal</span><br>
-          ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
-          ③ <span class="act">แสดงผลลัพธ์</span> <span class="en">(Show Result)</span></li>
-    
-        <li class="sub2"><b>ใต้ตัวเลือก "👥 หารกับเพื่อน"</b> — เพิ่ม 6 คำสั่งต่อไปนี้:<br>
-          ① <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/get-members?include_self=1">https://dept-game.vercel.app/api/get-members?include_self=1</span> วิธี <b>GET</b> ส่วนหัว Authorization = <b>รหัส</b> (ไม่มีเนื้อหา)<br>
-          ② <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="members">members</span><br>
-          ③ <span class="act">เลือกจากรายการ</span> <span class="en">(Choose from List)</span>: เปิด <b>เลือกหลายรายการ</b> <span class="en">(Select Multiple)</span>, ข้อความแจ้ง: <span class="chip" data-copy="เลือกคนที่หารด้วย">เลือกคนที่หารด้วย</span><br>
-          ④ <span class="act">รับเนื้อหาของ URL</span>: URL <span class="chip" data-copy="https://dept-game.vercel.app/api/shortcut-transaction">https://dept-game.vercel.app/api/shortcut-transaction</span> วิธี POST ส่วนหัว Authorization = <b>รหัส</b> เนื้อหา JSON 3 ช่อง (ชนิดข้อความ):<br>
-          &nbsp;&nbsp;• <span class="chip" data-copy="action">action</span> = <span class="chip" data-copy="save">save</span><br>
-          &nbsp;&nbsp;• <span class="chip" data-copy="splitType">splitType</span> = <span class="chip" data-copy="equal">equal</span><br>
-          &nbsp;&nbsp;• <span class="chip" data-copy="splitWith">splitWith</span> = ตัวแปร <b>รายการที่เลือก</b> <span class="en">(Chosen Items)</span> จาก ③<br>
-          ⑤ <span class="act">รับค่าพจนานุกรม</span>: คีย์ <span class="chip" data-copy="message">message</span><br>
-          ⑥ <span class="act">แสดงผลลัพธ์</span></li>
-    
-        <li class="sub2"><b>ใต้ตัวเลือก "❌ ปิด"</b> — ไม่ต้องเพิ่มอะไร</li>
-      </ol>
-    
-      <div class="card">
-        <b>ถ้าตอนเลือกรายการ เห็นชื่อตัวเองอยู่บนสุดมีดาว ⭐ และ "(ฉัน)"</b>
-        <ul>
-          <li><b>ติ๊กชื่อตัวเอง</b> = หารรวมตัวเองด้วย (เช่น กินข้าวด้วยกัน)</li>
-          <li><b>ไม่ติ๊กชื่อตัวเอง</b> = จ่ายแทนเพื่อน (ไม่มีส่วนของตัวเอง เพื่อนที่เลือกค้างคุณคนละเท่าๆ กัน)</li>
-          <li>ต้องเลือกเพื่อนอย่างน้อย 1 คน</li>
-        </ul>
-      </div>
-    
-      <p>เสร็จแล้วแตะ <b>เสร็จสิ้น</b> เพื่อบันทึกคำสั่งลัด</p>
-  </details>
-
-  
-  </details>
-
-  <h2 id="auto-more">ส่วนที่ 5: บันทึกรายจ่ายบัตรอัตโนมัติ จาก SMS, อีเมล และภาพหน้าจอแจ้งเตือน</h2>
-  <p class="muted">ทุกแบบใช้สคริปต์ <b>DeptAuto</b> ตัวเดิม (ไม่ต้องติดตั้งเพิ่ม แค่รันโค้ดติดตั้งล่าสุดอีกครั้ง) ระบบบันทึกเป็นรายจ่ายส่วนตัวให้เอง ถ้าข้อความเดียวกันมาซ้ำ (เช่น SMS รหัส OTP แล้วตามด้วย SMS ขอบคุณที่ใช้บัตร) จะนับเป็นรายการเดียว และถ้ายอดตรงกับรายจ่ายรายเดือนที่ตั้งไว้ (เช่น YouTube 399 บาท) จะใช้รายการของเดือนนั้นรายการเดียว ไม่เกิดซ้ำ รหัส OTP ถูกซ่อนในเครื่องก่อนส่งออกไป</p>
-
-  <details open>
-    <summary>แบบที่ 1: SMS บัตรเครดิต (KTC, CardX, ttb)</summary>
-    <ol class="steps">
-      <li>แอป <b>คำสั่งลัด</b> → แท็บ <b>การทำงานอัตโนมัติ</b> → <b>+</b> → <b>ข้อความ</b> (Message)</li>
-      <li>ช่อง <b>ข้อความมี</b> (Message Contains) พิมพ์ <span class="chip" data-copy="THB">THB</span> (ช่องผู้ส่งไม่ต้องใส่) แล้วเลือก <b>รันทันที</b> และปิด <b>แจ้งเตือนเมื่อทำงาน</b></li>
-      <li><span class="act">เรียกใช้สคริปต์</span> <span class="en">(Run Script — ของแอป Scriptable)</span>
-        <ul>
-          <li>Script: <span class="chip" data-copy="DeptAuto">DeptAuto</span></li>
-          <li>Parameter: เลือกตัวแปร <b>ข้อมูลนำเข้าคำสั่งลัด</b> (Shortcut Input) ซึ่งก็คือข้อความ SMS</li>
-          <li>ปิดสวิตช์ <b>Run In App</b> และ <b>แสดงเมื่อสั่งทำงาน</b></li>
-        </ul></li>
-      <li><span class="act">ถ้า</span> <span class="en">(If)</span> ผลลัพธ์ของเรียกใช้สคริปต์ <b>มีค่าใดๆ</b> → <span class="act">แสดงการแจ้งเตือน</span> (ข้อความ = ผลลัพธ์ของเรียกใช้สคริปต์, ชื่อเรื่อง = Dept Money) ทำเหมือนขั้นที่ A ของส่วนที่ 4</li>
-    </ol>
-    <div class="card">
-      <b>ที่ระบบบันทึก:</b> "ขอบคุณที่ใช้บัตร ... ยอด ... THB @ร้าน" และ SMS ที่มี OTP ซื้อออนไลน์ (บันทึกเลย ไม่ซ้ำเมื่อ SMS ขอบคุณตามมา)<br>
-      <b>ที่ระบบข้ามเงียบ:</b> ยอด THB0 (เช็กบัตรเฉยๆ), โอนชำระบิลบัตรเครดิต (เพราะรายจ่ายบัตรบันทึกจากข้อความแจ้งเตือนอยู่แล้ว), eStatement, โอนพร้อมเพย์, อนุมัติบัตร
-    </div>
-  </details>
-
-  <details>
-    <summary>แบบที่ 2: อีเมลแจ้งรายการจากธนาคาร (ttb, SCB, UOB, KBank)</summary>
-    <ol class="steps">
-      <li>ในแอปธนาคาร เปิดการส่งอีเมลแจ้งทุกรายการที่ใช้จ่าย (ชื่อเมนูต่างกันตามธนาคาร มักอยู่ที่ตั้งค่าการแจ้งเตือน) และเพิ่มบัญชีอีเมลนั้นในแอป <b>Mail</b> ของ iPhone (ระบบอัตโนมัติแบบอีเมลอ่านจากแอป Mail เท่านั้น)</li>
-      <li>แอปคำสั่งลัด → <b>การทำงานอัตโนมัติ</b> → <b>+</b> → <b>อีเมล</b> (Email) → ช่อง <b>ผู้ส่ง</b> เลือกอีเมลของธนาคาร → <b>รันทันที</b></li>
-      <li>เพิ่มคำสั่ง <b>เรียกใช้สคริปต์</b> และ <b>ถ้า / แสดงการแจ้งเตือน</b> เหมือนแบบที่ 1 ทุกอย่าง</li>
-    </ol>
-    <div class="card">
-      ตอนนี้ระบบอ่านรูปแบบข้อความของ KTC, CardX, ttb และ SCB Connect ได้ ธนาคารอื่นต้องส่งตัวอย่างอีเมลมาเพิ่มรูปแบบ (ลบเลขบัญชีและชื่อออกก่อนได้)
-    </div>
-  </details>
-
-  <details>
-    <summary>แบบที่ 3: แตะหลังเครื่อง 2 ครั้ง บันทึกแจ้งเตือนที่เห็นบนหน้าจอ (ใช้กับแอปที่แจ้งเตือนผ่านแอปอย่าง ttb touch หรือการ์ด LINE SCB Connect)</summary>
-    <h3>ขั้นที่ A: สร้างคำสั่งลัดชื่อ "บันทึกจากหน้าจอ"</h3>
-    <ol class="steps">
-      <li><span class="act">ถ่ายภาพหน้าจอ</span> <span class="en">(Take Screenshot)</span></li>
-      <li><span class="act">แยก ข้อความ ออกจาก</span> <span class="en">(Extract Text from Image)</span> ช่องหลังเป็น <b>ภาพหน้าจอ</b></li>
-      <li><span class="act">เรียกใช้สคริปต์</span> Script = <span class="chip" data-copy="DeptAuto">DeptAuto</span>, Parameter = <b>ข้อความที่แยกออก</b>, ปิด Run In App</li>
-      <li><span class="act">ถ้า</span> ผลลัพธ์ <b>มีค่าใดๆ</b> → <span class="act">แสดงการแจ้งเตือน</span> ผลลัพธ์ของเรียกใช้สคริปต์</li>
-    </ol>
-    <h3>ขั้นที่ B: ผูกกับแตะหลังเครื่อง</h3>
-    <ol class="steps">
-      <li><b>ตั้งค่า</b> → <b>การช่วยการเข้าถึง</b> → <b>สัมผัส</b> → <b>แตะที่ด้านหลัง</b> → <b>แตะสองครั้ง</b> → เลือกคำสั่งลัด <b>บันทึกจากหน้าจอ</b></li>
-    </ol>
-    <div class="card">
-      <b>วิธีใช้:</b> เห็นแจ้งเตือนรายการบัตรหรือบัญชีค้างอยู่บนหน้าจอ (หรือการ์ดรายการเงินออกในแชต LINE SCB Connect) แล้วแตะหลังเครื่อง 2 ครั้ง ระบบอ่านข้อความบนจอ ส่งให้ DeptAuto บันทึกเป็นรายจ่าย
-    </div>
-  </details>
-
-  <h2>ส่วนที่ 6: สคริปต์และคำสั่งลัดที่ควรเหลือบนเครื่อง (ลบอะไรได้)</h2>
-  <ul>
-    <li><b>Scriptable ควรมี 4 ตัว:</b> DeptInstaller, DeptWidget, DeptSlip, DeptAuto</li>
-    <li><b>คำสั่งลัดควรมี:</b> สแกนสลิป, สลิปอัตโนมัติ, และ บันทึกจากหน้าจอ (ถ้าใช้แตะหลังเครื่อง)</li>
-    <li><b>ระบบอัตโนมัติควรมี:</b> ปิดแอปธนาคาร, ข้อความมี THB, อีเมลจากธนาคาร (ตามที่ตั้งใช้)</li>
-    <li><b>ลบได้:</b> สคริปต์หรือคำสั่งลัดเก่าของ Dept ที่ไม่อยู่ในรายการข้างบน การรันโค้ดติดตั้งอีกครั้งจะแสดงรายชื่อสคริปต์ Dept เก่าที่ไม่ใช้แล้ว และถามก่อนลบทุกครั้ง</li>
-  </ul>
+  <h2><span class="no">5</span>เช็กว่าเป็นรุ่นล่าสุด</h2>
+  <p>ไม่ต้องเช็กเอง ถ้าเครื่องเป็นรุ่นเก่า ระบบจะเด้งแจ้งเตือน <b>"มี DeptAuto รุ่นใหม่"</b> ให้เปิด Scriptable แล้วกดรัน <b>DeptInstaller</b> อีกครั้ง คำสั่งลัดและการทำงานอัตโนมัติไม่ต้องแก้</p>
 
   <h2>แก้ปัญหา</h2>
-  <details><summary>SMS บัตรหรืออีเมลธนาคารไม่ถูกบันทึกเลย</summary>
-    <p>ตรวจตามลำดับ: (1) ระบบอัตโนมัติตั้งเป็น <b>รันทันที</b> และเปิดสิทธิ์แจ้งเตือนของแอปคำสั่งลัดแล้ว (2) Parameter ของเรียกใช้สคริปต์เป็นตัวแปรข้อมูลนำเข้าคำสั่งลัด ไม่ใช่ตัวแปรว่าง (3) รันโค้ดติดตั้งล่าสุดแล้ว (ต้องมี DeptAuto เวอร์ชัน 1.2.0 ขึ้นไป) ระบบเงียบโดยตั้งใจเมื่อข้อความไม่ใช่รายจ่ายใหม่ เช่น ยอด THB0, โอนชำระบิลบัตร, ข้อความซ้ำที่เคยบันทึกแล้ว</p></details>
-  <details><summary>สลิปอัตโนมัติ: แจ้งเตือนขึ้นว่า "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์" ทั้งที่ติดตั้งแล้ว</summary>
-    <p>เป็นไปได้ว่าเมื่อปิด Run In App สคริปต์เข้าถึงรหัสในมือถือไม่ได้ ให้เปิดสวิตช์ <b>Run In App</b> ของคำสั่ง "เรียกใช้สคริปต์" (Scriptable จะเด้งขึ้นมาแวบเดียวแล้วกลับ) และตรวจว่ารันโค้ดติดตั้งล่าสุดแล้ว (ต้องมีสคริปต์ DeptAuto ในรายการ)</p></details>
-  <details><summary>หลังปิดแอปธนาคารไม่มีแจ้งเตือนอะไรเลย</summary>
-    <p>เป็นปกติถ้าสลิปนั้นเคยบันทึกแล้ว หรือรูปล่าสุดไม่ใช่สลิป (ระบบเงียบโดยตั้งใจ) แต่ถ้าเพิ่งโอนและแคปสลิปแล้วแต่เงียบ แปลว่าอ่านยอดจากสลิปไม่ได้ ให้แตะไอคอน <b>สแกนสลิป</b> แล้วกดปุ่ม <b>🔍 ดูข้อความที่อ่านได้</b> เพื่อดูว่า iPhone อ่านข้อความอะไรได้ และส่งให้ผู้พัฒนา นอกจากนี้ตรวจว่าการทำงานอัตโนมัติเลือกแอปธนาคารถูกตัว ตั้งเป็น "รันทันที" และเปิดสิทธิ์แจ้งเตือนของแอปคำสั่งลัดแล้ว</p></details>
-  <details><summary>ขึ้นว่า "ไม่พบยอดเงิน ... อ่านได้ว่า: file:///private/var/..."</summary>
-    <p>คำสั่งลัดส่ง "รูปภาพ" มาแทน "ข้อความ" เปิดคำสั่งลัด แล้วที่คำสั่ง "เรียกใช้สคริปต์" แตะช่อง Parameter เลือกตัวแปร <b>ข้อความจากรูปภาพ</b> (ผลของคำสั่ง "แยกข้อความจากรูปภาพ") แทนตัวแปร "รูปภาพ" (สคริปต์เวอร์ชัน 1.2.1 ขึ้นไปจะบอกข้อนี้ให้เอง)</p></details>
-  <details><summary>กด Add to Home Screen ใน Scriptable แล้วขึ้นหน้า Safari ผิดพลาด ("ไม่อนุญาตให้ใช้พอร์ต...")</summary>
-    <p>เป็นปัญหาของ iOS รุ่นใหม่ ไม่ต้องใช้ปุ่มนั้น ให้ใช้วิธีในส่วนที่ 2 (สร้างคำสั่งลัด 1 คำสั่งแล้วเพิ่มไปหน้าจอโฮม) แทน</p></details>
-  <details><summary>คำสั่งลัดขอสิทธิ์รูปภาพ หรือถามว่าจะอนุญาตไหม</summary>
-    <p>กด <b>อนุญาต</b> ทุกครั้งที่ถาม (เข้าถึงรูปภาพ และเรียกสคริปต์ Scriptable) ถ้าเผลอกดไม่อนุญาต ไปที่ ตั้งค่า → คำสั่งลัด และ Scriptable เพื่อเปิดสิทธิ์</p></details>
-  <details><summary>ยอดหรือชื่อผู้รับอ่านผิด</summary>
-    <p>กดปุ่ม <b>🔍 ดูข้อความที่อ่านได้</b> ในกล่องสแกน → <b>คัดลอกทั้งหมด</b> แล้วส่งให้ผู้พัฒนา (ลบชื่อและเลขบัญชีออกก่อนได้) พร้อมบอกว่าสลิปธนาคารไหน เพื่อปรับให้อ่านถูกต้องขึ้น</p></details>
-  <details><summary>ขึ้นว่า "รหัสไม่ถูกต้อง" หรือ "รหัสถูกยกเลิก"</summary>
-    <p>รหัสถูกสร้างใหม่ทับ หรือถูกยกเลิก กลับไปหน้า "ตั้งค่า iPhone" กดสร้างรหัสใหม่ แล้วรันโค้ดติดตั้งซ้ำ 1 ครั้ง (แบบง่ายแค่นี้พอ) ส่วนแบบละเอียดต้องแก้ขั้นที่ 1 ในคำสั่งลัดให้เป็นรหัสใหม่ด้วย</p></details>
-  <details><summary>Scriptable ขึ้นว่า "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์"</summary>
-    <p>ยังไม่เคยรันโค้ดติดตั้ง หรือรันแล้วไม่สำเร็จ กลับไปทำส่วนที่ 1 ให้ขึ้นว่า "ติดตั้งสำเร็จ"</p></details>
-  <details><summary>Scriptable ขึ้นว่า "ไม่ได้รับข้อความจากคำสั่งลัด"</summary>
-    <p>ตรวจว่าช่อง Parameter ของคำสั่ง "เรียกใช้สคริปต์" เลือกตัวแปร "ข้อความจากรูปภาพ" และคำสั่ง "แยกข้อความจากรูปภาพ" อยู่ก่อนหน้า</p></details>
-  <details><summary>ขึ้นว่า "ไม่พบยอดเงินในรูปล่าสุด"</summary>
-    <p>ระบบจะบอกว่าอ่านข้อความอะไรได้จากรูป ถ้าเป็นสลิปจริงแต่อ่านไม่ได้ ให้คัดลอกข้อความที่ขึ้นแสดง (ลบเลขบัญชีและชื่อออกก่อนก็ได้) ส่งให้ผู้พัฒนา เพื่อปรับให้อ่านสลิปธนาคารนั้นได้</p></details>
-  <details><summary>ขึ้นว่า "สลิปนี้เคยบันทึกแล้ว"</summary>
-    <p>เป็นปกติ ระบบกันบันทึกสลิปใบเดิมซ้ำ กดปุ่ม ❌ ปิด ได้เลย</p></details>
-  <details><summary>ไม่มีอะไรเด้งขึ้นมาเลยหลังปิดแอปธนาคาร</summary>
-    <p>(เฉพาะแบบอัตโนมัติ) เป็นปกติถ้าไม่มีรูปใหม่ภายใน 5 นาที ให้แคปสลิปก่อนปิดแอป และตรวจว่าเลือกแอปธนาคารถูกตัว</p></details>
-  <details><summary>เมนูหารเพื่อนไม่เห็นชื่อเพื่อน</summary>
-    <p>ตรวจ (เฉพาะแบบละเอียด) ว่าขั้นที่ 10 ① ใช้ URL ที่ลงท้ายด้วย <code>?include_self=1</code> และส่วนหัว Authorization ใช้ตัวแปร "รหัส"</p></details>
+  <details><summary>จ่ายเงินแล้วไม่มีแจ้งเตือนอะไรเลย</summary>
+    <p>ตรวจ (1) ตั้งค่า → การแจ้งเตือน → Scriptable → เปิดอนุญาต (2) การทำงานอัตโนมัติตั้งเป็น <b>รันทันที</b> (3) รันตัวติดตั้งล่าสุดแล้ว ระบบเงียบโดยตั้งใจเมื่อเป็นรายการเดิมที่บันทึกแล้ว รูปล่าสุดไม่ใช่สลิป หรือ SMS ไม่ใช่รายจ่าย (เช่น ยอด THB0, จ่ายบิลบัตร)</p></details>
+  <details><summary>กด "ส่วนตัว" แล้วแอป Scriptable เปิดขึ้นมา</summary>
+    <p>เป็นปกติ Scriptable ต้องเปิดขึ้นมาแวบหนึ่งเพื่อยืนยันรายการ แล้วจะมีแจ้งเตือน "บันทึกเป็นรายจ่ายส่วนตัวแล้ว" กลับไปแอปเดิมได้เลย</p></details>
+  <details><summary>ยอดหรือชื่อร้านผิด</summary>
+    <p>แตะแจ้งเตือน หรือเปิดเว็บแท็บ <b>กระเป๋า</b> แล้วแตะรายการเพื่อแก้ ถ้าผิดบ่อย ส่งข้อความ SMS หรือภาพสลิปให้ผู้ดูแล (ปิดเลขบัญชีได้) เพื่อปรับให้อ่านถูก</p></details>
+  <details><summary>ขึ้นว่า "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์" หรือ "รหัสไม่ถูกต้อง"</summary>
+    <p>ทำขั้นที่ 1 ใหม่ (สร้างรหัสใหม่ แล้วรันตัวติดตั้ง) คำสั่งลัดไม่ต้องแก้</p></details>
 </main>
 
 <script>
-  // แตะข้อความสีฟ้าเพื่อคัดลอก
+  // แตะข้อความที่มีคำว่าคัดลอก เพื่อคัดลอก
   document.querySelectorAll('.chip[data-copy]').forEach(function (el) {
     el.addEventListener('click', function () {
       var text = el.getAttribute('data-copy');

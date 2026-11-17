@@ -463,6 +463,22 @@ export async function deleteWalletEntry(id) {
     return api("/api/shortcut-transaction", { action: "wallet-delete", id });
 }
 
+/** ยืนยันรายการที่บันทึกอัตโนมัติ (ครั้งละไม่เกิน 50) คืนจำนวนที่ยืนยัน */
+export async function confirmWalletEntries(ids) {
+    let n = 0;
+    for (let i = 0; i < ids.length; i += 50) {
+        const r = await api("/api/shortcut-transaction", { action: "wallet-confirm", ids: ids.slice(i, i + 50) });
+        n += Number(r.confirmed) || 0;
+    }
+    return n;
+}
+
+/** รายการกระเป๋ารายการเดียว (ใช้กับลิงก์จากแจ้งเตือน) */
+export async function fetchWalletEntry(id) {
+    const r = await api("/api/shortcut-transaction", { action: "wallet-get", id });
+    return r.item || null;
+}
+
 /** ลบหลายรายการส่วนตัวพร้อมกัน (เซิร์ฟเวอร์รับครั้งละไม่เกิน 50) คืนจำนวนที่ลบได้และที่ลบไม่ได้ */
 export async function deleteWalletEntries(ids) {
     let deleted = 0;

@@ -3,23 +3,21 @@
 // icon-color: orange; icon-glyph: bolt;
 
 /**
- * Dept Money - บันทึกอัตโนมัติ (แบบเงียบ ไม่มีหน้าต่างให้เลือก)
- * ติดตั้ง/อัปเดตอัตโนมัติด้วย DeptInstaller (จากหน้าเว็บ "ตั้งค่า iPhone")
+ * Dept Money - บันทึกอัตโนมัติ (ติดตั้ง/อัปเดตด้วย DeptInstaller จากหน้าเว็บ "ตั้งค่า iPhone")
  *
- * สคริปต์ตัวเดียวสำหรับระบบอัตโนมัติทุกแบบ ต่างกันแค่ "ข้อความที่ส่งเข้ามา" (เซิร์ฟเวอร์ดูเองว่าเป็นอะไร):
- *   - ปิดแอปธนาคาร: ข้อความจากรูปล่าสุด/ภาพหน้าจอล่าสุด (Live Text)  -> สลิปโอนเงิน หรือแจ้งเตือนที่อยู่ในภาพ
- *   - ข้อความ (SMS) ที่มีคำว่า THB                                  -> รายจ่ายบัตรเครดิต
- *   - อีเมลจากธนาคาร                                                -> รายจ่ายบัตร/บัญชี
- *   - แตะหลังเครื่อง: ถ่ายภาพหน้าจอ -> Live Text                    -> แจ้งเตือนที่เห็นบนจอ
- * ส่งข้อความไปให้เซิร์ฟเวอร์ บันทึกเป็น "ส่วนตัว" ทันที แล้วส่งข้อความผลลัพธ์กลับให้คำสั่งลัดแสดงเป็นแจ้งเตือน
- * (ถ้าจะหารกับเพื่อน ให้ใช้คำสั่งลัด "สแกนสลิป" ที่มีเมนูให้เลือกแทน)
- *
- * ความเป็นส่วนตัว: รหัส OTP ถูกซ่อน (OTP=******) ในเครื่องก่อนส่ง และเครื่องจำข้อความที่ตรวจแล้ว 24 ชั่วโมง
- * จะไม่ส่งซ้ำทุกครั้งที่ปิดแอป รหัสอุปกรณ์อ่านจาก Keychain (ติดตั้งไว้แล้วตอนติดตั้ง Widget)
+ * คำสั่งลัด "Dept บันทึก" เรียกสคริปต์นี้พร้อมข้อความ 1 ชุด (ข้อความจากรูปสลิปล่าสุด, SMS บัตร หรืออีเมลธนาคาร)
+ * 1) ส่งข้อความให้เซิร์ฟเวอร์ บันทึกเป็นรายการส่วนตัว "ยังไม่ยืนยัน" ไว้ก่อน (ไม่มีอะไรหาย)
+ * 2) เด้งแจ้งเตือน "บันทึกแบบไหน" มีปุ่ม ส่วนตัว / หารกับเพื่อน (แตะตัวแจ้งเตือน = เปิดหน้าแก้ไขในเว็บ)
+ *    - ส่วนตัว: เปิดสคริปต์นี้อีกครั้งเพื่อยืนยัน แล้วเด้งแจ้งเตือนที่สองพร้อมปุ่ม "แก้ไขรายละเอียด"
+ *    - หารกับเพื่อน: เปิดเว็บที่ฟอร์มหารของรายการนั้น
+ * ซ่อนรหัส OTP ในเครื่องก่อนส่ง และจำข้อความที่ตรวจแล้ว 24 ชั่วโมง (ปิดแอปธนาคารซ้ำจะไม่ส่งซ้ำ)
+ * เซิร์ฟเวอร์บอกเวอร์ชันล่าสุดมาด้วย ถ้าเครื่องนี้เก่ากว่าจะเตือนให้รันตัวติดตั้งอีกครั้ง
  */
 
-const SCRIPT_VERSION = "1.2.0";
+const SCRIPT_VERSION = "2.0.0";
 const BASE_URL = "https://dept-game.vercel.app";
+const WEB_URL = "https://liff.line.me/2008948704-db2goT00"; // เปิดผ่าน LINE ล็อกอินเงียบ
+const SELF_URL = "scriptable:///run/" + encodeURIComponent(Script.name());
 const SEEN_FILE = "dept_auto_seen.json";
 const SEEN_TTL_MS = 24 * 60 * 60 * 1000;
 const SEEN_MAX = 40;
@@ -70,51 +68,126 @@ function saveSeen(seen) {
     }
 }
 
-async function run() {
-    const token = Keychain.contains("dept_token") ? Keychain.get("dept_token") : "";
-    if (!token) {
-        return "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์ เปิดเว็บ Dept Money → ตั้งค่า iPhone แล้วรันโค้ดติดตั้งอีกครั้ง";
+/** เวอร์ชัน a ใหม่กว่า b ไหม (เช่น "2.1.0" ใหม่กว่า "2.0.9") */
+function isNewer(a, b) {
+    const pa = String(a || "").split(".").map(Number);
+    const pb = String(b || "").split(".").map(Number);
+    for (let i = 0; i < 3; i++) {
+        const x = pa[i] || 0;
+        const y = pb[i] || 0;
+        if (x !== y) return x > y;
     }
+    return false;
+}
 
-    const text = getInputText();
-    if (/^\s*file:\/\//i.test(text)) {
-        return "คำสั่งลัดส่งรูปภาพมา ไม่ใช่ข้อความ ให้เลือกตัวแปร \"ข้อความจากรูปภาพ\" ที่ช่อง Parameter ของ \"เรียกใช้สคริปต์\"";
-    }
-    if (!text.trim()) {
-        return ""; // ไม่มีข้อความ (รูปล่าสุดไม่ใช่สลิป) ไม่ต้องแจ้งเตือน
-    }
+function baht(n) {
+    return Number(n || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " บาท";
+}
 
-    const cleaned = scrubOtp(text);
-    const key = hashText(cleaned);
-    const seen = loadSeen();
-    if (seen[key] && Date.now() - seen[key] < SEEN_TTL_MS) {
-        return ""; // เคยตรวจข้อความนี้แล้ว (เช่น ปิดแอปธนาคารซ้ำโดยรูปล่าสุดยังเป็นรูปเดิม)
-    }
+async function notify(title, body, { openURL = "", actions = [] } = {}) {
+    const n = new Notification();
+    n.title = title;
+    n.body = body;
+    n.threadIdentifier = "dept-money";
+    if (openURL) n.openURL = openURL;
+    for (const [label, url] of actions) n.addAction(label, url);
+    await n.schedule();
+}
 
+async function callApi(token, payload) {
     const req = new Request(BASE_URL + "/api/shortcut-transaction");
     req.method = "POST";
     req.timeoutInterval = 25;
     req.headers = { "Authorization": "Bearer " + token, "Content-Type": "application/json" };
-    req.body = JSON.stringify({ action: "auto", text: cleaned });
+    req.body = JSON.stringify(payload);
+    return await req.loadJSON();
+}
+
+/** กด "ส่วนตัว" ในแจ้งเตือน: ยืนยันรายการ แล้วเด้งแจ้งเตือนที่สองพร้อมปุ่มแก้ไขรายละเอียด */
+async function confirmPersonal(token, id) {
     try {
-        const res = await req.loadJSON();
-        // จำเฉพาะเมื่อเซิร์ฟเวอร์ตอบรับจริง (ผิดพลาดชั่วคราวจะได้ลองใหม่ได้)
-        if (res && (res.success || res.status === "duplicate" || res.status === "no_amount")) {
-            seen[key] = Date.now();
-            saveSeen(seen);
+        const res = await callApi(token, { action: "wallet-confirm", id });
+        if (!res || !res.confirmed) {
+            await notify("Dept Money", (res && res.message && res.status === "error") ? res.message : "ไม่พบรายการนี้ (อาจถูกลบหรือเปลี่ยนเป็นบิลหารแล้ว)");
+            return;
         }
-        // message ว่าง = เงียบ (ซ้ำ ไม่ใช่รายจ่าย หรือไม่ใช่สลิป) คำสั่งลัดจะไม่แสดงการแจ้งเตือน
-        return res && typeof res.message === "string" ? res.message : "เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง";
+        const editUrl = WEB_URL + "#edit=" + encodeURIComponent(id);
+        await notify("บันทึกเป็นรายจ่ายส่วนตัวแล้ว", "แตะเพื่อแก้ไขรายละเอียด (ชื่อ หมวด)", { openURL: editUrl, actions: [["แก้ไขรายละเอียด", editUrl]] });
     } catch (e) {
-        return "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + e.message;
+        await notify("Dept Money", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + e.message);
     }
 }
 
-const message = await run();
-// ส่งผลลัพธ์กลับให้คำสั่งลัดนำไปแสดงเป็นการแจ้งเตือน (ไม่เปิดหน้าต่างของ Scriptable)
-// ถ้าเงียบ (message ว่าง) จะ "ไม่ส่งอะไรกลับเลย" เพราะคำสั่งลัดนับข้อความว่างว่า "มีค่า" แล้วจะขึ้นแจ้งเตือนเปล่าๆ
-if (message) {
-    Script.setShortcutOutput(message);
+/** แจ้งเตือนหลังบันทึกอัตโนมัติ: ถามว่าบันทึกแบบไหน */
+async function askHowToSave(res) {
+    const id = encodeURIComponent(res.id);
+    const editUrl = WEB_URL + "#edit=" + id;
+    const desc = res.desc ? String(res.desc) : "";
+    if (res.type === "income") {
+        await notify("พบเงินเข้า " + baht(res.amount), (desc ? desc + "\n" : "") + "บันทึกเป็นรายรับแล้ว ยืนยันหรือแก้ไขได้", {
+            openURL: editUrl,
+            actions: [["ยืนยัน", SELF_URL + "?confirm=" + id], ["แก้ไขรายละเอียด", editUrl]]
+        });
+        return;
+    }
+    await notify("พบรายจ่าย " + baht(res.amount), (desc ? desc + "\n" : "") + "บันทึกแบบไหน", {
+        openURL: editUrl,
+        actions: [["ส่วนตัว", SELF_URL + "?confirm=" + id], ["หารกับเพื่อน", WEB_URL + "#split=" + id]]
+    });
 }
-console.log(message || "(เงียบ: ซ้ำ ไม่ใช่รายจ่าย หรือไม่ใช่สลิป)");
+
+async function run() {
+    const token = Keychain.contains("dept_token") ? Keychain.get("dept_token") : "";
+    if (!token) {
+        await notify("Dept Money", "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์ เปิดเว็บ Dept Money → ฉัน → ตั้งค่า iPhone แล้วรันโค้ดติดตั้งอีกครั้ง");
+        return;
+    }
+
+    // ถูกเปิดจากปุ่ม "ส่วนตัว"/"ยืนยัน" ในแจ้งเตือน
+    const q = args.queryParameters || {};
+    if (q.confirm) {
+        await confirmPersonal(token, String(q.confirm));
+        return;
+    }
+
+    const text = getInputText();
+    if (/^\s*file:\/\//i.test(text)) {
+        await notify("Dept Money", "คำสั่งลัดส่งรูปภาพมา ไม่ใช่ข้อความ ตรวจคำสั่งลัด Dept บันทึก ตามคู่มือ");
+        return;
+    }
+    if (!text.trim()) return; // ไม่มีข้อความ (รูปล่าสุดไม่ใช่สลิป) ไม่ต้องแจ้งเตือน
+
+    const cleaned = scrubOtp(text);
+    const key = hashText(cleaned);
+    const seen = loadSeen();
+    if (seen[key] && Date.now() - seen[key] < SEEN_TTL_MS) return; // เคยตรวจข้อความนี้แล้ว
+
+    let res;
+    try {
+        res = await callApi(token, { action: "auto", text: cleaned });
+    } catch (e) {
+        await notify("Dept Money", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + e.message);
+        return;
+    }
+    if (!res || typeof res !== "object") {
+        await notify("Dept Money", "เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง");
+        return;
+    }
+    // จำเฉพาะเมื่อเซิร์ฟเวอร์ตอบรับจริง (ผิดพลาดชั่วคราวจะได้ลองใหม่ได้)
+    if (res.success || res.status === "duplicate" || res.status === "no_amount") {
+        seen[key] = Date.now();
+    }
+
+    if (res.status === "saved" && res.id) await askHowToSave(res);
+    else if (res.message) await notify("Dept Money", String(res.message)); // ข้อความว่าง = เงียบ ไม่แจ้งเตือน
+
+    // มีรุ่นใหม่: เตือนวันละครั้ง
+    if (res.scriptVersion && isNewer(res.scriptVersion, SCRIPT_VERSION) && !(seen.__ver && Date.now() - seen.__ver < SEEN_TTL_MS)) {
+        seen.__ver = Date.now();
+        await notify("มี DeptAuto รุ่นใหม่ (" + res.scriptVersion + ")", "เปิดแอป Scriptable แล้วกดรัน DeptInstaller อีกครั้ง");
+    }
+    saveSeen(seen);
+}
+
+await run();
 Script.complete();

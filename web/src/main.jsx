@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
-import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -23,6 +23,11 @@ function readTarget() {
     const h = location.hash || (st.includes("#") ? st.slice(st.indexOf("#")) : "");
     return h.slice(1);
 }
+/** ลิงก์ไปที่รายการเดียว จากปุ่มในแจ้งเตือนบน iPhone: "edit=รหัส" หรือ "split=รหัส" */
+function parseDeep(t) {
+    const m = /^(edit|split)=([A-Za-z0-9_-]{1,100})$/.exec(String(t || ""));
+    return m ? { kind: m[1], id: m[2] } : null;
+}
 const nowMonth0 = bangkokToday().slice(0, 7);
 
 const MONTHS_BACK = 12; // เลือกย้อนหลังได้กี่เดือน
@@ -31,7 +36,9 @@ const CHART_MONTHS = 6; // กราฟรายเดือนแสดงก�
 function App() {
     // มีตัวตนที่จำไว้ -> เข้าแอปทันที (ยืนยันกับ LINE เบื้องหลัง) ไม่ต้องรอหน้า "กำลังเข้าสู่ระบบ"
     const [auth, setAuth] = useState(CACHED_USER ? { state: "ok", user: CACHED_USER } : { state: "loading" });
-    const [tab, setTab] = useState(() => { const t = readTarget(); return !t || t === "add" ? "home" : t; });
+    const [tab, setTab] = useState(() => { const t = readTarget(); return !t || t === "add" ? "home" : parseDeep(t) ? "wallet" : t; });
+    const [deep, setDeep] = useState(() => parseDeep(readTarget())); // รายการที่ต้องเปิดจากลิงก์ในแจ้งเตือน
+    const [openEdit, setOpenEdit] = useState(null);
     const today = useMemo(() => bangkokToday(), []);
     const nowMonth = today.slice(0, 7);
     const since = useMemo(() => shiftMonth(nowMonth, -(MONTHS_BACK - 1)), [nowMonth]);
@@ -70,12 +77,17 @@ function App() {
             // ลิงก์จากแชต (#add เปิดหน้าต่างบันทึกทันที / #clear ฯลฯ) LIFF อาจใส่ที่อยู่ปลายทางหลังเริ่มระบบเสร็จ จึงอ่านอีกครั้งตรงนี้
             const t = readTarget();
             if (t === "add") { setSheet("menu"); setTab("home"); try { history.replaceState(null, "", location.pathname + "#home"); } catch (e) { /* ไม่เป็นไร */ } }
+            else if (parseDeep(t)) { setDeep(parseDeep(t)); setTab("wallet"); }
             else if (t && ["home", "bills", "clear", "wallet", "me"].includes(t)) setTab(t);
         }).catch((e) => { if (!CACHED_USER) setAuth({ state: "error", message: e.message }); else console.warn("signIn:", e.message); });
     }, []);
     useEffect(() => { onLoginExpired(() => setLoginExpired(true)); }, []);
     useEffect(() => {
-        const h = () => setTab(location.hash.slice(1) || "home");
+        const h = () => {
+            const t = location.hash.slice(1);
+            const d = parseDeep(t);
+            if (d) { setDeep(d); setTab("wallet"); } else setTab(t || "home");
+        };
         addEventListener("hashchange", h);
         return () => removeEventListener("hashchange", h);
     }, []);
@@ -152,6 +164,23 @@ function App() {
         if (m === nowMonth) setReload((n) => n + 1);
         else setByMonth((cur) => { const c = { ...cur }; delete c[m]; return c; });
     };
+    const startSplit = (it) => { setPrefill({ amount: it.amount, desc: it.desc, date: it.date, icon: it.icon, convertId: it.id, month: String(it.date).slice(0, 7) }); setSheet("bill"); };
+    useEffect(() => {
+        if (!deep || !all) return;
+        let on = true;
+        const found = all.wallet.find((x) => x.id === deep.id);
+        (found ? Promise.resolve(found) : fetchWalletEntry(deep.id)).then((it) => {
+            if (!on) return;
+            if (!it) { setToast("ไม่พบรายการนี้ (อาจถูกลบหรือเปลี่ยนเป็นบิลหารแล้ว)"); return; }
+            if (deep.kind === "split" && it.type !== "income") startSplit(it);
+            else { setTab("wallet"); setOpenEdit({ ...it }); }
+        }).catch((e) => { if (on && !e.expired) setToast(e.message); }).finally(() => {
+            if (!on) return;
+            setDeep(null);
+            try { history.replaceState(null, "", location.pathname + "#wallet"); } catch (e) { /* ไม่เป็นไร */ }
+        });
+        return () => { on = false; };
+    }, [deep, Boolean(all)]);
     const refreshAll = () => { clearCache(); setByMonth({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
 
     if (auth.state === "loading") return <div class="center"><Mark size={64} /><p>กำลังเข้าสู่ระบบ</p></div>;
@@ -167,7 +196,7 @@ function App() {
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} all={all} members={members} userName={auth.user?.name} today={today} nowMonth={nowMonth} /> : <Skeleton blocks={5} />;
     else if (page === "bills") body = billsM ? <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
     else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} version={reload} onSplit={(it) => { setPrefill({ amount: it.amount, desc: it.desc, date: it.date, icon: it.icon, convertId: it.id, month: String(it.date).slice(0, 7) }); setSheet("bill"); }} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
     else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} /> : <Skeleton blocks={2} />;
 
     return (

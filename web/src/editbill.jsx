@@ -52,18 +52,22 @@ export function EditWalletSheet({ item, onClose, onSaved, onSplit = null }) {
         setErr("");
         setBusy(true);
         try {
-            await updateWalletEntry(item.id, { desc: desc.trim() || (isIncome ? "รายรับ" : "รายจ่าย"), ...(isIncome ? {} : { icon: faOf(iconKey) }) });
+            await updateWalletEntry(item.id, { desc: desc.trim() || (isIncome ? "รายรับ" : "รายจ่าย"), ...(isIncome ? {} : { icon: faOf(iconKey) }), confirm: true });
             onSaved();
             onClose();
         } catch (ex) { setErr(ex.message || "บันทึกไม่สำเร็จ"); setBusy(false); }
     }
     return (
         <Sheet as="form" title={isIncome ? "แก้ไขรายรับ" : "แก้ไขรายจ่ายส่วนตัว"} onClose={onClose} onSubmit={save}>
+            {item.unconfirmed && (
+                <p class="unconfirmed-note" role="status"><Icon name="alert" size={16} /><span>บันทึกอัตโนมัติจากสลิปหรือข้อความแจ้งเตือน <b>ยังไม่ได้ยืนยัน</b> ตรวจยอดและชื่อ แล้วกดยืนยัน</span></p>
+            )}
+            <p class="lbl">ยอด <b class="num">{Number(item.amount || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท</b> &middot; วันที่ {String(item.date || "").slice(8, 10)}/{String(item.date || "").slice(5, 7)}{item.card ? ` · บัตร ${item.card}` : ""}</p>
             <div class="field"><label for="ew-desc">ชื่อรายการ</label><input id="ew-desc" type="text" maxLength={100} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
             {!isIncome && <CategoryPicker value={iconKey} onPick={setIconKey} labelId="ew-cat-l" />}
             <p class="lbl">ยอดเงินและวันที่แก้ไม่ได้ ถ้าผิดให้ลบแล้วเพิ่มใหม่</p>
             {err && <p class="msg" role="alert">{err}</p>}
-            <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
+            <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : item.unconfirmed ? "ยืนยันและบันทึก" : "บันทึก"}</button>
             {onSplit && !isIncome && (
                 <button type="button" class="btn ghost block" disabled={busy} onClick={() => onSplit(item)}><Icon name="people" size={16} />เปลี่ยนเป็นบิลหารกับเพื่อน</button>
             )}
