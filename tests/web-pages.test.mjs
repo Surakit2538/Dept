@@ -284,3 +284,20 @@ test("ลิงก์ #add (ปุ่มเพิ่มบิลใน Rich menu
     const readme = fs.readFileSync(path.join(root, "design/richmenu/README.md"), "utf8");
     assert.match(readme, /2008948704-db2goT00#add/);
 });
+
+test("เปลี่ยนรายการส่วนตัวเป็นบิลหารกับเพื่อน: ฟอร์มบิลรับค่าเริ่มต้น และหน้าแก้ไขมีปุ่มเปลี่ยน", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { AddSheet } = await bundle("web/src/add.jsx", "add");
+    const props = { today: "2026-11-17", members: ["GAME", "CARE"], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} };
+    const html = toString(h(AddSheet, { ...props, initial: "bill", prefill: { amount: 1000, desc: "ค่าข้าว", date: "2026-11-15", icon: "fa-utensils", convertId: "w1", month: "2026-11" }, convertWallet() {} }));
+    assert.match(html, /value="1000"/);
+    assert.match(html, /value="ค่าข้าว"/);
+    assert.match(html, /15 พ\.ย\. 2569/);
+    const { EditWalletSheet } = await bundle("web/src/editbill.jsx", "editbill4");
+    const withSplit = toString(h(EditWalletSheet, { item: { id: "w", type: "expense", desc: "x", icon: "" }, onClose() {}, onSaved() {}, onSplit() {} }));
+    assert.match(withSplit, /เปลี่ยนเป็นบิลหารกับเพื่อน/);
+    const income = toString(h(EditWalletSheet, { item: { id: "w", type: "income", desc: "x", icon: "" }, onClose() {}, onSaved() {}, onSplit() {} }));
+    assert.ok(!income.includes("เปลี่ยนเป็นบิลหารกับเพื่อน"), "รายรับไม่มีปุ่มหาร");
+    const src = fs.readFileSync(path.join(root, "web/src/add.jsx"), "utf8");
+    assert.ok(src.indexOf("await saveBill(r);") < src.indexOf("await convertWallet(prefill.convertId)"), "ต้องบันทึกบิลสำเร็จก่อนค่อยลบรายการส่วนตัวเดิม");
+});

@@ -78,7 +78,7 @@ function Line({ icon, title, note, value, tone = "" }) {
 
 const pct = (a, b) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
-export function WalletPage({ model, onChanged, onError, onInfo = () => {}, version = 0 }) {
+export function WalletPage({ model, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0 }) {
     const m = model;
     const [editing, setEditing] = useState(null);
     const hasIncome = m.incomeSat > 0;
@@ -125,7 +125,7 @@ export function WalletPage({ model, onChanged, onError, onInfo = () => {}, versi
                 </section>
                 <RecurringWallet version={version} onError={onError} />
             </div>
-            {editing && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editing} onClose={() => setEditing(null)} onSaved={() => onChanged()} />}
+            {editing && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editing} onClose={() => setEditing(null)} onSaved={() => onChanged()} onSplit={onSplit ? (it) => { setEditing(null); onSplit(it); } : null} />}
         </div>
     );
 }

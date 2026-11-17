@@ -40,7 +40,7 @@ export function EditBillSheet({ bill, onClose, onSaved }) {
 }
 
 /** แก้รายการส่วนตัว (กระเป๋า): เปลี่ยนชื่อและหมวดได้ ยอดและวันที่ไม่แก้ ถ้าผิดให้ลบแล้วเพิ่มใหม่ */
-export function EditWalletSheet({ item, onClose, onSaved }) {
+export function EditWalletSheet({ item, onClose, onSaved, onSplit = null }) {
     const isIncome = item.type === "income";
     const [desc, setDesc] = useState(item.desc || "");
     // รายการที่ยังไม่มีหมวด: เดาจากชื่อให้เลย (เปลี่ยนเองได้)
@@ -64,6 +64,9 @@ export function EditWalletSheet({ item, onClose, onSaved }) {
             <p class="lbl">ยอดเงินและวันที่แก้ไม่ได้ ถ้าผิดให้ลบแล้วเพิ่มใหม่</p>
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
+            {onSplit && !isIncome && (
+                <button type="button" class="btn ghost block" disabled={busy} onClick={() => onSplit(item)}><Icon name="people" size={16} />เปลี่ยนเป็นบิลหารกับเพื่อน</button>
+            )}
         </Sheet>
     );
 }

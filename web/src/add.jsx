@@ -2,12 +2,12 @@
 import { useState, useMemo } from "preact/hooks";
 import { Icon } from "./icons.jsx";
 import { Sheet, Avatar, DatePickerField } from "./ui.jsx";
-import { CategoryPicker, faOf } from "./cats.jsx";
+import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
 
-export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null }) {
+export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null }) {
     const [mode, setMode] = useState(initial); // null | "bill" | "expense" | "income"
-    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} />;
+    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} prefill={prefill} convertWallet={convertWallet} />;
     if (mode) return <AddForm type={mode} onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} save={save} today={today} />;
     return (
         <Sheet title="บันทึกอะไร" onClose={onClose}>
@@ -114,12 +114,12 @@ const PANELS = [
 ];
 
 /** ฟอร์มบิลหารกับเพื่อน แบบสั้นหน้าเดียว: ยอด รายการ หารกับใคร (ชิปทางลัด) หมวด และตัวเลือกเพิ่มเติมแบบเปิดทีละหัวข้อ */
-function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [] }) {
+function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [], prefill = null, convertWallet = null }) {
     const all = members || [];
     const quick = suggested.filter((m) => all.includes(m));
-    const [amount, setAmount] = useState("");
-    const [desc, setDesc] = useState("");
-    const [date, setDate] = useState(today);
+    const [amount, setAmount] = useState(prefill ? String(prefill.amount) : "");
+    const [desc, setDesc] = useState(prefill ? prefill.desc || "" : "");
+    const [date, setDate] = useState(prefill && prefill.date && prefill.date <= today ? prefill.date : today);
     const [payer, setPayer] = useState(me);
     const [people, setPeople] = useState(() => new Set()); // เริ่มต้นไม่เลือกใครให้ ผู้ใช้เลือกเอง
     const [more, setMore] = useState(false);
@@ -129,8 +129,8 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const [type, setType] = useState("normal");
     const [installments, setInstallments] = useState("3");
     const [recurring, setRecurring] = useState(true);
-    const [iconKey, setIconKey] = useState("other");
-    const [iconTouched, setIconTouched] = useState(false);
+    const [iconKey, setIconKey] = useState(() => (prefill ? (hasCategory(prefill.icon) ? keyOfFa(prefill.icon) : guessBillIcon(prefill.desc)) : "other"));
+    const [iconTouched, setIconTouched] = useState(Boolean(prefill && hasCategory(prefill.icon)));
     const [panel, setPanel] = useState(null);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
@@ -181,7 +181,14 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
         setBusy(true);
         try {
             await saveBill(r);
-            onSaved(`บันทึกบิลแล้ว ${r.summary}`, [...new Set(r.docs.map((d) => d.date.slice(0, 7)))]);
+            // เปลี่ยนจากรายการส่วนตัวมาเป็นบิลหาร: ลบรายการส่วนตัวเดิมหลังบันทึกบิลสำเร็จแล้วเท่านั้น (กันหายทั้งคู่)
+            let note = "";
+            if (prefill && prefill.convertId && convertWallet) {
+                try { await convertWallet(prefill.convertId); } catch (ex) { note = " (ลบรายการส่วนตัวเดิมไม่สำเร็จ ลบเองได้ที่หน้ากระเป๋า)"; }
+            }
+            const months = new Set(r.docs.map((d) => d.date.slice(0, 7)));
+            if (prefill && prefill.month) months.add(prefill.month);
+            onSaved(`บันทึกบิลแล้ว ${r.summary}${note}`, [...months]);
             onClose();
         } catch (ex) {
             setErr(ex.message || "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");

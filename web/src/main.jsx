@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
-import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -45,6 +45,7 @@ function App() {
     const [loadError, setLoadError] = useState(false);
     const [profiles, setProfiles] = useState(null);
     const [search, setSearch] = useState("");
+    const [prefill, setPrefill] = useState(null); // รายการส่วนตัวที่กำลังเปลี่ยนเป็นบิลหารกับเพื่อน
     const [sheet, setSheet] = useState(() => (CACHED_USER && readTarget() === "add" ? "menu" : null)); // null | "menu" | "income"
     const [toast, setToast] = useState("");
     const [reload, setReload] = useState(0);
@@ -166,7 +167,7 @@ function App() {
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} /> : <Skeleton blocks={5} />;
     else if (page === "bills") body = billsM ? <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} /> : <Skeleton blocks={2} />;
     else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} version={reload} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} version={reload} onSplit={(it) => { setPrefill({ amount: it.amount, desc: it.desc, date: it.date, icon: it.icon, convertId: it.id, month: String(it.date).slice(0, 7) }); setSheet("bill"); }} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
     else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} /> : <Skeleton blocks={2} />;
 
     return (
@@ -181,7 +182,7 @@ function App() {
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 {body}
             </Shell>
-            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : null} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => setSheet(null)}
+            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => { setSheet(null); setPrefill(null); }}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
