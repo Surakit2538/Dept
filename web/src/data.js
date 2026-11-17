@@ -33,6 +33,20 @@ export function waitForLiff() {
 
 // API ที่ต้องใช้รหัสล็อกอิน LINE จะรอจนล็อกอินเสร็จ (แอปแสดงข้อมูลจากเครื่องก่อนได้ โดยไม่ต้องรอส่วนนี้)
 let markLiffReady = () => {};
+let loggedOut = false; // บัตรล็อกอิน LINE หมดอายุ (ต้องเข้าสู่ระบบใหม่)
+let expiredListener = () => {};
+export const EXPIRED_MSG = "เซสชัน LINE หมดอายุ กดเข้าสู่ระบบใหม่ที่แถบด้านบน";
+/** ให้แอปรู้ตอนบัตรล็อกอินหมดอายุ เพื่อแสดงแถบแจ้งเตือน */
+export function onLoginExpired(fn) { expiredListener = fn; if (loggedOut) fn(); }
+/** ขอล็อกอิน LINE ใหม่ (ในแอป LINE มักผ่านเงียบๆ) */
+export function relogin() { try { liff.login({ redirectUri: location.href }); } catch (e) { /* ไม่มีอะไร */ } }
+function expired() {
+    loggedOut = true;
+    expiredListener();
+    const err = new Error(EXPIRED_MSG);
+    err.expired = true;
+    return err;
+}
 const liffReady = new Promise((r) => { markLiffReady = r; });
 
 const SUPER_ADMIN_LINE_ID = "U0d739eea39c312e11c487e22861920d1";
@@ -60,6 +74,8 @@ export async function signIn() {
     await waitForLiff();
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()) {
+        // เคยเข้าแล้ว (มีตัวตนที่จำไว้): ไม่เด้งไปหน้าล็อกอินทันที ให้ดูข้อมูลที่จำไว้ต่อ แล้วแจ้งให้กดเข้าสู่ระบบใหม่เอง
+        if (getCachedUser()) { loggedOut = true; return { needLogin: true }; }
         liff.login({ redirectUri: location.href });
         return null; // กำลังพาไปหน้าล็อกอิน
     }
@@ -210,6 +226,7 @@ export function watchMonth(month, onData) {
 
 /** เรียก API ของเรา ใช้รหัสล็อกอิน LINE (หมดอายุ ~1 ชั่วโมง ถ้าหมดจะให้ล็อกอินใหม่) */
 export async function api(path, body) {
+    if (loggedOut) throw expired();
     await Promise.race([liffReady, new Promise((_, rej) => setTimeout(() => rej(new Error("ยังเข้าสู่ระบบ LINE ไม่เสร็จ ลองใหม่อีกครั้ง")), 20000))]);
     const idToken = liff.getIDToken();
     const res = await fetch(path, {
@@ -219,12 +236,7 @@ export async function api(path, body) {
     });
     let json = {};
     try { json = await res.json(); } catch (e) { /* ไม่ใช่ JSON */ }
-    if (res.status === 401) {
-        // รหัสหมดอายุ: ออกจากระบบแล้วพาไปล็อกอินใหม่
-        try { liff.logout(); } catch (e) { /* ไม่มีอะไร */ }
-        location.reload();
-        throw new Error("การเข้าสู่ระบบหมดอายุ กำลังพาไปล็อกอินใหม่");
-    }
+    if (res.status === 401) throw expired(); // รหัสหมดอายุ: แจ้งให้ผู้ใช้กดเข้าสู่ระบบใหม่เอง ไม่ออกจากระบบและไม่โหลดหน้าใหม่ให้
     if (!res.ok) throw new Error(json.message || `เกิดข้อผิดพลาด (${res.status})`);
     return json;
 }

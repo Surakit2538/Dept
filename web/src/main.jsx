@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Mark } from "./icons.jsx";
-import { signIn, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
+import { signIn, onLoginExpired, relogin, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -41,9 +41,11 @@ function App() {
     const [sheet, setSheet] = useState(null); // null | "menu" | "income"
     const [toast, setToast] = useState("");
     const [reload, setReload] = useState(0);
+    const [loginExpired, setLoginExpired] = useState(false); // บัตรล็อกอิน LINE หมดอายุ
 
     // หลังล็อกอิน: ยังไม่ผูกบัญชี -> เลือกชื่อ / สมาชิกที่ยังไม่กรอกชื่อจริงและพร้อมเพย์ -> กรอกก่อน (แอดมินข้าม) / ไม่งั้นเข้าแอป
     const accept = (u) => {
+        if (u.needLogin) { setLoginExpired(true); return; }
         // ที่จำไว้เป็นของคนอื่น (เปลี่ยนบัญชี LINE ในเบราว์เซอร์เดียวกัน): ล้างข้อมูลที่จำไว้ทั้งหมด ไม่ให้เห็นของกัน
         if (CACHED_USER && !u.needLink && u.memberId !== CACHED_USER.memberId) { clearCache(); setByMonth({}); setMembers(null); setProfiles(null); }
         if (u.needLink) setAuth({ state: "link", profile: u.profile, candidates: u.candidates });
@@ -56,6 +58,7 @@ function App() {
     useEffect(() => {
         signIn().then((u) => { if (u) accept(u); }).catch((e) => { if (!CACHED_USER) setAuth({ state: "error", message: e.message }); else console.warn("signIn:", e.message); });
     }, []);
+    useEffect(() => { onLoginExpired(() => setLoginExpired(true)); }, []);
     useEffect(() => {
         const h = () => setTab(location.hash.slice(1) || "home");
         addEventListener("hashchange", h);
@@ -84,7 +87,7 @@ function App() {
         const need = [nowMonth, ...wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].wallet))];
         loadWalletMonths(need, nowMonth)
             .then((r) => Object.entries(r).forEach(([m, w]) => patchMonth(m, { wallet: w })))
-            .catch((e) => setToast(e.message));
+            .catch((e) => { if (!e.expired) setToast(e.message); });
     }, [auth.state, nowMonth, reload, wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].wallet)).join("|")]);
     // บิลและประวัติเคลียร์เงินของเดือนที่ผ่านมา (อ่านจาก Firestore ตรงๆ พร้อมกันทุกเดือน)
     useEffect(() => {
@@ -154,6 +157,12 @@ function App() {
 
     return (
         <>
+            {loginExpired && (
+                <div class="login-banner" role="alert">
+                    <span>เซสชัน LINE หมดอายุ ยังดูข้อมูลที่จำไว้ได้ แต่ข้อมูลกระเป๋าและการบันทึกต้องเข้าสู่ระบบใหม่</span>
+                    <button type="button" class="btn sm" onClick={relogin}>เข้าสู่ระบบใหม่</button>
+                </div>
+            )}
             <Shell tab={page} onTab={go} userName={auth.user.name} userPicture={auth.user.pictureUrl} onAdd={() => setSheet("menu")}
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 {body}

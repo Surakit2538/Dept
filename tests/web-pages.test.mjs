@@ -198,3 +198,20 @@ test("รายจ่ายส่วนตัว: มีตัวเลือก
     const income = toString(h(AddSheet, { ...props, initial: "income" }));
     assert.ok(!income.includes("รายเดือน"), "รายรับไม่มีตัวเลือกรายเดือน");
 });
+
+test("บัตรล็อกอิน LINE หมดอายุ: ไม่ออกจากระบบ/โหลดหน้าใหม่เอง แต่แจ้งด้วยแถบและให้กดเข้าสู่ระบบใหม่", () => {
+    const data = fs.readFileSync(path.join(root, "web/src/data.js"), "utf8");
+    const apiFn = data.slice(data.indexOf("export async function api("), data.indexOf("export async function loadWallet("));
+    assert.ok(!apiFn.includes("liff.logout") && !apiFn.includes("location.reload"), "api() ห้ามออกจากระบบหรือโหลดหน้าใหม่เอง");
+    assert.match(apiFn, /status === 401\) throw expired\(\)/);
+    assert.match(data, /needLogin: true/);
+    const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
+    assert.match(main, /login-banner/);
+    assert.match(main, /onClick=\{relogin\}/);
+});
+
+test("ลิงก์ในการ์ด LINE เปิดแบบ LIFF (ล็อกอินเงียบ) ทุกปุ่ม", () => {
+    const cards = fs.readFileSync(path.join(root, "lib/line-cards.mjs"), "utf8");
+    assert.match(cards, /LIFF_URL = "https:\/\/liff\.line\.me\/2008948704-db2goT00"/);
+    assert.ok(!/uri: `\$\{APP_URL\}\//.test(cards), "ปุ่มในการ์ดต้องใช้ LIFF_URL ไม่ใช่ APP_URL");
+});

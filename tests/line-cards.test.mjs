@@ -165,7 +165,7 @@ test("การ์ดเตือนหนี้: แนบ QR เฉพาะ�
     const images = card.contents.body.contents.filter((x) => x.type === "image");
     assert.equal(images.length, 3);
     assert.equal(images[0].url, "https://promptpay.io/0812345678/100.5.png");
-    assert.equal(card.contents.footer.contents[0].action.uri, "https://dept-game.vercel.app/#clear");
+    assert.equal(card.contents.footer.contents[0].action.uri, "https://liff.line.me/2008948704-db2goT00#clear");
     const none = buildReminderCard({ monthLabel: "x", debts: [{ to: "B", amount: 50 }] });
     assert.equal(none.contents.body.contents.filter((x) => x.type === "image").length, 0);
 });
@@ -186,7 +186,7 @@ test("การ์ดยืนยันรายรับ: มียอด ช�
     const json = JSON.stringify(c);
     assert.equal(c.type, "flex");
     assert.match(c.altText, /฿25,000/);
-    assert.ok(json.includes("เงินเดือน") && json.includes("/#wallet"));
+    assert.ok(json.includes("เงินเดือน") && json.includes("2008948704-db2goT00#wallet"));
     assert.ok(!/\p{Extended_Pictographic}/u.test(json), "การ์ดต้องไม่มี emoji");
     assert.match(buildIncomeSavedCard({ monthLabel: "x", desc: "y", amount: 10.5 }).altText, /฿10\.50/);
 });

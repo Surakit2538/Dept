@@ -108,3 +108,9 @@ git add <ไฟล์> && git commit -m "..." && git push
 
 - กลับไปใช้หน้าเก่า: เปลี่ยนชื่อ `legacy-index.html` กลับเป็น `index.html`, ลบ rewrite `/` และ redirects ของ `/index.html` `/legacy-index.html` `/admin.html` ใน `vercel.json` แล้ว push หรือกด Rollback ใน Vercel (เทสต์ 5 ไฟล์อ้างชื่อ `legacy-index.html` ต้องแก้กลับด้วย)
 - หน้าเก่า (`legacy-index.html`, `admin.html`, `admin-app.js`, `iphone-setup.js`, `personal-expenses.js`) ส่วน `sw.js` ถูกแทนด้วยตัวที่ล้างแคชและยกเลิกตัวเองให้เครื่องที่เคยติดตั้งไว้ ยังไม่ถูกลบ เทสต์บางตัวยังอ่านไฟล์เหล่านี้ เมื่อมั่นใจว่าไม่กลับไปใช้แล้วค่อยลบพร้อมเทสต์ที่เกี่ยวข้อง
+
+## 10. ล็อกอิน LINE
+
+- ลิงก์เปิดแอปจากแชต LINE (ปุ่มในการ์ด, Rich menu) ใช้แบบ LIFF `https://liff.line.me/2008948704-db2goT00` (ต่อ `#clear` `#wallet` ได้) เพื่อให้ LINE ล็อกอินให้เงียบๆ ลิงก์ `dept-game.vercel.app` ตรงๆ ต้องผ่านหน้าล็อกอินทุกครั้ง
+- เปิดนอกแอป LINE (เช่น Chrome บนคอม) บัตรล็อกอินของ LINE มีอายุสั้น หมดแล้วต้องล็อกอินใหม่ เลี่ยงไม่ได้
+- บัตรหมดอายุกลางใช้งาน: แอปไม่ออกจากระบบ/โหลดใหม่เอง แต่ขึ้นแถบ "เซสชัน LINE หมดอายุ" พร้อมปุ่มเข้าสู่ระบบใหม่ (`web/src/data.js` ฟังก์ชัน `api` และ `relogin`)
