@@ -654,3 +654,6 @@ html, body { touch-action: manipulation; }
 .choose-item .s { font-size: var(--fs-sm); color: var(--mute); }
 .choose-btns { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s3); margin-top: var(--s4); }
 .choose-btns .btn { min-height: 56px; font-size: var(--fs-md); display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); }
+.choose-split { margin-top: var(--s2); }
+.choose-each { margin: var(--s2) 0 0; font-size: var(--fs-sm); }
+.choose-more { display: block; margin: var(--s3) auto 0; }

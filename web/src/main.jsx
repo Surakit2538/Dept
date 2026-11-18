@@ -215,10 +215,11 @@ function App() {
             </Shell>
             {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => { setSheet(null); setPrefill(null); }}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
-            {choose && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={choose} onClose={() => setChoose(null)}
+            {choose && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={choose} members={members || []} me={auth.user.name} suggested={suggested} today={today}
+                saveBill={saveBill} removeWallet={deleteWalletEntry} onClose={() => setChoose(null)}
                 onConfirmed={() => changed(String(choose.date).slice(0, 7))}
-                onSplit={(it) => { setChoose(null); startSplit(it); }}
-                onEdit={(it) => { setChoose(null); setTab("wallet"); setOpenEdit(it); }} />}
+                onDone={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }}
+                onMoreSplit={(it) => { setChoose(null); startSplit(it); }} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
     );

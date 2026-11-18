@@ -75,7 +75,7 @@ function Preview() {
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}>{body}</Shell>
             {sheet && <Lazy load={loadAdd} name="AddSheet" initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
-            {params.get("choose") && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={{ id: "auto0", type: "expense", amount: 175, date: `${now}-17`, desc: "LINE MAN Dragon", card: "ttb-0518", unconfirmed: true }} onClose={() => setToast("ปิด (ตัวอย่าง)")} onConfirmed={() => {}} onSplit={() => setToast("เปิดฟอร์มหาร (ตัวอย่าง)")} onEdit={() => setToast("เปิดหน้าแก้ไข (ตัวอย่าง)")} />}
+            {params.get("choose") && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={{ id: "auto0", type: "expense", amount: 175, date: `${now}-17`, desc: "LINE MAN Dragon", card: "ttb-0518", unconfirmed: true }} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} today={today} saveBill={async () => new Promise((r) => setTimeout(r, 600))} removeWallet={async () => {}} onClose={() => setToast("ปิด (ตัวอย่าง)")} onDone={setToast} onMoreSplit={() => setToast("เปิดฟอร์มบิลเต็ม (ตัวอย่าง)")} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
     );

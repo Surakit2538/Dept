@@ -2,7 +2,7 @@
 import { useState } from "preact/hooks";
 import { Sheet } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
-import { BILL_ICONS, guessBillIcon } from "./model.js";
+import { BILL_ICONS, guessBillIcon, buildBill, equalSplit } from "./model.js";
 import { updateBillFields, updateWalletEntry, updateWalletTemplate, confirmWalletEntries } from "./data.js";
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 
@@ -107,35 +107,111 @@ export function EditTemplateSheet({ template, onClose, onSaved }) {
 }
 
 /**
- * เปิดจากแจ้งเตือนบน iPhone (แตะเฉยๆ): ถามว่ารายการที่บันทึกอัตโนมัติ "บันทึกแบบไหน"
- * ส่วนตัว = ยืนยันรายการ แล้วมีปุ่มแก้ไขรายละเอียด / หารกับเพื่อน = เปิดฟอร์มหาร (แปลงรายการเดิม)
+ * เปิดจากแจ้งเตือนบน iPhone (แตะเฉยๆ): รายการที่บันทึกอัตโนมัติ "บันทึกแบบไหน" จบในหน้าเดียว
+ * - แก้ชื่อรายการและหมวดได้ (เดาหมวดให้ก่อน)
+ * - ส่วนตัว: บันทึกชื่อ/หมวด และยืนยันรายการ
+ * - หารกับเพื่อน: เลือกเพื่อน (รวมฉันไว้ก่อน) หารเท่ากัน เห็นยอดคนละเท่าไร บันทึกบิลแล้วลบรายการส่วนตัวเดิม (บันทึกบิลสำเร็จก่อนเสมอ กันหายทั้งคู่)
+ *   กรณียาก (หารไม่เท่ากัน, ผ่อน) กด "ตั้งค่าเพิ่มเติม" เปิดฟอร์มบิลเต็มพร้อมข้อมูลที่กรอกไว้
  */
-export function ChooseSheet({ item, onClose, onSplit, onEdit, onConfirmed }) {
-    const [state, setState] = useState("ask"); // ask | busy | done
+export function ChooseSheet({ item, members = [], me = "", suggested = [], today = "", saveBill, removeWallet, onClose, onConfirmed = () => {}, onDone = () => {}, onMoreSplit = () => {} }) {
+    const [desc, setDesc] = useState(item.desc || "");
+    const [iconKey, setIconKey] = useState(() => (hasCategory(item.icon) ? keyOfFa(item.icon) : guessBillIcon(item.desc)));
+    const [iconTouched, setIconTouched] = useState(hasCategory(item.icon));
+    const [step, setStep] = useState("ask"); // ask | split | done
+    const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
-    const amount = Number(item.amount || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const [people, setPeople] = useState(() => new Set(me ? [me] : [])); // หารกับเพื่อน: รวมฉันไว้ก่อน
+    const amount = Number(item.amount || 0);
+    const amountText = amount.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const when = `${String(item.date || "").slice(8, 10)}/${String(item.date || "").slice(5, 7)}`;
+    const fa = faOf(iconKey);
+    const name = desc.trim() || "รายจ่าย";
+
+    // แถบรายชื่อ: ฉัน, คนที่หารด้วยบ่อย, แล้วคนที่เหลือ (กลุ่มไม่เกิน 20 คน เลื่อนข้างดูได้หมด)
+    const strip = [...new Set([me, ...suggested, ...members])].filter((m) => m && members.includes(m));
+    const chosen = strip.filter((m) => people.has(m));
+    const preview = chosen.length > 0 ? equalSplit(amount, chosen) : null;
+    // หารไม่ลงตัว เศษสตางค์ไปที่คนแรกๆ: แสดงยอดน้อยสุดพร้อมคำว่าประมาณ
+    const shares = preview ? Object.values(preview) : [];
+    const each = shares.length ? Math.min(...shares) : 0;
+    const exact = shares.every((v) => v === each);
+    const toggle = (m) => setPeople((cur) => { const s = new Set(cur); if (s.has(m)) s.delete(m); else s.add(m); return s; });
+    const onDesc = (v) => { setDesc(v); if (!iconTouched) setIconKey(guessBillIcon(v)); };
+
     async function personal() {
         setErr("");
-        setState("busy");
-        try { await confirmWalletEntries([item.id]); onConfirmed(); setState("done"); } catch (e) { setErr(e.message || "บันทึกไม่สำเร็จ"); setState("ask"); }
+        setBusy(true);
+        try {
+            await updateWalletEntry(item.id, { desc: name, icon: fa, confirm: true });
+            onConfirmed();
+            setStep("done");
+        } catch (e) { setErr(e.message || "บันทึกไม่สำเร็จ"); }
+        setBusy(false);
     }
-    return (
-        <Sheet title={state === "done" ? "บันทึกเป็นรายจ่ายส่วนตัวแล้ว" : "บันทึกแบบไหน"} onClose={onClose}>
-            <div class="choose-item">
-                <span class="ico"><Icon name="bill" /></span>
-                <div class="grow"><div class="t">{item.desc || "รายจ่าย"}</div><div class="s">วันที่ {when}{item.card ? ` · บัตร ${item.card}` : ""}</div></div>
-                <b class="num pay">{amount} บาท</b>
-            </div>
-            {state !== "done" ? (
-                <div class="choose-btns">
-                    <button type="button" class="btn" disabled={state === "busy"} onClick={personal}><Icon name="wallet" size={18} />{state === "busy" ? "กำลังบันทึก" : "ส่วนตัว"}</button>
-                    <button type="button" class="btn ghost" disabled={state === "busy"} onClick={() => onSplit(item)}><Icon name="people" size={18} />หารกับเพื่อน</button>
+
+    async function split() {
+        setErr("");
+        const date = item.date && (!today || item.date <= today) ? item.date : today;
+        const r = buildBill({ amount, desc: name, payer: me, date, today, participants: chosen, mode: "equal", custom: {}, type: "normal", installments: "3", recurring: false, icon: fa });
+        if (!r.ok) { setErr(r.error); return; }
+        setBusy(true);
+        try {
+            await saveBill(r);
+            let note = "";
+            try { await removeWallet(item.id); } catch (e) { note = " (ลบรายการส่วนตัวเดิมไม่สำเร็จ ลบเองได้ที่หน้ากระเป๋า)"; }
+            onDone(`บันทึกบิลหารแล้ว ${r.summary}${note}`, [...new Set([...r.docs.map((d) => d.date.slice(0, 7)), String(item.date).slice(0, 7)])]);
+            onClose();
+        } catch (e) { setErr(e.message || "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง"); setBusy(false); }
+    }
+
+    if (step === "done") {
+        return (
+            <Sheet title="บันทึกเป็นรายจ่ายส่วนตัวแล้ว" onClose={onClose}>
+                <div class="choose-item">
+                    <span class="ico"><Icon name={(BILL_ICONS.find((i) => i.key === iconKey) || BILL_ICONS[BILL_ICONS.length - 1]).icon} /></span>
+                    <div class="grow"><div class="t">{name}</div><div class="s">วันที่ {when}{item.card ? ` · บัตร ${item.card}` : ""}</div></div>
+                    <b class="num pay">{amountText} บาท</b>
                 </div>
-            ) : (
+                <button type="button" class="btn block" onClick={onClose}>เสร็จ</button>
+            </Sheet>
+        );
+    }
+
+    return (
+        <Sheet title="บันทึกแบบไหน" onClose={onClose}>
+            <p class="lbl">ยอด <b class="num">{amountText} บาท</b> &middot; วันที่ {when}{item.card ? ` · บัตร ${item.card}` : ""}</p>
+            <div class="field"><label for="ch-desc">ชื่อรายการ</label><input id="ch-desc" type="text" maxLength={100} value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
+            <CategoryPicker value={iconKey} onPick={(k) => { setIconKey(k); setIconTouched(true); }} labelId="ch-cat-l" hint={!iconTouched && desc.trim() ? "เลือกให้อัตโนมัติ" : ""} />
+
+            {step === "ask" && (
                 <div class="choose-btns">
-                    <button type="button" class="btn ghost" onClick={() => onEdit({ ...item, unconfirmed: false })}><Icon name="pencil" size={18} />แก้ไขรายละเอียด</button>
-                    <button type="button" class="btn" onClick={onClose}>เสร็จ</button>
+                    <button type="button" class="btn" disabled={busy} onClick={personal}><Icon name="wallet" size={18} />{busy ? "กำลังบันทึก" : "ส่วนตัว"}</button>
+                    <button type="button" class="btn ghost" disabled={busy} onClick={() => setStep("split")}><Icon name="people" size={18} />หารกับเพื่อน</button>
+                </div>
+            )}
+
+            {step === "split" && (
+                <div class="choose-split">
+                    <div class="field">
+                        <div class="hd-row"><span class="fl" id="ch-people-l">หารกับใคร <span class="mute">({chosen.length} คน)</span></span></div>
+                        <div class="pstrip" role="group" aria-labelledby="ch-people-l">
+                            {strip.map((m) => (
+                                <button type="button" key={m} class={`pchip ${people.has(m) ? "on" : ""}`} aria-pressed={people.has(m)} onClick={() => toggle(m)}>
+                                    <span class="pav-s">{people.has(m) ? <Icon name="check" size={14} /> : [...m][0]}</span>{m === me ? "ฉัน" : m}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <p class={`choose-each ${chosen.length > 1 ? "" : "mute"}`} role="status">
+                        {chosen.length > 1 || (chosen.length === 1 && chosen[0] !== me)
+                            ? <>คนละ{exact ? "" : "ประมาณ"} <b class="num">{Number(each || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท</b> ({chosen.length} คน){people.has(me) ? "" : " ฉันจ่ายแทน"}</>
+                            : "แตะชื่อเพื่อนที่หารด้วย (ฉันถูกเลือกไว้แล้ว)"}
+                    </p>
+                    <div class="choose-btns">
+                        <button type="button" class="btn ghost" disabled={busy} onClick={() => { setErr(""); setStep("ask"); }}>ย้อนกลับ</button>
+                        <button type="button" class="btn" disabled={busy} onClick={split}><Icon name="people" size={18} />{busy ? "กำลังบันทึก" : "บันทึกบิลหาร"}</button>
+                    </div>
+                    <button type="button" class="link choose-more" disabled={busy} onClick={() => onMoreSplit({ ...item, desc: name, icon: fa })}>ตั้งค่าเพิ่มเติม (หารไม่เท่ากัน, ผ่อน, คนอื่นจ่าย)</button>
                 </div>
             )}
             {err && <p class="msg" role="alert">{err}</p>}
