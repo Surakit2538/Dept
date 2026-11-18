@@ -5,7 +5,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 
 const code = fs.readFileSync(new URL("../scriptable/DeptAuto.js", import.meta.url), "utf8");
-const SAVED = { success: true, status: "saved", message: "บันทึกรายจ่าย", id: "w1", type: "expense", amount: 533.93, desc: "AIS SERVICE", scriptVersion: "2.0.0" };
+const SAVED = { success: true, status: "saved", message: "บันทึกรายจ่าย", id: "w1", type: "expense", amount: 533.93, desc: "AIS SERVICE", scriptVersion: "2.1.0" };
 
 async function runAuto({ text = "", query = null, store = new Map(), respond = () => SAVED, token = "tok123" }) {
     const calls = [];
@@ -65,8 +65,28 @@ test("DeptAuto: บันทึกแล้วเด้งแจ้งเตื�
     assert.deepEqual(n.actions.map((a) => a.title), ["ส่วนตัว", "หารกับเพื่อน"]);
     assert.equal(n.actions[0].url, "scriptable:///run/DeptAuto?confirm=w1");
     assert.equal(n.actions[1].url, "https://liff.line.me/2008948704-db2goT00#split=w1");
-    assert.equal(n.openURL, "https://liff.line.me/2008948704-db2goT00#edit=w1");
+    assert.equal(n.openURL, "https://liff.line.me/2008948704-db2goT00#choose=w1", "แตะเฉยๆ ต้องเปิดหน้าถามบันทึกแบบไหน");
     assert.deepEqual(outputs, [], "ไม่ส่งข้อความกลับให้คำสั่งลัด (กันแจ้งเตือนซ้ำกับคำสั่งลัดแบบเก่า)");
+});
+
+test("DeptAuto: สลิปโอนให้เพื่อน มีปุ่ม เคลียร์หนี้กับ ... และ บันทึกเป็นรายจ่าย แตะเฉยๆ ไปหน้าเคลียร์เงิน", async () => {
+    const { notes } = await runAuto({ text: "สลิปโอนให้เพื่อน", respond: () => ({ success: true, status: "ignored", kind: "paid_back", counterparty: "CARE", amount: 100, message: "โอนให้ CARE", scriptVersion: "2.1.0" }) });
+    assert.equal(notes.length, 1);
+    assert.match(notes[0].title, /โอนให้ CARE 100\.00 บาท/);
+    assert.deepEqual(notes[0].actions.map((a) => a.title), ["เคลียร์หนี้กับ CARE", "บันทึกเป็นรายจ่าย"]);
+    assert.equal(notes[0].actions[0].url, "https://liff.line.me/2008948704-db2goT00#clear");
+    assert.equal(notes[0].actions[1].url, "scriptable:///run/DeptAuto?save=personal");
+    assert.equal(notes[0].openURL, "https://liff.line.me/2008948704-db2goT00#clear");
+});
+
+test("DeptAuto: กด บันทึกเป็นรายจ่าย (save=personal) บันทึกสลิปที่ค้างไว้ แล้วมีปุ่มแก้ไขรายละเอียด", async () => {
+    const { calls, notes } = await runAuto({ query: { save: "personal" }, respond: () => ({ success: true, status: "saved", id: "w9", amount: 100, desc: "CARE" }) });
+    assert.deepEqual(calls[0].body, { action: "save", splitType: "personal" });
+    assert.match(notes[0].title, /ส่วนตัวแล้ว/);
+    assert.deepEqual(notes[0].actions.map((a) => a.title), ["แก้ไขรายละเอียด"]);
+    assert.equal(notes[0].actions[0].url, "https://liff.line.me/2008948704-db2goT00#edit=w9");
+    const expired = await runAuto({ query: { save: "personal" }, respond: () => ({ success: false, status: "expired", message: "สลิปหมดอายุแล้ว (เกิน 30 นาที)" }) });
+    assert.match(expired.notes[0].body, /หมดอายุ/);
 });
 
 test("DeptAuto: กดปุ่ม ส่วนตัว (เปิดสคริปต์ด้วย confirm) ยืนยันรายการ แล้วเด้งแจ้งเตือนที่สองมีปุ่มแก้ไขรายละเอียด 1 ปุ่ม", async () => {
@@ -91,7 +111,7 @@ test("DeptAuto: ข้อความเดิมที่ตรวจแล้�
     const again = await runAuto({ text: SMS, store });
     assert.equal(again.calls.length, 0);
     assert.equal(again.notes.length, 0);
-    const quiet = await runAuto({ text: "ข้อความอื่น", store, respond: () => ({ success: true, status: "ignored", message: "", scriptVersion: "2.0.0" }) });
+    const quiet = await runAuto({ text: "ข้อความอื่น", store, respond: () => ({ success: true, status: "ignored", message: "", scriptVersion: "2.1.0" }) });
     assert.equal(quiet.notes.length, 0);
 });
 

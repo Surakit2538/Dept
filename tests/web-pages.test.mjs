@@ -458,3 +458,17 @@ test("ปฏิทินรายวัน: แสดงปฏิทิน ส�
     assert.match(homeHtml, /ดูตารางปฏิทินรายวัน/);
     assert.ok(!homeHtml.includes("มากสุดวันที่ 4"), "ต้องไม่มีกราฟแท่งรายวันเดิมใต้กราฟเดือน");
 });
+
+test("หน้า บันทึกแบบไหน (แตะแจ้งเตือนบน iPhone): แสดงรายการ ยอด บัตร และปุ่ม ส่วนตัว / หารกับเพื่อน", { skip: !hasTools }, async () => {
+    const { h, toString } = await render();
+    const { ChooseSheet } = await bundle("web/src/editbill.jsx", "choose");
+    const html = toString(h(ChooseSheet, { item: { id: "a", type: "expense", amount: 175, date: "2026-11-17", desc: "LINE MAN <b>", card: "ttb-0518" }, onClose() {}, onSplit() {}, onEdit() {}, onConfirmed() {} }));
+    assert.match(html, /บันทึกแบบไหน/);
+    assert.match(html, /175\.00 บาท/);
+    assert.match(html, /บัตร ttb-0518/);
+    assert.match(html, /ส่วนตัว/);
+    assert.match(html, /หารกับเพื่อน/);
+    assert.ok(!html.includes("<b>"), "ชื่อร้านต้องถูก escape");
+    const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
+    assert.match(main, /\(edit\|split\|choose\)=/, "ต้องอ่านลิงก์ #choose=รหัส");
+});

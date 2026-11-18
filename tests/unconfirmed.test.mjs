@@ -102,3 +102,26 @@ test("wallet-get: ดึงรายการเดียวของตัว�
     assert.equal((await call({ action: "wallet-get", id }, "aoy")).statusCode, 403);
     assert.equal((await call({ action: "wallet-get", id: "nope" })).statusCode, 404);
 });
+
+test("สลิปโอนให้เพื่อน: ยังไม่บันทึก ส่งชื่อเพื่อนและยอดให้แจ้งเตือน แล้วกด บันทึกเป็นรายจ่าย ได้ภายหลัง", async () => {
+    const db = createFakeFirestore();
+    db.seed("members", "me", { name: ME, realName: "สุรกิจ พัฒนเธียรสกุล" });
+    db.seed("members", "ben", { name: "BEN", realName: "Somchai Jaidee" });
+    const handler = createShortcutHandler({
+        db: {}, fs: db.fs,
+        verifyDeviceToken: async () => ({ authenticated: true, memberId: "me", name: ME }),
+        env: {}, fetchFn: async () => ({ ok: true }), now: () => Date.parse("2026-11-17T05:00:00Z")
+    });
+    const call = async (body) => { const res = createFakeRes(); await handler({ method: "POST", headers: { authorization: "Bearer me" }, body }, res); return res; };
+    const slip = "K PLUS\nโอนเงินสำเร็จ\n17 พ.ย. 69 11:23 น.\nจาก\nนาย สุรกิจ พ\nไปยัง\nMR. SOMCHAI JAIDEE\nจำนวน:\n100.00 บาท\nเลขที่รายการ:\n016314142399999999";
+    const r = await call({ action: "auto", text: slip });
+    assert.equal(r.body.kind, "paid_back");
+    assert.equal(r.body.counterparty, "BEN");
+    assert.equal(r.body.amount, 100);
+    assert.equal(db.count("wallet_entries"), 0, "ยังไม่บันทึกเป็นรายจ่าย");
+    const saved = await call({ action: "save", splitType: "personal" });
+    assert.equal(saved.body.status, "saved");
+    assert.ok(saved.body.id);
+    assert.equal(db.count("wallet_entries"), 1);
+    assert.equal(db.all("wallet_entries")[0].unconfirmed, undefined, "เจ้าของเลือกเองแล้ว ไม่ต้องติดป้ายยังไม่ยืนยัน");
+});

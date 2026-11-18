@@ -7,14 +7,15 @@
  *
  * คำสั่งลัด "Dept บันทึก" เรียกสคริปต์นี้พร้อมข้อความ 1 ชุด (ข้อความจากรูปสลิปล่าสุด, SMS บัตร หรืออีเมลธนาคาร)
  * 1) ส่งข้อความให้เซิร์ฟเวอร์ บันทึกเป็นรายการส่วนตัว "ยังไม่ยืนยัน" ไว้ก่อน (ไม่มีอะไรหาย)
- * 2) เด้งแจ้งเตือน "บันทึกแบบไหน" มีปุ่ม ส่วนตัว / หารกับเพื่อน (แตะตัวแจ้งเตือน = เปิดหน้าแก้ไขในเว็บ)
+ * 2) เด้งแจ้งเตือน "บันทึกแบบไหน" กดค้างมีปุ่ม ส่วนตัว / หารกับเพื่อน แตะเฉยๆ เปิดหน้าถามเดียวกันในเว็บ (#choose)
  *    - ส่วนตัว: เปิดสคริปต์นี้อีกครั้งเพื่อยืนยัน แล้วเด้งแจ้งเตือนที่สองพร้อมปุ่ม "แก้ไขรายละเอียด"
  *    - หารกับเพื่อน: เปิดเว็บที่ฟอร์มหารของรายการนั้น
+ *    สลิปโอนให้เพื่อนในกลุ่ม (น่าจะคืนเงิน): ยังไม่บันทึก มีปุ่ม "เคลียร์หนี้กับ ..." และ "บันทึกเป็นรายจ่าย" (ภายใน 30 นาที)
  * ซ่อนรหัส OTP ในเครื่องก่อนส่ง และจำข้อความที่ตรวจแล้ว 24 ชั่วโมง (ปิดแอปธนาคารซ้ำจะไม่ส่งซ้ำ)
  * เซิร์ฟเวอร์บอกเวอร์ชันล่าสุดมาด้วย ถ้าเครื่องนี้เก่ากว่าจะเตือนให้รันตัวติดตั้งอีกครั้ง
  */
 
-const SCRIPT_VERSION = "2.0.0";
+const SCRIPT_VERSION = "2.1.0";
 const BASE_URL = "https://dept-game.vercel.app";
 const WEB_URL = "https://liff.line.me/2008948704-db2goT00"; // เปิดผ่าน LINE ล็อกอินเงียบ
 const SELF_URL = "scriptable:///run/" + encodeURIComponent(Script.name());
@@ -130,10 +131,34 @@ async function askHowToSave(res) {
         });
         return;
     }
-    await notify("พบรายจ่าย " + baht(res.amount), (desc ? desc + "\n" : "") + "บันทึกแบบไหน", {
-        openURL: editUrl,
+    await notify("พบรายจ่าย " + baht(res.amount), (desc ? desc + "\n" : "") + "บันทึกแบบไหน (แตะเพื่อเลือก)", {
+        openURL: WEB_URL + "#choose=" + id, // แตะเฉยๆ: เปิดหน้าถาม ส่วนตัว / หารกับเพื่อน ในเว็บ
         actions: [["ส่วนตัว", SELF_URL + "?confirm=" + id], ["หารกับเพื่อน", WEB_URL + "#split=" + id]]
     });
+}
+
+/** สลิปโอนให้เพื่อนในกลุ่ม: น่าจะคืนเงิน ยังไม่บันทึก ให้เลือกไปเคลียร์หนี้ หรือบันทึกเป็นรายจ่าย */
+async function askPaidBack(res) {
+    const who = res.counterparty ? String(res.counterparty) : "เพื่อน";
+    await notify("โอนให้ " + who + " " + baht(res.amount), "น่าจะเป็นการคืนเงินเพื่อน ยังไม่บันทึกเป็นรายจ่าย (แตะเพื่อไปเคลียร์หนี้)", {
+        openURL: WEB_URL + "#clear",
+        actions: [["เคลียร์หนี้กับ " + who, WEB_URL + "#clear"], ["บันทึกเป็นรายจ่าย", SELF_URL + "?save=personal"]]
+    });
+}
+
+/** กด "บันทึกเป็นรายจ่าย" ของสลิปโอนให้เพื่อน: บันทึกสลิปที่ค้างไว้เป็นรายจ่ายส่วนตัว */
+async function saveSlipPersonal(token) {
+    try {
+        const res = await callApi(token, { action: "save", splitType: "personal" });
+        if (res && res.status === "saved" && res.id) {
+            const editUrl = WEB_URL + "#edit=" + encodeURIComponent(res.id);
+            await notify("บันทึกเป็นรายจ่ายส่วนตัวแล้ว", (res.desc ? res.desc + " " : "") + baht(res.amount) + "\nแตะเพื่อแก้ไขรายละเอียด", { openURL: editUrl, actions: [["แก้ไขรายละเอียด", editUrl]] });
+        } else {
+            await notify("Dept Money", (res && res.message) || "บันทึกไม่สำเร็จ");
+        }
+    } catch (e) {
+        await notify("Dept Money", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + e.message);
+    }
 }
 
 async function run() {
@@ -147,6 +172,11 @@ async function run() {
     const q = args.queryParameters || {};
     if (q.confirm) {
         await confirmPersonal(token, String(q.confirm));
+        return;
+    }
+    // ถูกเปิดจากปุ่ม "บันทึกเป็นรายจ่าย" ของสลิปโอนให้เพื่อน
+    if (q.save === "personal") {
+        await saveSlipPersonal(token);
         return;
     }
 
@@ -179,6 +209,7 @@ async function run() {
     }
 
     if (res.status === "saved" && res.id) await askHowToSave(res);
+    else if (res.kind === "paid_back") await askPaidBack(res);
     else if (res.message) await notify("Dept Money", String(res.message)); // ข้อความว่าง = เงียบ ไม่แจ้งเตือน
 
     // มีรุ่นใหม่: เตือนวันละครั้ง

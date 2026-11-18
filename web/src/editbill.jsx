@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { Sheet } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
 import { BILL_ICONS, guessBillIcon } from "./model.js";
-import { updateBillFields, updateWalletEntry, updateWalletTemplate } from "./data.js";
+import { updateBillFields, updateWalletEntry, updateWalletTemplate, confirmWalletEntries } from "./data.js";
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 
 export function EditBillSheet({ bill, onClose, onSaved }) {
@@ -102,6 +102,43 @@ export function EditTemplateSheet({ template, onClose, onSaved }) {
             <p class="lbl">มีผลกับรายการที่ระบบสร้างให้ตั้งแต่เดือนถัดไป รายการที่สร้างไปแล้วไม่เปลี่ยน (แก้ได้ที่ไอคอนดินสอของรายการนั้น)</p>
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
+        </Sheet>
+    );
+}
+
+/**
+ * เปิดจากแจ้งเตือนบน iPhone (แตะเฉยๆ): ถามว่ารายการที่บันทึกอัตโนมัติ "บันทึกแบบไหน"
+ * ส่วนตัว = ยืนยันรายการ แล้วมีปุ่มแก้ไขรายละเอียด / หารกับเพื่อน = เปิดฟอร์มหาร (แปลงรายการเดิม)
+ */
+export function ChooseSheet({ item, onClose, onSplit, onEdit, onConfirmed }) {
+    const [state, setState] = useState("ask"); // ask | busy | done
+    const [err, setErr] = useState("");
+    const amount = Number(item.amount || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const when = `${String(item.date || "").slice(8, 10)}/${String(item.date || "").slice(5, 7)}`;
+    async function personal() {
+        setErr("");
+        setState("busy");
+        try { await confirmWalletEntries([item.id]); onConfirmed(); setState("done"); } catch (e) { setErr(e.message || "บันทึกไม่สำเร็จ"); setState("ask"); }
+    }
+    return (
+        <Sheet title={state === "done" ? "บันทึกเป็นรายจ่ายส่วนตัวแล้ว" : "บันทึกแบบไหน"} onClose={onClose}>
+            <div class="choose-item">
+                <span class="ico"><Icon name="bill" /></span>
+                <div class="grow"><div class="t">{item.desc || "รายจ่าย"}</div><div class="s">วันที่ {when}{item.card ? ` · บัตร ${item.card}` : ""}</div></div>
+                <b class="num pay">{amount} บาท</b>
+            </div>
+            {state !== "done" ? (
+                <div class="choose-btns">
+                    <button type="button" class="btn" disabled={state === "busy"} onClick={personal}><Icon name="wallet" size={18} />{state === "busy" ? "กำลังบันทึก" : "ส่วนตัว"}</button>
+                    <button type="button" class="btn ghost" disabled={state === "busy"} onClick={() => onSplit(item)}><Icon name="people" size={18} />หารกับเพื่อน</button>
+                </div>
+            ) : (
+                <div class="choose-btns">
+                    <button type="button" class="btn ghost" onClick={() => onEdit({ ...item, unconfirmed: false })}><Icon name="pencil" size={18} />แก้ไขรายละเอียด</button>
+                    <button type="button" class="btn" onClick={onClose}>เสร็จ</button>
+                </div>
+            )}
+            {err && <p class="msg" role="alert">{err}</p>}
         </Sheet>
     );
 }

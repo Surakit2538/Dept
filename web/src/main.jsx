@@ -23,9 +23,9 @@ function readTarget() {
     const h = location.hash || (st.includes("#") ? st.slice(st.indexOf("#")) : "");
     return h.slice(1);
 }
-/** ลิงก์ไปที่รายการเดียว จากปุ่มในแจ้งเตือนบน iPhone: "edit=รหัส" หรือ "split=รหัส" */
+/** ลิงก์ไปที่รายการเดียว จากแจ้งเตือนบน iPhone: "edit=รหัส" แก้ไข, "split=รหัส" หาร, "choose=รหัส" ถามส่วนตัวหรือหาร */
 function parseDeep(t) {
-    const m = /^(edit|split)=([A-Za-z0-9_-]{1,100})$/.exec(String(t || ""));
+    const m = /^(edit|split|choose)=([A-Za-z0-9_-]{1,100})$/.exec(String(t || ""));
     return m ? { kind: m[1], id: m[2] } : null;
 }
 const nowMonth0 = bangkokToday().slice(0, 7);
@@ -39,6 +39,7 @@ function App() {
     const [tab, setTab] = useState(() => { const t = readTarget(); return !t || t === "add" ? "home" : parseDeep(t) ? "wallet" : t; });
     const [deep, setDeep] = useState(() => parseDeep(readTarget())); // รายการที่ต้องเปิดจากลิงก์ในแจ้งเตือน
     const [openEdit, setOpenEdit] = useState(null);
+    const [choose, setChoose] = useState(null); // รายการที่ถาม "บันทึกแบบไหน" (จากแจ้งเตือน)
     const today = useMemo(() => bangkokToday(), []);
     const nowMonth = today.slice(0, 7);
     const since = useMemo(() => shiftMonth(nowMonth, -(MONTHS_BACK - 1)), [nowMonth]);
@@ -173,6 +174,7 @@ function App() {
             if (!on) return;
             if (!it) { setToast("ไม่พบรายการนี้ (อาจถูกลบหรือเปลี่ยนเป็นบิลหารแล้ว)"); return; }
             if (deep.kind === "split" && it.type !== "income") startSplit(it);
+            else if (deep.kind === "choose" && it.type !== "income") setChoose(it);
             else { setTab("wallet"); setOpenEdit({ ...it }); }
         }).catch((e) => { if (on && !e.expired) setToast(e.message); }).finally(() => {
             if (!on) return;
@@ -213,6 +215,10 @@ function App() {
             </Shell>
             {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => { setSheet(null); setPrefill(null); }}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
+            {choose && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={choose} onClose={() => setChoose(null)}
+                onConfirmed={() => changed(String(choose.date).slice(0, 7))}
+                onSplit={(it) => { setChoose(null); startSplit(it); }}
+                onEdit={(it) => { setChoose(null); setTab("wallet"); setOpenEdit(it); }} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
     );
