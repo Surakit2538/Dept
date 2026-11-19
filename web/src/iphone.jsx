@@ -344,7 +344,7 @@ export function IphoneSheet({ onClose }) {
                                     <h3>ขั้นที่ 4: ตั้งระบบอัตโนมัติ (ไม่ต้องกดเอง)</h3>
                                 </div>
                             </div>
-                            <p class="ip-desc">ทุกแบบเรียกคำสั่งลัด <b>Dept บันทึก</b> ตัวเดียว แล้ว iPhone จะเด้งถาม <b>ส่วนตัว</b> หรือ <b>หารกับเพื่อน</b></p>
+                            <p class="ip-desc">ทุกแบบเรียกคำสั่งลัด <b>Dept บันทึก</b> ตัวเดียว แล้ว iPhone จะเด้งแจ้งเตือน แตะเพื่อแก้ชื่อ แล้วเลือก <b>ส่วนตัว</b> หรือ <b>หารกับเพื่อน</b></p>
                             <div class="ip-substeps">
                                 <div class="ip-substep-item"><span><b>ปิดแอปธนาคาร</b> อ่านสลิปหรือภาพหน้าจอล่าสุด</span></div>
                                 <div class="ip-substep-item"><span><b>ข้อความ SMS ที่มีคำว่า THB</b> รายจ่ายบัตร KTC, CardX, ttb</span></div>

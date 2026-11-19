@@ -7,15 +7,15 @@
  *
  * คำสั่งลัด "Dept บันทึก" เรียกสคริปต์นี้พร้อมข้อความ 1 ชุด (ข้อความจากรูปสลิปล่าสุด, SMS บัตร หรืออีเมลธนาคาร)
  * 1) ส่งข้อความให้เซิร์ฟเวอร์ บันทึกเป็นรายการส่วนตัว "ยังไม่ยืนยัน" ไว้ก่อน (ไม่มีอะไรหาย)
- * 2) เด้งแจ้งเตือน "บันทึกแบบไหน" กดค้างมีปุ่ม ส่วนตัว / หารกับเพื่อน แตะเฉยๆ เปิดหน้าถามเดียวกันในเว็บ (#choose)
- *    - ส่วนตัว: เปิดสคริปต์นี้อีกครั้งเพื่อยืนยัน แล้วเด้งแจ้งเตือนที่สองพร้อมปุ่ม "แก้ไขรายละเอียด"
- *    - หารกับเพื่อน: เปิดเว็บที่ฟอร์มหารของรายการนั้น
+ * 2) เด้งแจ้งเตือน แตะ (หรือกดค้าง > "แก้ไข") = เปิดสคริปต์นี้ในแอป Scriptable เป็นกล่องแก้ไข (?edit=รหัส)
+ *    แก้ชื่อ, เปลี่ยนหมวด แล้วเลือก บันทึกส่วนตัว (ยืนยันเลย) / หารกับเพื่อน (เปิดเว็บเลือกเพื่อน) / ลบ
+ *    ชื่อที่แก้ เซิร์ฟเวอร์จำไว้ ครั้งหน้าร้านเดิมจะได้ชื่อและหมวดนั้นเอง
  *    สลิปโอนให้เพื่อนในกลุ่ม (น่าจะคืนเงิน): ยังไม่บันทึก มีปุ่ม "เคลียร์หนี้กับ ..." และ "บันทึกเป็นรายจ่าย" (ภายใน 30 นาที)
  * ซ่อนรหัส OTP ในเครื่องก่อนส่ง และจำข้อความที่ตรวจแล้ว 24 ชั่วโมง (ปิดแอปธนาคารซ้ำจะไม่ส่งซ้ำ)
  * เซิร์ฟเวอร์บอกเวอร์ชันล่าสุดมาด้วย ถ้าเครื่องนี้เก่ากว่าจะเตือนให้รันตัวติดตั้งอีกครั้ง
  */
 
-const SCRIPT_VERSION = "2.1.0";
+const SCRIPT_VERSION = "2.2.0";
 const BASE_URL = "https://dept-game.vercel.app";
 const WEB_URL = "https://liff.line.me/2008948704-db2goT00"; // เปิดผ่าน LINE ล็อกอินเงียบ
 const SELF_URL = "scriptable:///run/" + encodeURIComponent(Script.name());
@@ -104,37 +104,152 @@ async function callApi(token, payload) {
     return await req.loadJSON();
 }
 
-/** กด "ส่วนตัว" ในแจ้งเตือน: ยืนยันรายการ แล้วเด้งแจ้งเตือนที่สองพร้อมปุ่มแก้ไขรายละเอียด */
-async function confirmPersonal(token, id) {
+// หมวด (ตรงกับ BILL_ICONS ในเว็บ web/src/model.js)
+const CATS = [
+    ["food", "อาหาร", "fa-utensils"], ["drink", "เครื่องดื่ม", "fa-mug-hot"], ["goods", "ของใช้", "fa-cart-shopping"],
+    ["travel", "เดินทาง", "fa-car"], ["bills", "บิล", "fa-bolt"], ["rent", "ที่พัก", "fa-house"],
+    ["fun", "บันเทิง", "fa-film"], ["health", "สุขภาพ", "fa-pills"], ["trip", "เที่ยว", "fa-plane"],
+    ["gift", "ของขวัญ", "fa-gift"], ["pet", "สัตว์เลี้ยง", "fa-paw"], ["other", "อื่นๆ", "fa-money-bill"]
+];
+// ไอคอนเดิมจากสลิป (ชุดเก่า) -> หมวด
+const OLD_ICONS = { "fa-gas-pump": "travel", "fa-motorcycle": "travel", "fa-shopping-basket": "goods", "fa-shopping-bag": "goods", "fa-file-invoice-dollar": "bills", "fa-wine-glass": "drink", "fa-bus": "travel", "fa-mobile-screen": "bills", "fa-mobile-screen-button": "bills", "fa-basket-shopping": "goods", "fa-scissors": "goods" };
+
+function catOfIcon(icon) {
+    const c = CATS.find((x) => x[2] === icon);
+    if (c) return c[0];
+    return OLD_ICONS[icon] || "";
+}
+function catLabel(key) {
+    const c = CATS.find((x) => x[0] === key);
+    return c ? c[1] : "ยังไม่ได้เลือก";
+}
+
+function editUrlOf(id) {
+    return SELF_URL + "?edit=" + encodeURIComponent(id);
+}
+
+/** กล่องข้อความแจ้งผลในแอป (มีปุ่มเดียว) */
+async function tell(title, message) {
+    const a = new Alert();
+    a.title = title;
+    a.message = message;
+    a.addAction("ตกลง");
+    await a.presentAlert();
+}
+
+/** เลือกหมวด คืนรหัสหมวด หรือ "" ถ้ากดยกเลิก */
+async function pickCategory(current) {
+    const a = new Alert();
+    a.title = "เลือกหมวด";
+    for (const [key, label] of CATS) a.addAction(key === current ? label + " (ตอนนี้)" : label);
+    a.addCancelAction("ยกเลิก");
+    const i = await a.presentSheet();
+    return i >= 0 && i < CATS.length ? CATS[i][0] : "";
+}
+
+/**
+ * กล่องแก้ไขในแอป Scriptable (เปิดจากแจ้งเตือน): แก้ชื่อ, เปลี่ยนหมวด แล้วเลือกวิธีบันทึก
+ * บันทึกส่วนตัว = ส่งชื่อ/หมวดขึ้นเว็บและยืนยันเลย, หารกับเพื่อน = ส่งชื่อ/หมวดแล้วเปิดเว็บเลือกเพื่อน, ลบ = ไม่ใช่รายการจริง
+ */
+async function editItem(token, id) {
+    let item;
     try {
-        const res = await callApi(token, { action: "wallet-confirm", id });
-        if (!res || !res.confirmed) {
-            await notify("Dept Money", (res && res.message && res.status === "error") ? res.message : "ไม่พบรายการนี้ (อาจถูกลบหรือเปลี่ยนเป็นบิลหารแล้ว)");
+        const r = await callApi(token, { action: "wallet-get", id });
+        if (!r || !r.item) {
+            await tell("ไม่พบรายการนี้", (r && r.message) || "อาจถูกลบหรือเปลี่ยนเป็นบิลหารแล้ว");
             return;
         }
-        const editUrl = WEB_URL + "#edit=" + encodeURIComponent(id);
-        await notify("บันทึกเป็นรายจ่ายส่วนตัวแล้ว", "แตะเพื่อแก้ไขรายละเอียด (ชื่อ หมวด)", { openURL: editUrl, actions: [["แก้ไขรายละเอียด", editUrl]] });
+        item = r.item;
     } catch (e) {
-        await notify("Dept Money", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + e.message);
+        await tell("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", e.message);
+        return;
+    }
+    const income = item.type === "income";
+    const when = String(item.date || "").slice(8, 10) + "/" + String(item.date || "").slice(5, 7);
+    let desc = String(item.desc || "");
+    let cat = catOfIcon(item.icon);
+    let catChanged = false;
+
+    for (;;) {
+        const a = new Alert();
+        a.title = (income ? "รายรับ " : "รายจ่าย ") + baht(item.amount);
+        a.message = ["วันที่ " + when, item.card ? "บัตร " + item.card : "", income ? "" : "หมวด: " + catLabel(cat)].filter(Boolean).join(" · ")
+            + (item.unconfirmed ? "" : "\n(ยืนยันแล้ว แก้ไขได้)");
+        a.addTextField("ชื่อรายการ", desc);
+        const acts = income ? ["save"] : ["save", "split", "cat"];
+        if (income) a.addAction("บันทึกรายรับ");
+        else {
+            a.addAction("บันทึกส่วนตัว");
+            a.addAction("หารกับเพื่อน");
+            a.addAction("เปลี่ยนหมวด");
+        }
+        a.addDestructiveAction(income ? "ไม่ใช่รายรับ (ลบ)" : "ไม่ใช่รายจ่าย (ลบ)");
+        acts.push("delete");
+        a.addCancelAction("ไว้ทีหลัง");
+        const i = await a.presentAlert();
+        desc = (a.textFieldValue(0) || "").trim() || desc;
+        const act = i >= 0 ? acts[i] : "later";
+        if (act === "later") return;
+
+        if (act === "cat") {
+            const k = await pickCategory(cat);
+            if (k) { cat = k; catChanged = true; }
+            continue;
+        }
+
+        if (act === "delete") {
+            const c = new Alert();
+            c.title = "ลบรายการนี้?";
+            c.message = desc + " " + baht(item.amount);
+            c.addDestructiveAction("ลบ");
+            c.addCancelAction("ไม่ลบ");
+            if ((await c.presentAlert()) !== 0) continue;
+            try {
+                const r = await callApi(token, { action: "wallet-delete", id });
+                await tell(r && r.status === "deleted" ? "ลบแล้ว" : "ลบไม่สำเร็จ", (r && r.message) || "");
+            } catch (e) {
+                await tell("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", e.message);
+            }
+            return;
+        }
+
+        // บันทึกส่วนตัว / รายรับ / หารกับเพื่อน: ส่งชื่อ (และหมวดถ้าเปลี่ยน) ก่อน
+        const payload = { action: "wallet-update", id, desc };
+        if (catChanged && cat) payload.icon = CATS.find((x) => x[0] === cat)[2];
+        if (act === "save") payload.confirm = true; // หาร: ยังไม่ยืนยัน รายการนี้จะถูกแทนด้วยบิลหาร
+        try {
+            const r = await callApi(token, payload);
+            if (!r || r.status !== "saved") {
+                await tell("บันทึกไม่สำเร็จ", (r && r.message) || "ลองใหม่อีกครั้ง");
+                continue;
+            }
+        } catch (e) {
+            await tell("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", e.message);
+            continue;
+        }
+        if (act === "split") {
+            Safari.open(WEB_URL + "#split=" + encodeURIComponent(id));
+            return;
+        }
+        await tell(income ? "บันทึกรายรับแล้ว" : "บันทึกเป็นรายจ่ายส่วนตัวแล้ว", desc + " " + baht(item.amount) + (income ? "" : "\nหมวด: " + catLabel(cat)));
+        return;
     }
 }
 
-/** แจ้งเตือนหลังบันทึกอัตโนมัติ: ถามว่าบันทึกแบบไหน */
+/** ปุ่ม "ส่วนตัว"/"ยืนยัน" จากแจ้งเตือนรุ่นเก่า (2.1.0) ที่ยังค้างอยู่: เปิดกล่องแก้ไขแทน */
+async function confirmPersonal(token, id) {
+    await editItem(token, id);
+}
+
+/** แจ้งเตือนหลังบันทึกอัตโนมัติ: แตะ/กด "แก้ไข" = เปิดกล่องแก้ไขในแอป Scriptable */
 async function askHowToSave(res) {
-    const id = encodeURIComponent(res.id);
-    const editUrl = WEB_URL + "#edit=" + id;
+    const url = editUrlOf(res.id);
     const desc = res.desc ? String(res.desc) : "";
     if (res.type === "income") {
-        await notify("พบเงินเข้า " + baht(res.amount), (desc ? desc + "\n" : "") + "บันทึกเป็นรายรับแล้ว ยืนยันหรือแก้ไขได้", {
-            openURL: editUrl,
-            actions: [["ยืนยัน", SELF_URL + "?confirm=" + id], ["แก้ไขรายละเอียด", editUrl]]
-        });
+        await notify("พบเงินเข้า " + baht(res.amount), (desc ? desc + "\n" : "") + "แตะเพื่อแก้ชื่อและยืนยัน", { openURL: url, actions: [["แก้ไข", url]] });
         return;
     }
-    await notify("พบรายจ่าย " + baht(res.amount), (desc ? desc + "\n" : "") + "บันทึกแบบไหน (แตะเพื่อเลือก)", {
-        openURL: WEB_URL + "#choose=" + id, // แตะเฉยๆ: เปิดหน้าถาม ส่วนตัว / หารกับเพื่อน ในเว็บ
-        actions: [["ส่วนตัว", SELF_URL + "?confirm=" + id], ["หารกับเพื่อน", WEB_URL + "#split=" + id]]
-    });
+    await notify("พบรายจ่าย " + baht(res.amount), (desc ? desc + "\n" : "") + "แตะเพื่อแก้ชื่อ แล้วเลือก ส่วนตัว หรือ หารกับเพื่อน", { openURL: url, actions: [["แก้ไข", url]] });
 }
 
 /** สลิปโอนให้เพื่อนในกลุ่ม: น่าจะคืนเงิน ยังไม่บันทึก ให้เลือกไปเคลียร์หนี้ หรือบันทึกเป็นรายจ่าย */
@@ -146,18 +261,14 @@ async function askPaidBack(res) {
     });
 }
 
-/** กด "บันทึกเป็นรายจ่าย" ของสลิปโอนให้เพื่อน: บันทึกสลิปที่ค้างไว้เป็นรายจ่ายส่วนตัว */
+/** กด "บันทึกเป็นรายจ่าย" ของสลิปโอนให้เพื่อน: บันทึกสลิปที่ค้างไว้เป็นรายจ่ายส่วนตัว แล้วเปิดกล่องแก้ไขต่อเลย */
 async function saveSlipPersonal(token) {
     try {
         const res = await callApi(token, { action: "save", splitType: "personal" });
-        if (res && res.status === "saved" && res.id) {
-            const editUrl = WEB_URL + "#edit=" + encodeURIComponent(res.id);
-            await notify("บันทึกเป็นรายจ่ายส่วนตัวแล้ว", (res.desc ? res.desc + " " : "") + baht(res.amount) + "\nแตะเพื่อแก้ไขรายละเอียด", { openURL: editUrl, actions: [["แก้ไขรายละเอียด", editUrl]] });
-        } else {
-            await notify("Dept Money", (res && res.message) || "บันทึกไม่สำเร็จ");
-        }
+        if (res && res.status === "saved" && res.id) await editItem(token, res.id);
+        else await tell("บันทึกไม่สำเร็จ", (res && res.message) || "ลองใหม่อีกครั้ง");
     } catch (e) {
-        await notify("Dept Money", "เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: " + e.message);
+        await tell("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้", e.message);
     }
 }
 
@@ -168,8 +279,12 @@ async function run() {
         return;
     }
 
-    // ถูกเปิดจากปุ่ม "ส่วนตัว"/"ยืนยัน" ในแจ้งเตือน
+    // ถูกเปิดจากแจ้งเตือน: แตะ / ปุ่ม "แก้ไข" (หรือ "ส่วนตัว"/"ยืนยัน" ของแจ้งเตือนรุ่นเก่า)
     const q = args.queryParameters || {};
+    if (q.edit) {
+        await editItem(token, String(q.edit));
+        return;
+    }
     if (q.confirm) {
         await confirmPersonal(token, String(q.confirm));
         return;

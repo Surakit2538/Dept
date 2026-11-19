@@ -21,7 +21,7 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 273 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 284 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
 พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1` · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
@@ -35,14 +35,15 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 - ล็อกอินเว็บ: หลังล็อกอิน LINE เว็บขอ "รหัสเว็บ" (`device_tokens` `kind:"web"` 30 วัน, localStorage `dm:v2:webtoken`) `api()` ส่ง Bearer ทันที · รหัส iPhone กับรหัสเว็บไม่ยกเลิกกัน · functions อยู่ `sin1` (Firestore อยู่เอเชีย) ห้ามเอาออก
 - ล้างข้อมูลเก่า (`lib/cleanup.mjs`) ลบถาวร เก็บ 12 เดือน เดือนที่ยังมีหนี้ค้างไม่ลบ (`CLEANUP_DRY_RUN=1` นับดูเฉยๆ)
 
-## 6. ระบบ iPhone ปัจจุบัน (DeptAuto 2.1.0)
+## 6. ระบบ iPhone ปัจจุบัน (DeptAuto 2.2.0)
 - Scriptable 3 ตัว: DeptInstaller, DeptWidget, DeptAuto · เครื่องเจ้าของ: คำสั่งลัด "สลิปอัตโนมัติ" (รูปล่าสุด→Live Text→DeptAuto) เรียกตอนปิดแอปธนาคาร และ "AutoSMS" (ข้อความมี THB→DeptAuto) · คู่มือ `shortcut-guide.html` สอนแบบคำสั่งลัดเดียว "Dept บันทึก" (ไว้แชร์เพื่อน)
 - เซิร์ฟเวอร์ action `auto`: แจ้งเตือนบัตร (`lib/card-alert.mjs`: KTC, CardX, ttb, SCB Connect) ก่อน ไม่ใช่ค่อยอ่านเป็นสลิป · บันทึกเป็นส่วนตัว `unconfirmed:true` กันซ้ำ จับคู่รายเดือน · สลิปจ่ายบิลบัตรข้าม · สลิปโอนให้เพื่อน (`paid_back`) ไม่บันทึก เก็บ pending 30 นาที
-- DeptAuto เด้งแจ้งเตือนเอง: แตะ = เว็บ `#choose=<id>` (`ChooseSheet` ใน `web/src/editbill.jsx`: แก้ชื่อ/หมวด, ส่วนตัว, หารกับเพื่อนเท่ากันในหน้าเดียว, "ตั้งค่าเพิ่มเติม" เปิดฟอร์มเต็ม) · กดค้าง = ปุ่ม ส่วนตัว (`scriptable:///run/DeptAuto?confirm=<id>`) / หาร (`#split=<id>`) · โอนให้เพื่อน = ปุ่ม เคลียร์หนี้ (`#clear`) / บันทึกเป็นรายจ่าย (`?save=personal`)
+- DeptAuto เด้งแจ้งเตือนเอง: แตะ/ปุ่ม "แก้ไข" = `scriptable:///run/DeptAuto?edit=<id>` เปิดกล่องแก้ไขในแอป Scriptable (แก้ชื่อ, เปลี่ยนหมวด, บันทึกส่วนตัว=ยืนยัน, หารกับเพื่อน=เปิดเว็บ `#split=<id>`, ลบ) · `?confirm=` ของแจ้งเตือนเก่าเปิดกล่องเดียวกัน · โอนให้เพื่อน = ปุ่ม เคลียร์หนี้ (`#clear`) / บันทึกเป็นรายจ่าย (`?save=personal` แล้วเปิดกล่อง) · เว็บยังมี `#choose`/`#edit` (`ChooseSheet`)
+- จำชื่อที่แก้: `lib/learned-names.mjs` คอลเลกชัน `wallet_names` (เอกสารเดียวต่อคน) รายการอัตโนมัติเก็บ `autoDesc` ชื่อเดิม, `wallet-update` ที่เปลี่ยนชื่อ/หมวดจะจำ, บันทึกอัตโนมัติครั้งหน้าใช้ชื่อ/หมวดนั้น (ยังไม่ยืนยันเหมือนเดิม)
 - action อื่นที่เพิ่ม: `wallet-confirm`, `wallet-get`, `wallet-delete-many`, `wallet-update` (`confirm:true`) · บอท LINE: "กาแฟ 65" บันทึกส่วนตัว, "ลบรายการล่าสุด" ภายใน 15 นาที
 
 ## 7. รอเจ้าของทดสอบ
-- iPhone: แจ้งเตือนสลิป/SMS จริง (2.1.0), ปุ่มที่เปิด Scriptable, ลิงก์ผ่านแอป LINE, ปุ่มสลิปโอนให้เพื่อน, บันทึกบิลหารจากหน้าบันทึกแบบไหน
+- iPhone: รัน DeptInstaller อัปเดตเป็น 2.2.0 แล้วลองกล่องแก้ไข (แตะแจ้งเตือน), หารกับเพื่อนเปิดเว็บได้ไหม, ร้านเดิมครั้งที่สองได้ชื่อที่แก้ไหม, ปุ่มสลิปโอนให้เพื่อน · เดิมปุ่ม "แก้ไข" ที่เปิดเว็บผ่าน LIFF จากแจ้งเตือนกดแล้วไม่เกิดอะไร (ยังไม่รู้สาเหตุ)
 - LINE: "กาแฟ 65" / "ลบรายการล่าสุด" · คอม: เปิดใหม่ไม่ต้องล็อกอิน LINE (30 วัน)
 - 25 พ.ย. เตือนหนี้ · 1 ธ.ค. บิลรายเดือน + ล้างข้อมูลเก่ารอบแรก
 

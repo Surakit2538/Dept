@@ -7,10 +7,24 @@ import vm from "node:vm";
 const code = fs.readFileSync(new URL("../scriptable/DeptAuto.js", import.meta.url), "utf8");
 const SAVED = { success: true, status: "saved", message: "บันทึกรายจ่าย", id: "w1", type: "expense", amount: 533.93, desc: "AIS SERVICE", scriptVersion: "2.1.0" };
 
-async function runAuto({ text = "", query = null, store = new Map(), respond = () => SAVED, token = "tok123" }) {
+async function runAuto({ text = "", query = null, store = new Map(), respond = () => SAVED, token = "tok123", answers = [] }) {
     const calls = [];
     const notes = [];
     const outputs = [];
+    const alerts = [];
+    const opened = [];
+    const queue = [...answers];
+    // กล่องข้อความของ Scriptable: ตอบตามลำดับใน answers ({ i: ปุ่มที่กด (-1 = ยกเลิก), text: พิมพ์ในช่อง })
+    class Alert {
+        constructor() { this.actions = []; this.fields = []; }
+        addTextField(ph, v) { this.fields.push(v); }
+        addAction(t) { this.actions.push(t); }
+        addDestructiveAction(t) { this.actions.push(t); }
+        addCancelAction(t) { this.cancel = t; }
+        async presentAlert() { alerts.push(this); this.answer = queue.shift() || { i: -1 }; return this.answer.i; }
+        async presentSheet() { return this.presentAlert(); }
+        textFieldValue(k) { return this.answer && this.answer.text !== undefined ? this.answer.text : this.fields[k]; }
+    }
     class Request {
         constructor(url) { this.url = url; }
         async loadJSON() {
@@ -34,14 +48,15 @@ async function runAuto({ text = "", query = null, store = new Map(), respond = (
     const sandbox = {
         args: { shortcutParameter: text, queryParameters: query || {} },
         Keychain: { contains: () => Boolean(token), get: () => token },
-        Request, Notification,
+        Request, Notification, Alert,
+        Safari: { open: (u) => opened.push(u) },
         FileManager: { local: () => fm },
         Script: { name: () => "DeptAuto", setShortcutOutput: (m) => outputs.push(m), complete() {} },
         console: { log() {} }
     };
     vm.createContext(sandbox);
     await vm.runInContext("(async () => {\n" + code + "\n})()", sandbox);
-    return { calls, notes, outputs, store };
+    return { calls, notes, outputs, store, alerts, opened };
 }
 
 const SMS = "บัตร KTC ยอด 533.93 THB OTP=016817 สำหรับ AMP*AIS SERVICE ห้ามเปิดเผยรหัส (Ref.KYBBYC)";
@@ -55,17 +70,16 @@ test("DeptAuto: ซ่อน OTP ในเครื่องก่อนส่�
     assert.doesNotMatch(calls[0].body.text, /016817/);
 });
 
-test("DeptAuto: บันทึกแล้วเด้งแจ้งเตือนถาม บันทึกแบบไหน มีปุ่ม ส่วนตัว / หารกับเพื่อน แตะตัวแจ้งเตือนเปิดหน้าแก้ไข", async () => {
+test("DeptAuto: บันทึกแล้วเด้งแจ้งเตือน แตะหรือกด แก้ไข เปิดกล่องแก้ไขใน Scriptable", async () => {
     const { notes, outputs } = await runAuto({ text: SMS });
     assert.equal(notes.length, 1);
     const n = notes[0];
-    assert.match(n.title, /พบรายจ่าย 533\.93 บาท/);
+    assert.match(n.title, /พบรายจ่าย 533.93 บาท/);
     assert.match(n.body, /AIS SERVICE/);
-    assert.match(n.body, /บันทึกแบบไหน/);
-    assert.deepEqual(n.actions.map((a) => a.title), ["ส่วนตัว", "หารกับเพื่อน"]);
-    assert.equal(n.actions[0].url, "scriptable:///run/DeptAuto?confirm=w1");
-    assert.equal(n.actions[1].url, "https://liff.line.me/2008948704-db2goT00#split=w1");
-    assert.equal(n.openURL, "https://liff.line.me/2008948704-db2goT00#choose=w1", "แตะเฉยๆ ต้องเปิดหน้าถามบันทึกแบบไหน");
+    assert.match(n.body, /แตะเพื่อแก้ชื่อ/);
+    assert.deepEqual(n.actions.map((x) => x.title), ["แก้ไข"]);
+    assert.equal(n.actions[0].url, "scriptable:///run/DeptAuto?edit=w1");
+    assert.equal(n.openURL, "scriptable:///run/DeptAuto?edit=w1");
     assert.deepEqual(outputs, [], "ไม่ส่งข้อความกลับให้คำสั่งลัด (กันแจ้งเตือนซ้ำกับคำสั่งลัดแบบเก่า)");
 });
 
@@ -79,30 +93,85 @@ test("DeptAuto: สลิปโอนให้เพื่อน มีปุ่
     assert.equal(notes[0].openURL, "https://liff.line.me/2008948704-db2goT00#clear");
 });
 
-test("DeptAuto: กด บันทึกเป็นรายจ่าย (save=personal) บันทึกสลิปที่ค้างไว้ แล้วมีปุ่มแก้ไขรายละเอียด", async () => {
-    const { calls, notes } = await runAuto({ query: { save: "personal" }, respond: () => ({ success: true, status: "saved", id: "w9", amount: 100, desc: "CARE" }) });
+// เซิร์ฟเวอร์จำลองสำหรับกล่องแก้ไข: wallet-get คืนรายการ w1, action อื่นสำเร็จ
+const ITEM = { id: "w1", type: "expense", date: "2026-11-18", desc: "KSHER*SHOP123", amount: 65, icon: "fa-receipt", card: "", unconfirmed: true };
+const editServer = (body) => {
+    if (body.action === "wallet-get") return { success: true, status: "listed", item: ITEM };
+    if (body.action === "wallet-update") return { success: true, status: "saved", message: "แก้ไขแล้ว" };
+    if (body.action === "wallet-delete") return { success: true, status: "deleted", message: "ลบรายการแล้ว" };
+    if (body.action === "save") return { success: true, status: "saved", id: "w1", amount: 65, desc: "KSHER*SHOP123" };
+    return { success: false, status: "error", message: "?" };
+};
+
+test("DeptAuto กล่องแก้ไข: แก้ชื่อแล้วกด บันทึกส่วนตัว = ส่งชื่อใหม่และยืนยัน (ไม่ส่งหมวดถ้าไม่ได้เปลี่ยน)", async () => {
+    const { calls, alerts, notes } = await runAuto({ query: { edit: "w1" }, respond: editServer, answers: [{ i: 0, text: "กาแฟอเมซอน" }, { i: 0 }] });
+    assert.deepEqual(calls.map((c) => c.body.action), ["wallet-get", "wallet-update"]);
+    assert.deepEqual(calls[1].body, { action: "wallet-update", id: "w1", desc: "กาแฟอเมซอน", confirm: true });
+    assert.match(alerts[0].title, /รายจ่าย 65\.00 บาท/);
+    assert.equal(alerts[0].fields[0], "KSHER*SHOP123", "ช่องชื่อเติมชื่อเดิมไว้ให้");
+    assert.deepEqual(alerts[0].actions, ["บันทึกส่วนตัว", "หารกับเพื่อน", "เปลี่ยนหมวด", "ไม่ใช่รายจ่าย (ลบ)"]);
+    assert.match(alerts[1].title, /ส่วนตัวแล้ว/);
+    assert.equal(notes.length, 0, "ทำในแอป ไม่ต้องเด้งแจ้งเตือนเพิ่ม");
+});
+
+test("DeptAuto กล่องแก้ไข: เปลี่ยนหมวดแล้วกลับมาหน้าเดิม ชื่อที่พิมพ์ไว้ไม่หาย แล้วส่งหมวดใหม่", async () => {
+    const { calls, alerts } = await runAuto({ query: { edit: "w1" }, respond: editServer, answers: [{ i: 2, text: "ดูหนัง" }, { i: 6 }, { i: 0 }, { i: 0 }] });
+    assert.equal(alerts[1].title, "เลือกหมวด");
+    assert.equal(alerts[2].fields[0], "ดูหนัง");
+    assert.match(alerts[2].message, /หมวด: บันเทิง/);
+    assert.deepEqual(calls[1].body, { action: "wallet-update", id: "w1", desc: "ดูหนัง", icon: "fa-film", confirm: true });
+});
+
+test("DeptAuto กล่องแก้ไข: หารกับเพื่อน = ส่งชื่อ (ยังไม่ยืนยัน) แล้วเปิดเว็บหน้าหารของรายการนั้น", async () => {
+    const { calls, opened } = await runAuto({ query: { edit: "w1" }, respond: editServer, answers: [{ i: 1, text: "ชาบู" }] });
+    assert.deepEqual(calls[1].body, { action: "wallet-update", id: "w1", desc: "ชาบู" });
+    assert.deepEqual(opened, ["https://liff.line.me/2008948704-db2goT00#split=w1"]);
+});
+
+test("DeptAuto กล่องแก้ไข: ลบ ต้องยืนยันก่อน, ไว้ทีหลัง ไม่แก้อะไร", async () => {
+    const del = await runAuto({ query: { edit: "w1" }, respond: editServer, answers: [{ i: 3 }, { i: 0 }, { i: 0 }] });
+    assert.deepEqual(del.calls.map((c) => c.body.action), ["wallet-get", "wallet-delete"]);
+    assert.match(del.alerts[2].title, /ลบแล้ว/);
+    const keep = await runAuto({ query: { edit: "w1" }, respond: editServer, answers: [{ i: 3 }, { i: -1 }, { i: -1 }] });
+    assert.deepEqual(keep.calls.map((c) => c.body.action), ["wallet-get"], "กด ไม่ลบ แล้วกลับหน้าเดิม กด ไว้ทีหลัง");
+    const later = await runAuto({ query: { edit: "w1" }, respond: editServer, answers: [{ i: -1 }] });
+    assert.deepEqual(later.calls.map((c) => c.body.action), ["wallet-get"]);
+});
+
+test("DeptAuto กล่องแก้ไข: รายรับมีแค่ บันทึกรายรับ / ลบ (ไม่มีหาร ไม่มีหมวด)", async () => {
+    const income = (body) => body.action === "wallet-get" ? { status: "listed", item: { ...ITEM, type: "income", desc: "รับจาก AOY" } } : editServer(body);
+    const { alerts, calls } = await runAuto({ query: { edit: "w1" }, respond: income, answers: [{ i: 0, text: "เงินเดือน" }, { i: 0 }] });
+    assert.deepEqual(alerts[0].actions, ["บันทึกรายรับ", "ไม่ใช่รายรับ (ลบ)"]);
+    assert.deepEqual(calls[1].body, { action: "wallet-update", id: "w1", desc: "เงินเดือน", confirm: true });
+});
+
+test("DeptAuto: ไม่พบรายการ แจ้งในกล่อง", async () => {
+    const { alerts } = await runAuto({ query: { edit: "w1" }, respond: () => ({ success: false, status: "error", message: "ไม่พบรายการนี้" }), answers: [{ i: 0 }] });
+    assert.match(alerts[0].title, /ไม่พบรายการนี้/);
+});
+
+test("DeptAuto: ปุ่ม ส่วนตัว/ยืนยัน ของแจ้งเตือนรุ่นเก่า (confirm=) เปิดกล่องแก้ไขแทน", async () => {
+    const { calls } = await runAuto({ query: { confirm: "w1" }, respond: editServer, answers: [{ i: 0 }, { i: 0 }] });
+    assert.deepEqual(calls.map((c) => c.body.action), ["wallet-get", "wallet-update"]);
+});
+
+test("DeptAuto: กด บันทึกเป็นรายจ่าย (save=personal) บันทึกสลิปที่ค้างไว้ แล้วเปิดกล่องแก้ไขต่อ", async () => {
+    const { calls } = await runAuto({ query: { save: "personal" }, respond: editServer, answers: [{ i: -1 }] });
     assert.deepEqual(calls[0].body, { action: "save", splitType: "personal" });
-    assert.match(notes[0].title, /ส่วนตัวแล้ว/);
-    assert.deepEqual(notes[0].actions.map((a) => a.title), ["แก้ไขรายละเอียด"]);
-    assert.equal(notes[0].actions[0].url, "https://liff.line.me/2008948704-db2goT00#edit=w9");
-    const expired = await runAuto({ query: { save: "personal" }, respond: () => ({ success: false, status: "expired", message: "สลิปหมดอายุแล้ว (เกิน 30 นาที)" }) });
-    assert.match(expired.notes[0].body, /หมดอายุ/);
+    assert.deepEqual(calls[1].body, { action: "wallet-get", id: "w1" });
+    const expired = await runAuto({ query: { save: "personal" }, respond: () => ({ success: false, status: "expired", message: "สลิปหมดอายุแล้ว (เกิน 30 นาที)" }), answers: [{ i: 0 }] });
+    assert.match(expired.alerts[0].message, /หมดอายุ/);
 });
 
-test("DeptAuto: กดปุ่ม ส่วนตัว (เปิดสคริปต์ด้วย confirm) ยืนยันรายการ แล้วเด้งแจ้งเตือนที่สองมีปุ่มแก้ไขรายละเอียด 1 ปุ่ม", async () => {
-    const { calls, notes } = await runAuto({ query: { confirm: "w1" }, respond: () => ({ success: true, status: "saved", confirmed: 1 }) });
-    assert.equal(calls.length, 1);
-    assert.deepEqual(calls[0].body, { action: "wallet-confirm", id: "w1" });
-    assert.equal(notes.length, 1);
-    assert.match(notes[0].title, /ส่วนตัวแล้ว/);
-    assert.deepEqual(notes[0].actions.map((a) => a.title), ["แก้ไขรายละเอียด"]);
-    assert.equal(notes[0].actions[0].url, "https://liff.line.me/2008948704-db2goT00#edit=w1");
-});
-
-test("DeptAuto: เงินเข้า มีปุ่ม ยืนยัน / แก้ไขรายละเอียด (ไม่มีปุ่มหาร)", async () => {
+test("DeptAuto: เงินเข้า แจ้งเตือนมีปุ่ม แก้ไข ปุ่มเดียว", async () => {
     const { notes } = await runAuto({ text: "สลิปเงินเข้า", respond: () => ({ ...SAVED, type: "income", amount: 500, desc: "รับจาก AOY" }) });
     assert.match(notes[0].title, /พบเงินเข้า/);
-    assert.deepEqual(notes[0].actions.map((a) => a.title), ["ยืนยัน", "แก้ไขรายละเอียด"]);
+    assert.deepEqual(notes[0].actions.map((a) => a.title), ["แก้ไข"]);
+});
+
+test("DeptAuto: เวอร์ชันสคริปต์ตรงกับที่เซิร์ฟเวอร์ประกาศ", async () => {
+    const { LATEST_AUTO_VERSION } = await import("../lib/shortcut-service.mjs");
+    assert.equal(/SCRIPT_VERSION = "([\d.]+)"/.exec(code)[1], LATEST_AUTO_VERSION);
 });
 
 test("DeptAuto: ข้อความเดิมที่ตรวจแล้วไม่ส่งซ้ำ และผลเงียบไม่แจ้งเตือน", async () => {
