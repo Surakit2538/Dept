@@ -398,7 +398,7 @@ export function Shell({ tab, onTab, userName, userPicture, tools, onAdd, childre
         <div class="app">
             <a class="skip" href="#main">ข้ามไปเนื้อหา</a>
             <aside class="side">
-                <div class="brand"><Mark size={28} />Dept Money</div>
+                <div class="brand"><Mark size={34} />Dept Money</div>
                 <nav aria-label="เมนูหลัก">
                     {TABS.map((t) => <button type="button" key={t.key} class={`snav ${tab === t.key ? "on" : ""}`} aria-current={tab === t.key ? "page" : undefined} onClick={() => onTab(t.key)}><Icon name={t.icon} />{t.label}</button>)}
                 </nav>
@@ -407,7 +407,7 @@ export function Shell({ tab, onTab, userName, userPicture, tools, onAdd, childre
             </aside>
             <main class="page" id="main">
                 <header class="top">
-                    <div class="brand mobile-only" aria-hidden="true"><Mark size={24} />Dept Money</div>
+                    <div class="brand mobile-only" aria-hidden="true"><Mark size={30} />Dept Money</div>
                     <h1 class="page-title">{title}</h1>
                     <div class="top-actions">
                         {tools}

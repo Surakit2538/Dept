@@ -70,7 +70,7 @@ function Preview() {
     else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} onChanged={() => {}} />;
     else if (tab === "wallet") body = <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} />;
     else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} />;
-    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} />;
+    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} today={today} />;
     return (
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}>{body}</Shell>

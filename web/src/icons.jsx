@@ -1,4 +1,5 @@
 // ชุดไอคอนเส้นบาง 1.8px ปลายมน (ชุดเดียวกับในหน้าเลือกแบบ) ไม่มี emoji
+import { brandOf } from "./brands.js";
 const P = {
     home: <><path d="M3.5 11 12 4l8.5 7" /><path d="M5.5 9.8V20h13V9.8" /><path d="M10 20v-5.5h4V20" /></>,
     bill: <><path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8z" /><path d="M9 8.5h6M9 12h6" /></>,
@@ -65,13 +66,49 @@ const FA = {
 };
 export const iconFor = (fa) => FA[fa] || "bill";
 
+// รูปทรงบนป้ายแบรนด์ (วาดเองแบบง่าย)
+const GLYPH = {
+    play: (c) => <path d="M9.5 7.5v9l7.5-4.5z" fill={c} />,
+    waves: (c) => <path d="M5 9c4.5-1.5 9.5-1 14 1.3M6 12.6c3.8-1.1 7.8-.7 11.3 1.1M7 16c3-.8 6-.5 8.6.8" fill="none" stroke={c} stroke-width="2.1" stroke-linecap="round" />,
+    note: (c) => <><path d="M9 17.5V7l9-2v10.5" fill="none" stroke={c} stroke-width="2" /><circle cx="7" cy="17.5" r="2.3" fill={c} /><circle cx="16" cy="15.5" r="2.3" fill={c} /></>,
+    cup: (c) => <path d="M6 9h10v4a5 5 0 0 1-5 5h0a5 5 0 0 1-5-5zM16 10h1.5a2 2 0 0 1 0 4H16M8.5 4.5c0 1 1 1 1 2M12 4.5c0 1 1 1 1 2" fill="none" stroke={c} stroke-width="1.8" stroke-linecap="round" />,
+    bag: (c) => <path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0" fill="none" stroke={c} stroke-width="1.8" stroke-linejoin="round" />
+};
+
+/**
+ * ไอคอนหน้ารายการ: ร้าน/บริการดัง (เดาจากชื่อ) แสดงป้ายสีแบรนด์ ไม่อย่างนั้นใช้ไอคอนหมวดเหมือนเดิม
+ * name = ไอคอนหมวดที่จะใช้ถ้าไม่ใช่แบรนด์ (เช่น "down" ของรายรับ)
+ */
+export function ItemIcon({ desc, name, size = 40, iconSize }) {
+    const b = brandOf(desc);
+    if (!b) return <span class="ico" style={size !== 40 ? { width: size, height: size } : undefined}><Icon name={name} size={iconSize} /></span>;
+    const style = { width: size, height: size, background: b.bg, color: b.fg, borderRadius: b.round ? "50%" : Math.round(size * 0.3) };
+    if (b.ring) style.boxShadow = "inset 0 0 0 1.5px #e3e8f5";
+    if (b.glyph === "stripes") style.background = "linear-gradient(180deg,#f58220 0 33%,#ffffff 33% 38%,#00a650 38% 66%,#ffffff 66% 71%,#ee1c25 71%)";
+    const g = b.glyph && GLYPH[b.glyph];
+    return (
+        <span class="ico brand" style={style} aria-hidden="true">
+            {g ? (
+                <svg viewBox="0 0 24 24" width={Math.round(size * 0.62)} height={Math.round(size * 0.62)}>
+                    {b.glyph === "play" ? <rect x="3" y="5.5" width="18" height="13" rx="3.5" fill="#ff0000" /> : null}
+                    {g(b.glyph === "play" ? "#ffffff" : b.fg)}
+                </svg>
+            ) : (
+                <b style={{ fontSize: Math.round(size * (b.small ? 0.28 : b.text && b.text.length > 1 ? 0.36 : 0.55)) }}>{b.text}</b>
+            )}
+        </span>
+    );
+}
+
 export function Mark({ size = 24 }) {
     return (
-        <svg viewBox="0 0 120 120" width={size} height={size} aria-hidden="true">
-            <g transform="translate(-8 0)">
-                <path d="M20 32 A28 28 0 0 1 20 88 Z" fill="#f3a10b" />
-                <path d="M56 88 V46 A14 14 0 0 1 84 46 V88 M84 46 A14 14 0 0 1 112 46 V88" fill="none" stroke="currentColor" stroke-width="9" />
-            </g>
+        // โลโก้ใบเสร็จผ่ากลาง (บิลที่หารกัน) ตรงกับ icons/dm-icon.svg
+        <svg viewBox="0 0 64 64" width={size} height={size} aria-hidden="true" style={{ flex: "none" }}>
+            <rect width="64" height="64" rx="18" fill="#2343c9" />
+            <path d="M19 13h26v38l-4.3-3-4.4 3-4.3-3-4.3 3-4.4-3-4.3 3z" fill="#ffffff" />
+            <path d="M32 16v31" stroke="#2343c9" stroke-width="3" stroke-dasharray="3.5 3.5" />
+            <rect x="22.5" y="22" width="7" height="4" rx="2" fill="#ffc23d" />
+            <rect x="34.5" y="22" width="7" height="4" rx="2" fill="#ffc23d" />
         </svg>
     );
 }

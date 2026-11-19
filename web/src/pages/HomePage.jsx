@@ -1,6 +1,6 @@
 // หน้าแรก: สรุปเดือน (เลขเดียวก่อน) หมวด กราฟรายเดือนแตะดูรายวัน หนี้ และรายการล่าสุด
 import { useState, useEffect, useMemo } from "preact/hooks";
-import { Icon, iconFor } from "../icons.jsx";
+import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
 import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS_FULL, buildHomeModel } from "../model.js";
 
@@ -20,7 +20,25 @@ function Ring({ percent }) {
     );
 }
 
-export function Hero({ m, onAddIncome }) {
+const TH_DAYS = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
+
+/** ป้ายวันที่แบบปฏิทิน: เดือนนี้แสดงวันนี้ เดือนอื่นแสดงจำนวนวันทั้งเดือน */
+export function DateTile({ month, today }) {
+    if (!month) return null;
+    const isNow = today && today.startsWith(month);
+    const day = isNow ? Number(today.slice(8, 10)) : daysInMonth(month);
+    const [y, mo] = month.split("-").map(Number);
+    const sub = isNow ? TH_DAYS[new Date(Date.UTC(y, mo - 1, day)).getUTCDay()] : "ทั้งเดือน";
+    return (
+        <span class="dtile" aria-hidden="true">
+            <span class="m">{monthShort(month)}</span>
+            <span class="d num">{day}</span>
+            <span class="w">{sub}</span>
+        </span>
+    );
+}
+
+export function Hero({ m, onAddIncome, today = "" }) {
     const hasIncome = m.incomeSat > 0;
     const over = hasIncome && m.netSat < 0;
     const label = !hasIncome ? "ใช้ไปเดือนนี้" : over ? "ใช้เกินรายรับ" : "เหลือใช้เดือนนี้";
@@ -29,8 +47,13 @@ export function Hero({ m, onAddIncome }) {
     return (
         <section class="card hero" aria-label="สรุปเดือน">
             <div class="hero-l">
-                <p class="lbl">{label}</p>
-                <p class={`big num ${tone}`}>{baht(Math.round(value))}</p>
+                <div class="hero-top">
+                    <DateTile month={m.month} today={today} />
+                    <div>
+                        <p class="lbl">{label}</p>
+                        <p class={`big num ${tone}`}>{baht(Math.round(value))}</p>
+                    </div>
+                </div>
                 <div class="chips">
                     <span class="chip"><Icon name="down" size={14} class="rcv" />รายรับ <b class="num">{baht(m.incomeSat / 100)}</b></span>
                     <span class="chip"><Icon name="up" size={14} class="pay" />ใช้ไป <b class="num">{baht(m.spentSat / 100)}</b></span>
@@ -225,7 +248,7 @@ export function DailyCalendarSheet({ month, calendarDays = [], spentSat = 0, ave
                         <ul class="daily-items-list plain">
                             {activeDayData.items.map((it, idx) => (
                                 <li key={idx} class="row">
-                                    <span class="ico"><Icon name={iconFor(it.icon)} size={16} /></span>
+                                    <ItemIcon desc={it.desc} name={iconFor(it.icon)} size={32} iconSize={16} />
                                     <div class="grow">
                                         <div class="t">{it.desc || "ไม่ระบุ"}</div>
                                         <div class="s">{it.kind === "group" ? "ส่วนของฉันในกลุ่ม" : "ส่วนตัว"}</div>
@@ -283,7 +306,7 @@ function Recent({ items }) {
             <ul class="plain">
                 {items.map((r) => (
                     <li class="row" key={r.kind + r.id}>
-                        <span class="ico"><Icon name={r.kind === "income" ? "down" : iconFor(r.icon)} /></span>
+                        <ItemIcon desc={r.kind === "income" ? "" : r.desc} name={r.kind === "income" ? "down" : iconFor(r.icon)} />
                         <div class="grow"><div class="t">{r.desc || "ไม่ระบุ"}</div><div class="s">{r.kind === "group" ? "ส่วนของฉันในกลุ่ม" : r.kind === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {r.date.slice(8, 10)}/{r.date.slice(5, 7)}</div></div>
                         <span class={`num ${r.kind === "income" ? "rcv" : ""}`}>{baht(r.satang / 100, { decimals: 2 })}</span>
                     </li>
@@ -326,7 +349,7 @@ export function HomePage({ model, series, month, onMonth, onAddIncome, all, memb
     return (
         <div class="home-grid">
             <div class="col">
-                <Hero m={model} onAddIncome={onAddIncome} />
+                <Hero m={model} onAddIncome={onAddIncome} today={today} />
                 <Categories cats={model.categories} />
                 {series ? (
                     <section class="card">

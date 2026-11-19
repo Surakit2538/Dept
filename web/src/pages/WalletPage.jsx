@@ -1,5 +1,5 @@
 // กระเป๋า: รายรับ รายจ่ายส่วนตัว ส่วนของฉันในกลุ่ม สุทธิ (เห็นเฉพาะเจ้าของ)
-import { Icon, iconFor } from "../icons.jsx";
+import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { SectionTitle, DeleteButton, Lazy, Collapsible } from "../ui.jsx";
 import { baht } from "../model.js";
 import { useState, useEffect } from "preact/hooks";
@@ -12,7 +12,7 @@ function Item({ it, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
     const name = it.desc || (it.type === "income" ? "รายรับ" : "รายจ่าย");
     const body = (
         <>
-            <span class="ico"><Icon name={it.type === "income" ? "down" : iconFor(it.icon)} /></span>
+            <ItemIcon desc={it.type === "income" ? "" : it.desc} name={it.type === "income" ? "down" : iconFor(it.icon)} />
             <div class="grow"><div class="t">{name}</div><div class="s">{it.type === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {it.date.slice(8, 10)}/{it.date.slice(5, 7)}{it.unconfirmed ? <span class="tag warn">ยังไม่ยืนยัน</span> : null}</div></div>
             <span class={`num ${it.type === "income" ? "rcv" : ""}`}>{baht(it.amount, { decimals: 2 })}</span>
         </>
@@ -75,7 +75,7 @@ function RecurringWallet({ version, onError }) {
             <ul class="plain">
                 {list.map((t) => (
                     <li class="row" key={t.id}>
-                        <span class="ico"><Icon name={iconFor(t.icon)} /></span>
+                        <ItemIcon desc={t.desc} name={iconFor(t.icon)} />
                         <div class="grow"><div class="t">{t.desc || "รายจ่าย"}</div><div class="s">สร้างให้ทุกวันที่ {t.billingDay} ของเดือน</div></div>
                         <span class="num">{baht(Number(t.amount) || 0, { decimals: 2 })}</span>
                         <button type="button" class="icon-btn" aria-label={`แก้ไข ${t.desc || "รายจ่ายรายเดือน"}`} onClick={() => setEditing(t)}><Icon name="pencil" size={17} /></button>

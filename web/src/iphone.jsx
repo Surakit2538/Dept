@@ -111,24 +111,24 @@ function IphoneInfographicSvg() {
         <svg viewBox="0 0 480 150" class="ip-diagram-svg" aria-label="แผนผังระบบ Dept Money บน iPhone">
             {/* โหนด 1: เว็บไซต์ Dept Money */}
             <rect x="8" y="10" width="130" height="130" rx="10" fill="var(--chip)" stroke="var(--line)" stroke-width="1" />
-            <circle cx="28" cy="30" r="10" fill="var(--accent)" />
+            <circle cx="28" cy="30" r="10" fill="var(--accent-text)" />
             <text x="28" y="34" fill="var(--accent-ink)" font-size="11" font-weight="600" text-anchor="middle">1</text>
             <text x="44" y="34" fill="var(--ink)" font-size="13" font-weight="600">เว็บ Dept</text>
             
             <rect x="18" y="52" width="110" height="28" rx="6" fill="var(--surface)" stroke="var(--line)" stroke-width="1" />
-            <text x="73" y="70" fill="var(--accent)" font-size="11" font-weight="600" text-anchor="middle" font-family="var(--mono)">Device Token</text>
+            <text x="73" y="70" fill="var(--accent-text)" font-size="11" font-weight="600" text-anchor="middle" font-family="var(--mono)">Device Token</text>
             
             <text x="73" y="102" fill="var(--mute)" font-size="11" text-anchor="middle">ออกรหัสเฉพาะเครื่อง</text>
             <text x="73" y="118" fill="var(--mute)" font-size="11" text-anchor="middle">ผูกบัญชีอัตโนมัติ</text>
 
             {/* เชื่อม 1 -> 2 */}
             <path d="M 138 75 L 170 75" stroke="var(--accent)" stroke-width="1.8" stroke-dasharray="3 3" />
-            <polygon points="168,71 176,75 168,79" fill="var(--accent)" />
-            <text x="154" y="68" fill="var(--accent)" font-size="11" font-weight="500" text-anchor="middle">คัดลอก</text>
+            <polygon points="168,71 176,75 168,79" fill="var(--accent-text)" />
+            <text x="154" y="68" fill="var(--accent-text)" font-size="11" font-weight="500" text-anchor="middle">คัดลอก</text>
 
             {/* โหนด 2: Scriptable */}
             <rect x="176" y="10" width="134" height="130" rx="10" fill="var(--chip)" stroke="var(--line)" stroke-width="1" />
-            <circle cx="196" cy="30" r="10" fill="var(--accent)" />
+            <circle cx="196" cy="30" r="10" fill="var(--accent-text)" />
             <text x="196" y="34" fill="var(--accent-ink)" font-size="11" font-weight="600" text-anchor="middle">2</text>
             <text x="212" y="34" fill="var(--ink)" font-size="13" font-weight="600">Scriptable</text>
 
@@ -140,10 +140,10 @@ function IphoneInfographicSvg() {
 
             {/* เชื่อม 2 -> 3 */}
             <path d="M 310 65 L 326 65 L 326 42 L 340 42" stroke="var(--accent)" stroke-width="1.8" fill="none" stroke-dasharray="3 3" />
-            <polygon points="338,38 346,42 338,46" fill="var(--accent)" />
+            <polygon points="338,38 346,42 338,46" fill="var(--accent-text)" />
             
             <path d="M 310 85 L 326 85 L 326 108 L 340 108" stroke="var(--accent)" stroke-width="1.8" fill="none" stroke-dasharray="3 3" />
-            <polygon points="338,104 346,108 338,112" fill="var(--accent)" />
+            <polygon points="338,104 346,108 338,112" fill="var(--accent-text)" />
 
             {/* โหนด 3A: DeptWidget */}
             <rect x="346" y="10" width="126" height="60" rx="8" fill="var(--chip)" stroke="var(--line)" stroke-width="1" />

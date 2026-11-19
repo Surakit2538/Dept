@@ -227,3 +227,14 @@ test("กระเป๋า: ส่งป้ายยังไม่ยืนย
     assert.equal(m.items.find((x) => x.id === "a").card, "ttb-0518");
     assert.equal(m.items.find((x) => x.id === "b").unconfirmed, false);
 });
+
+test("โลโก้ร้าน: เดาแบรนด์จากชื่อรายการ ไม่รู้จัก = null", async () => {
+    const { brandOf } = await import("../web/src/brands.js");
+    assert.equal(brandOf("Netflix รายเดือน").key, "netflix");
+    assert.equal(brandOf("LPTH*PF_LM_Dragon").key, "lineman");
+    assert.equal(brandOf("Café Amazon สาขาสยาม").key, "amazon");
+    assert.equal(brandOf("เซเว่น หน้าคอนโด").key, "seven");
+    assert.equal(brandOf("Google YouTubePremiu").key, "youtube", "YouTube มาก่อน Google");
+    assert.equal(brandOf("ข้าวมันไก่ป้าแดง"), null);
+    assert.equal(brandOf(""), null);
+});
