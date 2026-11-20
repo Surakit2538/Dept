@@ -71,34 +71,17 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                     </div>
 
                     <div class="info-cards">
-                        <button type="button" class="info-card" onClick={() => { setMsg(null); setEditOpen(true); }}>
-                            <span class="ico"><Icon name="user" /></span>
-                            <div class="info-card-body">
-                                <span class="info-card-label">ชื่อจริงภาษาไทย</span>
-                                <span class={`info-card-val ${mine.realName ? "" : "placeholder"}`}>
-                                    {mine.realName || "ยังไม่ได้กรอกชื่อจริง"}
-                                </span>
-                                <span class="info-card-desc">ใช้เทียบกับชื่อบนสลิปโอนเงิน</span>
-                            </div>
-                            <span class="info-card-act"><Icon name="pencil" size={16} /></span>
+                        <button type="button" class="info-card" title="ใช้เทียบกับชื่อบนสลิปโอนเงิน" onClick={() => { setMsg(null); setEditOpen(true); }}>
+                            <span class="info-card-label">ชื่อจริงภาษาไทย</span>
+                            <span class={`info-card-val ${mine.realName ? "" : "placeholder"}`}>{mine.realName || "ยังไม่ได้กรอก"}</span>
+                            <span class="info-card-act"><Icon name="pencil" size={14} /></span>
                         </button>
-
-                        <button type="button" class="info-card" onClick={() => { setMsg(null); setEditOpen(true); }}>
-                            <span class="ico"><Icon name="qr" /></span>
-                            <div class="info-card-body">
-                                <span class="info-card-label">พร้อมเพย์</span>
-                                <span class={`info-card-val num ${validPromptpay(mine.promptpay) ? "" : "placeholder"}`}>
-                                    {validPromptpay(mine.promptpay) ? maskPromptpay(mine.promptpay) : "ยังไม่ได้ตั้งพร้อมเพย์"}
-                                </span>
-                                <span class="info-card-desc">ใช้สร้าง QR ให้เพื่อนโอนเงินคืน</span>
-                            </div>
-                            <span class="info-card-act"><Icon name="pencil" size={16} /></span>
+                        <button type="button" class="info-card" title="ใช้สร้าง QR ให้เพื่อนโอนเงินคืน" onClick={() => { setMsg(null); setEditOpen(true); }}>
+                            <span class="info-card-label">พร้อมเพย์</span>
+                            <span class={`info-card-val num ${validPromptpay(mine.promptpay) ? "" : "placeholder"}`}>{validPromptpay(mine.promptpay) ? maskPromptpay(mine.promptpay) : "ยังไม่ได้ตั้ง"}</span>
+                            <span class="info-card-act"><Icon name="pencil" size={14} /></span>
                         </button>
                     </div>
-
-                    <button type="button" class="btn ghost block edit-profile-btn" onClick={() => { setMsg(null); setEditOpen(true); }}>
-                        <Icon name="pencil" size={16} />แก้ไขข้อมูล
-                    </button>
                 </section>
             </div>
             <div class="col">

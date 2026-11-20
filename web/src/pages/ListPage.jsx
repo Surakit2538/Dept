@@ -2,7 +2,7 @@
 // มีค้นหา ตัวกรอง (ทั้งหมด/บิลกลุ่ม/ส่วนตัว/รายรับ) เฉพาะของฉัน เลือกหลายรายการ แก้ไข/ลบ ยืนยันรายการอัตโนมัติ จัดหมวดให้ และรายการที่ทำซ้ำทุกเดือน
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
-import { SectionTitle, DeleteButton, Lazy, Collapsible } from "../ui.jsx";
+import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile } from "../ui.jsx";
 import { baht, monthShort, guessBillIcon } from "../model.js";
 import {
     deleteBill, deleteBills, updateBillIcons, loadTemplates, stopTemplate,
@@ -192,7 +192,7 @@ function groupByDay(list) {
     return out;
 }
 
-export function ListPage({ bills, wallet, search, onSearch, me, isAdmin, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null }) {
+export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null }) {
     const [filter, setFilter] = useState("all");
     const [mineOnly, setMineOnly] = useState(false);
     const [editingBill, setEditingBill] = useState(null);
@@ -240,11 +240,14 @@ export function ListPage({ bills, wallet, search, onSearch, me, isAdmin, onChang
 
     return (
         <div class="col narrow lp">
-            <section class="card hero" aria-label="สรุปบิลของเดือน">
-                <div class="strip hero-strip">
-                    <div><p class="lbl">บิลกลุ่มทั้งหมด</p><p class="num mid">{baht(bills.totalSat / 100)}</p></div>
-                    <div class="vl" />
-                    <div><p class="lbl">ส่วนของฉันในบิลกลุ่ม</p><p class="num mid">{baht(bills.myShareSat / 100)}</p></div>
+            <section class="card hero lp-hero" aria-label="สรุปบิลของเดือน">
+                <div class="hero-top">
+                    <DateTile month={month} today={today} />
+                    <div><p class="lbl">บิลกลุ่มทั้งหมด</p><p class="big num">{baht(bills.totalSat / 100)}</p></div>
+                </div>
+                <div class="chips">
+                    <span class="chip">ส่วนของฉันในบิลกลุ่ม <b class="num">{baht(bills.myShareSat / 100)}</b></span>
+                    <span class="chip"><b class="num">{bills.all.length}</b> บิล</span>
                 </div>
             </section>
             <section class="card">

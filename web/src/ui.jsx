@@ -1,7 +1,7 @@
 // ส่วนประกอบหน้าตาที่ใช้ร่วมกันทุกหน้า
 import { useEffect, useRef, useState, useMemo } from "preact/hooks";
 import { Icon, Mark } from "./icons.jsx";
-import { shiftMonth, monthLabel, monthFullLabel, daysInMonth, TH_MONTHS } from "./model.js";
+import { shiftMonth, monthLabel, monthFullLabel, monthShort, daysInMonth, TH_MONTHS } from "./model.js";
 
 export const TABS = [
     { key: "home", label: "หน้าแรก", icon: "home" },
@@ -9,6 +9,24 @@ export const TABS = [
     { key: "clear", label: "เคลียร์เงิน", icon: "swap" },
     { key: "me", label: "ฉัน", icon: "user" }
 ];
+
+const TH_DAYS = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
+
+/** ป้ายวันที่แบบปฏิทินบนการ์ดสรุปของทุกหน้า: เดือนนี้แสดงวันนี้ + วันในสัปดาห์ เดือนอื่นแสดงจำนวนวันของเดือนนั้น + "ทั้งเดือน" */
+export function DateTile({ month, today }) {
+    if (!month) return null;
+    const isNow = today && today.startsWith(month);
+    const day = isNow ? Number(today.slice(8, 10)) : daysInMonth(month);
+    const [y, mo] = month.split("-").map(Number);
+    const sub = isNow ? TH_DAYS[new Date(Date.UTC(y, mo - 1, day)).getUTCDay()] : "ทั้งเดือน";
+    return (
+        <span class="dtile" aria-hidden="true">
+            <span class="m">{monthShort(month)}</span>
+            <span class="d num">{day}</span>
+            <span class="w">{sub}</span>
+        </span>
+    );
+}
 
 const PAGE_ORDER = ["home", "list", "clear", "me"];
 

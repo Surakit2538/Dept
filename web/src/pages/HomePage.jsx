@@ -1,7 +1,7 @@
 // หน้าแรก: สรุปเดือน, เพื่อนค้างฉัน/ฉันค้างเพื่อน (รูปเพื่อนซ้อนกัน), ใช้ไปกับอะไร และปฏิทินใช้จ่าย (ดูเป็นวัน เดือน ปี)
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
-import { AvatarStack, SectionTitle } from "../ui.jsx";
+import { AvatarStack, DateTile, SectionTitle } from "../ui.jsx";
 import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS } from "../model.js";
 
 const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", fun: "film", other: "dots" };
@@ -19,22 +19,6 @@ function Ring({ percent }) {
             </svg>
             <div class="ring-t"><b class="num">{percent}%</b><span>ใช้ไปแล้ว</span></div>
         </div>
-    );
-}
-
-/** ป้ายวันที่แบบปฏิทิน: เดือนนี้แสดงวันนี้ เดือนอื่นแสดงจำนวนวันทั้งเดือน */
-export function DateTile({ month, today }) {
-    if (!month) return null;
-    const isNow = today && today.startsWith(month);
-    const day = isNow ? Number(today.slice(8, 10)) : daysInMonth(month);
-    const [y, mo] = month.split("-").map(Number);
-    const sub = isNow ? TH_DAYS[new Date(Date.UTC(y, mo - 1, day)).getUTCDay()] : "ทั้งเดือน";
-    return (
-        <span class="dtile" aria-hidden="true">
-            <span class="m">{monthShort(month)}</span>
-            <span class="d num">{day}</span>
-            <span class="w">{sub}</span>
-        </span>
     );
 }
 

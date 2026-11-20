@@ -282,8 +282,9 @@ button.more { background: transparent; border: 0; cursor: pointer; padding: 0; f
 .person.on .pav { background: var(--accent); color: var(--accent-ink); }
 .pn { font-size: var(--fs-xs); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mute); }
 .person.on .pn { color: var(--ink); font-weight: 600; }
-.cats-pick { display: flex; gap: var(--s3); overflow-x: auto; padding: var(--s1) 2px var(--s2); scroll-snap-type: x proximity; scrollbar-width: thin; margin-inline: -2px; }
-.cats-pick button { flex: none; width: 60px; scroll-snap-align: start; border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--mute); }
+.cats-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3) var(--s2); padding: var(--s1) 0 var(--s2); }
+@media (min-width: 480px) { .cats-pick { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.cats-pick button { min-width: 0; border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--mute); }
 .cats-pick .ct { width: 48px; height: 48px; border-radius: 50%; background: var(--chip); display: grid; place-items: center; border: 2px solid transparent; }
 .cats-pick button.on { color: var(--ink); font-weight: 600; }
 .cats-pick button.on .ct { background: var(--accent); color: var(--accent-ink); }
@@ -361,15 +362,15 @@ button.more { background: transparent; border: 0; cursor: pointer; padding: 0; f
 .tag-role { display: inline-block; margin-top: var(--s1); padding: 0 var(--s3); border-radius: 999px; background: var(--chip); font-size: var(--fs-sm); color: var(--mute); }
 .logout { color: var(--pay); }
 
-.info-cards { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s2); }
-.info-card { display: flex; align-items: flex-start; gap: var(--s3); padding: var(--s3) var(--s4); background: var(--chip); border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer; text-align: left; width: 100%; transition: border-color .15s, background-color .15s; }
+.info-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s2); margin-top: var(--s2); }
+.info-card { position: relative; display: grid; align-content: start; gap: 2px; padding: var(--s2) var(--s3); background: var(--chip); border: 1px solid var(--line); border-radius: var(--r-md); cursor: pointer; text-align: left; width: 100%; transition: border-color .15s, background-color .15s; }
 .info-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 5%, var(--chip)); }
 .info-card-body { flex: 1; min-width: 0; }
 .info-card-label { display: block; font-size: var(--fs-xs); font-weight: 600; color: var(--mute); letter-spacing: .02em; margin-bottom: 2px; }
 .info-card-val { display: block; font-size: var(--fs-md); font-weight: 600; color: var(--ink); line-height: 1.4; word-break: break-word; }
 .info-card-val.placeholder { color: var(--mute); font-weight: 400; }
 .info-card-desc { display: block; font-size: var(--fs-xs); color: var(--mute); margin-top: 2px; line-height: 1.4; }
-.info-card-act { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: var(--mute); flex: none; margin-top: 2px; }
+.info-card-act { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; color: var(--mute); }
 .info-card:hover .info-card-act { color: var(--accent-text); }
 .edit-profile-btn { margin-top: var(--s4); }
 
@@ -378,7 +379,6 @@ button.more { background: transparent; border: 0; cursor: pointer; padding: 0; f
 .sheet .field, .sheet form { min-width: 0; max-width: 100%; }
 .field input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 46px; margin-top: 0; text-align: left; }
 .field input[type="date"]::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
-.cats-pick { touch-action: pan-x; overscroll-behavior-x: contain; max-width: 100%; }
 
 /* ---------- ตั้งค่า iPhone & Infographic ---------- */
 .sheet.sheet-wide { max-width: 520px; }
@@ -721,7 +721,7 @@ html, body { touch-action: manipulation; }
 .hero-strip .lbl { color: rgba(255, 255, 255, .96); }
 .hero-strip .mid { color: var(--accent-ink); }
 .hero-strip .vl { background: rgba(255, 255, 255, .3); }
-.lp .hero { display: block; padding: var(--s3) var(--s4); }
+.lp-hero { display: grid; justify-content: stretch; gap: var(--s3); }
 .lp .field.search { margin-top: 0; }
 .lp .field.search input { border-radius: 999px; background: var(--chip); border-color: transparent; padding-inline: var(--s4); }
 .lp-tools { display: flex; gap: var(--s2); margin-top: var(--s3); }
