@@ -191,7 +191,7 @@ function App() {
     }, [deep, Boolean(all)]);
     const refreshAll = () => { clearCache(); setByMonth({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
 
-    if (auth.state === "loading") return <div class="center"><Loader /></div>;
+    if (auth.state === "loading") return <div class="center"><Loader label="กำลังเข้าสู่ระบบ" /></div>;
     if (auth.state === "error") return <div class="center"><Loader /><p role="alert">{auth.message}</p><button type="button" class="btn" onClick={() => location.reload()}>ลองใหม่</button></div>;
     if (auth.state === "link") return <Lazy load={loadOnboard} name="LinkPage" profile={auth.profile} candidates={auth.candidates} onDone={accept} fallback={<div class="center"><Loader /></div>} />;
     if (auth.state === "onboard") return <Lazy load={loadOnboard} name="OnboardPage" user={auth.user} onDone={accept} fallback={<div class="center"><Loader /></div>} />;

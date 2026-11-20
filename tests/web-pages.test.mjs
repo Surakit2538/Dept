@@ -58,7 +58,7 @@ test("หน้าเคลียร์เงิน/รายการ/ฉัน
     const b = model.buildBillsModel({ name: "GAME", month: "2026-11", transactions: tx });
     const html2 = toString(h(ListPage, { bills: b, wallet: w, search: "", onSearch() {}, me: "GAME", isAdmin: false, onChanged() {}, onError() {} }));
     assert.match(html2, /รายการของเดือนนี้/);
-    assert.match(html2, /ยอดเต็มทุกบิลเดือนนี้/);
+    assert.match(html2, /บิลกลุ่มทั้งหมด/);
     assert.match(html2, /รายรับ/, "รายรับของกระเป๋าอยู่ในรายการเดียวกับบิล");
     assert.match(html2, /ลบ /); // คนจ่ายลบได้
     assert.ok(!html2.includes("<img src=x"), "ชื่อต้องถูก escape");

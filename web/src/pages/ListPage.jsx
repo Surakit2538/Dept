@@ -242,9 +242,9 @@ export function ListPage({ bills, wallet, search, onSearch, me, isAdmin, onChang
         <div class="col narrow lp">
             <section class="card hero" aria-label="สรุปบิลของเดือน">
                 <div class="strip hero-strip">
-                    <div><p class="lbl">ยอดเต็มทุกบิลเดือนนี้</p><p class="num mid">{baht(bills.totalSat / 100)}</p></div>
+                    <div><p class="lbl">บิลกลุ่มทั้งหมด</p><p class="num mid">{baht(bills.totalSat / 100)}</p></div>
                     <div class="vl" />
-                    <div><p class="lbl">ส่วนของฉัน</p><p class="num mid">{baht(bills.myShareSat / 100)}</p></div>
+                    <div><p class="lbl">ส่วนของฉันในบิลกลุ่ม</p><p class="num mid">{baht(bills.myShareSat / 100)}</p></div>
                 </div>
             </section>
             <section class="card">
@@ -254,7 +254,7 @@ export function ListPage({ bills, wallet, search, onSearch, me, isAdmin, onChang
                     <input id="list-search" type="search" placeholder="ค้นหาชื่อรายการหรือคนจ่าย" value={search} onInput={(e) => onSearch(e.currentTarget.value)} />
                 </div>
                 <div class="lp-tools">
-                    <button type="button" class={`btn sm ${mineOnly ? "" : "ghost"}`} aria-pressed={mineOnly} disabled={noBillFilter} onClick={() => setMineOnly(!mineOnly)}><Icon name="user" size={14} />เฉพาะของฉัน</button>
+                    <button type="button" class={`btn sm ${mineOnly ? "" : "ghost"}`} aria-pressed={mineOnly} disabled={noBillFilter} title={noBillFilter ? "ใช้กับบิลกลุ่มเท่านั้น" : undefined} onClick={() => setMineOnly(!mineOnly)}><Icon name="user" size={14} />เฉพาะของฉัน</button>
                     <button type="button" class={`btn sm ${selecting ? "" : "ghost"}`} aria-pressed={selecting} disabled={selectable.length < 2 && !selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
                         <Icon name={selecting ? "check" : "sliders"} size={14} />{selecting ? "เสร็จสิ้น" : "เลือกหลายรายการ"}
                     </button>
@@ -262,8 +262,8 @@ export function ListPage({ bills, wallet, search, onSearch, me, isAdmin, onChang
                 <div class="fchips" role="group" aria-label="ตัวกรอง">
                     {FILTERS.map(([k, l]) => <button type="button" key={k} class={filter === k ? "on" : ""} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}
                 </div>
-                {!selecting && <UnconfirmedBar items={wallet.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
-                {!selecting && <AutoCategorize items={wallet.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
+                {!selecting && (filter === "all" || filter === "personal") && <UnconfirmedBar items={wallet.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
+                {!selecting && (filter === "all" || filter === "personal") && <AutoCategorize items={wallet.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
                 {items.length === 0 ? <p class="empty">{search ? `ไม่พบรายการที่ตรงกับ "${search}"` : filter === "all" ? "ยังไม่มีรายการในเดือนนี้ กดปุ่ม “บันทึก” เพื่อเพิ่ม" : "ไม่มีรายการในหมวดนี้"}</p>
                     : groupByDay(items).map(([d, list]) => (
                         <div class="day" key={d}>

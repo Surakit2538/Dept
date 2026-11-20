@@ -12,12 +12,12 @@ function Ring({ percent }) {
     const r = 42, c = 2 * Math.PI * r;
     const p = Math.max(0, Math.min(100, percent));
     return (
-        <div class="ring" role="img" aria-label={`ใช้ไป ${percent}% ของรายรับ`}>
+        <div class="ring" role="img" aria-label={`ใช้ไปแล้ว ${percent}% ของรายรับ`}>
             <svg viewBox="0 0 100 100" aria-hidden="true">
                 <circle cx="50" cy="50" r={r} fill="none" stroke="var(--chip)" stroke-width="10" />
                 <circle cx="50" cy="50" r={r} fill="none" stroke="var(--pay)" stroke-width="10" stroke-linecap="round" stroke-dasharray={`${(c * p) / 100} ${c}`} transform="rotate(-90 50 50)" />
             </svg>
-            <div class="ring-t"><b class="num">{percent}%</b><span>ของรายรับ</span></div>
+            <div class="ring-t"><b class="num">{percent}%</b><span>ใช้ไปแล้ว</span></div>
         </div>
     );
 }
@@ -125,8 +125,8 @@ function MonthGrid({ month, days, onPick }) {
     const firstDow = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
     const max = days.reduce((a, d) => Math.max(a, d.satang), 0);
     return (
-        <div class="sc-grid" role="grid" aria-label={`ปฏิทินรายจ่าย ${monthFullLabel(month)}`}>
-            {DOW.map((w) => <span key={w} class="sc-dow" role="columnheader">{w}</span>)}
+        <div class="sc-grid" role="group" aria-label={`ปฏิทินรายจ่าย ${monthFullLabel(month)}`}>
+            {DOW.map((w) => <span key={w} class="sc-dow" aria-hidden="true">{w}</span>)}
             {Array.from({ length: firstDow }, (_, i) => <span key={`e${i}`} />)}
             {days.map((d) => (
                 <button
