@@ -1,19 +1,8 @@
-// เลือกหลายรายการ: แถวที่ติ๊กได้ + แถบล่างสำหรับเปลี่ยนหมวด/ลบพร้อมกัน ใช้ร่วมกันในหน้ากระเป๋าและหน้าบิล
+// เลือกหลายรายการ: แถวที่ติ๊กได้ + แถบล่างสำหรับเปลี่ยนหมวด/ลบพร้อมกัน ใช้ในหน้ารายการ
 import { useState } from "preact/hooks";
 import { Icon } from "./icons.jsx";
 import { Sheet } from "./ui.jsx";
 import { CategoryPicker, faOf } from "./cats.jsx";
-
-/** ปุ่มสลับเข้า/ออกจากโหมดเลือก */
-export function SelectToggle({ on, onToggle }) {
-    return (
-        <div class="acts remind">
-            <button type="button" class={`btn sm ${on ? "" : "ghost"}`} aria-pressed={on} onClick={onToggle}>
-                <Icon name={on ? "check" : "sliders"} size={14} />{on ? "เสร็จสิ้น" : "เลือกหลายรายการ"}
-            </button>
-        </div>
-    );
-}
 
 /** แถวที่แตะเพื่อเลือกได้ (children = เนื้อหาเดิมของแถว ไม่มีปุ่มแก้ไข/ลบ) */
 export function SelectRow({ picked, label, onToggle, cls = "", children }) {

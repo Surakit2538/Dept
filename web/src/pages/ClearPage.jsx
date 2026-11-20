@@ -1,4 +1,3 @@
-// เคลียร์เงิน: ใครต้องโอนให้ใคร, QR พร้อมเพย์, อัปโหลดสลิป, ประวัติที่ยืนยันแล้ว
 import { useState, useMemo } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
@@ -6,25 +5,38 @@ import { baht, maskPromptpay, promptpayQrUrl, validPromptpay, monthLabel, lastMo
 import { verifySlip, manualSettle, deleteSettlement, moveSettlementMonth, bangkokToday, remindAllDebtors } from "../data.js";
 import { DeleteButton } from "../ui.jsx";
 
-function QrSheet({ line, profile, onClose }) {
+/** โอนให้เพื่อน: หัวสีหลักบอกคนรับกับยอด QR อยู่ในบัตรแบบตั๋ว แล้วปุ่มอัปโหลดสลิปต่อได้เลย */
+function QrSheet({ line, profile, onClose, onSlip }) {
     const url = promptpayQrUrl(profile && profile.promptpay, line.amount);
     const [failed, setFailed] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const pp = profile && validPromptpay(profile.promptpay);
+    async function copy() {
+        try { await navigator.clipboard.writeText(pp); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch (e) { /* คัดลอกไม่ได้ ไม่เป็นไร เลขแสดงอยู่แล้ว */ }
+    }
     return (
-        <Sheet title={`โอนให้ ${line.to}`} onClose={onClose}>
+        <Sheet title={`โอนให้ ${line.to}`} onClose={onClose} class="qr-sheet">
+            <div class="qr-head">
+                <Avatar name={line.to} pictureUrl={profile && profile.pictureUrl} />
+                <span class="lbl">ยอดที่ต้องโอน</span>
+                <b class="num">{baht(line.amount)}</b>
+            </div>
             <div class="qr-box">
                 {url && failed ? (
                     <p class="empty" role="alert">โหลดรูป QR ไม่สำเร็จ ตรวจอินเทอร์เน็ตแล้วเปิดใหม่ หรือโอนด้วยเลขพร้อมเพย์ {maskPromptpay(profile.promptpay)} จำนวน {baht(line.amount)}</p>
                 ) : url ? (
-                    <>
-                        <img src={url} alt={`QR พร้อมเพย์ของ ${line.to} จำนวน ${line.amount} บาท`} width="240" height="240" referrerpolicy="no-referrer" onError={() => setFailed(true)} />
-                        <p class="big num">{baht(line.amount)}</p>
-                        <p class="lbl">พร้อมเพย์ <span class="num">{maskPromptpay(profile.promptpay)}</span></p>
-                        <p class="lbl qr-help">สแกนด้วยแอปธนาคาร (หรือกดค้างที่รูปเพื่อบันทึก แล้วเลือกรูปจากอัลบั้มในแอปธนาคาร) จากนั้นกลับมากด &ldquo;อัปโหลดสลิป&rdquo; เพื่อยืนยันว่าโอนแล้ว</p>
-                    </>
+                    <div class="qr-ticket">
+                        <img src={url} alt={`QR พร้อมเพย์ของ ${line.to} จำนวน ${line.amount} บาท`} width="200" height="200" referrerpolicy="no-referrer" onError={() => setFailed(true)} />
+                        <i class="qr-perf" aria-hidden="true" />
+                        <div class="qr-pp"><span class="lbl">พร้อมเพย์</span><b class="num">{maskPromptpay(profile.promptpay)}</b>
+                            <button type="button" class="icon-btn" aria-label="คัดลอกเลขพร้อมเพย์" onClick={copy}><Icon name={copied ? "check" : "copy"} size={16} /></button></div>
+                    </div>
                 ) : (
                     <p class="empty" role="alert">{line.to} ยังไม่ได้ตั้งพร้อมเพย์ ให้เจ้าตัวตั้งในหน้า &ldquo;ฉัน&rdquo; หรือให้แอดมินกรอกให้</p>
                 )}
             </div>
+            <ol class="qr-steps"><li><i>1</i>สแกนในแอปธนาคาร</li><li><i>2</i>โอนเงิน</li><li><i>3</i>อัปโหลดสลิป</li></ol>
+            <button type="button" class="btn block" onClick={onSlip}><Icon name="upload" size={16} />อัปโหลดสลิป</button>
         </Sheet>
     );
 }
@@ -74,9 +86,9 @@ function SlipSheet({ line, month, onClose, onDone }) {
 /** ปุ่มของแอดมิน: ยืนยันว่าคู่นี้โอนเคลียร์แล้ว (กดสองครั้งกันพลาด) */
 function AdminMark({ l, onMark }) {
     const [state, setState] = useState("idle");
-    if (state === "idle") return <div class="acts"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="check" size={14} />ยืนยันว่าเคลียร์แล้ว</button><small class="mute">เฉพาะแอดมิน</small></div>;
+    if (state === "idle") return <div class="xfer-acts"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="check" size={14} />ยืนยันว่าเคลียร์แล้ว</button></div>;
     return (
-        <div class="acts">
+        <div class="xfer-acts ask">
             <span class="lbl">{l.from} โอนให้ {l.to} {baht(l.amount)} แล้วใช่ไหม</span>
             <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { await onMark(l); } finally { setState("idle"); } }}>{state === "busy" ? "กำลังบันทึก" : "ใช่ เคลียร์แล้ว"}</button>
             <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
@@ -87,9 +99,9 @@ function AdminMark({ l, onMark }) {
 /** แอดมิน: ส่งข้อความเตือนยอดค้างให้ทุกคนที่ติดหนี้ (ทาง LINE ส่วนตัว พร้อม QR) ถามยืนยันก่อน และระบบกันส่งซ้ำภายใน 12 ชั่วโมง */
 function RemindAll({ onError, onInfo }) {
     const [state, setState] = useState("idle");
-    if (state === "idle") return <div class="acts remind"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="bell" size={14} />ส่งเตือนทุกคนที่ค้าง</button><small class="mute">เฉพาะแอดมิน</small></div>;
+    if (state === "idle") return <div class="xfer-acts"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="bell" size={14} />เตือนทุกคนที่ค้าง</button></div>;
     return (
-        <div class="acts remind">
+        <div class="xfer-acts ask">
             <span class="lbl">ส่งข้อความเตือนทาง LINE ให้ทุกคนที่ติดหนี้ในเดือนนี้ใช่ไหม</span>
             <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { onInfo(await remindAllDebtors()); } catch (e) { onError(e.message); } setState("idle"); }}>{state === "busy" ? "กำลังส่ง" : "ใช่ ส่งเลย"}</button>
             <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
@@ -97,23 +109,25 @@ function RemindAll({ onError, onInfo }) {
     );
 }
 
-function Line({ l, profile, targetProfile, onQr, onSlip, admin, onMark }) {
+/** บัตรโอนหนึ่งคู่: รูปคนโอน -> ยอด -> รูปคนรับ (ฉันขึ้นสีส้มอ่อน เพื่อนที่ต้องโอนให้ฉันขึ้นสีเขียวอ่อน) */
+function Line({ l, profile, profiles, onQr, onSlip, admin, onMark }) {
     const mine = l.role === "pay";
-    const text = mine ? `โอนให้ ${l.to}` : l.role === "receive" ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`;
+    const recv = l.role === "receive";
+    const side = (name, isMe) => <span class="xfer-who"><Avatar name={name} pictureUrl={profiles[name] && profiles[name].pictureUrl} /><b>{isMe ? "ฉัน" : name}</b></span>;
+    const label = mine ? `โอนให้ ${l.to}` : recv ? `${l.from} ต้องโอนให้คุณ` : `${l.from} โอนให้ ${l.to}`;
     return (
-        <li class="dbar">
-            <div class="r1">
-                <Avatar name={mine ? l.to : l.from} pictureUrl={targetProfile && targetProfile.pictureUrl} />
-                <div class="who-col grow">
-                    <span class="who">{text}</span>
-                    {mine && !validPromptpay(profile && profile.promptpay) && <small class="warn-pp">ผู้รับยังไม่ได้ตั้งพร้อมเพย์</small>}
-                </div>
-                <span class={`num amt ${mine ? "pay" : l.role === "receive" ? "rcv" : ""}`}>{baht(l.amount)}</span>
+        <li class={`xfer ${mine ? "is-pay" : recv ? "is-rcv" : ""}`} aria-label={`${label} ${baht(l.amount)}`}>
+            <div class="xfer-path">
+                {side(l.from, mine)}
+                <span class="xfer-mid"><span class={`num xfer-amt ${mine ? "pay" : recv ? "rcv" : ""}`}>{baht(l.amount)}</span></span>
+                {side(l.to, recv)}
             </div>
+            <p class="xfer-cap">{label}</p>
+            {mine && !validPromptpay(profile && profile.promptpay) && <small class="warn-pp">{l.to} ยังไม่ได้ตั้งพร้อมเพย์</small>}
             {mine && (
-                <div class="acts">
+                <div class="xfer-acts">
                     <button type="button" class="btn sm" onClick={() => onQr(l)}><Icon name="qr" size={14} />QR โอน</button>
-                    <button type="button" class="btn sm ghost" onClick={() => onSlip(l)}><Icon name="up" size={14} />อัปโหลดสลิป</button>
+                    <button type="button" class="btn sm ghost" onClick={() => onSlip(l)}><Icon name="upload" size={14} />อัปโหลดสลิป</button>
                 </div>
             )}
             {admin && <AdminMark l={l} onMark={onMark} />}
@@ -121,7 +135,7 @@ function Line({ l, profile, targetProfile, onQr, onSlip, admin, onMark }) {
     );
 }
 
-export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, adminName = "", onError = () => {}, onInfo = () => {} }) {
+export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, adminName = "", onError = () => {}, onInfo = () => {}, back = null }) {
     const mark = async (l) => { try { await manualSettle({ from: l.from, to: l.to, amount: l.amount, month, adminName }); onChanged(); } catch (e) { onError(e.message); } };
     const owedToMe = model.lines.filter((l) => l.role === "receive").reduce((a, l) => a + l.amount, 0);
     const iOwe = model.lines.filter((l) => l.role === "pay").reduce((a, l) => a + l.amount, 0);
@@ -129,21 +143,31 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
     const [slip, setSlip] = useState(null);
     const [moveTarget, setMoveTarget] = useState(null);
     const byName = useMemo(() => Object.fromEntries((profiles || []).map((p) => [p.name, p])), [profiles]);
+    const receivedBack = back ? back.receivedSat / 100 : 0;
+    const paidBack = back ? back.paidSat / 100 : 0;
     return (
         <div class="home-grid">
             <div class="col">
                 {!model.cleared && (
-                    <section class="card" aria-label="สรุปยอดค้าง">
-                        <div class="strip">
-                            <div><p class="lbl">เพื่อนต้องโอนให้ฉัน</p><p class="num mid rcv">{baht(owedToMe)}</p></div>
+                    <section class="card hero clear-hero" aria-label="สรุปยอดค้าง">
+                        {isAdmin && <span class="admin-tag"><Icon name="shield" size={12} />โหมดแอดมิน</span>}
+                        <div class="strip hero-strip">
+                            <div><p class="lbl">เพื่อนต้องโอนให้ฉัน</p><p class="num mid">{baht(owedToMe)}</p></div>
                             <div class="vl" />
-                            <div><p class="lbl">ฉันต้องโอน</p><p class={`num mid ${iOwe > 0 ? "pay" : ""}`}>{baht(iOwe)}</p></div>
+                            <div><p class="lbl">ฉันต้องโอน</p><p class="num mid">{baht(iOwe)}</p></div>
                         </div>
+                        {(receivedBack > 0 || paidBack > 0) && (
+                            <p class="lbl hero-split">
+                                {receivedBack > 0 && <>ได้คืนจากเพื่อนแล้ว <span class="num">{baht(receivedBack)}</span> (ไม่นับเป็นรายรับ)</>}
+                                {receivedBack > 0 && paidBack > 0 && " · "}
+                                {paidBack > 0 && <>โอนคืนเพื่อนแล้ว <span class="num">{baht(paidBack)}</span></>}
+                            </p>
+                        )}
                     </section>
                 )}
                 <section class="card">
-                    {isAdmin && !model.cleared && <RemindAll onError={onError} onInfo={onInfo} />}
                     <SectionTitle icon="swap" title={month === bangkokToday().slice(0, 7) ? "ยอดที่ต้องโอนเดือนนี้" : `ยอดที่ต้องโอนของเดือน ${monthLabel(month)}`} note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
+                    {isAdmin && !model.cleared && <RemindAll onError={onError} onInfo={onInfo} />}
                     {model.cleared ? (
                         <div class="cleared-box">
                             <div class="cleared-ico">
@@ -155,7 +179,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                             </div>
                         </div>
                     ) : (
-                        <ul class="plain">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} targetProfile={byName[l.role === "pay" ? l.to : l.from]} onQr={setQr} onSlip={setSlip} admin={isAdmin} onMark={mark} />)}</ul>
+                        <ul class="plain xfer-list">{model.lines.map((l) => <Line key={l.from + l.to} l={l} profile={byName[l.to]} profiles={byName} onQr={setQr} onSlip={setSlip} admin={isAdmin} onMark={mark} />)}</ul>
                     )}
                 </section>
             </div>
@@ -164,27 +188,33 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                     <SectionTitle icon="check" title="ประวัติที่ยืนยันแล้ว" />
                     {model.history.length === 0 && <p class="empty">{month === bangkokToday().slice(0, 7) ? "ยังไม่มีรายการเคลียร์เงินในเดือนนี้" : `ยังไม่มีรายการเคลียร์เงินในเดือน ${monthLabel(month)}`}</p>}
                     <ul class="plain">{model.history.map((h) => (
-                        <li class="row" key={h.id}>
-                            <span class="ico"><Icon name="check" class="rcv" /></span>
-                            <div class="grow"><div class="t">{h.from} โอนให้ {h.to}</div><div class="s">{h.manual ? "แอดมินยืนยัน" : "ตรวจจากสลิป"}</div></div>
-                            <span class="num rcv">{baht(h.amount)}</span>
-                            {isAdmin && (
-                                <button
-                                    type="button"
-                                    class="mini-month-btn num"
-                                    aria-label={`ย้ายเดือนของ ${h.from} ให้ ${h.to}`}
-                                    onClick={() => setMoveTarget(h)}
-                                >
-                                    <span>{monthLabel(h.month || month)}</span>
-                                    <Icon name="down" size={12} class="mute" />
-                                </button>
-                            )}
-                            {isAdmin && <DeleteButton label={`${h.from} ให้ ${h.to}`} onConfirm={async () => { try { await deleteSettlement(h.id); onChanged(); } catch (e) { onError(e.message); } }} />}
+                        <li class="row hist" key={h.id}>
+                            <span class="ico ok"><Icon name="check" size={16} /></span>
+                            <div class="lr-b">
+                                <div class="lr-1"><span class="t">{h.from} โอนให้ {h.to}</span><span class="num v rcv">{baht(h.amount)}</span></div>
+                                <div class="lr-2">
+                                    <span class="s">{h.manual ? "แอดมินยืนยัน" : "ตรวจจากสลิป"}</span>
+                                    {isAdmin && (
+                                        <span class="lr-acts">
+                                            <button
+                                                type="button"
+                                                class="mini-month-btn num"
+                                                aria-label={`ย้ายเดือนของ ${h.from} ให้ ${h.to}`}
+                                                onClick={() => setMoveTarget(h)}
+                                            >
+                                                <span>{monthLabel(h.month || month)}</span>
+                                                <Icon name="down" size={12} class="mute" />
+                                            </button>
+                                            <DeleteButton label={`${h.from} ให้ ${h.to}`} onConfirm={async () => { try { await deleteSettlement(h.id); onChanged(); } catch (e) { onError(e.message); } }} />
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
                         </li>
                     ))}</ul>
                 </section>
             </div>
-            {qr && <QrSheet line={qr} profile={byName[qr.to]} onClose={() => setQr(null)} />}
+            {qr && <QrSheet line={qr} profile={byName[qr.to]} onClose={() => setQr(null)} onSlip={() => { setSlip(qr); setQr(null); }} />}
             {slip && <SlipSheet line={slip} month={month} onClose={() => setSlip(null)} onDone={onChanged} />}
             {moveTarget && (
                 <Sheet title={`ย้ายเดือน (${moveTarget.from} ให้ ${moveTarget.to})`} onClose={() => setMoveTarget(null)}>

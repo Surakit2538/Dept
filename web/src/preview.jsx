@@ -1,16 +1,16 @@
 // หน้าตัวอย่างตอนพัฒนา (npm run dev แล้วเปิด /app/preview.html): ข้อมูลสมมติ ไม่ล็อกอิน ไม่อ่านฐานข้อมูล
-// ?state=empty | loading | error ดูสถานะต่างๆ, #home #bills #clear #wallet #me เลือกหน้า
+// ?state=empty | loading | error | loader ดูสถานะต่างๆ (loader = ตัวโหลดตอนเข้าเว็บ), #home #list #clear #me เลือกหน้า (#bills #wallet = list)
 import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, lastMonths, shiftMonth } from "./model.js";
 // โหลดหน้าแบบเดียวกับแอปจริง (Lazy) เพื่อให้ตรวจการสลับแท็บได้เหมือนของจริง
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
+import { Loader } from "./icons.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 const loadAdd = () => import("./add.jsx");
 const loadClear = () => import("./pages/ClearPage.jsx");
-const loadWallet = () => import("./pages/WalletPage.jsx");
-const loadBills = () => import("./pages/BillsPage.jsx");
+const loadList = () => import("./pages/ListPage.jsx");
 const loadMe = () => import("./pages/MePage.jsx");
 
 const today = "2026-11-14";
@@ -51,26 +51,27 @@ function Preview() {
     const params = new URLSearchParams(location.search);
     const state = params.get("state") || "ok";
     const who = params.get("as") || "GAME";
-    const [tab, setTab] = useState(location.hash.slice(1) || "home");
+    const pageOf = (t) => (t === "bills" || t === "wallet" ? "list" : ["home", "list", "clear", "me"].includes(t) ? t : "home");
+    const [tab, setTab] = useState(pageOf(location.hash.slice(1)));
     const [month, setMonth] = useState(now);
     const [search, setSearch] = useState("");
     const [sheet, setSheet] = useState(params.get("form") ? "menu" : null);
     const [toast, setToast] = useState("");
-    useEffect(() => { const h = () => setTab(location.hash.slice(1) || "home"); addEventListener("hashchange", h); return () => removeEventListener("hashchange", h); }, []);
+    useEffect(() => { const h = () => setTab(pageOf(location.hash.slice(1))); addEventListener("hashchange", h); return () => removeEventListener("hashchange", h); }, []);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
     const empty = state === "empty";
     const T = empty ? [] : tx, S = empty ? [] : settlements, W = empty ? [] : wallet;
     const home = useMemo(() => buildHomeModel({ name: who, month, today, members, transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [month, empty, who]);
-    const series = useMemo(() => buildMonthly({ name: who, months: lastMonths(now, 6), transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [empty, who]);
+    const series = useMemo(() => buildMonthly({ name: who, months: lastMonths(now, 12), transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [empty, who]);
     const go = (k) => { location.hash = k; setTab(k); };
+    if (state === "loader") return <div class="center"><Loader label="กำลังโหลดข้อมูล" /></div>;
     let body;
     if (state === "loading") body = <Skeleton blocks={5} />;
     else if (state === "error") body = <ErrorState onRetry={() => {}} />;
-    else if (tab === "bills") body = <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={buildBillsModel({ name: who, month, transactions: T, search })} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} />;
-    else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} onChanged={() => {}} />;
-    else if (tab === "wallet") body = <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} />;
+    else if (tab === "list") body = <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={buildBillsModel({ name: who, month, transactions: T, search })} wallet={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} onInfo={setToast} />;
+    else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} back={{ receivedSat: 30000, paidSat: 0 }} onChanged={() => {}} />;
     else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} />;
-    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} today={today} />;
+    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles} today={today} nowMonth={now} since={shiftMonth(now, -11)} />;
     return (
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}>{body}</Shell>

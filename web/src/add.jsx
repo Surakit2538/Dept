@@ -1,6 +1,7 @@
 // ปุ่มบันทึก: เลือกประเภท แล้วกรอก บิลหารกับเพื่อน / รายจ่ายส่วนตัว / รายรับ
 import { useState, useMemo } from "preact/hooks";
-import { Icon } from "./icons.jsx";
+import { Icon, ItemIcon } from "./icons.jsx";
+import { brandOf } from "./brands.js";
 import { Sheet, Avatar, DatePickerField } from "./ui.jsx";
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
@@ -64,7 +65,7 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
                 <label for="f-amount">จำนวนเงิน (บาท)</label>
                 <input id="f-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required value={amount} aria-invalid={err && !(Number(amount) > 0) ? "true" : undefined} onInput={(e) => setAmount(e.currentTarget.value)} />
             </div>
-            <div class="field"><label for="f-desc">รายการ</label><input id="f-desc" type="text" maxLength={100} placeholder={income ? "เช่น เงินเดือน" : "เช่น กาแฟ"} value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
+            <div class="field"><div class="hd-row"><label for="f-desc">รายการ</label>{!income && brandOf(desc) && <ItemIcon desc={desc} name="dots" size={24} iconSize={12} />}</div><input id="f-desc" type="text" maxLength={100} placeholder={income ? "เช่น เงินเดือน" : "เช่น กาแฟ"} value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
             {!income && <CategoryPicker value={iconKey} onPick={(k) => { setIconKey(k); setIconTouched(true); }} labelId="f-cat-l" hint={!iconTouched && desc.trim() ? "เลือกให้อัตโนมัติ" : ""} />}
             <DatePickerField id="f-date" label="วันที่" value={date} onChange={setDate} max={today} today={today} />
             {!income && (
@@ -204,7 +205,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
                 <label for="b-amount">ยอดเต็มของบิล (บาท)</label>
                 <input id="b-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />
             </div>
-            <div class="field"><label for="b-desc">รายการ</label><input id="b-desc" type="text" maxLength={100} placeholder="เช่น ข้าวมันไก่" value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
+            <div class="field"><div class="hd-row"><label for="b-desc">รายการ</label>{brandOf(desc) && <ItemIcon desc={desc} name="dots" size={24} iconSize={12} />}</div><input id="b-desc" type="text" maxLength={100} placeholder="เช่น ข้าวมันไก่" value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
 
             <div class="field">
                 <div class="hd-row">

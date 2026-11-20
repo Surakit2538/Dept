@@ -21,10 +21,10 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 285 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 288 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
-พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1` · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
+พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1`, `?state=loader` (ตัวโหลด), `?as=CARE` (มุมมองคนอื่น) · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
 
 ## 5. กับดัก
 - แก้ไฟล์: bash heredoc ยาวๆ มักแยกคำสั่งพัง และ backslash คู่ถูกลดเหลือตัวเดียว → ใช้ Write/Edit หรือเขียนสคริปต์ Node ลงไฟล์ (regex ใช้ literal/`.source`/`String.raw`) แล้ว `node --check` + เทสต์ · ไฟล์ผสม LF/CRLF รักษาแบบเดิม
@@ -55,7 +55,7 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 - ความปลอดภัย: กฎ Firestore เปิดให้เบราว์เซอร์เขียน 4 คอลเลกชัน (ระยะยาวย้ายเข้า API) · เจ้าของเลือกไม่ทำ: สำรองข้อมูล, เปลี่ยนรหัส SlipOK, ลบ `dbMode`
 
 ## 9. แผนที่ไฟล์
-`web/src/` (Preact): `main.jsx` แอป+ลิงก์ deep, `data.js` ฐานข้อมูล/API/ล็อกอิน, `model.js` ตรรกะ, `pages/*`, `add.jsx` ฟอร์ม, `editbill.jsx` แก้ไข+ChooseSheet, `bulk.jsx` เลือกหลายรายการ, `iphone.jsx` ตัวติดตั้ง · `app/` ผล build · `lib/` ตรรกะเซิร์ฟเวอร์ · `api/` 12 ฟังก์ชัน · `scriptable/` · `tests/` (`fake-firestore.mjs`)
+`web/src/` (Preact): `main.jsx` แอป+ลิงก์ deep, `data.js` ฐานข้อมูล/API/ล็อกอิน, `model.js` ตรรกะ, `pages/*` (Home, List=บิล+ส่วนตัวรวมกัน, Clear, Me), `brands.js`+`brand-paths.js` โลโก้ร้าน, `add.jsx` ฟอร์ม, `editbill.jsx` แก้ไข+ChooseSheet, `bulk.jsx` เลือกหลายรายการ, `iphone.jsx` ตัวติดตั้ง · `app/` ผล build · `lib/` ตรรกะเซิร์ฟเวอร์ · `api/` 12 ฟังก์ชัน · `scriptable/` · `tests/` (`fake-firestore.mjs`)
 
 ## 10. ไอเดียฟีเจอร์ใหม่ (เจ้าของขอเก็บไว้ ยังไม่ได้วิเคราะห์ ห้ามลงมือก่อนถามและเช็กข้อจำกัดฟรี/โควต้า)
 เป็นฟีเจอร์ที่แอปบันทึกรายรับรายจ่ายระดับโลกมี เรียงตามที่น่าจะคุ้มกับกลุ่มเพื่อน/คนใช้บัตรเครดิตเยอะ:
@@ -73,5 +73,10 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 12. รายการซ้ำที่ยืดหยุ่น (ทุกสัปดาห์/ทุกปี/วันทำงานสุดท้าย) และเตือนบิลที่กำลังจะถึง
 13. (จากแอป Datebell ที่เจ้าของชอบ) ปฏิทินบิลรายเดือน, การ์ด "ถัดไป อีก N วัน", ถามรายเดือนว่า "เดือนนี้ได้ใช้ไหม" เพื่อหาค่าสมาชิกที่แทบไม่ได้ใช้
 
-## 11. ดีไซน์ใหม่ (รอบ 1 ทำแล้ว: สี/ฟอนต์/โลโก้/การ์ด/เมนูลอย/หน้าแรก/โลโก้ร้าน)
-เจ้าของเลือก (20 พ.ย.): สีโคบอลต์ #2343c9 + ทานตะวัน #ffc23d, โลโก้ใบเสร็จผ่ากลาง, ตัวอักษร Anuphan, เลย์เอาต์แบบ Datebell (การ์ดใหญ่, ป้ายวันที่ปฏิทิน, เมนูล่างลอย) และอยากได้โลโก้ร้าน/บริการดัง (Netflix, Spotify, Grab ฯลฯ) ในรายการ ตัวอย่าง 5 หน้า (หน้าแรก, ปฏิทินบิล, รายละเอียดรายเดือน, เดือนนี้ได้ใช้ไหม, ประหยัดได้) https://claude.ai/artifact/Dpc9BBjsTXSirpXHnXYvDy ไฟล์ต้นฉบับอยู่ใน scratchpad ถ้าหายให้อ่านจาก artifact · ทำแล้ว: `design/tokens.json` 2.0.0, `styles.css`, โลโก้ `icons/*` + `Mark`, ป้ายวันที่ในการ์ดสรุป (`DateTile`), โลโก้ร้าน `web/src/brands.js` + `ItemIcon` · **กติกาเจ้าของ: เปลี่ยนแค่หน้าตา ฟีเจอร์เดิมต้องอยู่ครบ อะไรที่ต้องลบ/ทำงานต่างไปต้องถามก่อน** · ยังไม่ได้: Widget (`scriptable/DeptWidget.js`), ข้อความ LINE (`lib/line-cards.mjs`), คู่มือ `shortcut-guide.html` ยังใช้สีเดิม, หน้าปฏิทิน/คุ้มไหม เป็นฟีเจอร์ใหม่ (หัวข้อ 10 ข้อ 13)
+## 11. ดีไซน์ใหม่ (ทำในเว็บแล้ว 21 พ.ย. ยังไม่ push)
+เจ้าของเลือก: โคบอลต์ #2343c9 + ทานตะวัน #ffc23d, โลโก้ใบเสร็จผ่ากลาง, Anuphan, เลย์เอาต์แบบ Datebell · mockup https://claude.ai/artifact/Dpc9BBjsTXSirpXHnXYvDy · **กติกาเจ้าของ: เปลี่ยนแค่หน้าตา ฟีเจอร์เดิมต้องอยู่ครบ อะไรที่ต้องลบ/ทำงานต่างไปต้องถามก่อน**
+- หน้าแรก: เพื่อนค้าง/ฉันค้าง = รูปซ้อน (แตะไป #clear), ปฏิทินใช้จ่าย วัน/เดือน/ปี (`SpendCalendar`, แบบปีโหลดข้อมูล 12 เดือนเมื่อเปิดดูเท่านั้น), ไม่มีรายการล่าสุด/กราฟรายเดือน
+- แท็บ 4 อัน: หน้าแรก, รายการ (`ListPage` รวมบิลกับกระเป๋า ตัวกรอง ทั้งหมด/บิลกลุ่ม/ส่วนตัว/รายรับ), เคลียร์เงิน, ฉัน · #bills #wallet ยังเปิดได้ (ไป list) · การ์ดสรุปกระเป๋ากับ "ใช้ไปมาจากอะไร" เอาออก ยอดได้คืน/โอนคืนย้ายไปหน้าเคลียร์เงิน
+- เคลียร์เงิน: บัตรโอน (รูป -> ยอด -> รูป), QR แบบตั๋ว + ปุ่มอัปโหลดสลิป · โหมดแอดมินขึ้นป้ายเดียว
+- ตัวโหลด: `Loader` (icons.jsx) + มาร์กอัปใน web/index.html ต้องตรงกัน, แอนิเมชันอยู่ใต้ prefers-reduced-motion · โลโก้ร้านจริง 17 แบรนด์จาก Simple Icons (CC0)
+- ยังไม่ได้: Widget (`scriptable/DeptWidget.js`), ข้อความ LINE (`lib/line-cards.mjs`), Rich menu, คู่มือ `shortcut-guide.html` ยังสีเดิม -> หลังเว็บ final ทำให้เจ้าของเลือก 2-3 แบบ · ปฏิทินบิลรายเดือน/ถามได้ใช้ไหม = ฟีเจอร์ใหม่ (หัวข้อ 10 ข้อ 13)

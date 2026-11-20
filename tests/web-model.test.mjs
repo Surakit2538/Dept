@@ -238,3 +238,14 @@ test("โลโก้ร้าน: เดาแบรนด์จากชื่
     assert.equal(brandOf("ข้าวมันไก่ป้าแดง"), null);
     assert.equal(brandOf(""), null);
 });
+
+test("โลโก้ร้าน: ทุกแบรนด์ที่ระบุไอคอนจริงมีข้อมูลรูปครบ และแบรนด์เฉพาะมาก่อนแบรนด์กว้าง", async () => {
+    const { BRANDS, brandOf } = await import("../web/src/brands.js");
+    const { SI } = await import("../web/src/brand-paths.js");
+    for (const b of BRANDS) if (b.si) assert.ok(SI[b.si] && SI[b.si].startsWith("M"), "ไม่มีรูปของ " + b.key);
+    assert.equal(brandOf("Apple Music").key, "applemusic");
+    assert.equal(brandOf("iCloud 50GB").key, "icloud");
+    assert.equal(brandOf("Apple Store").key, "apple");
+    assert.equal(brandOf("Google Cloud").key, "googlecloud");
+    assert.equal(brandOf("Spotify Premium").si, "spotify");
+});

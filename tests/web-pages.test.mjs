@@ -29,12 +29,11 @@ const render = async () => {
     return { h, toString };
 };
 
-test("หน้าเคลียร์เงิน/กระเป๋า/บิล/ฉัน แสดงผลได้ และ escape ชื่อที่มีตัวอักษรอันตราย", { skip: !hasTools }, async () => {
+test("หน้าเคลียร์เงิน/รายการ/ฉัน แสดงผลได้ และ escape ชื่อที่มีตัวอักษรอันตราย", { skip: !hasTools }, async () => {
     const { h, toString } = await render();
     const model = await import("../web/src/model.js");
     const { ClearPage } = await bundle("web/src/pages/ClearPage.jsx", "clear");
-    const { WalletPage } = await bundle("web/src/pages/WalletPage.jsx", "wallet");
-    const { BillsPage } = await bundle("web/src/pages/BillsPage.jsx", "bills");
+    const { ListPage } = await bundle("web/src/pages/ListPage.jsx", "list");
     const { MePage } = await bundle("web/src/pages/MePage.jsx", "me");
 
     const evil = '<img src=x onerror="alert(1)">';
@@ -47,26 +46,25 @@ test("หน้าเคลียร์เงิน/กระเป๋า/บิ
     const profiles = [{ id: "m1", name: "GAME", promptpay: "0812345678", realName: "สมชาย" }, { id: "m2", name: "CARE", promptpay: "", realName: "" }];
 
     const clear = model.buildClearModel({ name: "CARE", month: "2026-11", members, transactions: tx, settlements });
-    const html1 = toString(h(ClearPage, { model: clear, profiles, month: "2026-11", onChanged() {} }));
+    const html1 = toString(h(ClearPage, { model: clear, profiles, month: "2026-11", onChanged() {}, back: { receivedSat: 5000, paidSat: 0 } }));
     assert.match(html1, /โอนให้ GAME/);
     assert.match(html1, /QR โอน/);
     assert.match(html1, /อัปโหลดสลิป/);
     assert.match(html1, /ประวัติที่ยืนยันแล้ว/);
+    assert.match(html1, /ได้คืนจากเพื่อนแล้ว/, "ยอดได้คืนย้ายมาแสดงที่หน้าเคลียร์เงิน");
     assert.ok(!html1.includes("<img src=x"), "ชื่อต้องถูก escape");
 
     const w = model.buildWalletModel({ name: "GAME", month: "2026-11", walletItems: wallet, transactions: tx, settlements });
-    const html2 = toString(h(WalletPage, { model: w, onChanged() {}, onError() {} }));
-    assert.match(html2, /ส่วนของฉันในกลุ่ม/);
-    assert.match(html2, /ได้คืนจากเพื่อนแล้ว/);
-    assert.ok(!html2.includes("<img src=x"));
-
     const b = model.buildBillsModel({ name: "GAME", month: "2026-11", transactions: tx });
-    const html3 = toString(h(BillsPage, { model: b, search: "", onSearch() {}, me: "GAME", isAdmin: false, onChanged() {}, onError() {} }));
-    assert.match(html3, /บิลของเดือนนี้/);
-    assert.match(html3, /ลบ /); // คนจ่ายลบได้
-    assert.ok(!html3.includes("<img src=x"));
-    const other = toString(h(BillsPage, { model: b, search: "", onSearch() {}, me: "CARE", isAdmin: false, onChanged() {}, onError() {} }));
-    assert.ok(!/aria-label="ลบ /.test(other), "คนอื่นที่ไม่ใช่คนจ่ายและไม่ใช่แอดมินต้องไม่เห็นปุ่มลบ");
+    const html2 = toString(h(ListPage, { bills: b, wallet: w, search: "", onSearch() {}, me: "GAME", isAdmin: false, onChanged() {}, onError() {} }));
+    assert.match(html2, /รายการของเดือนนี้/);
+    assert.match(html2, /ยอดเต็มทุกบิลเดือนนี้/);
+    assert.match(html2, /รายรับ/, "รายรับของกระเป๋าอยู่ในรายการเดียวกับบิล");
+    assert.match(html2, /ลบ /); // คนจ่ายลบได้
+    assert.ok(!html2.includes("<img src=x"), "ชื่อต้องถูก escape");
+    const noWallet = model.buildWalletModel({ name: "CARE", month: "2026-11", walletItems: [], transactions: tx, settlements });
+    const other = toString(h(ListPage, { bills: model.buildBillsModel({ name: "CARE", month: "2026-11", transactions: tx }), wallet: noWallet, search: "", onSearch() {}, me: "CARE", isAdmin: false, onChanged() {}, onError() {} }));
+    assert.ok(!/aria-label="ลบ /.test(other), "คนอื่นที่ไม่ใช่คนจ่ายและไม่ใช่แอดมินต้องไม่เห็นปุ่มลบบิล");
 
     const html4 = toString(h(MePage, { auth: { user: { name: "GAME", memberId: "m1", isAdmin: true } }, profiles, onSaved() {} }));
     assert.match(html4, /ชื่อจริงภาษาไทย/);
@@ -82,15 +80,17 @@ test("เคลียร์เงิน: คนที่ผู้รับยั
     const { ClearPage } = await bundle("web/src/pages/ClearPage.jsx", "clear2");
     const clear = model.buildClearModel({ name: "CARE", month: "2026-11", members: ["GAME", "CARE"], transactions: [{ id: "t", date: "2026-11-02", payer: "GAME", amount: 200, splits: { GAME: 100, CARE: 100 } }], settlements: [] });
     const html = toString(h(ClearPage, { model: clear, profiles: [{ id: "m2", name: "CARE", promptpay: "" }], month: "2026-11", onChanged() {} }));
-    assert.match(html, /ผู้รับยังไม่ได้ตั้งพร้อมเพย์/);
+    assert.match(html, /ยังไม่ได้ตั้งพร้อมเพย์/);
     const empty = model.buildClearModel({ name: "CARE", month: "2026-10", members: ["GAME", "CARE"], transactions: [], settlements: [] });
     assert.match(toString(h(ClearPage, { model: empty, profiles: [], month: "2026-10", onChanged() {} })), /เคลียร์ครบแล้ว/);
 });
 
-test("เว็บใหม่: main.jsx ต่อหน้าครบ และไม่มี emoji", () => {
+test("เว็บใหม่: main.jsx ต่อหน้าครบ (หน้ารายการรวมบิลกับกระเป๋า ลิงก์เก่ายังเปิดได้) และไม่มี emoji", () => {
     const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
-    for (const p of ["ClearPage", "WalletPage", "BillsPage", "MePage"]) assert.ok(main.includes(`pages/${p}.jsx`) && main.includes(`name="${p}"`), `main.jsx ต้องใช้ ${p}`);
-    for (const f of ["web/src/ui.jsx", "web/src/add.jsx", "web/src/pages/HomePage.jsx", "web/src/pages/ClearPage.jsx", "web/src/pages/WalletPage.jsx", "web/src/pages/BillsPage.jsx", "web/src/pages/MePage.jsx", "web/src/data.js", "web/src/model.js"]) {
+    assert.match(main, /t === "bills" \|\| t === "wallet" \? "list"/, "ลิงก์เก่า #bills #wallet ต้องไปหน้ารายการ");
+    assert.ok(!fs.existsSync(path.join(root, "web/src/pages/BillsPage.jsx")) && !fs.existsSync(path.join(root, "web/src/pages/WalletPage.jsx")), "หน้าเก่าต้องถูกรวมแล้ว");
+    for (const p of ["ClearPage", "ListPage", "MePage"]) assert.ok(main.includes(`pages/${p}.jsx`) && main.includes(`name="${p}"`), `main.jsx ต้องใช้ ${p}`);
+    for (const f of ["web/src/ui.jsx", "web/src/add.jsx", "web/src/pages/HomePage.jsx", "web/src/pages/ClearPage.jsx", "web/src/pages/ListPage.jsx", "web/src/brands.js", "web/src/icons.jsx", "web/src/pages/MePage.jsx", "web/src/data.js", "web/src/model.js"]) {
         const s = fs.readFileSync(path.join(root, f), "utf8");
         assert.ok(!/\p{Extended_Pictographic}/u.test(s), `${f} มี emoji`);
     }
@@ -236,14 +236,31 @@ test("รายจ่ายส่วนตัวเลือกหมวดไ�
     assert.ok(!inc.includes("สัตว์เลี้ยง"));
 });
 
-test("กระเป๋า: ปุ่มจัดหมวดอัตโนมัติโผล่เมื่อมีรายจ่ายที่ยังไม่มีหมวดและเดาได้ ไม่โผล่เมื่อครบแล้ว", { skip: !hasTools }, async () => {
+const noBills = { all: [], mine: [], totalSat: 0, myShareSat: 0 };
+const walletOf = (items) => ({ spentSat: 0, incomeSat: 0, netSat: 0, personalSat: 0, groupShareSat: 0, receivedBackSat: 0, paidBackSat: 0, items });
+const listProps = (items) => ({ bills: noBills, wallet: walletOf(items), search: "", onSearch() {}, me: "GAME", isAdmin: false, onChanged() {}, onError() {} });
+
+test("รายการ: ปุ่มจัดหมวดให้โผล่เมื่อมีรายจ่ายที่ยังไม่มีหมวดและเดาได้ ไม่โผล่เมื่อครบแล้ว", { skip: !hasTools }, async () => {
     const { h, toString } = await render();
-    const { WalletPage } = await bundle("web/src/pages/WalletPage.jsx", "wallet2");
-    const mk = (items) => ({ spentSat: 0, incomeSat: 0, netSat: 0, personalSat: 0, groupShareSat: 0, receivedBackSat: 0, paidBackSat: 0, items });
-    const withTodo = toString(h(WalletPage, { model: mk([{ id: "1", type: "expense", desc: "ผ่อน CIVIC", amount: 100, date: "2026-11-04", icon: "" }, { id: "2", type: "expense", desc: "อะไรสักอย่าง", amount: 5, date: "2026-11-04", icon: "" }]), onChanged() {}, onError() {} }));
-    assert.match(withTodo, /จัดหมวดอัตโนมัติ \(1 รายการ\)/);
-    const done = toString(h(WalletPage, { model: mk([{ id: "1", type: "expense", desc: "ผ่อน CIVIC", amount: 100, date: "2026-11-04", icon: "fa-car" }]), onChanged() {}, onError() {} }));
-    assert.ok(!done.includes("จัดหมวดอัตโนมัติ"));
+    const { ListPage } = await bundle("web/src/pages/ListPage.jsx", "list2");
+    const withTodo = toString(h(ListPage, listProps([{ id: "1", type: "expense", desc: "ผ่อน CIVIC", amount: 100, date: "2026-11-04", icon: "" }, { id: "2", type: "expense", desc: "อะไรสักอย่าง", amount: 5, date: "2026-11-04", icon: "" }])));
+    assert.match(withTodo, /จัดหมวดให้ \(1\)/);
+    const done = toString(h(ListPage, listProps([{ id: "1", type: "expense", desc: "ผ่อน CIVIC", amount: 100, date: "2026-11-04", icon: "fa-car" }])));
+    assert.ok(!done.includes("จัดหมวดให้"));
+});
+
+test("รายการ: รวมบิลกับรายการส่วนตัว กรองตามประเภท เฉพาะของฉัน และค้นหา เรียงวันใหม่ก่อน", { skip: !hasTools }, async () => {
+    const { mergeItems } = await bundle("web/src/pages/ListPage.jsx", "list3");
+    const b1 = { id: "b1", date: "2026-11-03", ts: 1, desc: "ชาบู", payer: "GAME" }, b2 = { id: "b2", date: "2026-11-05", ts: 2, desc: "ค่าไฟ", payer: "CARE" };
+    const bills = { all: [b2, b1], mine: [b1] };
+    const wallet = { items: [{ id: "w1", type: "expense", desc: "กาแฟ", date: "2026-11-05", ts: 9 }, { id: "w2", type: "income", desc: "เงินเดือน", date: "2026-11-01", ts: 1 }] };
+    const keys = (o) => mergeItems({ bills, wallet, ...o }).map((x) => x.key);
+    assert.deepEqual(keys({}), ["w:w1", "b:b2", "b:b1", "w:w2"], "วันเดียวกันเรียงตามเวลาที่บันทึก");
+    assert.deepEqual(keys({ filter: "group" }), ["b:b2", "b:b1"]);
+    assert.deepEqual(keys({ filter: "personal" }), ["w:w1"]);
+    assert.deepEqual(keys({ filter: "income" }), ["w:w2"]);
+    assert.deepEqual(keys({ mineOnly: true }), ["w:w1", "b:b1", "w:w2"], "เฉพาะของฉันกรองเฉพาะบิลกลุ่ม");
+    assert.deepEqual(keys({ search: "กาแฟ" }), ["w:w1", "b:b2", "b:b1"], "ค้นหากรองรายการส่วนตัว (บิลกรองจากโมเดลบิลเอง)");
 });
 
 test("กล่องรายเดือนที่ตั้งไว้เป็นแบบพับได้ ปิดไว้ก่อน (บิลและกระเป๋า)", { skip: !hasTools }, async () => {
@@ -255,7 +272,7 @@ test("กล่องรายเดือนที่ตั้งไว้เ�
     assert.ok(!closed.includes("เนื้อหาข้างใน"), "ปิดอยู่ต้องไม่แสดงรายการ");
     const open = toString(h(Collapsible, { icon: "swap", title: "x", summary: "y", defaultOpen: true }, h("p", null, "เนื้อหาข้างใน")));
     assert.ok(open.includes("เนื้อหาข้างใน"));
-    for (const f of ["web/src/pages/BillsPage.jsx", "web/src/pages/WalletPage.jsx"]) assert.match(fs.readFileSync(path.join(root, f), "utf8"), /<Collapsible /);
+    assert.match(fs.readFileSync(path.join(root, "web/src/pages/ListPage.jsx"), "utf8"), /<Collapsible /);
 });
 
 test("ล็อกอินบนคอม: ล้างรหัส code เก่าออกจากที่อยู่ และลองใหม่ครั้งเดียวถ้าเริ่มระบบไม่สำเร็จ", () => {
@@ -376,17 +393,18 @@ test("ตัวติดตั้ง iPhone: ติดตั้ง 3 สคร�
     assert.match(broken.alerts[0].message, /DeptAuto\.js/);
 });
 
-test("เลือกหลายรายการ: ปุ่มเลือกโผล่เมื่อมี 2 รายการขึ้นไป แถวที่เลือกเป็น checkbox และแถบล่างแสดงจำนวน", { skip: !hasTools }, async () => {
+test("เลือกหลายรายการ: ปุ่มเลือกใช้ได้เมื่อมี 2 รายการขึ้นไป แถวที่เลือกเป็น checkbox และแถบล่างแสดงจำนวน", { skip: !hasTools }, async () => {
     const { h, toString } = await render();
-    const { WalletPage } = await bundle("web/src/pages/WalletPage.jsx", "wallet3");
-    const { BulkBar, SelectRow, SelectToggle } = await bundle("web/src/bulk.jsx", "bulk");
-    const mk = (items) => ({ spentSat: 0, incomeSat: 0, netSat: 0, personalSat: 0, groupShareSat: 0, receivedBackSat: 0, paidBackSat: 0, items });
+    const { ListPage } = await bundle("web/src/pages/ListPage.jsx", "list4");
+    const { BulkBar, SelectRow } = await bundle("web/src/bulk.jsx", "bulk");
     const two = [{ id: "1", type: "expense", desc: "กาแฟ", amount: 65, date: "2026-11-04", icon: "fa-mug-hot" }, { id: "2", type: "expense", desc: "ข้าว", amount: 50, date: "2026-11-04", icon: "fa-utensils" }];
-    const html = toString(h(WalletPage, { model: mk(two), onChanged() {}, onError() {} }));
+    const html = toString(h(ListPage, listProps(two)));
     assert.match(html, /เลือกหลายรายการ/);
     assert.ok(!html.includes("bulk-bar"), "ยังไม่เข้าโหมดเลือก ต้องไม่มีแถบล่าง");
-    const one = toString(h(WalletPage, { model: mk(two.slice(0, 1)), onChanged() {}, onError() {} }));
-    assert.ok(!one.includes("เลือกหลายรายการ"), "มีรายการเดียวไม่ต้องมีปุ่มเลือก");
+    const selectBtn = (x) => /<button[^>]*aria-pressed="false"([^>]*)>(?:(?!<\/button>).)*เลือกหลายรายการ/s.exec(x);
+    assert.ok(!/disabled/.test(selectBtn(html)[1]), "มี 2 รายการ ปุ่มเลือกต้องกดได้");
+    const one = toString(h(ListPage, listProps(two.slice(0, 1))));
+    assert.match(selectBtn(one)[1], /disabled/, "มีรายการเดียว ปุ่มเลือกต้องกดไม่ได้");
 
     const row = toString(h(SelectRow, { picked: true, label: "กาแฟ", onToggle() {} }, h("span", null, "เนื้อหาแถว")));
     assert.match(row, /role="checkbox"/);
@@ -399,64 +417,68 @@ test("เลือกหลายรายการ: ปุ่มเลือก
     const empty = toString(h(BulkBar, { count: 0, total: 5, onAll() {}, onNone() {}, onCategory() {}, onDelete() {} }));
     assert.match(empty, /แตะรายการที่ต้องการ/);
     assert.ok(!empty.includes("เปลี่ยนหมวด"), "ยังไม่เลือกอะไร ต้องไม่มีปุ่มทำรายการ");
-    assert.match(toString(h(SelectToggle, { on: true, onToggle() {} })), /เสร็จสิ้น/);
 });
 
-test("ปฏิทินรายวัน: แสดงปฏิทิน สรุปเดือน รายการในวัน และ escape ข้อความ", { skip: !hasTools }, async () => {
+test("ปฏิทินใช้จ่าย: ดูเป็นเดือน วัน ปี สรุปสั้น 2 ช่อง และ escape ข้อความ", { skip: !hasTools }, async () => {
     const { h, toString } = await render();
-    const model = await import("../web/src/model.js");
-    const { DailyCalendarSheet, HomePage } = await bundle("web/src/pages/HomePage.jsx", "homepage");
+    const { SpendCalendar, DayView, YearView, HomePage } = await bundle("web/src/pages/HomePage.jsx", "homepage");
     const evil = '<script>alert("hack")</script>';
-
     const calDays = [
         { day: 1, date: "2026-11-01", satang: 0, today: false, isFuture: false, items: [] },
         { day: 2, date: "2026-11-02", satang: 15000, today: true, isFuture: false, items: [{ desc: evil, icon: "fa-utensils", satang: 15000, kind: "personal" }] },
-        { day: 3, date: "2026-11-03", satang: 0, today: false, isFuture: false, items: [] }
+        { day: 3, date: "2026-11-03", satang: 0, today: false, isFuture: true, items: [] }
     ];
+    const base = { model: { calendarDays: calDays, spentSat: 15000, average: 50 }, month: "2026-11", onMonth() {}, since: "2025-12", nowMonth: "2026-11", series: null };
+    const monthHtml = toString(h(SpendCalendar, base));
+    assert.match(monthHtml, /ใช้ไปเท่าไร/);
+    assert.match(monthHtml, /พฤศจิกายน 2569/);
+    assert.match(monthHtml, /ใช้ไปทั้งเดือน/);
+    assert.match(monthHtml, /เฉลี่ยต่อวัน/);
+    assert.match(monthHtml, /ใช้มากสุดวันที่ 2/);
+    assert.match(monthHtml, /sc-day/);
+    assert.ok(!monthHtml.includes("มากสุดวันที่ </"), "สรุปเหลือ 2 ช่อง (วันที่มากสุดบอกใต้ปฏิทิน)");
+    for (const t of ["วัน", "เดือน", "ปี"]) assert.ok(monthHtml.includes(">" + t + "<"), "ต้องมีปุ่ม " + t);
+    assert.ok(/class="sc-day [^"]*"[^>]*disabled/.test(monthHtml), "วันที่ยังไม่ถึงต้องกดไม่ได้");
 
-    const calHtml = toString(h(DailyCalendarSheet, {
-        month: "2026-11",
-        calendarDays: calDays,
-        spentSat: 15000,
-        average: 50,
-        onMonth() {},
-        onClose() {}
-    }));
+    const dayHtml = toString(h(DayView, { month: "2026-11", days: calDays, day: 2, onDay() {} }));
+    assert.match(dayHtml, /2 พ\.ย\./);
+    assert.match(dayHtml, /150\.00/);
+    assert.ok(!dayHtml.includes('<script>alert'), "ชื่อรายการต้องถูก escape");
+    assert.ok(dayHtml.includes('&lt;script'));
 
-    assert.match(calHtml, /ปฏิทินรายวัน/);
-    assert.match(calHtml, /พฤศจิกายน 2569/);
-    assert.match(calHtml, /ใช้ไปทั้งเดือน/);
-    assert.match(calHtml, /เฉลี่ยต่อวัน/);
-    assert.match(calHtml, /มากสุดวันที่/);
-    assert.match(calHtml, /daily-cell/);
-    // ตรวจสอบการ escape ข้อความอันตราย
-    assert.ok(!calHtml.includes('<script>alert'), "คำอธิบายต้องถูก escape");
-    assert.ok(calHtml.includes('&lt;script'), "คำอธิบายต้องแสดงแบบ escape");
+    const yearHtml = toString(h(YearView, { year: 2026, series: [{ month: "2026-10", spentSat: 500000, incomeSat: 0 }, { month: "2026-11", spentSat: 15000, incomeSat: 0 }], since: "2025-12", nowMonth: "2026-11", onPick() {} }));
+    assert.match(yearHtml, /5\.0k/);
+    assert.ok(/sc-mon cur/.test(yearHtml), "เดือนปัจจุบันต้องเด่น");
+    assert.ok(/disabled[^>]*>(?:(?!<\/button>).)*ธ\.ค\./s.test(yearHtml), "เดือนที่ยังไม่ถึงต้องกดไม่ได้");
+    const loading = toString(h(SpendCalendar, { ...base, month: "2026-11" }));
+    assert.ok(!loading.includes("กำลังโหลดข้อมูลทั้งปี"), "เริ่มที่แบบเดือน ไม่โหลดทั้งปี");
 
-    // HomePage ต้องมีปุ่มเปิดปฏิทินรายวัน
     const homeModel = {
-        month: "2026-11",
-        incomeSat: 0,
-        spentSat: 15000,
-        personalSat: 15000,
-        groupShareSat: 0,
-        netSat: -15000,
-        net: "-150",
-        spentPercent: null,
-        categories: [],
-        daily: [{ day: 1, satang: 0, today: false }],
-        calendarDays: calDays,
-        average: 50,
-        owedToMe: [],
-        owedTotal: 0,
-        iOwe: [],
-        iOweTotal: 0,
-        recent: []
+        month: "2026-11", incomeSat: 0, spentSat: 15000, personalSat: 15000, groupShareSat: 0, netSat: -15000, net: "-150", spentPercent: null,
+        categories: [], daily: [], calendarDays: calDays, average: 50,
+        owedToMe: [{ name: "CARE", amount: 100, share: 100 }, { name: "AOY", amount: 50, share: 50 }], owedTotal: 150, iOwe: [], iOweTotal: 0, recent: []
     };
-    const series = [{ month: "2026-11", spentSat: 15000, incomeSat: 0 }];
-    const homeHtml = toString(h(HomePage, { model: homeModel, series, month: "2026-11", onMonth() {} }));
-    assert.match(homeHtml, /ดูตารางปฏิทินรายวัน/);
-    assert.ok(!homeHtml.includes("มากสุดวันที่ 4"), "ต้องไม่มีกราฟแท่งรายวันเดิมใต้กราฟเดือน");
+    const homeHtml = toString(h(HomePage, { model: homeModel, series: null, month: "2026-11", onMonth() {}, today: "2026-11-02", nowMonth: "2026-11" }));
+    assert.match(homeHtml, /เพื่อนค้างฉัน/);
+    assert.match(homeHtml, /ฉันค้างเพื่อน/);
+    assert.match(homeHtml, /ไม่ค้างใคร/);
+    assert.match(homeHtml, /avstack/, "รูปเพื่อนซ้อนกันแทนคำอธิบาย");
+    assert.match(homeHtml, /href="#clear"/);
+    assert.ok(!homeHtml.includes("รายการล่าสุด"), "เอารายการล่าสุดออกจากหน้าแรกแล้ว");
+    assert.ok(!homeHtml.includes("ใช้ไปรายเดือน"), "กราฟรายเดือนเดิมถูกแทนด้วยปฏิทิน");
+});
+
+test("ตัวโหลดตอนเข้าเว็บ: มาร์กอัปใน index.html ตรงกับ Loader และปิดแอนิเมชันเมื่อผู้ใช้ตั้งลดการเคลื่อนไหว", () => {
+    const html = fs.readFileSync(path.join(root, "web/index.html"), "utf8");
+    const icons = fs.readFileSync(path.join(root, "web/src/icons.jsx"), "utf8");
+    const css = fs.readFileSync(path.join(root, "web/src/styles.css"), "utf8");
+    for (const c of ["ld-wrap", "ld-l", "ld-r", "ld-cut", "ld-pill"]) {
+        assert.ok(html.includes(c), "index.html ขาด " + c);
+        assert.ok(icons.includes(c), "Loader ขาด " + c);
+    }
+    const i = css.indexOf("@media (prefers-reduced-motion: no-preference) {\n  .ld-l");
+    assert.ok(i > 0 && css.indexOf("@keyframes ld-left") > i, "แอนิเมชันต้องอยู่ใต้ prefers-reduced-motion: no-preference");
+    assert.ok(!/\.ld-l\s*\{[^}]*animation/.test(css.slice(0, i)), "ห้ามตั้งแอนิเมชันนอกเงื่อนไขลดการเคลื่อนไหว");
 });
 
 test("หน้า บันทึกแบบไหน (แตะแจ้งเตือนบน iPhone): แสดงรายการ ยอด บัตร และปุ่ม ส่วนตัว / หารกับเพื่อน", { skip: !hasTools }, async () => {

@@ -1,5 +1,6 @@
 // ชุดไอคอนเส้นบาง 1.8px ปลายมน (ชุดเดียวกับในหน้าเลือกแบบ) ไม่มี emoji
 import { brandOf } from "./brands.js";
+import { SI } from "./brand-paths.js";
 const P = {
     home: <><path d="M3.5 11 12 4l8.5 7" /><path d="M5.5 9.8V20h13V9.8" /><path d="M10 20v-5.5h4V20" /></>,
     bill: <><path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8z" /><path d="M9 8.5h6M9 12h6" /></>,
@@ -44,6 +45,9 @@ const P = {
     sparkle: <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z" />,
     sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></>,
     moon: <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z" />,
+    list: <path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01" />,
+    upload: <path d="M12 16V5M7.5 9.5 12 5l4.5 4.5M5 19h14" />,
+    grid: <><rect x="4" y="4" width="7" height="7" rx="1.5" /><rect x="13" y="4" width="7" height="7" rx="1.5" /><rect x="4" y="13" width="7" height="7" rx="1.5" /><rect x="13" y="13" width="7" height="7" rx="1.5" /></>,
     calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>
 };
 
@@ -66,17 +70,17 @@ const FA = {
 };
 export const iconFor = (fa) => FA[fa] || "bill";
 
-// รูปทรงบนป้ายแบรนด์ (วาดเองแบบง่าย)
-const GLYPH = {
-    play: (c) => <path d="M9.5 7.5v9l7.5-4.5z" fill={c} />,
-    waves: (c) => <path d="M5 9c4.5-1.5 9.5-1 14 1.3M6 12.6c3.8-1.1 7.8-.7 11.3 1.1M7 16c3-.8 6-.5 8.6.8" fill="none" stroke={c} stroke-width="2.1" stroke-linecap="round" />,
-    note: (c) => <><path d="M9 17.5V7l9-2v10.5" fill="none" stroke={c} stroke-width="2" /><circle cx="7" cy="17.5" r="2.3" fill={c} /><circle cx="16" cy="15.5" r="2.3" fill={c} /></>,
-    cup: (c) => <path d="M6 9h10v4a5 5 0 0 1-5 5h0a5 5 0 0 1-5-5zM16 10h1.5a2 2 0 0 1 0 4H16M8.5 4.5c0 1 1 1 1 2M12 4.5c0 1 1 1 1 2" fill="none" stroke={c} stroke-width="1.8" stroke-linecap="round" />,
-    bag: (c) => <path d="M5 8h14l-1 12H6zM9 8a3 3 0 0 1 6 0" fill="none" stroke={c} stroke-width="1.8" stroke-linejoin="round" />
-};
+// รูปทรงเขียนเองบนป้ายที่ไม่มีไอคอนจริง
+function BrandBadge({ b, size }) {
+    const dim = Math.round(size * 0.58);
+    if (b.si && SI[b.si]) {
+        return <svg viewBox="0 0 24 24" width={dim} height={dim} aria-hidden="true"><path d={SI[b.si]} fill={b.fg} /></svg>;
+    }
+    return <b style={{ fontSize: Math.round(size * (b.small ? 0.28 : b.text && b.text.length > 1 ? 0.36 : 0.55)) }}>{b.text}</b>;
+}
 
 /**
- * ไอคอนหน้ารายการ: ร้าน/บริการดัง (เดาจากชื่อ) แสดงป้ายสีแบรนด์ ไม่อย่างนั้นใช้ไอคอนหมวดเหมือนเดิม
+ * ไอคอนหน้ารายการ: ร้าน/บริการดัง (เดาจากชื่อ) แสดงป้ายสีแบรนด์ (ไอคอนจริงจาก Simple Icons ถ้ามี) ไม่อย่างนั้นใช้ไอคอนหมวดเหมือนเดิม
  * name = ไอคอนหมวดที่จะใช้ถ้าไม่ใช่แบรนด์ (เช่น "down" ของรายรับ)
  */
 export function ItemIcon({ desc, name, size = 40, iconSize }) {
@@ -85,19 +89,7 @@ export function ItemIcon({ desc, name, size = 40, iconSize }) {
     const style = { width: size, height: size, background: b.bg, color: b.fg, borderRadius: b.round ? "50%" : Math.round(size * 0.3) };
     if (b.ring) style.boxShadow = "inset 0 0 0 1.5px #e3e8f5";
     if (b.glyph === "stripes") style.background = "linear-gradient(180deg,#f58220 0 33%,#ffffff 33% 38%,#00a650 38% 66%,#ffffff 66% 71%,#ee1c25 71%)";
-    const g = b.glyph && GLYPH[b.glyph];
-    return (
-        <span class="ico brand" style={style} aria-hidden="true">
-            {g ? (
-                <svg viewBox="0 0 24 24" width={Math.round(size * 0.62)} height={Math.round(size * 0.62)}>
-                    {b.glyph === "play" ? <rect x="3" y="5.5" width="18" height="13" rx="3.5" fill="#ff0000" /> : null}
-                    {g(b.glyph === "play" ? "#ffffff" : b.fg)}
-                </svg>
-            ) : (
-                <b style={{ fontSize: Math.round(size * (b.small ? 0.28 : b.text && b.text.length > 1 ? 0.36 : 0.55)) }}>{b.text}</b>
-            )}
-        </span>
-    );
+    return <span class="ico brand" style={style} aria-hidden="true"><BrandBadge b={b} size={size} /></span>;
 }
 
 export function Mark({ size = 24 }) {
@@ -110,5 +102,23 @@ export function Mark({ size = 24 }) {
             <rect x="22.5" y="22" width="7" height="4" rx="2" fill="#ffc23d" />
             <rect x="34.5" y="22" width="7" height="4" rx="2" fill="#ffc23d" />
         </svg>
+    );
+}
+
+/**
+ * ตัวโหลดตอนเข้าเว็บ: โลโก้ใบเสร็จผ่ากลาง ใบเสร็จแยกออกเป็นสองซีกแล้วกลับมารวมกัน (หารบิล) จุดสีทานตะวันกระดกตาม
+ * ต้องตรงกับมาร์กอัปใน web/index.html (แสดงก่อนสคริปต์โหลดเสร็จ) ปิดแอนิเมชันเมื่อผู้ใช้ตั้งลดการเคลื่อนไหว
+ */
+export function Loader({ size = 88, label = "" }) {
+    return (
+        <div class="ld-wrap" role="status" aria-live="polite">
+            <svg class="ld" viewBox="0 0 64 64" width={size} height={size} aria-hidden="true">
+                <rect width="64" height="64" rx="18" fill="#2343c9" />
+                <g class="ld-l"><path d="M19 13h13v35l-4.3 3-4.4-3-4.3 3z" fill="#ffffff" /><rect x="22.5" y="22" width="7" height="4" rx="2" fill="#ffc23d" class="ld-pill" /></g>
+                <g class="ld-r"><path d="M32 13h13v38l-4.3-3-4.4 3-4.3-3z" fill="#ffffff" /><rect x="34.5" y="22" width="7" height="4" rx="2" fill="#ffc23d" class="ld-pill" /></g>
+                <path class="ld-cut" d="M32 16v31" stroke="#2343c9" stroke-width="3" stroke-dasharray="3.5 3.5" />
+            </svg>
+            {label ? <p class="ld-t">{label}</p> : null}
+        </div>
     );
 }

@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
-import { Mark } from "./icons.jsx";
+import { Loader } from "./icons.jsx";
 import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
@@ -10,8 +10,7 @@ import { HomePage } from "./pages/HomePage.jsx";
 // หน้าอื่นและหน้าต่างต่างๆ โหลดเมื่อต้องใช้ (หน้าแรกกับตัวแอปมาก่อน เปิดเร็วขึ้น)
 const loadAdd = () => import("./add.jsx");
 const loadClear = () => import("./pages/ClearPage.jsx");
-const loadWallet = () => import("./pages/WalletPage.jsx");
-const loadBills = () => import("./pages/BillsPage.jsx");
+const loadList = () => import("./pages/ListPage.jsx");
 const loadMe = () => import("./pages/MePage.jsx");
 const loadOnboard = () => import("./onboard.jsx");
 
@@ -30,13 +29,15 @@ function parseDeep(t) {
 }
 const nowMonth0 = bangkokToday().slice(0, 7);
 
-const MONTHS_BACK = 12; // เลือกย้อนหลังได้กี่เดือน
-const CHART_MONTHS = 6; // กราฟรายเดือนแสดงกี่เดือน
+const MONTHS_BACK = 12; // เลือกย้อนหลังได้กี่เดือน (ปฏิทินแบบปีใช้ทั้ง 12 เดือน โหลดเมื่อเปิดดูแบบปีเท่านั้น)
+// หน้าที่มีในแอป: บิลกับกระเป๋าเดิมรวมเป็น "list" (ลิงก์เก่า #bills #wallet ยังเปิดได้)
+const PAGES = ["home", "list", "clear", "me"];
+const pageOf = (t) => (t === "bills" || t === "wallet" ? "list" : PAGES.includes(t) ? t : "home");
 
 function App() {
     // มีตัวตนที่จำไว้ -> เข้าแอปทันที (ยืนยันกับ LINE เบื้องหลัง) ไม่ต้องรอหน้า "กำลังเข้าสู่ระบบ"
     const [auth, setAuth] = useState(CACHED_USER ? { state: "ok", user: CACHED_USER } : { state: "loading" });
-    const [tab, setTab] = useState(() => { const t = readTarget(); return !t || t === "add" ? "home" : parseDeep(t) ? "wallet" : t; });
+    const [tab, setTab] = useState(() => { const t = readTarget(); return parseDeep(t) ? "list" : pageOf(t); });
     const [deep, setDeep] = useState(() => parseDeep(readTarget())); // รายการที่ต้องเปิดจากลิงก์ในแจ้งเตือน
     const [openEdit, setOpenEdit] = useState(null);
     const [choose, setChoose] = useState(null); // รายการที่ถาม "บันทึกแบบไหน" (จากแจ้งเตือน)
@@ -58,6 +59,8 @@ function App() {
     const [toast, setToast] = useState("");
     const [reload, setReload] = useState(0);
     const [loginExpired, setLoginExpired] = useState(false); // บัตรล็อกอิน LINE หมดอายุ
+    const [wide, setWide] = useState(false); // ปฏิทินแบบปีต้องใช้ข้อมูลครบ 12 เดือน
+    const [booted, setBooted] = useState(Boolean(CACHED_USER)); // เข้าแอปครั้งแรกโดยไม่มีข้อมูลที่จำไว้: แสดงตัวโหลดเต็มจอจนข้อมูลพร้อม
 
     // หลังล็อกอิน: ยังไม่ผูกบัญชี -> เลือกชื่อ / สมาชิกที่ยังไม่กรอกชื่อจริงและพร้อมเพย์ -> กรอกก่อน (แอดมินข้าม) / ไม่งั้นเข้าแอป
     const accept = (u) => {
@@ -78,8 +81,8 @@ function App() {
             // ลิงก์จากแชต (#add เปิดหน้าต่างบันทึกทันที / #clear ฯลฯ) LIFF อาจใส่ที่อยู่ปลายทางหลังเริ่มระบบเสร็จ จึงอ่านอีกครั้งตรงนี้
             const t = readTarget();
             if (t === "add") { setSheet("menu"); setTab("home"); try { history.replaceState(null, "", location.pathname + "#home"); } catch (e) { /* ไม่เป็นไร */ } }
-            else if (parseDeep(t)) { setDeep(parseDeep(t)); setTab("wallet"); }
-            else if (t && ["home", "bills", "clear", "wallet", "me"].includes(t)) setTab(t);
+            else if (parseDeep(t)) { setDeep(parseDeep(t)); setTab("list"); }
+            else if (t && ["home", "list", "bills", "wallet", "clear", "me"].includes(t)) setTab(pageOf(t));
         }).catch((e) => { if (!CACHED_USER) setAuth({ state: "error", message: e.message }); else console.warn("signIn:", e.message); });
     }, []);
     useEffect(() => { onLoginExpired(() => setLoginExpired(true)); }, []);
@@ -87,7 +90,7 @@ function App() {
         const h = () => {
             const t = location.hash.slice(1);
             const d = parseDeep(t);
-            if (d) { setDeep(d); setTab("wallet"); } else setTab(t || "home");
+            if (d) { setDeep(d); setTab("list"); } else setTab(pageOf(t));
         };
         addEventListener("hashchange", h);
         return () => removeEventListener("hashchange", h);
@@ -99,7 +102,7 @@ function App() {
     }, [auth.state, reload]);
     // โปรไฟล์สมาชิก (พร้อมเพย์/ชื่อจริง): โหลดเมื่อเปิดหน้าที่ต้องใช้เท่านั้น (อ่าน 14 ครั้ง จำไว้ 10 นาที)
     useEffect(() => {
-        if (auth.state !== "ok" || !["clear", "me"].includes(tab) || profiles) return;
+        if (auth.state !== "ok" || !["home", "clear", "me"].includes(tab) || profiles) return;
         loadProfiles().then(setProfiles).catch(() => setLoadError(true));
     }, [auth.state, tab, profiles]);
     // เดือนนี้: ฟังแบบสด (อ่านเฉพาะรายการที่เปลี่ยน)
@@ -107,8 +110,8 @@ function App() {
         if (auth.state !== "ok") return undefined;
         return watchMonth(nowMonth, (d) => { if (d.error) setLoadError(true); else patchMonth(nowMonth, d); });
     }, [auth.state, nowMonth]);
-    // เดือนที่ผ่านมาแล้ว (สำหรับกราฟรายเดือน และเดือนที่เลือกดู): อ่านครั้งเดียวแล้วจำไว้ 1 วัน
-    const wantedMonths = useMemo(() => [...new Set([...lastMonths(nowMonth, CHART_MONTHS), month])].filter((m) => m !== nowMonth), [nowMonth, month]);
+    // เดือนที่ผ่านมาแล้ว (เดือนที่เลือกดู + ทั้ง 12 เดือนเมื่อเปิดปฏิทินแบบปี): อ่านครั้งเดียวแล้วจำไว้ 1 วัน
+    const wantedMonths = useMemo(() => [...new Set([...(wide ? lastMonths(nowMonth, MONTHS_BACK) : []), month])].filter((m) => m !== nowMonth), [nowMonth, month, wide]);
     // กระเป๋า: เรียก API ครั้งเดียวได้ทั้งเดือนนี้และเดือนที่ยังไม่มีในเครื่อง
     useEffect(() => {
         if (auth.state !== "ok") return;
@@ -135,14 +138,17 @@ function App() {
     useEffect(() => {
         if (auth.state !== "ok") return undefined;
         const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1500));
-        const h = idle(() => { [loadBills, loadClear, loadWallet, loadMe, loadAdd].forEach((l) => l().catch(() => {})); });
+        const h = idle(() => { [loadList, loadClear, loadMe, loadAdd].forEach((l) => l().catch(() => {})); });
         return () => { if (window.cancelIdleCallback) window.cancelIdleCallback(h); else clearTimeout(h); };
     }, [auth.state]);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
 
     const done = (m) => byMonth[m] && byMonth[m].transactions && byMonth[m].settlements && byMonth[m].wallet;
-    // แสดงหน้าได้เมื่อมีเดือนนี้และเดือนที่เลือก (กราฟค่อยตามมาทีหลัง ไม่ต้องรอทุกเดือน)
+    // แสดงหน้าได้เมื่อมีเดือนนี้และเดือนที่เลือก (ข้อมูลทั้งปีค่อยตามมาทีหลัง ไม่ต้องรอทุกเดือน)
     const monthsReady = auth.state === "ok" && members && done(nowMonth) && done(month);
+    useEffect(() => { if (monthsReady) setBooted(true); }, [monthsReady]);
+    // กันตัวโหลดค้าง: ถ้ารอเกิน 12 วินาที แสดงหน้าแอปพร้อมสถานะข้อผิดพลาด/โครงหน้าแทน
+    useEffect(() => { if (booted) return undefined; const t = setTimeout(() => setBooted(true), 12000); return () => clearTimeout(t); }, [booted]);
     const chartReady = monthsReady && wantedMonths.every(done);
     const all = useMemo(() => {
         if (!monthsReady) return null;
@@ -155,7 +161,7 @@ function App() {
     }, [monthsReady, byMonth]);
     const suggested = useMemo(() => (all && members ? suggestPeople({ me: auth.user.name, members, transactions: all.transactions }) : []), [all, auth, members]);
     const model = useMemo(() => (all ? buildHomeModel({ name: auth.user.name, month, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, auth, members, month, today]);
-    const series = useMemo(() => (all && chartReady ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, CHART_MONTHS), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, chartReady, auth, nowMonth]);
+    const series = useMemo(() => (all && wide && chartReady ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, MONTHS_BACK), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, wide, chartReady, auth, nowMonth]);
     const clearM = useMemo(() => (all ? buildClearModel({ name: auth.user.name, month, members, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, members, month]);
     const walletM = useMemo(() => (all ? buildWalletModel({ name: auth.user.name, month, walletItems: all.wallet, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, month]);
     const billsM = useMemo(() => (all ? buildBillsModel({ name: auth.user.name, month, transactions: all.transactions, search }) : null), [all, auth, month, search]);
@@ -175,30 +181,30 @@ function App() {
             if (!it) { setToast("ไม่พบรายการนี้ (อาจถูกลบหรือเปลี่ยนเป็นบิลหารแล้ว)"); return; }
             if (deep.kind === "split" && it.type !== "income") startSplit(it);
             else if (deep.kind === "choose" && it.type !== "income") setChoose(it);
-            else { setTab("wallet"); setOpenEdit({ ...it }); }
+            else { setTab("list"); setOpenEdit({ ...it }); }
         }).catch((e) => { if (on && !e.expired) setToast(e.message); }).finally(() => {
             if (!on) return;
             setDeep(null);
-            try { history.replaceState(null, "", location.pathname + "#wallet"); } catch (e) { /* ไม่เป็นไร */ }
+            try { history.replaceState(null, "", location.pathname + "#list"); } catch (e) { /* ไม่เป็นไร */ }
         });
         return () => { on = false; };
     }, [deep, Boolean(all)]);
     const refreshAll = () => { clearCache(); setByMonth({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
 
-    if (auth.state === "loading") return <div class="center"><Mark size={64} /><p>กำลังเข้าสู่ระบบ</p></div>;
-    if (auth.state === "error") return <div class="center"><Mark size={64} /><p role="alert">{auth.message}</p><button type="button" class="btn" onClick={() => location.reload()}>ลองใหม่</button></div>;
-    if (auth.state === "link") return <Lazy load={loadOnboard} name="LinkPage" profile={auth.profile} candidates={auth.candidates} onDone={accept} fallback={<div class="center"><Mark size={64} /></div>} />;
-    if (auth.state === "onboard") return <Lazy load={loadOnboard} name="OnboardPage" user={auth.user} onDone={accept} fallback={<div class="center"><Mark size={64} /></div>} />;
+    if (auth.state === "loading") return <div class="center"><Loader /></div>;
+    if (auth.state === "error") return <div class="center"><Loader /><p role="alert">{auth.message}</p><button type="button" class="btn" onClick={() => location.reload()}>ลองใหม่</button></div>;
+    if (auth.state === "link") return <Lazy load={loadOnboard} name="LinkPage" profile={auth.profile} candidates={auth.candidates} onDone={accept} fallback={<div class="center"><Loader /></div>} />;
+    if (auth.state === "onboard") return <Lazy load={loadOnboard} name="OnboardPage" user={auth.user} onDone={accept} fallback={<div class="center"><Loader /></div>} />;
+    if (!booted && !loadError) return <div class="center"><Loader label="กำลังโหลดข้อมูล" /></div>;
 
     const go = (k) => { location.hash = k; setTab(k); window.scrollTo(0, 0); };
-    const page = ["home", "bills", "clear", "wallet", "me"].includes(tab) ? tab : "home";
+    const page = pageOf(tab);
     const needsData = page !== "me";
     let body;
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
-    else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} all={all} members={members} userName={auth.user?.name} today={today} nowMonth={nowMonth} /> : <Skeleton blocks={5} />;
-    else if (page === "bills") body = billsM ? <Lazy load={loadBills} name="BillsPage" fallback={<Skeleton blocks={2} />} model={billsM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else if (page === "wallet") body = walletM ? <Lazy load={loadWallet} name="WalletPage" fallback={<Skeleton blocks={3} />} model={walletM} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles || []} today={today} nowMonth={nowMonth} since={since} onNeedYear={() => setWide(true)} /> : <Skeleton blocks={5} />;
+    else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={billsM} wallet={walletM} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} back={walletM ? { receivedSat: walletM.receivedBackSat, paidSat: walletM.paidBackSat } : null} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
     else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} /> : <Skeleton blocks={2} />;
 
     return (

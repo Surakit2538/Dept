@@ -5,9 +5,8 @@ import { shiftMonth, monthLabel, monthFullLabel, daysInMonth, TH_MONTHS } from "
 
 export const TABS = [
     { key: "home", label: "หน้าแรก", icon: "home" },
-    { key: "bills", label: "บิล", icon: "bill" },
+    { key: "list", label: "รายการ", icon: "list" },
     { key: "clear", label: "เคลียร์เงิน", icon: "swap" },
-    { key: "wallet", label: "กระเป๋า", icon: "wallet" },
     { key: "me", label: "ฉัน", icon: "user" }
 ];
 
@@ -33,10 +32,28 @@ export function SectionTitle({ icon, title, note }) {
     );
 }
 
+/** สีพื้นรูปตัวอักษรของแต่ละคน (คงที่ตามชื่อ) 0-4 */
+export function tintOf(name) {
+    let h = 0;
+    for (const ch of String(name || "")) h = (h * 31 + ch.codePointAt(0)) % 997;
+    return h % 5;
+}
+
+/** รูปคนซ้อนกัน (ใช้แทนรายชื่อยาวๆ) แสดงสูงสุด max คน ที่เหลือขึ้น +N */
+export function AvatarStack({ names = [], pictures = {}, max = 3 }) {
+    const shown = names.slice(0, max);
+    return (
+        <span class="avstack" aria-hidden="true">
+            {shown.map((n) => <Avatar key={n} name={n} pictureUrl={pictures[n]} size="sm" />)}
+            {names.length > max && <span class="avstack-more num">+{names.length - max}</span>}
+        </span>
+    );
+}
+
 export function Avatar({ name, pictureUrl, size = "" }) {
     const [failed, setFailed] = useState(false);
     const initial = [...String(name || "?")][0];
-    const cls = `av ${size}`.trim();
+    const cls = `av tint${tintOf(name)} ${size}`.trim();
     if (pictureUrl && !failed) {
         return (
             <img
@@ -268,7 +285,7 @@ export function DatePickerField({ id, label = "วันที่", value, onCha
                         class={`date-quick-btn ${!isToday && !isYesterday ? "on" : ""}`}
                         onClick={() => setOpen(true)}
                     >
-                        วันอื่น...
+                        แก้ไขวันที่
                     </button>
                 </div>
             </div>

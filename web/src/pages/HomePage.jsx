@@ -1,10 +1,12 @@
-// หน้าแรก: สรุปเดือน (เลขเดียวก่อน) หมวด กราฟรายเดือนแตะดูรายวัน หนี้ และรายการล่าสุด
-import { useState, useEffect, useMemo } from "preact/hooks";
+// หน้าแรก: สรุปเดือน, เพื่อนค้างฉัน/ฉันค้างเพื่อน (รูปเพื่อนซ้อนกัน), ใช้ไปกับอะไร และปฏิทินใช้จ่าย (ดูเป็นวัน เดือน ปี)
+import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
-import { Avatar, SectionTitle, Sheet } from "../ui.jsx";
-import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS_FULL, buildHomeModel } from "../model.js";
+import { AvatarStack, SectionTitle } from "../ui.jsx";
+import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS } from "../model.js";
 
 const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", fun: "film", other: "dots" };
+const TH_DAYS = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
+const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
 function Ring({ percent }) {
     const r = 42, c = 2 * Math.PI * r;
@@ -19,8 +21,6 @@ function Ring({ percent }) {
         </div>
     );
 }
-
-const TH_DAYS = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
 
 /** ป้ายวันที่แบบปฏิทิน: เดือนนี้แสดงวันนี้ เดือนอื่นแสดงจำนวนวันทั้งเดือน */
 export function DateTile({ month, today }) {
@@ -67,6 +67,28 @@ export function Hero({ m, onAddIncome, today = "" }) {
     );
 }
 
+/** เพื่อนค้างฉัน / ฉันค้างเพื่อน: ยอดรวม + รูปเพื่อนซ้อนกัน แตะแล้วไปหน้าเคลียร์เงิน (รายชื่อและยอดแต่ละคนดูที่นั่น) */
+export function OweCards({ m, profiles = [], month = "", nowMonth = "" }) {
+    const pic = Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]));
+    const owedNames = m.owedToMe.map((o) => o.name);
+    const oweNames = m.iOwe.map((o) => o.name);
+    const suffix = month && nowMonth && month !== nowMonth ? ` (${monthShort(month)})` : "";
+    return (
+        <div class="owe-grid">
+            <a class="card owe-card" href="#clear" aria-label={`เพื่อนค้างฉัน ${baht(m.owedTotal)}${owedNames.length ? " ได้แก่ " + owedNames.join(", ") : ""}`}>
+                <span class="owe-k">เพื่อนค้างฉัน{suffix}<Icon name="right" size={14} /></span>
+                <b class={`owe-v num ${m.owedTotal > 0 ? "rcv" : ""}`}>{baht(m.owedTotal)}</b>
+                {owedNames.length > 0 ? <AvatarStack names={owedNames} pictures={pic} /> : <span class="owe-ok"><Icon name="check" size={14} />ไม่มีใครค้าง</span>}
+            </a>
+            <a class="card owe-card" href="#clear" aria-label={`ฉันค้างเพื่อน ${baht(m.iOweTotal)}${oweNames.length ? " ได้แก่ " + oweNames.join(", ") : ""}`}>
+                <span class="owe-k">ฉันค้างเพื่อน{suffix}<Icon name="right" size={14} /></span>
+                <b class={`owe-v num ${m.iOweTotal > 0 ? "pay" : ""}`}>{baht(m.iOweTotal)}</b>
+                {oweNames.length > 0 ? <AvatarStack names={oweNames} pictures={pic} /> : <span class="owe-ok"><Icon name="check" size={14} />ไม่ค้างใคร</span>}
+            </a>
+        </div>
+    );
+}
+
 function Categories({ cats }) {
     if (cats.length === 0) return null;
     const top = cats[0];
@@ -89,294 +111,185 @@ function Categories({ cats }) {
 }
 
 const shortBaht = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(Math.round(n)));
+const money2 = (satang) => baht(satang / 100, { decimals: 2 });
 
-function Monthly({ series, selected, onSelect, onOpenCalendar }) {
-    const max = Math.max(1, ...series.map((s) => s.spentSat));
-    if (series.every((s) => s.spentSat === 0)) return <><SectionTitle icon="chart" title="ใช้ไปรายเดือน" /><p class="empty">ยังไม่มีรายจ่ายใน 6 เดือนที่ผ่านมา บันทึกรายการแรกได้จากปุ่ม &ldquo;บันทึก&rdquo;</p></>;
-    return (
-        <>
-            <SectionTitle icon="chart" title="ใช้ไปรายเดือน" note="แตะแท่งเดือนเพื่อดูปฏิทินรายวัน" />
-            <div class="months" role="group" aria-label="ใช้ไปรายเดือน">
-                {series.map((s) => {
-                    const on = s.month === selected;
-                    return (
-                        <button
-                            type="button"
-                            class={`mcol ${on ? "on" : ""}`}
-                            key={s.month}
-                            aria-pressed={on}
-                            aria-label={`${monthLabel(s.month)} ใช้ไป ${baht(s.spentSat / 100)}`}
-                            onClick={() => {
-                                onSelect(s.month);
-                                onOpenCalendar(s.month);
-                            }}
-                        >
-                            <span class="mval num">{s.spentSat > 0 ? shortBaht(s.spentSat / 100) : ""}</span>
-                            <span class="mplot">
-                                <i class="mbar" style={{ height: `${Math.max(2, Math.round((s.spentSat / max) * 100))}%` }} />
-                            </span>
-                            <span class="mlab">{monthShort(s.month)}</span>
-                        </button>
-                    );
-                })}
-            </div>
-            <button
-                type="button"
-                class="more cal-open-btn"
-                onClick={() => onOpenCalendar(selected)}
-            >
-                <Icon name="calendar" size={16} />
-                <span>ดูตารางปฏิทินรายวัน ({monthLabel(selected)})</span>
-                <Icon name="right" size={14} />
-            </button>
-        </>
-    );
+/** ความเข้มของสีช่องวัน 0-3 ตามยอดเทียบวันที่ใช้มากสุดของเดือน */
+function heat(satang, max) {
+    if (!satang || !max) return 0;
+    const r = satang / max;
+    return r > 0.6 ? 3 : r > 0.25 ? 2 : 1;
 }
 
-export function DailyCalendarSheet({ month, calendarDays = [], spentSat = 0, average = 0, onMonth, onClose }) {
-    const totalDays = daysInMonth(month);
+function MonthGrid({ month, days, onPick }) {
     const [y, m] = month.split("-").map(Number);
-    const mIndex = m - 1;
-    const firstDow = new Date(Date.UTC(y, mIndex, 1)).getUTCDay();
+    const firstDow = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+    const max = days.reduce((a, d) => Math.max(a, d.satang), 0);
+    return (
+        <div class="sc-grid" role="grid" aria-label={`ปฏิทินรายจ่าย ${monthFullLabel(month)}`}>
+            {DOW.map((w) => <span key={w} class="sc-dow" role="columnheader">{w}</span>)}
+            {Array.from({ length: firstDow }, (_, i) => <span key={`e${i}`} />)}
+            {days.map((d) => (
+                <button
+                    type="button"
+                    key={d.day}
+                    class={`sc-day h${heat(d.satang, max)} ${d.today ? "today" : ""} ${d.satang > 0 && d.satang === max ? "peak" : ""}`}
+                    disabled={d.isFuture}
+                    onClick={() => onPick(d.day)}
+                    aria-label={`วันที่ ${d.day} ใช้ไป ${d.satang > 0 ? baht(d.satang / 100) : "0 บาท"}`}
+                >
+                    <span class="num">{d.day}</span>
+                    {d.satang > 0 ? <small class="num">{shortBaht(d.satang / 100)}</small> : null}
+                </button>
+            ))}
+        </div>
+    );
+}
 
-    const topDay = calendarDays.length > 0
-        ? calendarDays.reduce((a, d) => (d.satang > a.satang ? d : a), calendarDays[0])
-        : null;
+export function DayView({ month, days, day, onDay }) {
+    const d = days.find((x) => x.day === day) || days[0];
+    if (!d) return null;
+    const [y, m] = month.split("-").map(Number);
+    const dow = TH_DAYS[new Date(Date.UTC(y, m - 1, d.day)).getUTCDay()];
+    const last = days.filter((x) => !x.isFuture).length;
+    return (
+        <div class="sc-day-view">
+            <div class="sc-day-hd">
+                <span class="dtile sm" aria-hidden="true"><span class="m">{monthShort(month)}</span><span class="d num">{d.day}</span></span>
+                <div class="grow"><b>{dow} {d.day} {monthShort(month)}</b><span class="lbl">{d.items.length} รายการ</span></div>
+                <b class="num pay">{baht(d.satang / 100)}</b>
+            </div>
+            <div class="sc-day-nav">
+                <button type="button" class="icon-btn" aria-label="วันก่อนหน้า" disabled={d.day <= 1} onClick={() => onDay(d.day - 1)}><Icon name="left" size={16} /></button>
+                <span class="lbl">เลื่อนดูวันอื่น</span>
+                <button type="button" class="icon-btn" aria-label="วันถัดไป" disabled={d.day >= last} onClick={() => onDay(d.day + 1)}><Icon name="right" size={16} /></button>
+            </div>
+            {d.items.length === 0 ? <p class="empty"><Icon name="check" size={16} class="rcv" />ไม่มีรายจ่ายในวันนี้</p> : (
+                <ul class="plain">
+                    {d.items.map((it, i) => (
+                        <li class="row" key={i}>
+                            <ItemIcon desc={it.desc} name={iconFor(it.icon)} size={36} iconSize={18} />
+                            <div class="grow"><div class="t">{it.desc || "ไม่ระบุ"}</div><div class="s">{it.kind === "group" ? "ส่วนของฉันในกลุ่ม" : "ส่วนตัว"}</div></div>
+                            <span class="num pay">{money2(it.satang)}</span>
+                        </li>
+                    ))}
+                </ul>
+            )}
+        </div>
+    );
+}
 
-    const findDefaultDay = () => {
-        const todayDay = (calendarDays || []).find((d) => d.today)?.day;
-        if (todayDay) return todayDay;
-        if (topDay && topDay.satang > 0) return topDay.day;
-        return 1;
+export function YearView({ year, series, since, nowMonth, onPick }) {
+    const byMonth = Object.fromEntries((series || []).map((s) => [s.month, s.spentSat]));
+    const rows = Array.from({ length: 12 }, (_, i) => {
+        const key = `${year}-${String(i + 1).padStart(2, "0")}`;
+        const inRange = key >= since && key <= nowMonth;
+        return { key, label: TH_MONTHS[i], inRange, sat: inRange ? byMonth[key] || 0 : 0 };
+    });
+    const max = rows.reduce((a, r) => Math.max(a, r.sat), 0);
+    return (
+        <div class="sc-year">
+            {rows.map((r) => (
+                <button type="button" key={r.key} class={`sc-mon ${r.key === nowMonth ? "cur" : ""}`} disabled={!r.inRange} onClick={() => onPick(r.key)} aria-label={`${monthLabel(r.key)} ใช้ไป ${r.inRange ? baht(r.sat / 100) : "ไม่มีข้อมูล"}`}>
+                    <small>{r.label}</small>
+                    <b class="num">{r.inRange ? shortBaht(r.sat / 100) : "-"}</b>
+                    <i style={{ width: `${r.inRange && max > 0 ? Math.max(4, Math.round((r.sat / max) * 100)) : 0}%` }} />
+                </button>
+            ))}
+        </div>
+    );
+}
+
+/**
+ * ใช้ไปเท่าไร: ปฏิทินรายจ่าย ขยายดูเป็น วัน / เดือน / ปี ได้
+ * เดือนเปลี่ยนที่ตัวเลือกเดือนของแอปตัวเดียวกัน (month/onMonth) ปีใช้ข้อมูล 12 เดือนล่าสุด (โหลดตอนเปิดดูแบบปีเท่านั้น)
+ */
+export function SpendCalendar({ model, month, onMonth, since, nowMonth, series, onNeedYear = () => {} }) {
+    const [view, setView] = useState("month");
+    const [day, setDay] = useState(1);
+    useEffect(() => { if (view === "year") onNeedYear(); }, [view]);
+    const days = model.calendarDays || [];
+    const year = Number(month.slice(0, 4));
+    const topDay = days.reduce((a, d) => (d.satang > (a ? a.satang : 0) ? d : a), null);
+    const goMonth = (delta) => { const t = shiftMonth(month, delta); if (t >= since && t <= nowMonth) onMonth(t); };
+    const goYear = (delta) => {
+        const mm = month.slice(5, 7);
+        let t = `${year + delta}-${mm}`;
+        if (t < since) t = since; else if (t > nowMonth) t = nowMonth;
+        onMonth(t);
     };
+    const prevYearOk = since < `${year}-01`;
+    const nextYearOk = `${year + 1}-01` <= nowMonth;
+    const total = (series || []).filter((s) => s.month.startsWith(String(year))).reduce((a, s) => a + s.spentSat, 0);
+    const counted = (series || []).filter((s) => s.month.startsWith(String(year)) && s.month >= since && s.month <= nowMonth).length;
 
-    const [selectedDay, setSelectedDay] = useState(findDefaultDay);
-
-    useEffect(() => {
-        setSelectedDay(findDefaultDay());
-    }, [month, calendarDays]);
-
-    const activeDay = Math.min(Math.max(1, selectedDay || 1), totalDays);
-    const activeDayData = (calendarDays || []).find((d) => d.day === activeDay);
-
-    const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
-
-    const emptySlots = [];
-    for (let i = 0; i < firstDow; i++) emptySlots.push(i);
+    function pickDay(d) { setDay(d); setView("day"); }
+    function pickMonth(key) { onMonth(key); setView("month"); }
+    function changeView(v) {
+        if (v === "day" && view !== "day") { const t = days.find((d) => d.today); setDay(t ? t.day : topDay ? topDay.day : 1); }
+        setView(v);
+    }
 
     return (
-        <Sheet title="ปฏิทินรายวัน" onClose={onClose}>
-            <div class="daily-cal-box">
-                <div class="cal-hd">
-                    <button
-                        type="button"
-                        class="icon-btn"
-                        aria-label="เดือนก่อนหน้า"
-                        onClick={() => onMonth(shiftMonth(month, -1))}
-                    >
-                        <Icon name="left" size={16} />
-                    </button>
-                    <span class="cal-month-title num">{monthFullLabel(month)}</span>
-                    <button
-                        type="button"
-                        class="icon-btn"
-                        aria-label="เดือนถัดไป"
-                        onClick={() => onMonth(shiftMonth(month, 1))}
-                    >
-                        <Icon name="right" size={16} />
-                    </button>
-                </div>
-
-                <div class="cal-summary-strip">
-                    <div class="cal-stat">
-                        <span class="lbl">ใช้ไปทั้งเดือน</span>
-                        <b class="num pay">{baht(spentSat / 100)}</b>
-                    </div>
-                    <div class="cal-stat">
-                        <span class="lbl">เฉลี่ยต่อวัน</span>
-                        <b class="num">{baht(average)}</b>
-                    </div>
-                    <div class="cal-stat">
-                        <span class="lbl">มากสุดวันที่</span>
-                        <b class="num">{topDay && topDay.satang > 0 ? `${topDay.day} (${shortBaht(topDay.satang / 100)})` : "-"}</b>
-                    </div>
-                </div>
-
-                <div class="daily-cal-table">
-                    <div class="daily-dow-row" role="row">
-                        {DOW.map((w, i) => (
-                            <span key={w} class={`daily-dow ${i === 0 || i === 6 ? "weekend" : ""}`} role="columnheader">
-                                {w}
-                            </span>
-                        ))}
-                    </div>
-                    <div class="daily-days-grid" role="grid">
-                        {emptySlots.map((i) => <span key={`empty-${i}`} class="daily-cell empty" />)}
-                        {calendarDays.map((d) => {
-                            const isSel = d.day === activeDay;
-                            const isPeak = topDay && topDay.satang > 0 && d.satang === topDay.satang;
-                            return (
-                                <button
-                                    type="button"
-                                    key={d.day}
-                                    class={`daily-cell ${isSel ? "on" : ""} ${d.today ? "today" : ""} ${d.isFuture ? "future" : ""} ${d.satang > 0 ? "has-spend" : ""} ${isPeak ? "peak" : ""}`}
-                                    onClick={() => setSelectedDay(d.day)}
-                                    aria-pressed={isSel}
-                                    aria-label={`วันที่ ${d.day} ใช้ไป ${d.satang > 0 ? baht(d.satang / 100) : "0 บาท"}`}
-                                >
-                                    <span class="daily-cell-num num">{d.day}</span>
-                                    {d.satang > 0 ? (
-                                        <span class="daily-cell-amt num">{shortBaht(d.satang / 100)}</span>
-                                    ) : (
-                                        <span class="daily-cell-amt empty">&middot;</span>
-                                    )}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-
-                <div class="daily-detail-box">
-                    <div class="daily-detail-hd">
-                        <span class="daily-detail-date">
-                            <b>วันที่ {activeDay} {TH_MONTHS_FULL[mIndex]}</b>
-                            {activeDayData && activeDayData.today && <span class="tag-today">วันนี้</span>}
-                        </span>
-                        <span class="num pay">{activeDayData && activeDayData.satang > 0 ? `รวม ${baht(activeDayData.satang / 100)}` : "฿0"}</span>
-                    </div>
-                    {activeDayData && activeDayData.items && activeDayData.items.length > 0 ? (
-                        <ul class="daily-items-list plain">
-                            {activeDayData.items.map((it, idx) => (
-                                <li key={idx} class="row">
-                                    <ItemIcon desc={it.desc} name={iconFor(it.icon)} size={32} iconSize={16} />
-                                    <div class="grow">
-                                        <div class="t">{it.desc || "ไม่ระบุ"}</div>
-                                        <div class="s">{it.kind === "group" ? "ส่วนของฉันในกลุ่ม" : "ส่วนตัว"}</div>
-                                    </div>
-                                    <span class="num pay">{baht(it.satang / 100, { decimals: 2 })}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p class="empty"><Icon name="check" size={16} class="rcv" />ไม่มีรายจ่ายในวันนี้</p>
-                    )}
-                </div>
+        <section class="card sc" aria-label="ปฏิทินรายจ่าย">
+            <SectionTitle icon="calendar" title="ใช้ไปเท่าไร" note="รวมรายจ่ายส่วนตัวและส่วนของฉันในกลุ่ม" />
+            <div class="seg sc-seg" role="group" aria-label="ดูเป็น">
+                {[["day", "วัน"], ["month", "เดือน"], ["year", "ปี"]].map(([k, l]) => (
+                    <button type="button" key={k} class={view === k ? "on" : ""} aria-pressed={view === k} onClick={() => changeView(k)}>{l}</button>
+                ))}
             </div>
-        </Sheet>
-    );
-}
 
-function DebtRow({ d, tone, action }) {
-    return (
-        <li class="dbar">
-            <div class="r1">
-                <Avatar name={d.name} />
-                <span class="who">{d.name}</span>
-                <span class={`num amt ${tone === "g" ? "rcv" : "pay"}`}>{baht(d.amount)}</span>
-                <a class="btn sm ghost" href="#clear"><Icon name={tone === "g" ? "swap" : "qr"} size={14} />{action}</a>
-            </div>
-            <div class={`bar ${tone === "g" ? "g" : ""}`}><i style={{ width: `${d.share}%` }} /></div>
-        </li>
-    );
-}
-
-function Debts({ m, month, nowMonth }) {
-    const isCurrent = !month || !nowMonth || month === nowMonth;
-    const title = isCurrent ? "เพื่อนค้างฉัน" : `เพื่อนค้างฉัน (${monthShort(month)})`;
-    const emptyMsg = isCurrent ? "ไม่มีใครค้างคุณในเดือนนี้" : `ไม่มีใครค้างคุณในเดือน ${monthLabel(month)}`;
-    return (
-        <section class="card">
-            <SectionTitle icon="people" title={title} note={m.owedTotal > 0 ? `รอรับคืนรวม ${baht(m.owedTotal)}` : undefined} />
-            {m.owedToMe.length === 0 ? <p class="empty"><Icon name="check" size={16} class="rcv" />{emptyMsg}</p> : <ul class="plain">{m.owedToMe.map((o) => <DebtRow key={o.name} d={o} tone="g" action="ดู" />)}</ul>}
-            {m.iOweTotal > 0 && (
+            {view === "year" ? (
                 <>
-                    <h3 class="sub-t">ฉันค้างเพื่อน <span class="num pay">{baht(m.iOweTotal)}</span></h3>
-                    <ul class="plain">{m.iOwe.map((o) => <DebtRow key={o.name} d={o} tone="p" action="โอน" />)}</ul>
+                    <div class="sc-nav">
+                        <button type="button" class="icon-btn" aria-label="ปีก่อนหน้า" disabled={!prevYearOk} onClick={() => goYear(-1)}><Icon name="left" size={16} /></button>
+                        <b class="num">ปี {year + 543}</b>
+                        <button type="button" class="icon-btn" aria-label="ปีถัดไป" disabled={!nextYearOk} onClick={() => goYear(1)}><Icon name="right" size={16} /></button>
+                    </div>
+                    {series ? (
+                        <>
+                            <div class="sc-sum">
+                                <div><span class="lbl">ใช้ไปทั้งปี</span><b class="num pay">{baht(total / 100)}</b></div>
+                                <div><span class="lbl">เฉลี่ยต่อเดือน</span><b class="num">{baht(counted > 0 ? total / 100 / counted : 0)}</b></div>
+                            </div>
+                            <YearView year={year} series={series} since={since} nowMonth={nowMonth} onPick={pickMonth} />
+                        </>
+                    ) : <p class="empty" aria-busy="true">กำลังโหลดข้อมูลทั้งปี</p>}
+                </>
+            ) : (
+                <>
+                    <div class="sc-nav">
+                        <button type="button" class="icon-btn" aria-label="เดือนก่อนหน้า" disabled={month <= since} onClick={() => goMonth(-1)}><Icon name="left" size={16} /></button>
+                        <b class="num">{monthFullLabel(month)}</b>
+                        <button type="button" class="icon-btn" aria-label="เดือนถัดไป" disabled={month >= nowMonth} onClick={() => goMonth(1)}><Icon name="right" size={16} /></button>
+                    </div>
+                    {view === "month" ? (
+                        <>
+                            <div class="sc-sum">
+                                <div><span class="lbl">ใช้ไปทั้งเดือน</span><b class="num pay">{baht(model.spentSat / 100)}</b></div>
+                                <div><span class="lbl">เฉลี่ยต่อวัน</span><b class="num">{baht(model.average)}</b></div>
+                            </div>
+                            <MonthGrid month={month} days={days} onPick={pickDay} />
+                            {topDay ? <p class="lbl sc-foot">ใช้มากสุดวันที่ {topDay.day} ({baht(topDay.satang / 100)}) แตะวันเพื่อดูรายการ</p> : <p class="lbl sc-foot">ยังไม่มีรายจ่ายในเดือนนี้</p>}
+                        </>
+                    ) : <DayView month={month} days={days} day={day} onDay={setDay} />}
                 </>
             )}
         </section>
     );
 }
 
-function Recent({ items }) {
-    if (!items.length) return null;
-    return (
-        <section class="card">
-            <SectionTitle icon="bill" title="รายการล่าสุด" />
-            <ul class="plain">
-                {items.map((r) => (
-                    <li class="row" key={r.kind + r.id}>
-                        <ItemIcon desc={r.kind === "income" ? "" : r.desc} name={r.kind === "income" ? "down" : iconFor(r.icon)} />
-                        <div class="grow"><div class="t">{r.desc || "ไม่ระบุ"}</div><div class="s">{r.kind === "group" ? "ส่วนของฉันในกลุ่ม" : r.kind === "income" ? "รายรับ" : "ส่วนตัว"} &middot; {r.date.slice(8, 10)}/{r.date.slice(5, 7)}</div></div>
-                        <span class={`num ${r.kind === "income" ? "rcv" : ""}`}>{baht(r.satang / 100, { decimals: 2 })}</span>
-                    </li>
-                ))}
-            </ul>
-            <a class="more" href="#bills">ดูบิลทั้งหมด<Icon name="right" size={14} /></a>
-        </section>
-    );
-}
-
-export function HomePage({ model, series, month, onMonth, onAddIncome, all, members, userName, today, nowMonth }) {
-    const [calOpen, setCalOpen] = useState(false);
-    const [calMonth, setCalMonth] = useState(month);
-
-    useEffect(() => {
-        setCalMonth(month);
-    }, [month]);
-
-    const handleOpenCalendarForMonth = (m) => {
-        setCalMonth(m);
-        setCalOpen(true);
-    };
-
-    const calModel = useMemo(() => {
-        if (calMonth === month) return model;
-        if (all && all.transactions && userName) {
-            return buildHomeModel({
-                name: userName,
-                month: calMonth,
-                today,
-                members,
-                transactions: all.transactions,
-                settlements: all.settlements,
-                walletItems: all.wallet || []
-            });
-        }
-        return model;
-    }, [calMonth, month, model, all, userName, today, members]);
-
+export function HomePage({ model, series, month, onMonth, onAddIncome, profiles = [], today = "", nowMonth = "", since = "", onNeedYear }) {
+    const now = nowMonth || month;
     return (
         <div class="home-grid">
             <div class="col">
                 <Hero m={model} onAddIncome={onAddIncome} today={today} />
+                <OweCards m={model} profiles={profiles} month={month} nowMonth={now} />
                 <Categories cats={model.categories} />
-                {series ? (
-                    <section class="card">
-                        <Monthly
-                            series={series}
-                            selected={month}
-                            onSelect={handleOpenCalendarForMonth}
-                            onOpenCalendar={handleOpenCalendarForMonth}
-                        />
-                    </section>
-                ) : <div class="card sk" style={{ height: "260px" }} aria-busy="true" aria-label="กำลังโหลดกราฟ" />}
             </div>
             <div class="col">
-                <Debts m={model} month={month} nowMonth={nowMonth} />
-                <Recent items={model.recent} />
+                <SpendCalendar model={model} month={month} onMonth={onMonth} since={since || shiftMonth(now, -11)} nowMonth={now} series={series} onNeedYear={onNeedYear} />
             </div>
-
-            {calOpen && (
-                <DailyCalendarSheet
-                    month={calMonth}
-                    calendarDays={calModel.calendarDays}
-                    spentSat={calModel.spentSat}
-                    average={calModel.average}
-                    onMonth={setCalMonth}
-                    onClose={() => setCalOpen(false)}
-                />
-            )}
         </div>
     );
 }
