@@ -85,7 +85,7 @@ test("Widget: รายชื่อที่ต้องเคลียร์ไ
     const api = fs.readFileSync(new URL("../api/widget-summary.js", import.meta.url), "utf8");
     assert.match(api, /people: \{/);
     const w = fs.readFileSync(new URL("../scriptable/DeptWidget.js", import.meta.url), "utf8");
-    assert.match(w, /const SCRIPT_VERSION = "3\.\d+\.\d+"/);
+    assert.match(w, /const SCRIPT_VERSION = "[3-9]\.\d+\.\d+"/);
     for (const fam of ["small", "large", "accessoryCircular", "accessoryRectangular", "accessoryInline"]) assert.ok(w.includes(`"${fam}"`), fam);
 });
 

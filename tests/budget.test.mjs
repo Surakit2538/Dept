@@ -242,17 +242,22 @@ test("LINE สรุปเดือน: ใบแรกมีแถบงบเ�
 
 // ---------------- Widget ----------------
 import fsNode from "node:fs";
-test("Widget: API ส่งงบ (อ่านเพิ่ม 1 ครั้ง) สคริปต์แสดงงบเหลือ และมีพื้นหลังกระจก (ตัดภาพวอลเปเปอร์ เก็บในเครื่อง)", () => {
+test("Widget แบบ 2: API ส่งงบและใช้ไปรายวัน สคริปต์มีพื้นหลังกราฟและปุ่ม 4 ปุ่มที่เปิดหน้าถูกต้อง", () => {
     const api = fsNode.readFileSync(new URL("../api/widget-summary.js", import.meta.url), "utf8");
     assert.match(api, /budget,/);
+    assert.match(api, /daily,/, "ส่งใช้ไปรายวันไว้วาดกราฟ (คำนวณจากข้อมูลที่อ่านแล้ว ไม่อ่านเพิ่ม)");
     assert.match(api, /planDocId\(normalizeName\(auth\.name\)\)/, "รหัสเอกสารแผนต้องตรงกับที่ API บันทึก");
     const w = fsNode.readFileSync(new URL("../scriptable/DeptWidget.js", import.meta.url), "utf8");
     assert.match(w, /งบเหลือเดือนนี้/);
-    assert.match(w, /function loadGlass\(/);
-    assert.match(w, /args\.widgetParameter/);
-    assert.match(w, /MIT License, Copyright \(c\) 2024 Maxwell Zeryck/, "ตัวเลขตำแหน่ง Widget มาจากสคริปต์ MIT ต้องใส่ที่มา");
-    for (const h of ["2868", "2796", "2622", "2556", "2532"]) assert.ok(w.includes(`"${h}"`), h);
-    assert.ok(!/Request\([^)]*glass/i.test(w), "ภาพพื้นหลังไม่ถูกส่งออกนอกเครื่อง");
+    assert.match(w, /function drawChartBg\(/);
+    assert.match(w, /add: `\$\{BASE_URL\}\/#add`/);
+    assert.match(w, /clear: `\$\{BASE_URL\}\/#clear`/);
+    assert.match(w, /me: `\$\{BASE_URL\}\/#me`/);
+    assert.match(w, /run-shortcut\?name=\$\{encodeURIComponent\("Dept บันทึก"\)\}/);
+    assert.ok(!w.includes("loadGlass"), "เลิกใช้พื้นหลังกระจกแล้ว (ไม่ต้องตั้งค่าเพิ่ม)");
+    const tokens = JSON.parse(fsNode.readFileSync(new URL("../design/tokens.json", import.meta.url), "utf8"));
+    const allowed = new Set([...Object.values(tokens.color.light), ...Object.values(tokens.color.dark)].filter((v) => /^#[0-9a-f]{6}$/i.test(v)).map((v) => v.toLowerCase()));
+    for (const hex of w.match(/#[0-9a-fA-F]{6}\b/g) || []) assert.ok(allowed.has(hex.toLowerCase()), `สี ${hex} ไม่อยู่ใน tokens`);
 });
 
 // ---------------- คู่มือ iPhone ----------------
@@ -266,4 +271,12 @@ test("คู่มือ iPhone: บอกรุ่น DeptAuto ล่าสุ�
     const tokens = JSON.parse(fsNode.readFileSync(new URL("../design/tokens.json", import.meta.url), "utf8"));
     const allowed = new Set([...Object.values(tokens.color.light), ...Object.values(tokens.color.dark)].filter((v) => /^#[0-9a-f]{6}$/i.test(v)).map((v) => v.toLowerCase()));
     for (const hex of g.match(/#[0-9a-fA-F]{6}\b/g) || []) assert.ok(allowed.has(hex.toLowerCase()), `สี ${hex} ไม่อยู่ใน tokens`);
+});
+
+test("Widget: ค่าคงที่ประกาศก่อนบรรทัด await (เคยพัง Cannot access 'POS_BY_SIZE' before initialization)", () => {
+    const w = fsNode.readFileSync(new URL("../scriptable/DeptWidget.js", import.meta.url), "utf8");
+    const awaitAt = w.indexOf("await createWidget(");
+    for (const name of ["const LINKS", "const BUTTONS", "const C =", "const BASE_URL"]) {
+        assert.ok(w.indexOf(name) >= 0 && w.indexOf(name) < awaitAt, `${name} ต้องอยู่ก่อน await`);
+    }
 });

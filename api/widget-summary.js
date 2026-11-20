@@ -122,6 +122,7 @@ export default async function handler(req, res) {
 
         let todayExpense = 0;
         let monthExpense = 0;
+        const daySpend = {}; // ใช้ไปรายวัน (บาท) ของเดือนนี้ ไว้วาดกราฟพื้นหลัง Widget ไม่อ่านฐานข้อมูลเพิ่ม
         let userTransactions = [];
 
         // คำนวณจาก transactions กลุ่ม
@@ -145,6 +146,7 @@ export default async function handler(req, res) {
 
             if (isThisMonth) {
                 monthExpense += userShare;
+                daySpend[tDate] = (daySpend[tDate] || 0) + userShare;
             }
 
             if (isToday) {
@@ -176,6 +178,7 @@ export default async function handler(req, res) {
 
             if (isThisMonth) {
                 monthExpense += pAmount;
+                daySpend[pDate] = (daySpend[pDate] || 0) + pAmount;
             }
             if (isToday) {
                 todayExpense += pAmount;
@@ -247,10 +250,17 @@ export default async function handler(req, res) {
             console.warn('widget budget:', e.message);
         }
 
+        // กราฟพื้นหลัง: ใช้ไปรายวันตั้งแต่วันที่ 1 ถึงวันนี้ + จำนวนวันของเดือน
+        const [yy, mm] = currentMonthStr.split('-').map(Number);
+        const daysInMonth = new Date(Date.UTC(yy, mm, 0)).getUTCDate();
+        const todayNum = parseInt(day, 10) || 1;
+        const daily = { days: daysInMonth, spend: Array.from({ length: todayNum }, (_, i) => Math.round((daySpend[`${currentMonthStr}-${String(i + 1).padStart(2, '0')}`] || 0) * 100) / 100) };
+
         return res.status(200).json({
             success: true,
             user: auth.name,
             budget,
+            daily,
             dateHeader: thaiDateHeader,
             todayExpense: todayExpense,
             monthExpense: monthExpense,
