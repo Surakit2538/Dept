@@ -2,7 +2,7 @@
 // มีค้นหา ตัวกรอง (ทั้งหมด/บิลกลุ่ม/ส่วนตัว/รายรับ) บิลที่ฉันเกี่ยวข้อง เลือกหลายรายการ แก้ไข/ลบ ยืนยันรายการอัตโนมัติ จัดหมวดให้ และรายการที่ทำซ้ำทุกเดือน
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
-import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile } from "../ui.jsx";
+import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile, Avatar, AvatarStack } from "../ui.jsx";
 import { baht, monthShort, guessBillIcon } from "../model.js";
 import {
     deleteBill, deleteBills, updateBillIcons, loadTemplates, stopTemplate,
@@ -15,12 +15,24 @@ const FILTERS = [["all", "ทั้งหมด"], ["group", "บิลกลุ
 /** ป้ายบอกว่าเป็นบิลกลุ่ม รายจ่ายส่วนตัว หรือรายรับ (ทุกแถวมี จะได้แยกออกทันที) */
 const KindTag = ({ kind }) => <span class={`kind k-${kind}`}>{kind === "group" ? "กลุ่ม" : kind === "income" ? "รายรับ" : "ส่วนตัว"}</span>;
 
+/** แถบสีทานตะวันซ้ายสุดของแถว มีคำว่า "รายเดือน" ตั้งแนวตั้ง (เฉพาะรายการรายเดือน) */
+const MonthlyBar = () => <span class="mbar" aria-label="รายเดือน"><b aria-hidden="true">รายเดือน</b></span>;
+/** รูปคนจ่าย (วงทานตะวัน) */
+const Payer = ({ name, pictures }) => <span class="payer-av" title={`${name} จ่าย`}><Avatar name={name} pictureUrl={pictures[name]} size="xs" /></span>;
+/** คนจ่าย -> คนหาร (รูปซ้อน สูงสุด 3 รูป ที่เหลือ +N) */
+const Flow = ({ payer, people, pictures }) => (
+    <span class="flow" aria-label={`${payer} จ่าย หารกับ ${people.join(", ")}`}>
+        <Payer name={payer} pictures={pictures} /><Icon name="right" size={12} class="flow-arr" /><AvatarStack names={people} pictures={pictures} max={3} size="xs" />
+    </span>
+);
+
 const dayLabel = (d) => `${Number(d.slice(8, 10))} ${monthShort(d.slice(0, 7))}`;
 
 /** แถวสองบรรทัด: ชื่อ + ยอด / รายละเอียดสั้นๆ + ปุ่มแก้ไข ลบ */
-function RowBody({ lead, title, value, tone = "", sub, badge = null, actions = null }) {
+function RowBody({ lead, title, value, tone = "", sub, badge = null, actions = null, monthly = false }) {
     return (
         <>
+            {monthly && <MonthlyBar />}
             {lead}
             <div class="lr-b">
                 <div class="lr-1"><span class="t">{title}</span>{badge}<span class={`num v ${tone}`}>{value}</span></div>
@@ -30,24 +42,22 @@ function RowBody({ lead, title, value, tone = "", sub, badge = null, actions = n
     );
 }
 
-function BillRow({ b, canEdit, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
-    const kind = b.type === "installment" ? "ผ่อน" : b.type === "subscription" ? "รายเดือน" : "";
+function BillRow({ b, pictures = {}, canEdit, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
+    const monthly = b.type === "subscription";
     const name = b.desc || "ไม่ระบุ";
     const has = b.myShareSat > 0;
-    const sub = (
-        <>
-            <KindTag kind="group" />{b.payer} จ่าย &middot; {b.people.length} คน &middot; {has ? <>บิล <span class="num">{baht(b.amountSat / 100, { decimals: 2 })}</span></> : "ไม่มีส่วนของฉัน"}
-        </>
-    );
+    const title = <>{name}<em class="t-note"> &middot; {has ? <>บิล <span class="num">{baht(b.amountSat / 100, { decimals: 2 })}</span></> : "ไม่มีส่วนของฉัน"}</em></>;
+    const sub = <><KindTag kind="group" /><Flow payer={b.payer} people={b.people} pictures={pictures} /></>;
     const lead = <ItemIcon desc={b.desc} name={iconFor(b.icon)} />;
-    const badge = kind ? <span class="tag">{kind}</span> : null;
+    const badge = b.type === "installment" ? <span class="tag">ผ่อน</span> : null;
     const value = baht((has ? b.myShareSat : b.amountSat) / 100, { decimals: 2 });
     const tone = has ? "pay" : "mute";
-    if (selecting && canEdit) return <SelectRow cls="bill" picked={picked} label={name} onToggle={onToggle}><RowBody lead={lead} title={name} value={value} tone={tone} sub={sub} badge={badge} /></SelectRow>;
-    if (selecting) return <li class="row bill dim" aria-disabled="true"><RowBody lead={lead} title={name} value={value} tone={tone} sub={sub} badge={badge} /></li>;
+    const cls = monthly ? "bill monthly" : "bill";
+    if (selecting && canEdit) return <SelectRow cls={cls} picked={picked} label={name} onToggle={onToggle}><RowBody lead={lead} title={title} value={value} tone={tone} sub={sub} badge={badge} monthly={monthly} /></SelectRow>;
+    if (selecting) return <li class={`row ${cls} dim`} aria-disabled="true"><RowBody lead={lead} title={title} value={value} tone={tone} sub={sub} badge={badge} monthly={monthly} /></li>;
     return (
-        <li class="row bill">
-            <RowBody lead={lead} title={name} value={value} tone={tone} sub={sub} badge={badge} actions={canEdit ? (
+        <li class={`row ${cls}`}>
+            <RowBody lead={lead} title={title} value={value} tone={tone} sub={sub} badge={badge} monthly={monthly} actions={canEdit ? (
                 <>
                     <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(b)}><Icon name="pencil" size={16} /></button>
                     <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />
@@ -57,19 +67,19 @@ function BillRow({ b, canEdit, onDeleted, onError, onEdit, selecting, picked, on
     );
 }
 
-function WalletRow({ it, monthly = false, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
+function WalletRow({ it, me = "", pictures = {}, monthly = false, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
     const income = it.type === "income";
     const name = it.desc || (income ? "รายรับ" : "รายจ่าย");
     const lead = <ItemIcon desc={income ? "" : it.desc} name={income ? "down" : iconFor(it.icon)} />;
-    const sub = <><KindTag kind={income ? "income" : "personal"} />{it.card ? `บัตร ${it.card}` : income ? "" : "เห็นเฉพาะคุณ"}</>;
-    // รายเดือนแสดงเหมือนบิลกลุ่ม (รายการที่ระบบสร้างจากรายจ่ายรายเดือนที่ตั้งไว้)
+    const sub = <><KindTag kind={income ? "income" : "personal"} />{!income && me && <Payer name={me} pictures={pictures} />}<span class="s-t">{it.card ? `บัตร ${it.card}` : income ? "" : "เห็นเฉพาะคุณ"}</span></>;
+    // รายเดือน (รายการที่ระบบสร้างจากรายจ่ายรายเดือนที่ตั้งไว้) = แถบซ้าย
     const recurring = it.recurring || monthly;
-    const badge = (it.unconfirmed || recurring) ? <>{recurring && <span class="tag">รายเดือน</span>}{it.unconfirmed && <span class="tag warn">ยังไม่ยืนยัน</span>}</> : null;
+    const badge = it.unconfirmed ? <span class="tag warn">ยังไม่ยืนยัน</span> : null;
     const value = (income ? "+" : "") + baht(it.amount, { decimals: 2 });
-    if (selecting) return <SelectRow picked={picked} label={name} onToggle={onToggle}><RowBody lead={lead} title={name} value={value} tone={income ? "rcv" : ""} sub={sub} badge={badge} /></SelectRow>;
+    if (selecting) return <SelectRow cls={recurring ? "monthly" : ""} picked={picked} label={name} onToggle={onToggle}><RowBody lead={lead} title={name} value={value} tone={income ? "rcv" : ""} sub={sub} badge={badge} monthly={recurring} /></SelectRow>;
     return (
-        <li class="row">
-            <RowBody lead={lead} title={name} value={value} tone={income ? "rcv" : ""} sub={sub} badge={badge} actions={(
+        <li class={`row${recurring ? " monthly" : ""}`}>
+            <RowBody lead={lead} title={name} value={value} tone={income ? "rcv" : ""} sub={sub} badge={badge} monthly={recurring} actions={(
                 <>
                     <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(it)}><Icon name="pencil" size={16} /></button>
                     <DeleteButton label={name} onConfirm={async () => { try { await deleteWalletEntry(it.id); onDeleted(); } catch (e) { onError(e.message); } }} />
@@ -117,7 +127,7 @@ function UnconfirmedBar({ items, onDone, onError, onInfo }) {
 }
 
 /** รายการที่ตั้งให้ทำซ้ำทุกเดือน: บิลกลุ่ม (หยุดได้เฉพาะคนจ่ายหรือแอดมิน) + รายจ่ายส่วนตัว (แก้ไข/หยุดได้) */
-function Recurring({ me, isAdmin, version, onError, onMine = () => {} }) {
+function Recurring({ me, isAdmin, version, onError, onMine = () => {}, pictures = {} }) {
     const [bills, setBills] = useState(null);
     const [mine, setMine] = useState(null);
     // ส่งรายจ่ายรายเดือนส่วนตัวที่ตั้งไว้ให้หน้ารายการ ใช้ขึ้นป้าย "รายเดือน" กับรายการเดือนแรกที่ยังไม่ได้ผูกกับแม่แบบ (ไม่อ่านฐานข้อมูลเพิ่ม)
@@ -137,11 +147,12 @@ function Recurring({ me, isAdmin, version, onError, onMine = () => {} }) {
         <Collapsible icon="swap" title="รายการที่ตั้งให้ทำซ้ำทุกเดือน" summary={`บิลกลุ่ม ${b.length} · ส่วนตัว ${w.length} · รวม ${baht(total)} ต่อเดือน`}>
             <ul class="plain">
                 {b.map((t) => (
-                    <li class="row" key={"b" + t.id}>
+                    <li class="row monthly" key={"b" + t.id}>
+                        <MonthlyBar />
                         <ItemIcon desc={t.desc} name={iconFor(t.icon)} />
                         <div class="lr-b">
-                            <div class="lr-1"><span class="t">{t.desc || "ไม่ระบุ"}</span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
-                            <div class="lr-2"><span class="s">บิลกลุ่ม &middot; ทุกวันที่ {t.billingDay} &middot; {t.payer} จ่าย &middot; {Object.keys(t.splits || {}).length} คน</span>
+                            <div class="lr-1"><span class="t">{t.desc || "ไม่ระบุ"}<em class="t-note"> &middot; ทุกวันที่ {t.billingDay}</em></span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
+                            <div class="lr-2"><span class="s"><KindTag kind="group" /><Flow payer={String(t.payer || "").trim().toUpperCase()} people={Object.keys(t.splits || {}).map((n) => String(n).trim().toUpperCase())} pictures={pictures} /></span>
                                 {(isAdmin || String(t.payer || "").trim().toUpperCase() === me) && (
                                     <span class="lr-acts"><DeleteButton verb="หยุด" busyText="กำลังหยุด" keepText="ไม่หยุด" label={t.desc || "บิลรายเดือน"}
                                         onConfirm={async () => { try { await stopTemplate(t.id); setBills((cur) => cur.filter((x) => x.id !== t.id)); } catch (e) { onError(e.message); } }} /></span>
@@ -151,11 +162,12 @@ function Recurring({ me, isAdmin, version, onError, onMine = () => {} }) {
                     </li>
                 ))}
                 {w.map((t) => (
-                    <li class="row" key={"w" + t.id}>
+                    <li class="row monthly" key={"w" + t.id}>
+                        <MonthlyBar />
                         <ItemIcon desc={t.desc} name={iconFor(t.icon)} />
                         <div class="lr-b">
-                            <div class="lr-1"><span class="t">{t.desc || "รายจ่าย"}</span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
-                            <div class="lr-2"><span class="s">ส่วนตัว &middot; สร้างให้ทุกวันที่ {t.billingDay} ของเดือน</span>
+                            <div class="lr-1"><span class="t">{t.desc || "รายจ่าย"}<em class="t-note"> &middot; ทุกวันที่ {t.billingDay}</em></span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
+                            <div class="lr-2"><span class="s"><KindTag kind="personal" /><Payer name={me} pictures={pictures} /><span class="s-t">เห็นเฉพาะคุณ</span></span>
                                 <span class="lr-acts">
                                     <button type="button" class="icon-btn" aria-label={`แก้ไข ${t.desc || "รายจ่ายรายเดือน"}`} onClick={() => setEditing(t)}><Icon name="pencil" size={16} /></button>
                                     <DeleteButton verb="หยุด" busyText="กำลังหยุด" keepText="ไม่หยุด" label={t.desc || "รายจ่ายรายเดือน"}
@@ -199,7 +211,7 @@ function groupByDay(list) {
     return out;
 }
 
-export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null }) {
+export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
     const [filter, setFilter] = useState("all");
     const [mineOnly, setMineOnly] = useState(false);
     const [mineTpls, setMineTpls] = useState([]);
@@ -283,14 +295,14 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                             <h3 class="day-h">{dayLabel(d)}</h3>
                             <ul class="plain">
                                 {list.map((x) => x.kind === "bill"
-                                    ? <BillRow key={x.key} b={x.b} canEdit={canEdit(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
-                                    : <WalletRow key={x.key} it={x.it} monthly={isMonthly(x.it)} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
+                                    ? <BillRow key={x.key} b={x.b} pictures={pictures} canEdit={canEdit(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
+                                    : <WalletRow key={x.key} it={x.it} me={me} pictures={pictures} monthly={isMonthly(x.it)} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
                             </ul>
                         </div>
                     ))}
                 {selecting && <BulkBar count={live.length} total={selectable.length} onAll={() => setPicked(selectable)} onNone={() => setPicked([])} onCategory={bulkCategory} onDelete={bulkDelete} note="เปลี่ยนเฉพาะหมวด ไม่แก้ยอดและคนหาร รายรับไม่มีหมวด บิลที่เลือกได้คือบิลที่คุณจ่ายเอง (แอดมินเลือกได้ทุกบิล)" />}
             </section>
-            <Recurring me={me} isAdmin={isAdmin} version={version} onError={onError} onMine={setMineTpls} />
+            <Recurring me={me} isAdmin={isAdmin} version={version} onError={onError} onMine={setMineTpls} pictures={pictures} />
             {editingBill && <Lazy load={() => import("../editbill.jsx")} name="EditBillSheet" bill={editingBill} onClose={() => setEditingBill(null)} onSaved={() => onChanged()} />}
             {editingWallet && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editingWallet} onClose={() => setEditingWallet(null)} onSaved={() => onChanged()} onSplit={onSplit ? (it) => { setEditingWallet(null); onSplit(it); } : null} />}
         </div>

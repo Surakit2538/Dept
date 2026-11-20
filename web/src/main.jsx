@@ -102,7 +102,7 @@ function App() {
     }, [auth.state, reload]);
     // โปรไฟล์สมาชิก (พร้อมเพย์/ชื่อจริง): โหลดเมื่อเปิดหน้าที่ต้องใช้เท่านั้น (อ่าน 14 ครั้ง จำไว้ 10 นาที)
     useEffect(() => {
-        if (auth.state !== "ok" || !["home", "clear", "me"].includes(tab) || profiles) return;
+        if (auth.state !== "ok" || !["home", "list", "clear", "me"].includes(tab) || profiles) return;
         loadProfiles().then(setProfiles).catch(() => setLoadError(true));
     }, [auth.state, tab, profiles]);
     // เดือนนี้: ฟังแบบสด (อ่านเฉพาะรายการที่เปลี่ยน)
@@ -203,7 +203,7 @@ function App() {
     let body;
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles || []} today={today} nowMonth={nowMonth} since={since} onNeedYear={() => setWide(true)} /> : <Skeleton blocks={5} />;
-    else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={billsM} wallet={walletM} month={month} today={today} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} bills={billsM} wallet={walletM} month={month} today={today} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
     else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} back={walletM ? { receivedSat: walletM.receivedBackSat, paidSat: walletM.paidBackSat } : null} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
     else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} /> : <Skeleton blocks={2} />;
 

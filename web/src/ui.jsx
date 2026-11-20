@@ -69,11 +69,11 @@ export function tintOf(name) {
 }
 
 /** รูปคนซ้อนกัน (ใช้แทนรายชื่อยาวๆ) แสดงสูงสุด max คน ที่เหลือขึ้น +N */
-export function AvatarStack({ names = [], pictures = {}, max = 3 }) {
+export function AvatarStack({ names = [], pictures = {}, max = 3, size = "sm" }) {
     const shown = names.slice(0, max);
     return (
         <span class="avstack" aria-hidden="true">
-            {shown.map((n) => <Avatar key={n} name={n} pictureUrl={pictures[n]} size="sm" />)}
+            {shown.map((n) => <Avatar key={n} name={n} pictureUrl={pictures[n]} size={size} />)}
             {names.length > max && <span class="avstack-more num">+{names.length - max}</span>}
         </span>
     );
