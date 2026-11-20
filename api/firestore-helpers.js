@@ -4,6 +4,7 @@ import { doc, getDoc, getDocs, setDoc, collection, query, where } from "./auth-h
 import { matchSlipToDebt } from "../lib/settlement-match.mjs";
 import { normalizeName } from "../lib/ledger.mjs";
 import { matchReceiverName } from "./slipok-helpers.js";
+import { buildInfoCard } from "../lib/line-cards.mjs";
 
 // Get member by LINE user ID
 export async function getMemberByLineId(db, lineUserId) {
@@ -147,65 +148,13 @@ export async function saveVerifiedSettlement(db, settlement, slip, uploadedBy, m
 
 // Send slip verified notification to receiver
 export async function sendSlipVerifiedNotification(lineUserId, fromName, toName, amount, slip) {
-    const message = {
-        type: 'flex',
+    // การ์ดธีมเดียวกับเว็บ (โคบอลต์) แจ้งคนรับเงินว่ามีคนโอนให้
+    const message = buildInfoCard({
+        kicker: "มีคนโอนเงินให้คุณ", big: `฿${Number(amount).toLocaleString("en-US")}`, title: `${fromName} โอนให้คุณแล้ว`,
         altText: `${fromName} โอนเงิน ${amount.toLocaleString()} บาทให้คุณแล้ว`,
-        contents: {
-            type: 'bubble',
-            size: 'kilo',
-            header: {
-                type: 'box',
-                layout: 'vertical',
-                backgroundColor: '#334155',
-                contents: [
-                    {
-                        type: 'text',
-                        text: 'TRANSFER ALERT',
-                        color: '#94a3b8',
-                        size: 'xxs',
-                        weight: 'bold'
-                    },
-                    {
-                        type: 'text',
-                        text: 'มีคนโอนเงินให้คุณ',
-                        weight: 'bold',
-                        color: '#ffffff',
-                        size: 'lg',
-                        margin: 'xs'
-                    },
-                    {
-                        type: 'text',
-                        text: `${fromName} โอนเงินให้คุณแล้ว`,
-                        color: '#cbd5e1',
-                        size: 'xs',
-                        wrap: true
-                    }
-                ]
-            },
-            body: {
-                type: 'box',
-                layout: 'vertical',
-                contents: [
-                    {
-                        type: 'box', layout: 'horizontal',
-                        contents: [
-                            { type: 'text', text: 'จำนวนเงิน', size: 'xs', color: '#64748b' },
-                            { type: 'text', text: `${amount.toLocaleString()} ฿`, size: 'sm', color: '#10b981', align: 'end', weight: 'bold' }
-                        ]
-                    },
-                    {
-                        type: 'box', layout: 'horizontal', margin: 'sm',
-                        contents: [
-                            { type: 'text', text: 'วันที่โอน', size: 'xs', color: '#64748b' },
-                            { type: 'text', text: formatSlipDate(slip.transDate), size: 'sm', color: '#1e293b', align: 'end', weight: 'bold' }
-                        ]
-                    },
-                    { type: 'separator', margin: 'md' },
-                    { type: 'text', text: 'Settlement ของเดือนนี้อัปเดตแล้ว', size: 'xs', color: '#64748b', align: 'center', margin: 'md', wrap: true }
-                ]
-            }
-        }
-    };
+        rows: [["จาก", fromName], ["วันที่โอน", formatSlipDate(slip.transDate)]],
+        note: "ยอดเคลียร์เงินของเดือนนี้อัปเดตแล้ว"
+    });
 
     // Send via LINE API
     await fetch('https://api.line.me/v2/bot/message/push', {

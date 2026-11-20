@@ -12,7 +12,7 @@
  * แตะ Widget เปิดเว็บ แตะชื่อเพื่อน (กลาง/ใหญ่) เปิดหน้าเคลียร์เงิน (Device Token Auth)
  */
 
-const SCRIPT_VERSION = "3.0.0";
+const SCRIPT_VERSION = "3.0.1";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ==========================================
@@ -329,11 +329,11 @@ function drawBar(income, spent, width) {
     ctx.opaque = false;
     ctx.respectScreenScale = true;
     ctx.setFillColor(col(C.white, 0.25));
-    ctx.fillPath(roundedRect(0, 0, width, h, h / 2));
+    fillShape(ctx, roundedRect(0, 0, width, h, h / 2));
     const ratio = income > 0 ? Math.min(spent / income, 1) : (spent > 0 ? 1 : 0);
     if (ratio > 0) {
         ctx.setFillColor(col(C.sun));
-        ctx.fillPath(roundedRect(0, 0, Math.max(width * ratio, h), h, h / 2));
+        fillShape(ctx, roundedRect(0, 0, Math.max(width * ratio, h), h, h / 2));
     }
     return ctx.getImage();
 }
@@ -376,7 +376,7 @@ function drawLogo() {
     ctx.respectScreenScale = false;
     const P = (x, y) => new Point(x * k, y * k);
     ctx.setFillColor(col(C.white));
-    ctx.fillPath(roundedRect(0, 0, 64 * k, 64 * k, 16 * k));
+    fillShape(ctx, roundedRect(0, 0, 64 * k, 64 * k, 16 * k));
     const paper = new Path();
     paper.addLines([P(19, 13), P(45, 13), P(45, 51), P(40.7, 48), P(36.3, 51), P(32, 48), P(27.7, 51), P(23.3, 48), P(19, 51)]);
     paper.closeSubpath();
@@ -386,9 +386,15 @@ function drawLogo() {
     ctx.setFillColor(col(C.white));
     for (let y = 16; y < 47; y += 6) ctx.fillRect(new Rect(31 * k, y * k, 2 * k, 3 * k));
     ctx.setFillColor(col(C.sun));
-    ctx.fillPath(roundedRect(22.5 * k, 22 * k, 7 * k, 4 * k, 2 * k));
-    ctx.fillPath(roundedRect(34.5 * k, 22 * k, 7 * k, 4 * k, 2 * k));
+    fillShape(ctx, roundedRect(22.5 * k, 22 * k, 7 * k, 4 * k, 2 * k));
+    fillShape(ctx, roundedRect(34.5 * k, 22 * k, 7 * k, 4 * k, 2 * k));
     return ctx.getImage();
+}
+
+// Scriptable: fillPath() ไม่รับพารามิเตอร์ ต้อง addPath ก่อนแล้วค่อย fillPath (ส่ง path เข้าไปตรงๆ จะไม่วาดอะไรเลย)
+function fillShape(ctx, path) {
+    ctx.addPath(path);
+    ctx.fillPath();
 }
 
 function roundedRect(x, y, w, h, r) {
@@ -468,7 +474,8 @@ function short(num) {
 }
 
 function initials(name) {
-    return Array.from(String(name || "?").trim()).slice(0, 2).join("").toUpperCase();
+    const clean = String(name || "").replace(/[\s‍️]|\p{Extended_Pictographic}/gu, "");
+    return (Array.from(clean).slice(0, 2).join("") || "?").toUpperCase();
 }
 
 // "ศุกร์ 20 พ.ย." -> "20 พ.ย."

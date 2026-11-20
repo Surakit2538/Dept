@@ -117,7 +117,7 @@ test("ไอเดีย 1: การ์ดบันทึกรายจ่า�
     const msg = await buildExpenseSavedMessage({ ...FS(db), memberName: "GAME", entry: { desc: "กาแฟ", amount: 65, icon: "fa-mug-hot" }, now: NOW });
     checkFlex(msg);
     const json = JSON.stringify(msg);
-    assert.ok(json.includes("/icons/cat/food.png"));
+    assert.ok(json.includes("/icons/cat/food-pay.png"));
     assert.ok(json.includes("วันนี้ ฿464"), "วันนี้ = กาแฟ 65 + YouTube 399 (รายการรอยืนยันนับเป็นรายจ่ายเหมือนหน้าเว็บ)");
     assert.ok(json.includes('"text":"ลบรายการล่าสุด"'));
     assert.equal(msg.quickReply.items.length, 5);
@@ -139,7 +139,8 @@ test("ไอเดีย 2: ฉันต้องโอน การ์ดละ
     assert.ok(JSON.stringify(multi.contents.contents[0]).includes("https://profile.line-scdn.net/x"));
     assert.ok(JSON.stringify(multi.contents.contents[2]).includes("รวมที่ต้องโอน"));
     const game = await buildMyTransfersMessage({ ...FS(db), memberName: "GAME", now: NOW });
-    assert.equal(game.type, "text");
+    checkFlex(game);
+    assert.match(game.altText, /คุณไม่ได้ค้างใคร/);
 });
 
 test("ไอเดีย 3: รอยืนยัน แสดงเฉพาะของตัวเอง ใหม่สุดก่อน มีปุ่มยืนยัน/เปลี่ยนหมวด/ลบ", async () => {
@@ -155,40 +156,45 @@ test("ไอเดีย 3: รอยืนยัน แสดงเฉพาะ
     assert.ok(!JSON.stringify(msg).includes("ของ CARE"));
     assert.equal(msg.quickReply.items[0].action.data, "w:okall");
     const none = await buildPendingMessage({ ...FS(db), memberName: "BEN", now: NOW });
-    assert.equal(none.type, "text");
+    checkFlex(none);
+    assert.match(none.altText, /ไม่มีรายการรอยืนยัน/);
 });
 
 test("ไอเดีย 3: ปุ่มของรายการรอยืนยัน เปลี่ยนเฉพาะของตัวเอง เปลี่ยนหมวดแล้วจำชื่อ ลบต้องยืนยันก่อน", async () => {
     const db = seed();
     const ctx = { ...FS(db), memberName: "GAME", now: NOW };
     const foreign = await handleWalletAction({ ...ctx, cmd: { action: "w-ok", id: "x1" } });
-    assert.match(foreign.text, /ไม่พบรายการนี้/);
+    assert.match(foreign.altText, /ไม่พบรายการนี้/);
     assert.equal((await getDoc(db, "wallet_entries", "x1")).unconfirmed, true);
 
     const pick = await handleWalletAction({ ...ctx, cmd: { action: "w-cat", id: "p1" } });
     checkFlex(pick);
-    assert.equal(pick.quickReply.items.length, 6);
-    assert.equal(pick.quickReply.items[4].action.data, "w:setcat:p1:fun");
+    const pj = JSON.stringify(pick);
+    for (const k of ["food", "bills", "goods", "travel", "fun", "other"]) assert.ok(pj.includes(`w:setcat:p1:${k}`), k);
     const set = await handleWalletAction({ ...ctx, cmd: { action: "w-setcat", id: "p1", cat: "fun" } });
-    assert.match(set.text, /หมวด บันเทิง และยืนยันแล้ว/);
-    assert.match(set.text, /ยังรอยืนยันอีก 1 รายการ/);
+    checkFlex(set);
+    assert.match(set.altText, /หมวด บันเทิง และยืนยันแล้ว/);
+    assert.match(set.altText, /ยังรอยืนยันอีก 1 รายการ/);
+    assert.ok(JSON.stringify(set).includes("ดูที่เหลือ (1)"));
     assert.equal((await getDoc(db, "wallet_entries", "p1")).icon, "fa-film");
     assert.equal((await getDoc(db, "wallet_entries", "p1")).unconfirmed, false);
     assert.equal((await getDoc(db, "wallet_names", "n_GAME")).items[0].icon, "fa-film");
 
     const ask = await handleWalletAction({ ...ctx, cmd: { action: "w-del", id: "p2" } });
-    assert.match(ask.text, /ลบ "7-Eleven" ฿128 ใช่ไหม/);
+    checkFlex(ask);
+    assert.match(ask.altText, /ลบ "7-Eleven" ฿128 ใช่ไหม/);
+    assert.ok(JSON.stringify(ask).includes("w:delok:p2") && JSON.stringify(ask).includes("w:keep"));
     assert.ok((await getDoc(db, "wallet_entries", "p2")), "ยังไม่ลบจนกว่าจะกดยืนยัน");
     const del = await handleWalletAction({ ...ctx, cmd: { action: "w-delok", id: "p2" } });
-    assert.match(del.text, /ลบแล้ว: 7-Eleven/);
-    assert.match(del.text, /ยืนยันครบทุกรายการแล้ว/);
+    assert.match(del.altText, /ลบแล้ว 7-Eleven/);
+    assert.match(del.altText, /ยืนยันครบทุกรายการแล้ว/);
     assert.equal((await getDoc(db, "wallet_entries", "p2")), undefined);
 });
 
 test("ไอเดีย 3: ยืนยันทั้งหมด", async () => {
     const db = seed();
     const r = await handleWalletAction({ ...FS(db), memberName: "GAME", cmd: { action: "w-okall" }, now: NOW });
-    assert.match(r.text, /ยืนยันแล้ว 2 รายการ/);
+    assert.match(r.altText, /ยืนยันแล้ว 2 รายการ/);
     assert.equal((await getDoc(db, "wallet_entries", "p1")).unconfirmed, false);
     assert.equal((await getDoc(db, "wallet_entries", "p2")).unconfirmed, false);
     assert.equal((await getDoc(db, "wallet_entries", "x1")).unconfirmed, true);
@@ -211,7 +217,7 @@ test("ไอเดีย 4: สรุปเดือนแบบปัด 4 ใ�
     assert.equal(msg.contents.type, "carousel");
     const titles = msg.contents.contents.map((b) => JSON.stringify(b));
     assert.equal(titles.length, 4);
-    assert.ok(titles[1].includes("ใช้ไปกับอะไร") && titles[1].includes("/icons/cat/travel.png"));
+    assert.ok(titles[1].includes("ใช้ไปกับอะไร") && titles[1].includes("/icons/cat/travel-pay.png"));
     assert.ok(titles[2].includes("รายสัปดาห์") && titles[2].includes("กาแฟ 2 ครั้ง"));
     assert.ok(titles[3].includes("เพื่อนค้างคุณ"));
     const owed = await buildOwedMessage({ ...FS(db), memberName: "GAME", now: NOW });
@@ -225,6 +231,79 @@ test("ไอเดีย 5: วิธีใช้ 4 ขั้น ปุ่มไ
     const json = JSON.stringify(msg);
     for (const h of ["#add", "#clear", "#me"]) assert.ok(json.includes(`${LIFF_URL}${h}`), h);
     assert.ok(json.includes("help:expense"));
+});
+
+test("การ์ดคำถามระหว่างจดบันทึก: ตัวเลือก 2-3 อันเป็นปุ่มในการ์ด เกินนั้นเป็นปุ่มลัด", async () => {
+    const { buildPromptMessage, buildParticipantsCard, buildNoticeCard, buildInfoCard } = await import("../lib/line-cards.mjs");
+    const two = buildPromptMessage({ title: "ตรวจสอบและยืนยันบันทึก", desc: "ข้าว 300", actions: [{ type: "action", action: { type: "message", label: "ยืนยัน", text: "ยืนยัน" } }, { type: "action", action: { type: "message", label: "ยกเลิก", text: "ยกเลิก" } }] });
+    checkFlex(two);
+    assert.equal(two.quickReply, undefined);
+    assert.deepEqual(two.contents.footer.contents[0].contents.map((b) => b.action.text), ["ยืนยัน", "ยกเลิก"]);
+    const many = buildPromptMessage({ title: "ระบุคนจ่าย", actions: ["A", "B", "C", "D"].map((n) => ({ type: "action", action: { type: "message", label: n, text: n } })) });
+    checkFlex(many);
+    assert.equal(many.quickReply.items.length, 4);
+    const pc = buildParticipantsCard({ members: ["GAME", "CARE", "BEN", "AOY"], selected: ["CARE"] });
+    checkFlex(pc);
+    assert.ok(JSON.stringify(pc).includes("เลือกแล้ว 1 คน: CARE"));
+    checkFlex(buildNoticeCard({ title: "ลบรายการล่าสุดแล้ว", detail: "กาแฟ ฿60.00" }));
+    checkFlex(buildInfoCard({ kicker: "มีคนโอนเงินให้คุณ", big: "฿100", title: "CARE โอนให้คุณแล้ว", rows: [["จาก", "CARE"]] }));
+    // การ์ดเก่าสีเทาต้องไม่เหลือในบอท
+    for (const f of ["api/webhook.js", "api/firestore-helpers.js", "api/slipok-helpers.js"]) {
+        const code = fs.readFileSync(new URL("../" + f, import.meta.url), "utf8");
+        assert.ok(!/#334155|#94a3b8|#64748b|#1e293b/.test(code), `${f} ยังมีสีการ์ดแบบเก่า`);
+    }
+});
+
+test("หารกับเพื่อนในแชต: เลือกคน -> สร้างบิลกลุ่ม หารเท่ากัน คนจ่ายรับเศษ ลบรายการส่วนตัวเดิม", async () => {
+    const { createLineSplitService, equalSplitPayerLast } = await import("../lib/line-split.mjs");
+    assert.deepEqual(equalSplitPayerLast(100, ["GAME", "CARE", "BEN"], "GAME"), { CARE: 33.34, BEN: 33.33, GAME: 33.33 });
+    const db = seed();
+    db.seed("wallet_entries", "q1", { ownerName: "GAME", type: "expense", amount: 60, date: "2026-11-20", month: "2026-11", desc: "กาแฟ", icon: "fa-mug-hot", source: "line" });
+    db.seed("line_last_entry", "U_game", { id: "q1", desc: "กาแฟ", amount: 60, ts: NOW });
+    let t = NOW;
+    const svc = createLineSplitService({ db: {}, fs: db.fs, now: () => t });
+
+    // การ์ดบันทึกมีปุ่ม หารกับเพื่อน เมื่อรู้รหัสรายการ
+    const saved = await buildExpenseSavedMessage({ ...FS(db), memberName: "GAME", entry: { id: "q1", desc: "กาแฟ", amount: 60, icon: "fa-mug-hot" }, now: NOW });
+    assert.ok(JSON.stringify(saved).includes("w:split:q1"));
+    assert.deepEqual(parsePostback("w:split:q1"), { action: "split-start", id: "q1" });
+    assert.deepEqual(parsePostback("sp:t:" + encodeURIComponent("CARE")), { action: "sp-toggle", name: "CARE" });
+    assert.equal(parsePostback("sp:ok").action, "sp-ok");
+
+    // รายการของคนอื่นเริ่มไม่ได้
+    assert.match((await svc.start("U_care", "CARE", "q1")).altText, /ไม่พบรายการนี้/);
+
+    const c1 = await svc.start("U_game", "GAME", "q1");
+    checkFlex(c1);
+    const j1 = JSON.stringify(c1);
+    assert.ok(j1.includes("\"text\":\"คุณ\"") && j1.includes("sp:t:CARE") && j1.includes("sp:ok"));
+    // กดยืนยันทั้งที่ยังไม่ได้เลือกเพื่อน -> บอกให้เลือกก่อน ยังไม่สร้างบิล
+    assert.match((await svc.confirm("U_game", "GAME")).altText, /เลือกเพื่อนอย่างน้อย 1 คน/);
+    assert.equal(db.count("transactions"), 2);
+
+    const c2 = await svc.toggle("U_game", "GAME", "CARE");
+    checkFlex(c2);
+    assert.match(JSON.stringify(c2), /2 คน คนละประมาณ ฿30/);
+    await svc.toggle("U_game", "GAME", "NOBODY"); // ชื่อที่ไม่มีในสมาชิก ไม่ถูกเพิ่ม
+    const done = await svc.confirm("U_game", "GAME");
+    checkFlex(done);
+    assert.match(done.altText, /หารบิลแล้ว กาแฟ ฿60 กับ 2 คน/);
+    const bills = db.all("transactions").filter((x) => x.desc === "กาแฟ");
+    assert.equal(bills.length, 1);
+    assert.deepEqual(bills[0].splits, { CARE: 30, GAME: 30 });
+    assert.equal(bills[0].payer, "GAME");
+    assert.equal(bills[0].paymentType, "normal");
+    assert.equal(bills[0].date, "2026-11-20");
+    assert.equal(db.has("wallet_entries", "q1"), false, "รายการส่วนตัวเดิมต้องถูกลบ");
+    assert.equal(db.has("line_last_entry", "U_game"), false, "ลบรายการล่าสุดต้องไม่ไปลบบิลกลุ่ม");
+    assert.equal(db.has("line_split", "U_game"), false);
+
+    // หมดเวลา 30 นาที
+    db.seed("wallet_entries", "q2", { ownerName: "GAME", type: "expense", amount: 10, date: "2026-11-20", month: "2026-11", desc: "น้ำ" });
+    await svc.start("U_game", "GAME", "q2");
+    t = NOW + 31 * 60 * 1000;
+    assert.match((await svc.toggle("U_game", "GAME", "CARE")).altText, /หมดเวลาเลือกแล้ว/);
+    assert.match((await svc.cancel("U_game")).altText, /ยกเลิกแล้ว/);
 });
 
 test("การ์ดอื่นผ่านการตรวจโครงและสี", () => {

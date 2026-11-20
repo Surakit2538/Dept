@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>Dept Money LINE OA cover 1080x878</title>
+<link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* รูปพื้นหลังโปรไฟล์ LINE OA ขนาดแนะนำ 1080 x 878 พิกเซล
+     มุมล่างซ้ายถูกรูปโปรไฟล์บัง จึงวางข้อความไว้ด้านบนกลาง และภาพใบเสร็จไว้ขวา สีจาก design/tokens.json */
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1080px; height: 878px; overflow: hidden; font-family: "Anuphan", "Leelawadee UI", sans-serif; }
+  .bg { position: relative; width: 1080px; height: 878px; overflow: hidden;
+        background: linear-gradient(150deg, #4466f2 0%, #2343c9 55%, #17245a 100%); color: #ffffff; }
+  /* ใบเสร็จจางๆ เป็นลายพื้น */
+  .ghost { position: absolute; fill: #ffffff; opacity: .07; }
+  .copy { position: absolute; left: 80px; top: 190px; width: 600px; }
+  .kicker { display: inline-flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 600; color: #dbe4fd; }
+  .kicker svg { width: 52px; height: 52px; }
+  h1 { font-size: 84px; font-weight: 700; line-height: 1.08; letter-spacing: -1px; margin-top: 18px; }
+  h1 .sun { color: #ffc23d; }
+  p { font-size: 32px; font-weight: 500; color: #dbe4fd; margin-top: 18px; line-height: 1.4; }
+  /* ใบเสร็จผ่ากลาง (โลโก้) ขยายใหญ่ เอียงเล็กน้อย */
+  .receipt { position: absolute; right: 80px; top: 185px; width: 300px; transform: rotate(6deg); filter: drop-shadow(0 30px 40px rgba(18, 26, 51, .35)); }
+  .chip { position: absolute; background: #ffffff; color: #121a33; border-radius: 999px; padding: 14px 26px; font-size: 30px; font-weight: 700; box-shadow: 0 16px 30px rgba(18, 26, 51, .25); display: flex; align-items: center; gap: 12px; }
+  .chip i { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 18px; font-weight: 700; }
+  .c1 { right: 290px; top: 470px; }
+  .c1 i { background: #ffc23d; color: #2e2100; }
+  .c2 { right: 60px; top: 565px; }
+  .c2 i { background: #2343c9; color: #ffffff; }
+  .c1 b { color: #b43f16; } .c2 b { color: #0f7f63; }
+</style>
+</head>
+<body>
+<div class="bg">
+  <svg class="ghost" style="left:-60px;top:560px;width:300px;transform:rotate(-14deg)" viewBox="0 0 26 38"><path d="M0 0h26v38l-4.3-3-4.4 3-4.3-3-4.3 3-4.4-3L0 38z"/></svg>
+  <svg class="ghost" style="left:520px;top:640px;width:180px;transform:rotate(10deg)" viewBox="0 0 26 38"><path d="M0 0h26v38l-4.3-3-4.4 3-4.3-3-4.3 3-4.4-3L0 38z"/></svg>
+  <svg class="ghost" style="left:640px;top:-80px;width:150px;transform:rotate(-8deg)" viewBox="0 0 26 38"><path d="M0 0h26v38l-4.3-3-4.4 3-4.3-3-4.3 3-4.4-3L0 38z"/></svg>
+
+  <div class="copy">
+    <div class="kicker"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#ffffff"/><path d="M19 13h26v38l-4.3-3-4.4 3-4.3-3-4.3 3-4.4-3-4.3 3z" fill="#2343c9"/><path d="M32 16v31" stroke="#ffffff" stroke-width="2" stroke-dasharray="3 3"/><rect x="22.5" y="22" width="7" height="4" rx="2" fill="#ffc23d"/><rect x="34.5" y="22" width="7" height="4" rx="2" fill="#ffc23d"/></svg>Dept Money</div>
+    <h1>หารบิล<br>เคลียร์หนี้<br><span class="sun">กับเพื่อน</span></h1>
+    <p>พิมพ์บันทึกในแชต สรุปทุกเดือน<br>เตือนคนค้างให้อัตโนมัติ</p>
+  </div>
+
+  <svg class="receipt" viewBox="0 0 26 40" aria-hidden="true">
+    <path d="M0 0h26v38l-4.3-3-4.4 3-4.3-3-4.3 3-4.4-3L0 38z" fill="#ffffff"/>
+    <path d="M13 3v31" stroke="#2343c9" stroke-width="0.9" stroke-dasharray="1.6 1.6"/>
+    <rect x="3.5" y="9" width="7" height="4" rx="2" fill="#ffc23d"/>
+    <rect x="15.5" y="9" width="7" height="4" rx="2" fill="#ffc23d"/>
+    <rect x="3.5" y="17" width="7" height="1.2" rx=".6" fill="#dbe4fd"/>
+    <rect x="15.5" y="17" width="7" height="1.2" rx=".6" fill="#dbe4fd"/>
+    <rect x="3.5" y="20.5" width="5" height="1.2" rx=".6" fill="#dbe4fd"/>
+    <rect x="15.5" y="20.5" width="5" height="1.2" rx=".6" fill="#dbe4fd"/>
+  </svg>
+  <div class="chip c1"><i>CA</i>ค้างคุณ <b>฿860</b></div>
+  <div class="chip c2"><i>คุณ</i>เคลียร์แล้ว <b>฿310</b></div>
+</div>
+</body>
+</html>
+<!-- ส่วนสำคัญอยู่ในแถบกลาง y 170-710 (ถ้า LINE ตัดภาพเป็น 2:1 ก็ยังเห็นครบ) -->

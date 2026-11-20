@@ -93,7 +93,8 @@ test("เตือนทีละคน: ถามยืนยันก่อน
     assert.equal(p.ok, true);
     assert.deepEqual(p.targets, ["CARE"]);
     assert.equal(p.total, 180);
-    assert.match(p.confirm.text, /ส่งข้อความเตือนถึง CARE/);
+    assert.match(p.confirm.altText, /ส่งข้อความเตือนถึง CARE/);
+    assert.equal(p.confirm.type, "flex"); // การ์ดมีปุ่ม ส่งเตือน / ยกเลิก
     assert.ok(JSON.stringify(p.confirm).includes("confirm:remind:CARE"));
     const none = await prepareRemind({ ...FS(db), memberName: "GAME", target: "NOBODY", now: NOW });
     assert.equal(none.ok, false);
@@ -132,9 +133,11 @@ test("ส่งไม่สำเร็จ: บันทึกว่า failed �
 
 test("buildRemindConfirm: ทั้งกลุ่ม", () => {
     const c = buildRemindConfirm({ targets: ["A", "B"], total: 300 });
-    assert.match(c.text, /2 คน/);
+    assert.match(c.altText, /2 คน/);
     assert.ok(JSON.stringify(c).includes("confirm:remind:all"));
-    assert.equal(c.quickReply.items.length, 2);
+    const btns = c.contents.footer.contents[0].contents;
+    assert.deepEqual(btns.map((b) => b.action.label), ["ยกเลิก", "ส่งเตือน"]);
+    assert.equal(btns[0].action.data, "cancel");
     assert.ok(fs.existsSync(new URL("../icons/icon-192.png", import.meta.url)), "ไฟล์โลโก้ต้องมีอยู่จริงบนเว็บ");
 });
 

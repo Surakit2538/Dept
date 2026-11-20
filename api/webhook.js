@@ -6,8 +6,9 @@ import { buildReminderFlex } from '../lib/reminders.mjs';
 import { parseIncomeText } from '../lib/line-income.mjs';
 import { parseQuickExpense, createQuickExpenseService, UNDO_COMMAND } from '../lib/line-expense.mjs';
 import { formatBaht } from '../lib/slip-core.mjs';
-import { buildIncomeSavedCard, buildHowToCarousel, withChips, monthLabelTh } from '../lib/line-cards.mjs';
+import { buildIncomeSavedCard, buildHowToCarousel, withChips, monthLabelTh, buildPromptMessage, buildParticipantsCard, buildNoticeCard, buildInfoCard } from '../lib/line-cards.mjs';
 import { buildWalletEntry, WALLET_COL } from '../lib/wallet-service.mjs';
+import { createLineSplitService } from '../lib/line-split.mjs';
 import * as fsApi from './auth-helpers.js';
 import {
     doc, getDoc, setDoc, deleteDoc,
@@ -35,6 +36,7 @@ import {
 // --- CONFIGURATION ---
 const db = getDbInstance(); // ใช้ firebase-admin ถ้าตั้ง FIREBASE_SERVICE_ACCOUNT ไม่งั้นแบบเดิม
 const quickExpense = createQuickExpenseService({ db, fs: fsApi });
+const lineSplit = createLineSplitService({ db, fs: fsApi });
 
 // --- TIMEZONE HELPERS ---
 function getBangkokDateString(date = new Date()) {
@@ -178,10 +180,13 @@ async function handleTextMessage(event) {
     // 2.3 ลบรายจ่ายที่เพิ่งพิมพ์บันทึกในแชต (ภายใน 15 นาที) ใช้คำว่า "ลบรายการล่าสุด" (ไม่ใช้ "ยกเลิก" เพราะใช้ยกเลิกการจดบันทึกอยู่แล้ว)
     if (event.source.type === "user" && text === UNDO_COMMAND) {
         const undone = await quickExpense.undo(userId);
-        if (undone.ok) return sendToLine(replyToken, withChips({ type: "text", text: `ลบรายการล่าสุดแล้ว\n${undone.desc} ${formatBaht(undone.amount)}` }));
-        return replyText(replyToken, undone.reason === "expired"
-            ? "รายการล่าสุดเกิน 15 นาทีแล้ว ลบไม่ได้จากแชต ไปลบที่แท็บ กระเป๋า ในเว็บ Dept Money ได้เลย"
-            : "ไม่มีรายการที่บันทึกจากแชตให้ลบ");
+        if (undone.ok) return sendToLine(replyToken, buildNoticeCard({ title: "ลบรายการล่าสุดแล้ว", detail: `${undone.desc} ${formatBaht(undone.amount)}` }));
+        return sendToLine(replyToken, buildNoticeCard({
+            tone: "info",
+            title: undone.reason === "expired" ? "เกิน 15 นาทีแล้ว ลบจากแชตไม่ได้" : "ไม่มีรายการที่บันทึกจากแชตให้ลบ",
+            detail: undone.reason === "expired" ? "ลบได้ที่หน้ารายการในเว็บ Dept Money" : "",
+            buttons: undone.reason === "expired" ? [{ type: "button", style: "primary", color: "#2343c9", height: "sm", action: { type: "uri", label: "เปิดหน้ารายการ", uri: "https://liff.line.me/2008948704-db2goT00#list" } }] : []
+        }));
     }
 
     const sessionSnap = await getDoc(sessionRef);
@@ -196,7 +201,7 @@ async function handleTextMessage(event) {
             const saved = await quickExpense.save(userId, memberName, quick);
             if (!saved.ok) return replyText(replyToken, saved.message);
             try {
-                return await sendToLine(replyToken, await buildExpenseSavedMessage({ db, fs: fsApi, memberName, entry: saved.entry }));
+                return await sendToLine(replyToken, await buildExpenseSavedMessage({ db, fs: fsApi, memberName, entry: { ...saved.entry, id: saved.id } }));
             } catch (e) {
                 console.error("expense card failed:", e && e.message);
                 return replyText(replyToken, `บันทึกรายจ่ายส่วนตัวแล้ว\n${quick.desc} ${formatBaht(quick.amount)}\n(บันทึกผิด พิมพ์ ${UNDO_COMMAND})`);
@@ -1150,6 +1155,8 @@ async function replyFlex(replyToken, altText, contents) {
 }
 
 async function replyQuickReply(replyToken, flex, actions) {
+    const prompt = PROMPTS.get(flex);
+    if (prompt) return sendToLine(replyToken, buildPromptMessage({ ...prompt, actions }));
     const message = { type: 'flex', altText: 'กรุณาเลือก', contents: flex, quickReply: { items: actions } };
     await sendToLine(replyToken, message);
 }
@@ -1190,83 +1197,17 @@ async function pushFlex(userId, altText, contents) {
     }
 }
 
+// การ์ดคำถามระหว่างจดบันทึก (ธีมเดียวกับเว็บ) จำค่าไว้ให้ replyQuickReply ใส่ตัวเลือกเป็นปุ่มในการ์ดได้
+const PROMPTS = new WeakMap();
 function createInteractiveCard(title, description, hintText = null) {
-    const contents = [];
-
-    if (hintText) {
-        contents.push({
-            type: "box",
-            layout: "vertical",
-            contents: [
-                {
-                    type: "text",
-                    text: hintText,
-                    size: "xs",
-                    color: "#94a3b8",
-                    wrap: true
-                }
-            ],
-            paddingAll: "sm",
-            backgroundColor: "#f8fafc",
-            cornerRadius: "md",
-            margin: "md"
-        });
-    } else {
-        contents.push({
-            type: "text", text: "โปรดเลือกหรือพิมพ์ข้อความด้านล่าง", size: "xs", color: "#94a3b8", align: "center"
-        });
-    }
-
-    return {
-        type: "bubble",
-        size: "kilo",
-        header: {
-            type: "box", layout: "vertical", backgroundColor: "#334155",
-            contents: [
-                { type: "text", text: "DEPT ALERT", color: "#94a3b8", size: "xxs", weight: "bold" },
-                { type: "text", text: title, color: "#ffffff", size: "lg", weight: "bold", margin: "xs" },
-                { type: "text", text: description, color: "#cbd5e1", size: "xs", wrap: true }
-            ]
-        },
-        body: {
-            type: "box",
-            layout: "vertical",
-            contents: contents,
-            paddingAll: "lg"
-        }
-    };
+    const bubble = buildPromptMessage({ title, desc: description, hint: hintText || "" }).contents;
+    PROMPTS.set(bubble, { title, desc: description, hint: hintText || "" });
+    return bubble;
 }
 
 async function askParticipants(replyToken, userId, selectedList) {
     const members = await getMemberNames();
-    const actions = [
-        { type: "action", action: { type: "message", label: "ยืนยันรายชื่อ", text: "ยืนยัน" } },
-        { type: "action", action: { type: "message", label: "เลือกทุกคน", text: "ทุกคน" } },
-        ...members.slice(0, 11).map(m => ({
-            type: "action",
-            action: { type: "message", label: (selectedList.includes(m) ? `\u2713 ${m}` : m), text: m }
-        }))
-    ];
-
-    const flex = {
-        "type": "bubble", "size": "mega",
-        "header": {
-            "type": "box", "layout": "vertical", "backgroundColor": "#334155",
-            "contents": [
-                { "type": "text", "text": "DEPT ALERT", "color": "#94a3b8", "size": "xxs", "weight": "bold" },
-                { "type": "text", "text": "หารกับใครบ้าง?", "color": "#ffffff", "size": "lg", "weight": "bold", "margin": "xs" },
-                { "type": "text", "text": selectedList.length > 0 ? `เลือกแล้ว: ${selectedList.join(', ')}` : "ยังไม่ได้เลือกใคร", "color": "#cbd5e1", "size": "xs", "wrap": true }
-            ]
-        },
-        "body": {
-            "type": "box", "layout": "vertical", "backgroundColor": "#ffffff",
-            "contents": [
-                { "type": "text", "text": "แตะที่ชื่อเพื่อเลือก/ออก แล้วกดปุ่มยืนยัน", "size": "xs", "color": "#94a3b8", "align": "center" }
-            ],
-            "paddingAll": "lg"
-        }
-    };
-    return replyQuickReply(replyToken, flex, actions);
+    return sendToLine(replyToken, buildParticipantsCard({ members, selected: selectedList }));
 }
 
 async function saveTransaction(replyToken, userId, finalData) {
@@ -1360,51 +1301,14 @@ async function saveTransaction(replyToken, userId, finalData) {
         await batch.commit();
         await deleteDoc(doc(db, 'user_sessions', userId));
 
-        const flex = {
-            "type": "bubble",
-            "header": {
-                "type": "box", "layout": "vertical",
-                "backgroundColor": "#334155",
-                "contents": [
-                    { "type": "text", "text": "SUCCESS REPORT", "color": "#22c55e", "size": "xxs", "weight": "bold" },
-                    { "type": "text", "text": "บันทึกสำเร็จ ", "color": "#ffffff", "size": "lg", "weight": "bold", "margin": "xs" },
-                    { "type": "text", "text": finalData.desc, "color": "#cbd5e1", "size": "xs", "wrap": true }
-                ]
-            },
-            "body": {
-                "type": "box", "layout": "vertical", "spacing": "md",
-                "contents": [
-                    {
-                        "type": "box", "layout": "horizontal",
-                        "contents": [
-                            { "type": "text", "text": "ยอดเงิน", "size": "xs", "color": "#64748b" },
-                            { "type": "text", "text": `${finalData.amount.toLocaleString()} ฿`, "size": "sm", "color": finalData.paymentType === 'installment' ? "#f97316" : finalData.paymentType === 'subscription' ? "#9333ea" : "#22c55e", "align": "end", "weight": "bold" }
-                        ]
-                    },
-                    { "type": "separator", "margin": "md" },
-                    {
-                        "type": "box", "layout": "horizontal", "margin": "md",
-                        "contents": [
-                            { "type": "text", "text": "คนจ่าย", "size": "xs", "color": "#64748b" },
-                            { "type": "text", "text": finalData.payer, "size": "sm", "color": "#1e293b", "align": "end", "weight": "bold" }
-                        ]
-                    },
-                    {
-                        "type": "box", "layout": "horizontal", "margin": "md",
-                        "contents": [
-                            { "type": "text", "text": "คนหาร", "size": "xs", "color": "#64748b", "flex": 1 },
-                            { "type": "text", "text": finalData.participants.join(', '), "size": "sm", "color": "#1e293b", "align": "end", "weight": "bold", "wrap": true, "flex": 3 }
-                        ]
-                    },
-                    ...(finalData.paymentType === 'subscription' ? [
-                        { "type": "separator", "margin": "md" },
-                        { "type": "text", "text": "Subscription (สร้างทุกเดือนอัตโนมัติ)", "size": "xs", "color": "#9333ea", "margin": "md", "align": "center" }
-                    ] : [])
-                ]
-            }
-        };
+        const kind = finalData.paymentType === 'installment' ? 'ผ่อนชำระ' : finalData.paymentType === 'subscription' ? 'รายเดือน (สร้างให้ทุกเดือน)' : 'จ่ายเต็ม';
+        return sendToLine(replyToken, withChips(buildInfoCard({
+            kicker: "บันทึกบิลแล้ว", big: formatBaht(finalData.amount), title: finalData.desc, altText: `บันทึกบิลแล้ว ${finalData.desc} ${formatBaht(finalData.amount)}`,
+            rows: [["คนจ่าย", finalData.payer], ["คนหาร", finalData.participants.join(', ')], ["แบบ", kind]],
+            note: "ดูหรือแก้ไขได้ที่หน้ารายการในเว็บ",
+            buttons: [{ type: "button", style: "primary", color: "#2343c9", height: "sm", action: { type: "uri", label: "เปิดหน้ารายการ", uri: "https://liff.line.me/2008948704-db2goT00#list" } }]
+        }), ["สรุปเดือนนี้", "ใครค้างฉัน"]));
 
-        return replyFlex(replyToken, "บันทึกสำเร็จ", flex);
     } catch (e) {
         return replyText(replyToken, "เกิดข้อผิดพลาด: " + e.message);
     }
@@ -1446,7 +1350,11 @@ async function handlePostback(event, signatureValid) {
     if (cmd.action === 'cancel') return replyText(replyToken, 'ยกเลิกแล้ว ไม่ได้ส่งข้อความหาใคร');
     if (cmd.action === 'unknown') return;
     if (cmd.action === 'help-expense') {
-        return sendToLine(replyToken, withChips({ type: 'text', text: 'พิมพ์ชื่อรายการเว้นวรรคแล้วตามด้วยยอด ส่งในแชตนี้ได้เลย เช่น\nกาแฟ 65\nข้าวมันไก่ 50 บาท\n\nบอทบันทึกเป็นรายจ่ายส่วนตัว (เห็นเฉพาะคุณ) ถ้าบันทึกผิด พิมพ์ ลบรายการล่าสุด ภายใน 15 นาที\nรายรับพิมพ์ เช่น เงินเดือน 25000' }));
+        return sendToLine(replyToken, withChips(buildInfoCard({
+            kicker: "วิธีพิมพ์ในแชต", title: "พิมพ์ชื่อ เว้นวรรค แล้วตามด้วยยอด", altText: "วิธีพิมพ์บันทึกในแชต",
+            rows: [["กาแฟ 65", "รายจ่ายส่วนตัว"], ["ข้าวมันไก่ 50 บาท", "รายจ่ายส่วนตัว"], ["เงินเดือน 25000", "รายรับ"], ["ลบรายการล่าสุด", "ลบอันที่เพิ่งพิมพ์ (15 นาที)"]],
+            note: "รายจ่ายและรายรับที่พิมพ์ในแชตเห็นเฉพาะคุณ ไม่กระทบยอดหนี้กลุ่ม"
+        })));
     }
     const memberName = await getMemberNameByLineId(event.source.userId);
     if (!memberName) return replyText(replyToken, 'ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน');
@@ -1455,6 +1363,13 @@ async function handlePostback(event, signatureValid) {
         if (!prep.ok) return replyText(replyToken, prep.message);
         return sendToLine(replyToken, prep.confirm);
     }
+    // หารกับเพื่อนจากการ์ดบันทึกรายจ่าย (เปลี่ยนรายการส่วนตัวเป็นบิลกลุ่มในแชต)
+    const uid = event.source.userId;
+    if (cmd.action === 'split-start') return sendToLine(replyToken, await lineSplit.start(uid, memberName, cmd.id));
+    if (cmd.action === 'sp-toggle') return sendToLine(replyToken, await lineSplit.toggle(uid, memberName, cmd.name));
+    if (cmd.action === 'sp-all') return sendToLine(replyToken, await lineSplit.toggle(uid, memberName, '', true));
+    if (cmd.action === 'sp-cancel') return sendToLine(replyToken, await lineSplit.cancel(uid));
+    if (cmd.action === 'sp-ok') return sendToLine(replyToken, await lineSplit.confirm(uid, memberName));
     if (cmd.action.startsWith('w-')) {
         return sendToLine(replyToken, await handleWalletAction({ db, fs: fsApi, memberName, cmd }));
     }

@@ -21,7 +21,7 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 305 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 307 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
 พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1`, `?state=loader` (ตัวโหลด), `?as=CARE` (มุมมองคนอื่น) · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
@@ -81,4 +81,6 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 - ตัวโหลด: `Loader` (icons.jsx) + มาร์กอัปใน web/index.html ต้องตรงกัน, แอนิเมชันอยู่ใต้ prefers-reduced-motion · โลโก้ร้านจริง ~69 แบรนด์จาก Simple Icons (CC0) แยกไฟล์ `brand-paths.js` โหลดเมื่อต้องใช้ + สี `brand-hex.js` · ร้านที่ไม่มีโลโก้จริง (7-Eleven, Café Amazon, LINE MAN, Lazada ฯลฯ) ใช้สีแบรนด์ + ไอคอนหมวด ห้ามวาดโลโก้ปลอม · เปลี่ยนแท็บมี motion (`PageSwap` ใน ui.jsx, ปิดเมื่อตั้งลดการเคลื่อนไหว) · กล่องโปรไฟล์หน้า ฉัน เป็นสีน้ำเงิน
 - Widget 3.0.0 (ยังไม่ push 20 พ.ย.): สไตล์ "ยอดใหญ่ + รายชื่อ" พื้นน้ำเงินไล่สี เล็ก/กลาง/ใหญ่/หน้าล็อก 3 แบบ วาดโลโก้เอง · `api/widget-summary` ส่ง `people` (ใครค้างใคร จาก `myClearLines` ใน ledger ไม่อ่านสมาชิกเพิ่ม) · เจ้าของต้องรัน DeptInstaller ใหม่
 - LINE ดีไซน์ใหม่ (ยังไม่ push): mockup https://claude.ai/artifact/J7breto1xgW5cKqj197mDb · การ์ดใน `lib/line-cards.mjs` (กราฟ/แถบ/รูปเพื่อนทำจากกล่อง Flex, ไอคอนหมวด PNG `icons/cat/` สร้างด้วย Edge headless) ตัวเลขใน `lib/line-insights.mjs` ข้อมูล+ปุ่มใน `lib/line-report.mjs` · ปุ่มลัดใต้ข้อความ: สรุปเดือนนี้/ใครค้างฉัน/ฉันต้องโอน/รอยืนยัน/วิธีใช้ · สรุปเดือน = ปัด 4 ใบ · ฉันต้องโอน/เตือนวันที่ 25 = การ์ดละคน+QR · รอยืนยัน = postback `w:ok|cat|setcat|del|delok|okall` (ตรวจเจ้าของทุกครั้ง, เปลี่ยนหมวดจำชื่อ) · หมวด 6 กลุ่ม `CATEGORY_GROUPS` ใน lib/categories.mjs ต้องตรงกับ web (มีเทสต์)
-- ยังไม่ได้: Rich menu, คู่มือ `shortcut-guide.html` ยังสีเดิม · ปฏิทินบิลรายเดือน/ถามได้ใช้ไหม = ฟีเจอร์ใหม่ (หัวข้อ 10 ข้อ 13)
+- Rich menu แบบ B (2x2: สรุป/เพิ่มบิล/เคลียร์เงิน/เปิดเว็บ) รูป `design/richmenu/richmenu.png` เจ้าของต้องอัปโหลดเองตาม README + เปลี่ยนรูปโปรไฟล์ OA เป็น icons/icon-512.png · ทุกข้อความบอทใช้การ์ดธีมใหม่ (`buildPromptMessage` ตัวเลือก<=3 เป็นปุ่ม, `buildChoiceCard`, `buildNoticeCard`, `buildInfoCard`, `buildParticipantsCard`) หมวดใน LINE = กล่องเทา ไอคอนส้ม `*-pay.png` เหมือนเว็บ · โลโก้ในการ์ดใช้ `icon-192.png?v=3` (LINE จำรูปเก่า)
+- หารกับเพื่อนในแชต: การ์ดบันทึก "กาแฟ 60" มีปุ่ม หารกับเพื่อน (`w:split:<id>`) -> การ์ดเลือกคน (`sp:t|all|ok|cancel`, สถานะใน `line_split` 30 นาที) -> สร้างบิล normal คนพิมพ์จ่าย หารเท่ากัน แล้วลบรายการส่วนตัว (`lib/line-split.mjs`) · รูปพื้นหลัง OA `design/richmenu/cover.png`
+- ยังไม่ได้: คู่มือ `shortcut-guide.html` ยังสีเดิม  · ปฏิทินบิลรายเดือน/ถามได้ใช้ไหม = ฟีเจอร์ใหม่ (หัวข้อ 10 ข้อ 13)
