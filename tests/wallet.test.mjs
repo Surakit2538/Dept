@@ -286,3 +286,15 @@ test("wallet-delete-many: ลบหลายรายการของตัว
     assert.equal((await call({ action: "wallet-delete-many", ids: [], idToken: "good-me" })).statusCode, 400);
     assert.equal((await call({ action: "wallet-delete-many", ids: [mine[2]], idToken: "bad" })).statusCode, 401);
 });
+
+test("wallet-list: บอกว่ารายการไหนมาจากรายจ่ายรายเดือนที่ตั้งไว้ (ให้หน้าเว็บขึ้นป้าย รายเดือน)", async () => {
+    const { call, db } = setup();
+    await call({ action: "wallet-add", type: "expense", amount: 99, desc: "iCloud", date: "2026-11-01", recurring: true, idToken: "good-me" });
+    await call({ action: "wallet-add", type: "expense", amount: 50, desc: "ข้าว", date: "2026-11-02", idToken: "good-me" });
+    db.seed("wallet_entries", "wsub_tpl9_2026-11", { ownerName: "G A M E 👾", type: "expense", amount: 518, desc: "Netflix", date: "2026-11-01", month: "2026-11", timestamp: 1 });
+    const l = await call({ action: "wallet-list", month: "2026-11", idToken: "good-me" });
+    const by = Object.fromEntries(l.body.items.map((x) => [x.desc, x.recurring]));
+    assert.equal(by.iCloud, true);
+    assert.equal(by.Netflix, true);
+    assert.equal(by["ข้าว"], false);
+});

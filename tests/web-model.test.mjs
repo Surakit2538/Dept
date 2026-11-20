@@ -264,3 +264,12 @@ test("โลโก้ร้าน: ไม่มีโลโก้จริงก
     assert.equal(brandOf("YouTube Music").key, "youtubemusic");
     assert.equal(brandOf("7-Eleven").si, undefined, "เซเว่นไม่มีโลโก้จริงในชุดฟรี ใช้สีแบรนด์");
 });
+
+test("กระเป๋า: รายการรายเดือนส่วนตัวมีธง recurring (จากเซิร์ฟเวอร์ หรือรหัส wsub_ ที่ระบบสร้าง)", () => {
+    const m = buildWalletModel({ name: "GAME", month: "2026-11", walletItems: [
+        { id: "wsub_t1_2026-11", type: "expense", amount: 99, date: "2026-11-01", desc: "iCloud" },
+        { id: "x", type: "expense", amount: 650, date: "2026-11-01", desc: "Claude", recurring: true },
+        { id: "y", type: "expense", amount: 50, date: "2026-11-02", desc: "ข้าว" }
+    ], transactions: [], settlements: [] });
+    assert.deepEqual(m.items.map((x) => [x.id, x.recurring]).sort(), [["wsub_t1_2026-11", true], ["x", true], ["y", false]]);
+});

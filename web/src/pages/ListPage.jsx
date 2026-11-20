@@ -12,6 +12,9 @@ import { SelectRow, BulkBar } from "../bulk.jsx";
 import { faOf, hasCategory } from "../cats.jsx";
 
 const FILTERS = [["all", "ทั้งหมด"], ["group", "บิลกลุ่ม"], ["personal", "ส่วนตัว"], ["income", "รายรับ"]];
+/** ป้ายบอกว่าเป็นบิลกลุ่ม รายจ่ายส่วนตัว หรือรายรับ (ทุกแถวมี จะได้แยกออกทันที) */
+const KindTag = ({ kind }) => <span class={`kind k-${kind}`}>{kind === "group" ? "กลุ่ม" : kind === "income" ? "รายรับ" : "ส่วนตัว"}</span>;
+
 const dayLabel = (d) => `${Number(d.slice(8, 10))} ${monthShort(d.slice(0, 7))}`;
 
 /** แถวสองบรรทัด: ชื่อ + ยอด / รายละเอียดสั้นๆ + ปุ่มแก้ไข ลบ */
@@ -33,7 +36,7 @@ function BillRow({ b, canEdit, onDeleted, onError, onEdit, selecting, picked, on
     const has = b.myShareSat > 0;
     const sub = (
         <>
-            {b.payer} จ่าย &middot; {b.people.length} คน &middot; {has ? <>บิล <span class="num">{baht(b.amountSat / 100, { decimals: 2 })}</span></> : "ไม่มีส่วนของฉัน"}
+            <KindTag kind="group" />{b.payer} จ่าย &middot; {b.people.length} คน &middot; {has ? <>บิล <span class="num">{baht(b.amountSat / 100, { decimals: 2 })}</span></> : "ไม่มีส่วนของฉัน"}
         </>
     );
     const lead = <ItemIcon desc={b.desc} name={iconFor(b.icon)} />;
@@ -58,8 +61,9 @@ function WalletRow({ it, onDeleted, onError, onEdit, selecting, picked, onToggle
     const income = it.type === "income";
     const name = it.desc || (income ? "รายรับ" : "รายจ่าย");
     const lead = <ItemIcon desc={income ? "" : it.desc} name={income ? "down" : iconFor(it.icon)} />;
-    const sub = <>{income ? "รายรับ" : "ส่วนตัว"}{it.card ? ` · บัตร ${it.card}` : ""}</>;
-    const badge = it.unconfirmed ? <span class="tag warn">ยังไม่ยืนยัน</span> : null;
+    const sub = <><KindTag kind={income ? "income" : "personal"} />{it.card ? `บัตร ${it.card}` : income ? "" : "เห็นเฉพาะคุณ"}</>;
+    // รายเดือนแสดงเหมือนบิลกลุ่ม (รายการที่ระบบสร้างจากรายจ่ายรายเดือนที่ตั้งไว้)
+    const badge = (it.unconfirmed || it.recurring) ? <>{it.recurring && <span class="tag">รายเดือน</span>}{it.unconfirmed && <span class="tag warn">ยังไม่ยืนยัน</span>}</> : null;
     const value = (income ? "+" : "") + baht(it.amount, { decimals: 2 });
     if (selecting) return <SelectRow picked={picked} label={name} onToggle={onToggle}><RowBody lead={lead} title={name} value={value} tone={income ? "rcv" : ""} sub={sub} badge={badge} /></SelectRow>;
     return (

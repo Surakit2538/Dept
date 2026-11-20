@@ -808,3 +808,10 @@ html, body { touch-action: manipulation; }
 }
 @keyframes pg-in { from { opacity: 0; transform: translate(var(--dx, 0), 10px); } to { opacity: 1; transform: none; } }
 @keyframes tab-pop { 0% { transform: scale(.7); } 55% { transform: scale(1.18); } 100% { transform: scale(1); } }
+
+/* ป้ายประเภทในแถวรายการ: กลุ่ม (สีหลัก) / ส่วนตัว (ทานตะวันอ่อน) / รายรับ (เขียว) */
+.kind { display: inline-block; margin-right: 6px; padding: 0 7px; border-radius: 999px; font-size: var(--fs-xs); font-weight: 700; line-height: 1.6; vertical-align: 1px; }
+.kind.k-group { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); color: var(--accent-text); }
+.kind.k-personal { background: var(--sun-soft); color: var(--ink); }
+.kind.k-income { background: color-mix(in srgb, var(--receive) 14%, var(--surface)); color: var(--receive); }
+.lr-1 .tag + .tag { margin-left: -4px; }
