@@ -21,7 +21,7 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 307 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 313 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
 พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1`, `?state=loader` (ตัวโหลด), `?as=CARE` (มุมมองคนอื่น) · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
@@ -48,7 +48,7 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 - 25 พ.ย. เตือนหนี้ · 1 ธ.ค. บิลรายเดือน + ล้างข้อมูลเก่ารอบแรก
 
 ## 8. ยังไม่ได้ทำ / หนี้ (เจ้าของจะทำใน chat ถัดไป เริ่มจากรายการนี้ก่อน แล้วค่อยดูหัวข้อ 10)
-- อีเมลธนาคาร (ttb, SCB, UOB, KBank) ต้องได้ตัวอย่างจริงก่อนเพิ่มรูปแบบใน `lib/card-alert.mjs`
+- อีเมล: อ่านได้แล้ว KTC, CardX (บาทเท่านั้น USD ข้าม), K PLUS ชำระค่าสินค้า (เก็บ transRef กันซ้ำกับสลิป) · โอนเงิน K PLUS/เติม e-Wallet SCB ข้าม · ตัวอย่างจริงอยู่ `tests/email-samples.mjs` · ttb/UOB ยังไม่มีตัวอย่าง · ยังไม่ได้ลองระบบอัตโนมัติอีเมลบน iPhone จริง
 - แชร์ลิงก์ iCloud ของคำสั่งลัด "Dept บันทึก" ให้เพื่อน (เจ้าของต้องสร้างแล้วส่งลิงก์มา ใส่ในคู่มือ)
 - ความแม่นยำอ่านสลิป (`lib/slip-core.mjs`) เจอผิดให้ขอข้อความจริงมาเป็นเทสต์
 - เทสต์กฎลบสมาชิกของเว็บใหม่ (`deleteMemberIfUnused`) ยังไม่มี

@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { parseCardAlert, cleanMerchant, merchantSimilar, scrubOtp } from "../lib/card-alert.mjs";
+import { EMAIL_KTC, EMAIL_CARDX_USD, EMAIL_KPLUS_BILL, EMAIL_KPLUS_TRANSFER, EMAIL_SCB_TOPUP } from "./email-samples.mjs";
 
 const NOW = new Date("2026-11-18T00:00:00+07:00"); // เวลาจำลอง (ตรวจว่าวันที่ในข้อความสมเหตุสมผล)
 
@@ -120,4 +121,43 @@ test("scrubOtp: ซ่อนรหัส OTP ทุกแบบที่เจ�
     assert.match(scrubOtp("บัตร KTC ยอด 533.93 THB OTP=016817 สำหรับ AMP*AIS"), /OTP=\*{6}/);
     assert.match(scrubOtp("ยอดชำระของคุณคือ THB0 และรหัส OTP คือ 453938 (AwFGQK)"), /OTP คือ \*{6}/);
     assert.equal(scrubOtp("ขอบคุณที่ใช้บัตร KTC ยอด 399 THB"), "ขอบคุณที่ใช้บัตร KTC ยอด 399 THB");
+});
+
+
+// ---------- อีเมลธนาคาร/บัตร (ข้อความจริงจากภาพหน้าจอ Outlook ของเจ้าของ) ----------
+test("อีเมล KTC: บันทึกรายจ่าย ได้ชื่อร้านและบัตร", () => {
+    const r = parseCardAlert(EMAIL_KTC, NOW);
+    assert.equal(r.kind, "expense");
+    assert.equal(r.amount, 399);
+    assert.equal(r.merchant, "Google YouTubePremiu");
+    assert.equal(r.card, "KTC-1111");
+});
+
+test("อีเมล CardX เป็น USD: ข้าม (ยังไม่รู้ยอดบาทจริง) ถ้าเป็นบาท บันทึกพร้อมวันที่", () => {
+    const usd = parseCardAlert(EMAIL_CARDX_USD, NOW);
+    assert.equal(usd.kind, "ignore");
+    assert.equal(usd.reason, "foreign_currency");
+    assert.equal(usd.currency, "USD");
+    const thb = parseCardAlert(EMAIL_CARDX_USD.replace("20.00 USD", "1,250.50 บาท"), NOW);
+    assert.equal(thb.kind, "expense");
+    assert.equal(thb.amount, 1250.5);
+    assert.equal(thb.merchant, "ANTHROPIC* CLAUDE SUB");
+    assert.equal(thb.card, "CardX-2222");
+    assert.equal(thb.date, "2026-11-06");
+});
+
+test("อีเมล K PLUS ชำระค่าสินค้า: รายจ่าย ร้าน บัญชี วันที่ และเลขที่รายการ (กันซ้ำกับสลิป)", () => {
+    const r = parseCardAlert(EMAIL_KPLUS_BILL, NOW);
+    assert.equal(r.kind, "expense");
+    assert.equal(r.amount, 1387.79);
+    assert.equal(r.merchant, "สุกี้ตี๋น้อย-ตะวันนา 2 บางกะปิ");
+    assert.equal(r.card, "KBank-1234");
+    assert.equal(r.date, "2026-06-13");
+    assert.equal(r.time, "19:51");
+    assert.equal(r.transRef, "016000000000BQR00001");
+});
+
+test("อีเมลโอนเงิน K PLUS และเติมเงินพร้อมเพย์ SCB Easy: ข้าม (สลิปบันทึกแทน)", () => {
+    assert.deepEqual(parseCardAlert(EMAIL_KPLUS_TRANSFER, NOW), { kind: "ignore", reason: "transfer" });
+    assert.deepEqual(parseCardAlert(EMAIL_SCB_TOPUP, NOW), { kind: "ignore", reason: "wallet_topup" });
 });

@@ -142,3 +142,31 @@ test("อ่านฐานข้อมูลน้อย: ไม่อ่าน
     await auto(KTC_THANKS);
     assert.ok(db.reads() < 10, "อ่านไป " + db.reads());
 });
+
+
+test("อีเมล KTC หลัง SMS ของรายการเดียวกัน -> เงียบ ไม่บันทึกซ้ำ", async () => {
+    const { db, auto, clock } = setup();
+    assert.equal((await auto(KTC_THANKS)).body.status, "saved");
+    clock.t += 5 * 60 * 1000;
+    const { EMAIL_KTC } = await import("./email-samples.mjs");
+    const r = await auto(EMAIL_KTC);
+    assert.equal(r.body.message, "");
+    assert.equal(db.count("wallet_entries"), 1);
+});
+
+test("อีเมล K PLUS ชำระค่าสินค้า: บันทึกครั้งเดียว และถ้าสลิปเลขเดียวกันบันทึกไปแล้ว ไม่บันทึกซ้ำ", async () => {
+    const { EMAIL_KPLUS_BILL } = await import("./email-samples.mjs");
+    const a = setup();
+    const r = await a.auto(EMAIL_KPLUS_BILL);
+    assert.equal(r.body.status, "saved");
+    const rows = a.db.all("wallet_entries");
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].transRef, "016000000000BQR00001");
+    assert.equal(rows[0].amount, 1387.79);
+    // มีสลิปของรายการนี้อยู่แล้ว
+    const b = setup();
+    b.db.seed("wallet_entries", "slip1", { ownerName: "G A M E", type: "expense", amount: 1387.79, date: "2026-06-13", month: "2026-06", desc: "สุกี้ตี๋น้อย", transRef: "016000000000BQR00001", dedupKey: "ref:016000000000BQR00001" });
+    const r2 = await b.auto(EMAIL_KPLUS_BILL);
+    assert.equal(r2.body.message, "");
+    assert.equal(b.db.count("wallet_entries"), 1);
+});
