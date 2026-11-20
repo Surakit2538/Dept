@@ -4,7 +4,7 @@ import "./styles.css";
 import { Loader } from "./icons.jsx";
 import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
-import { MonthPicker, Shell, Skeleton, ErrorState, Lazy } from "./ui.jsx";
+import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
 
 // หน้าอื่นและหน้าต่างต่างๆ โหลดเมื่อต้องใช้ (หน้าแรกกับตัวแอปมาก่อน เปิดเร็วขึ้น)
@@ -217,7 +217,7 @@ function App() {
             )}
             <Shell tab={page} onTab={go} userName={auth.user.name} userPicture={auth.user.pictureUrl} onAdd={() => setSheet("menu")}
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
-                {body}
+                <PageSwap page={page}>{body}</PageSwap>
             </Shell>
             {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} onClose={() => { setSheet(null); setPrefill(null); }}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}

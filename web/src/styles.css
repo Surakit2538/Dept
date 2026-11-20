@@ -190,6 +190,7 @@ button.more { background: transparent; border: 0; cursor: pointer; padding: 0; f
 
 /* ---------- เมนูล่าง + ปุ่มลอย (มือถือ) ---------- */
 .tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; padding: 0 max(var(--s3), env(safe-area-inset-right, 0px)) calc(var(--s3) + env(safe-area-inset-bottom, 0px)) max(var(--s3), env(safe-area-inset-left, 0px)); pointer-events: none; }
+.tabbar::before { content: ""; position: absolute; inset: -28px 0 0; z-index: -1; pointer-events: none; background: linear-gradient(to top, var(--bg) 45%, transparent); }
 .tabbar-in { pointer-events: auto; max-width: 536px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 6px; background: var(--surface); border-radius: 999px; box-shadow: var(--shadow-up); }
 .tab { border: 0; background: transparent; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: var(--fs-xs); color: var(--mute); min-height: 50px; border-radius: 999px; transition: background-color .15s, color .15s; }
 .tab.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
@@ -638,7 +639,6 @@ html, body { touch-action: manipulation; }
 
 /* ---------- ป้ายโลโก้ร้าน/บริการ (web/src/brands.js) ---------- */
 .ico.brand { display: grid; place-items: center; }
-.ico.brand b { font-family: "Arial Black", "Arial", sans-serif; font-weight: 900; line-height: 1; letter-spacing: -.03em; }
 /* หน้าแรกสองคอลัมน์เมื่อจอกว้างพอ (จอแคบกว่านี้ชื่อเพื่อนในคอลัมน์ขวาถูกบีบจนตัดทีละตัวอักษร) */
 @media (min-width: 1180px) {
   .home-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: var(--s5); align-items: start; }
@@ -747,7 +747,7 @@ html, body { touch-action: manipulation; }
 .bulk-bar { border: 0; box-shadow: var(--shadow-up); }
 
 /* ================= เคลียร์เงิน: บัตรโอน ================= */
-.clear-hero { display: grid; gap: var(--s3); }
+.clear-hero { display: grid; justify-content: stretch; gap: var(--s3); }
 .admin-tag { justify-self: start; display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-xs); font-weight: 700; background: var(--sun); color: var(--sun-ink); border-radius: 999px; padding: 2px var(--s3); }
 .xfer-list { display: grid; gap: var(--s3); }
 .xfer { list-style: none; display: grid; gap: var(--s2); padding: var(--s3) var(--s3) var(--s4); border-radius: var(--r-lg); background: var(--chip); }
@@ -786,3 +786,25 @@ html, body { touch-action: manipulation; }
 .qr-steps i { width: 18px; height: 18px; border-radius: 50%; background: var(--chip); color: var(--accent-text); font-style: normal; font-weight: 700; display: grid; place-items: center; font-size: 11px; }
 .row.sel .pick { width: 24px; height: 24px; min-height: 0; padding: 0; border-radius: 50%; border-width: 2px; }
 .row.sel.on .pick { background: var(--accent); border-color: var(--accent); }
+
+/* ================= กล่องโปรไฟล์หน้า ฉัน: สีน้ำเงินเหมือนการ์ดสรุป ================= */
+.card.profile { background: linear-gradient(150deg, var(--accent), var(--accent2)); color: var(--accent-ink); box-shadow: var(--shadow-up); }
+.profile .av.xl { background: rgba(255, 255, 255, .2); color: var(--accent-ink); box-shadow: 0 0 0 3px rgba(255, 255, 255, .35); }
+.profile .tag-role { background: var(--sun); color: var(--sun-ink); font-weight: 700; }
+.profile .info-card { background: rgba(255, 255, 255, .14); border-color: transparent; color: inherit; }
+.profile .info-card:hover { background: rgba(255, 255, 255, .22); border-color: transparent; }
+.profile .info-card .ico { background: rgba(255, 255, 255, .16); color: var(--accent-ink); }
+.profile .info-card-label, .profile .info-card-desc, .profile .info-card-val.placeholder, .profile .info-card-act { color: rgba(255, 255, 255, .94); }
+.profile .info-card-val { color: var(--accent-ink); }
+.profile .info-card:hover .info-card-act { color: var(--accent-ink); }
+.profile .btn.ghost { background: var(--surface); color: var(--accent-text); border-color: transparent; }
+
+/* ================= การสลับแท็บ: หน้าใหม่เลื่อนเข้าตามทิศทางของแท็บ ไอคอนที่เลือกเด้งเบาๆ ================= */
+@media (prefers-reduced-motion: no-preference) {
+  .page-swap { animation: pg-in .34s var(--ease) backwards; }
+  .page-swap.dir-r { --dx: 22px; }
+  .page-swap.dir-l { --dx: -22px; }
+  .tab.on svg, .snav.on svg { animation: tab-pop .38s var(--ease); }
+}
+@keyframes pg-in { from { opacity: 0; transform: translate(var(--dx, 0), 10px); } to { opacity: 1; transform: none; } }
+@keyframes tab-pop { 0% { transform: scale(.7); } 55% { transform: scale(1.18); } 100% { transform: scale(1); } }

@@ -21,7 +21,7 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 288 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 290 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
 พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1`, `?state=loader` (ตัวโหลด), `?as=CARE` (มุมมองคนอื่น) · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
@@ -78,5 +78,5 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 - หน้าแรก: เพื่อนค้าง/ฉันค้าง = รูปซ้อน (แตะไป #clear), ปฏิทินใช้จ่าย วัน/เดือน/ปี (`SpendCalendar`, แบบปีโหลดข้อมูล 12 เดือนเมื่อเปิดดูเท่านั้น), ไม่มีรายการล่าสุด/กราฟรายเดือน
 - แท็บ 4 อัน: หน้าแรก, รายการ (`ListPage` รวมบิลกับกระเป๋า ตัวกรอง ทั้งหมด/บิลกลุ่ม/ส่วนตัว/รายรับ), เคลียร์เงิน, ฉัน · #bills #wallet ยังเปิดได้ (ไป list) · การ์ดสรุปกระเป๋ากับ "ใช้ไปมาจากอะไร" เอาออก ยอดได้คืน/โอนคืนย้ายไปหน้าเคลียร์เงิน
 - เคลียร์เงิน: บัตรโอน (รูป -> ยอด -> รูป), QR แบบตั๋ว + ปุ่มอัปโหลดสลิป · โหมดแอดมินขึ้นป้ายเดียว
-- ตัวโหลด: `Loader` (icons.jsx) + มาร์กอัปใน web/index.html ต้องตรงกัน, แอนิเมชันอยู่ใต้ prefers-reduced-motion · โลโก้ร้านจริง 17 แบรนด์จาก Simple Icons (CC0)
+- ตัวโหลด: `Loader` (icons.jsx) + มาร์กอัปใน web/index.html ต้องตรงกัน, แอนิเมชันอยู่ใต้ prefers-reduced-motion · โลโก้ร้านจริง ~69 แบรนด์จาก Simple Icons (CC0) แยกไฟล์ `brand-paths.js` โหลดเมื่อต้องใช้ + สี `brand-hex.js` · ร้านที่ไม่มีโลโก้จริง (7-Eleven, Café Amazon, LINE MAN, Lazada ฯลฯ) ใช้สีแบรนด์ + ไอคอนหมวด ห้ามวาดโลโก้ปลอม · เปลี่ยนแท็บมี motion (`PageSwap` ใน ui.jsx, ปิดเมื่อตั้งลดการเคลื่อนไหว) · กล่องโปรไฟล์หน้า ฉัน เป็นสีน้ำเงิน
 - ยังไม่ได้: Widget (`scriptable/DeptWidget.js`), ข้อความ LINE (`lib/line-cards.mjs`), Rich menu, คู่มือ `shortcut-guide.html` ยังสีเดิม -> หลังเว็บ final ทำให้เจ้าของเลือก 2-3 แบบ · ปฏิทินบิลรายเดือน/ถามได้ใช้ไหม = ฟีเจอร์ใหม่ (หัวข้อ 10 ข้อ 13)

@@ -1,6 +1,6 @@
 // ชุดไอคอนเส้นบาง 1.8px ปลายมน (ชุดเดียวกับในหน้าเลือกแบบ) ไม่มี emoji
 import { brandOf } from "./brands.js";
-import { SI } from "./brand-paths.js";
+import { useState, useEffect } from "preact/hooks";
 const P = {
     home: <><path d="M3.5 11 12 4l8.5 7" /><path d="M5.5 9.8V20h13V9.8" /><path d="M10 20v-5.5h4V20" /></>,
     bill: <><path d="M6 3.5h12v17l-3-1.8-3 1.8-3-1.8-3 1.8z" /><path d="M9 8.5h6M9 12h6" /></>,
@@ -70,26 +70,44 @@ const FA = {
 };
 export const iconFor = (fa) => FA[fa] || "bill";
 
-// รูปทรงเขียนเองบนป้ายที่ไม่มีไอคอนจริง
-function BrandBadge({ b, size }) {
-    const dim = Math.round(size * 0.58);
-    if (b.si && SI[b.si]) {
-        return <svg viewBox="0 0 24 24" width={dim} height={dim} aria-hidden="true"><path d={SI[b.si]} fill={b.fg} /></svg>;
+// ข้อมูลรูปโลโก้ (หลายสิบกิโลไบต์) โหลดเมื่อมีรายการที่ตรงกับแบรนด์เท่านั้น ระหว่างรอใช้สีแบรนด์ + ไอคอนหมวดไปก่อน
+let PATHS = null;
+let pending = null;
+const waiting = new Set();
+function loadPaths() {
+    if (!pending) pending = import("./brand-paths.js").then((m) => { PATHS = m.SI; waiting.forEach((f) => f()); }).catch(() => {});
+}
+function useBrandPaths() {
+    const [, tick] = useState(0);
+    useEffect(() => {
+        if (PATHS) return undefined;
+        const f = () => tick((n) => n + 1);
+        waiting.add(f);
+        loadPaths();
+        return () => waiting.delete(f);
+    }, []);
+    return PATHS;
+}
+
+function BrandBadge({ b, size, name }) {
+    const paths = useBrandPaths();
+    if (b.si && paths && paths[b.si]) {
+        const dim = Math.round(size * 0.58);
+        return <svg viewBox="0 0 24 24" width={dim} height={dim} aria-hidden="true"><path d={paths[b.si]} fill={b.fg} /></svg>;
     }
-    return <b style={{ fontSize: Math.round(size * (b.small ? 0.28 : b.text && b.text.length > 1 ? 0.36 : 0.55)) }}>{b.text}</b>;
+    return <Icon name={name} size={Math.round(size * 0.5)} />;
 }
 
 /**
- * ไอคอนหน้ารายการ: ร้าน/บริการดัง (เดาจากชื่อ) แสดงป้ายสีแบรนด์ (ไอคอนจริงจาก Simple Icons ถ้ามี) ไม่อย่างนั้นใช้ไอคอนหมวดเหมือนเดิม
- * name = ไอคอนหมวดที่จะใช้ถ้าไม่ใช่แบรนด์ (เช่น "down" ของรายรับ)
+ * ไอคอนหน้ารายการ: ร้าน/บริการดัง (เดาจากชื่อ) แสดงป้ายสีแบรนด์ (โลโก้จริงจาก Simple Icons ถ้ามี ไม่มีก็สีแบรนด์ + ไอคอนหมวด)
+ * ไม่ใช่แบรนด์ = ไอคอนหมวดเหมือนเดิม  name = ไอคอนหมวดที่จะใช้ (เช่น "down" ของรายรับ)
  */
 export function ItemIcon({ desc, name, size = 40, iconSize }) {
     const b = brandOf(desc);
     if (!b) return <span class="ico" style={size !== 40 ? { width: size, height: size } : undefined}><Icon name={name} size={iconSize} /></span>;
     const style = { width: size, height: size, background: b.bg, color: b.fg, borderRadius: b.round ? "50%" : Math.round(size * 0.3) };
     if (b.ring) style.boxShadow = "inset 0 0 0 1.5px #e3e8f5";
-    if (b.glyph === "stripes") style.background = "linear-gradient(180deg,#f58220 0 33%,#ffffff 33% 38%,#00a650 38% 66%,#ffffff 66% 71%,#ee1c25 71%)";
-    return <span class="ico brand" style={style} aria-hidden="true"><BrandBadge b={b} size={size} /></span>;
+    return <span class="ico brand" style={style} aria-hidden="true"><BrandBadge b={b} size={size} name={name} /></span>;
 }
 
 export function Mark({ size = 24 }) {

@@ -494,3 +494,12 @@ test("หน้า บันทึกแบบไหน (แตะแจ้ง�
     const main = fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8");
     assert.match(main, /\(edit\|split\|choose\)=/, "ต้องอ่านลิงก์ #choose=รหัส");
 });
+
+test("สลับแท็บมี motion (เฉพาะเมื่อไม่ตั้งลดการเคลื่อนไหว) และกล่องโปรไฟล์ใช้สีหลัก", () => {
+    const css = fs.readFileSync(path.join(root, "web/src/styles.css"), "utf8");
+    const i = css.indexOf("@media (prefers-reduced-motion: no-preference) {\n  .page-swap");
+    assert.ok(i > 0, "motion สลับหน้าต้องอยู่ใต้ prefers-reduced-motion: no-preference");
+    assert.ok(!/\.page-swap[^{]*\{[^}]*animation/.test(css.slice(0, i)), "ห้ามตั้งแอนิเมชันสลับหน้านอกเงื่อนไขลดการเคลื่อนไหว");
+    assert.match(css, /\.card\.profile \{[^}]*var\(--accent\)/);
+    assert.match(fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8"), /<PageSwap page=\{page\}>/);
+});

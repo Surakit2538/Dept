@@ -150,7 +150,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
             <div class="col">
                 {!model.cleared && (
                     <section class="card hero clear-hero" aria-label="สรุปยอดค้าง">
-                        {isAdmin && <span class="admin-tag"><Icon name="shield" size={12} />โหมดแอดมิน</span>}
+                        {isAdmin && <span class="admin-tag"><Icon name="shield" size={14} />โหมดแอดมิน</span>}
                         <div class="strip hero-strip">
                             <div><p class="lbl">เพื่อนต้องโอนให้ฉัน</p><p class="num mid">{baht(owedToMe)}</p></div>
                             <div class="vl" />

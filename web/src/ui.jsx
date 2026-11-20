@@ -10,6 +10,17 @@ export const TABS = [
     { key: "me", label: "ฉัน", icon: "user" }
 ];
 
+const PAGE_ORDER = ["home", "list", "clear", "me"];
+
+/** ห่อเนื้อหาหน้า: เปลี่ยนหน้าแล้วเนื้อหาใหม่เลื่อนเข้า (ไปแท็บถัดไป = จากขวา, ย้อนกลับ = จากซ้าย) */
+export function PageSwap({ page, children }) {
+    const prev = useRef(page);
+    const from = prev.current;
+    useEffect(() => { prev.current = page; }, [page]);
+    const dir = from === page ? "" : PAGE_ORDER.indexOf(page) > PAGE_ORDER.indexOf(from) ? "dir-r" : "dir-l";
+    return <div class={`page-swap ${dir}`.trim()} key={page}>{children}</div>;
+}
+
 export function MonthPicker({ month, onChange, min, max }) {
     return (
         <div class="month-wrap">

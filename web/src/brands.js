@@ -1,40 +1,103 @@
 /**
  * โลโก้ร้าน/บริการดังที่ใช้บ่อย: เดาจากชื่อรายการ แล้วแสดงเป็นป้ายสีของแบรนด์แทนไอคอนหมวด (ใช้แค่หน้าตา ไม่เปลี่ยนหมวดหรือข้อมูล)
- * si = ชื่อไอคอนจริงใน brand-paths.js (Simple Icons) / ไม่มี si = วาดเองแบบเรียบง่าย (text = ตัวอักษรบนป้าย, glyph = stripes)
- * ring = ป้ายขาวมีเส้นขอบบางๆ, round = ป้ายวงกลม, small = ตัวอักษรเล็ก (ชื่อยาว)
- * ลำดับสำคัญ: ตัวที่เฉพาะกว่าอยู่ก่อน (เช่น youtube ก่อน google, apple music ก่อน apple)
+ * real(...) = มีโลโก้จริง (Simple Icons, ข้อมูลรูปอยู่ brand-paths.js โหลดเมื่อต้องใช้) สีพื้นจากสีแบรนด์ใน brand-hex.js
+ * color(...) = ไม่มีโลโก้จริงในชุดฟรี: ใช้สีแบรนด์เป็นพื้นป้าย + ไอคอนหมวดของรายการ (ไม่วาดโลโก้ปลอมขึ้นมาเอง)
+ * ring = ป้ายขาวมีเส้นขอบบางๆ, round = ป้ายวงกลม
+ * ลำดับสำคัญ: ตัวที่เฉพาะกว่าอยู่ก่อน (youtube music ก่อน youtube, apple music ก่อน apple, คาเฟ่อเมซอนก่อน amazon)
  */
+import { SI_HEX } from "./brand-hex.js";
+
+const isLight = (hex) => {
+    const n = parseInt(hex.slice(1), 16);
+    return 0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) > 170;
+};
+const ink = (bg) => (isLight(bg) ? "#111111" : "#ffffff");
+const real = (key, re, si, o = {}) => { const bg = o.bg || "#" + SI_HEX[si]; return { key, re, si, bg, fg: o.fg || ink(bg), ...o }; };
+const ringed = (key, re, si) => real(key, re, si, { bg: "#ffffff", fg: "#" + SI_HEX[si], ring: true });
+const color = (key, re, bg, o = {}) => ({ key, re, bg, fg: o.fg || ink(bg), ...o });
+
 export const BRANDS = [
-    { key: "netflix", re: /netflix|เน็ตฟลิกซ์/, bg: "#000000", fg: "#e50914", si: "netflix" },
-    { key: "youtube", re: /youtube|ยูทูบ/, bg: "#ffffff", fg: "#ff0000", si: "youtube", ring: true },
-    { key: "spotify", re: /spotify|สปอติฟาย/, bg: "#191414", fg: "#1ed760", si: "spotify" },
-    { key: "disney", re: /disney|ดิสนีย์/, bg: "#0e2a5c", fg: "#ffffff", text: "D+", round: true },
-    { key: "applemusic", re: /apple ?music/, bg: "#fa243c", fg: "#ffffff", si: "applemusic" },
-    { key: "icloud", re: /icloud/, bg: "#3693f3", fg: "#ffffff", si: "icloud" },
-    { key: "apple", re: /apple|itunes/, bg: "#000000", fg: "#ffffff", si: "apple" },
-    { key: "googlecloud", re: /google ?cloud/, bg: "#ffffff", fg: "#4285f4", si: "googlecloud", ring: true },
-    { key: "google", re: /google|กูเกิล/, bg: "#ffffff", fg: "#4285f4", si: "google", ring: true },
-    { key: "chatgpt", re: /chatgpt|openai/, bg: "#000000", fg: "#ffffff", si: "openai" },
-    { key: "claude", re: /claude|anthropic/, bg: "#d97757", fg: "#ffffff", si: "anthropic" },
-    { key: "lineman", re: /line ?man|ไลน์แมน|lpth\*pf|\blm_/, bg: "#06c755", fg: "#ffffff", text: "LM" },
-    { key: "line", re: /\bline\b|ไลน์/, bg: "#06c755", fg: "#ffffff", si: "line" },
-    { key: "grab", re: /\bgrab|แกร็บ/, bg: "#00b14f", fg: "#ffffff", si: "grab" },
-    { key: "foodpanda", re: /foodpanda|ฟู้ดแพนด้า/, bg: "#d70f64", fg: "#ffffff", si: "foodpanda" },
-    { key: "seven", re: /7-?11|7-eleven|seven ?eleven|เซเว่น/, bg: "#00a650", fg: "#ffffff", text: "7", glyph: "stripes" },
-    { key: "amazon", re: /amazon|อเมซอน/, bg: "#1b5e20", fg: "#ffffff", text: "Az", small: true },
-    { key: "starbucks", re: /starbucks|สตาร์บัค/, bg: "#006241", fg: "#ffffff", si: "starbucks", round: true },
-    { key: "shopee", re: /shopee|ช้อปปี้/, bg: "#ee4d2d", fg: "#ffffff", si: "shopee" },
-    { key: "lazada", re: /lazada|ลาซาด้า/, bg: "#0f146d", fg: "#ffffff", text: "Lz" },
-    { key: "mcdonald", re: /mcdonald|แมคโดนัลด์|แมค ?ดี/, bg: "#da291c", fg: "#ffc72c", si: "mcdonalds" },
-    { key: "kfc", re: /\bkfc|เคเอฟซี/, bg: "#e4002b", fg: "#ffffff", si: "kfc" },
-    { key: "ais", re: /\bais\b|เอไอเอส/, bg: "#7ab800", fg: "#ffffff", text: "ais", small: true },
-    { key: "true", re: /\btrue\b|ทรูมูฟ|ทรูออนไลน์/, bg: "#e4002b", fg: "#ffffff", text: "true", small: true },
-    { key: "3bb", re: /3bb/, bg: "#ffffff", fg: "#0055a5", text: "3BB", small: true, ring: true },
-    { key: "ptt", re: /\bptt\b|ปตท/, bg: "#1e4fa3", fg: "#ffffff", text: "PTT", small: true },
-    { key: "shell", re: /\bshell\b|เชลล์/, bg: "#ffd500", fg: "#dd1d21", si: "shell" },
-    { key: "lotus", re: /lotus|โลตัส/, bg: "#00a19a", fg: "#ffffff", text: "L" },
-    { key: "bigc", re: /big ?c\b|บิ๊กซี/, bg: "#c4d600", fg: "#1f5e2e", text: "C" },
-    { key: "makro", re: /makro|แม็คโคร|แมคโคร/, bg: "#e30613", fg: "#ffd600", text: "m" }
+    real("netflix", /netflix|เน็ตฟลิกซ์/, "netflix", { bg: "#000000", fg: "#e50914" }),
+    real("youtubemusic", /youtube ?music|ยูทูบ ?มิวสิค/, "youtubemusic"),
+    ringed("youtube", /youtube|ยูทูบ/, "youtube"),
+    real("spotify", /spotify|สปอติฟาย/, "spotify", { bg: "#191414", fg: "#1ed760" }),
+    color("disney", /disney|ดิสนีย์/, "#113ccf"),
+    real("hbo", /\bhbo\b/, "hbo"),
+    real("applemusic", /apple ?music/, "applemusic"),
+    real("icloud", /icloud/, "icloud"),
+    real("apple", /apple|itunes/, "apple"),
+    ringed("googlecloud", /google ?cloud/, "googlecloud"),
+    ringed("googledrive", /google ?(drive|one)/, "googledrive"),
+    ringed("googleplay", /google ?play/, "googleplay"),
+    ringed("google", /google|กูเกิล/, "google"),
+    real("chatgpt", /chatgpt|openai/, "openai", { bg: "#10a37f", fg: "#ffffff" }),
+    real("claude", /claude|anthropic/, "anthropic", { bg: "#d97757", fg: "#ffffff" }),
+    color("lineman", /line ?man|ไลน์แมน|lpth\*pf|\blm_/, "#06c755"),
+    real("line", /\bline\b|ไลน์/, "line", { bg: "#06c755", fg: "#ffffff" }),
+    real("grab", /\bgrab|แกร็บ/, "grab"),
+    real("uber", /\buber\b/, "uber"),
+    real("foodpanda", /foodpanda|ฟู้ดแพนด้า/, "foodpanda"),
+    color("seven", /7-?11|7-eleven|seven ?eleven|เซเว่น/, "#00a650"),
+    color("cafeamazon", /caf[eé] ?amazon|คาเฟ่ ?อเมซอน|อเมซอน/, "#00693c"),
+    real("amazon", /\bamazon\b/, "amazon", { bg: "#232f3e", fg: "#ff9900" }),
+    real("starbucks", /starbucks|สตาร์บัค/, "starbucks", { round: true }),
+    real("shopee", /shopee|ช้อปปี้/, "shopee"),
+    color("lazada", /lazada|ลาซาด้า/, "#0f146d"),
+    real("aliexpress", /aliexpress|อาลีเอ็กซ์/, "aliexpress"),
+    real("mcdonald", /mcdonald|แมคโดนัลด์|แมค ?ดี/, "mcdonalds", { bg: "#da291c", fg: "#ffc72c" }),
+    real("kfc", /\bkfc|เคเอฟซี/, "kfc"),
+    color("ais", /\bais\b|เอไอเอส/, "#8dc63f"),
+    color("true", /\btrue\b|ทรูมูฟ|ทรูออนไลน์/, "#ee2e24"),
+    color("3bb", /3bb/, "#0055a5"),
+    color("ptt", /\bptt\b|ปตท/, "#00439c"),
+    real("shell", /\bshell\b|เชลล์/, "shell", { bg: "#ffd500", fg: "#dd1d21" }),
+    color("lotus", /lotus|โลตัส/, "#00a651"),
+    color("bigc", /big ?c\b|บิ๊กซี/, "#ed1c24"),
+    color("makro", /makro|แม็คโคร|แมคโคร/, "#003d8f"),
+    real("airasia", /airasia|แอร์เอเชีย/, "airasia"),
+    real("airbnb", /airbnb/, "airbnb"),
+    real("expedia", /expedia/, "expedia"),
+    real("tripadvisor", /tripadvisor/, "tripadvisor"),
+    real("tiktok", /tiktok|ติ๊กต็อก/, "tiktok"),
+    real("instagram", /instagram/, "instagram"),
+    real("facebook", /facebook|เฟซบุ๊ก/, "facebook"),
+    real("whatsapp", /whatsapp/, "whatsapp"),
+    real("telegram", /telegram/, "telegram"),
+    real("discord", /discord/, "discord"),
+    real("twitch", /twitch/, "twitch"),
+    real("steam", /steam|สตีม/, "steam"),
+    real("playstation", /playstation|เพลย์สเตชัน|\bpsn\b/, "playstation"),
+    real("nintendo", /nintendo|นินเทนโด/, "nintendoswitch"),
+    real("roblox", /roblox/, "roblox"),
+    real("soundcloud", /soundcloud/, "soundcloud"),
+    real("tidal", /\btidal\b/, "tidal"),
+    real("linkedin", /linkedin/, "linkedin"),
+    real("patreon", /patreon/, "patreon"),
+    real("paypal", /paypal/, "paypal"),
+    real("github", /github/, "github"),
+    real("adobe", /adobe/, "adobe"),
+    real("dropbox", /dropbox/, "dropbox"),
+    real("canva", /canva/, "canva"),
+    real("notion", /notion/, "notion"),
+    real("figma", /figma/, "figma"),
+    real("zoom", /\bzoom\b/, "zoom"),
+    real("slack", /\bslack\b/, "slack"),
+    real("samsung", /samsung|ซัมซุง/, "samsung"),
+    real("ikea", /ikea|อิเกีย/, "ikea"),
+    real("uniqlo", /uniqlo|ยูนิโคล่/, "uniqlo"),
+    real("handm", /h&m/, "handm"),
+    real("zara", /\bzara\b/, "zara"),
+    real("nike", /\bnike\b|ไนกี้/, "nike"),
+    real("adidas", /adidas|อาดิดาส/, "adidas"),
+    real("toyota", /toyota|โตโยต้า|โตโยตา/, "toyota"),
+    real("honda", /honda|ฮอนด้า|civic|ซีวิค/, "honda"),
+    real("mazda", /mazda|มาสด้า/, "mazda"),
+    real("nissan", /nissan|นิสสัน/, "nissan"),
+    real("mitsubishi", /mitsubishi|มิตซู/, "mitsubishi"),
+    real("bmw", /\bbmw\b/, "bmw"),
+    real("mercedes", /mercedes|benz|เบนซ์/, "mercedes"),
+    real("tesla", /tesla|เทสล่า/, "tesla"),
+    real("suzuki", /suzuki|ซูซูกิ/, "suzuki")
 ];
 
 /** แบรนด์จากชื่อรายการ (ไม่พบ = null) */

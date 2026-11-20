@@ -232,7 +232,7 @@ test("โลโก้ร้าน: เดาแบรนด์จากชื่
     const { brandOf } = await import("../web/src/brands.js");
     assert.equal(brandOf("Netflix รายเดือน").key, "netflix");
     assert.equal(brandOf("LPTH*PF_LM_Dragon").key, "lineman");
-    assert.equal(brandOf("Café Amazon สาขาสยาม").key, "amazon");
+    assert.equal(brandOf("Café Amazon สาขาสยาม").key, "cafeamazon", "คาเฟ่อเมซอนไม่ใช่โลโก้ Amazon");
     assert.equal(brandOf("เซเว่น หน้าคอนโด").key, "seven");
     assert.equal(brandOf("Google YouTubePremiu").key, "youtube", "YouTube มาก่อน Google");
     assert.equal(brandOf("ข้าวมันไก่ป้าแดง"), null);
@@ -242,10 +242,25 @@ test("โลโก้ร้าน: เดาแบรนด์จากชื่
 test("โลโก้ร้าน: ทุกแบรนด์ที่ระบุไอคอนจริงมีข้อมูลรูปครบ และแบรนด์เฉพาะมาก่อนแบรนด์กว้าง", async () => {
     const { BRANDS, brandOf } = await import("../web/src/brands.js");
     const { SI } = await import("../web/src/brand-paths.js");
-    for (const b of BRANDS) if (b.si) assert.ok(SI[b.si] && SI[b.si].startsWith("M"), "ไม่มีรูปของ " + b.key);
+    for (const b of BRANDS) if (b.si) assert.ok(SI[b.si] && /^[Mm]/.test(SI[b.si]), "ไม่มีรูปของ " + b.key);
     assert.equal(brandOf("Apple Music").key, "applemusic");
     assert.equal(brandOf("iCloud 50GB").key, "icloud");
     assert.equal(brandOf("Apple Store").key, "apple");
     assert.equal(brandOf("Google Cloud").key, "googlecloud");
     assert.equal(brandOf("Spotify Premium").si, "spotify");
+});
+
+test("โลโก้ร้าน: ไม่มีโลโก้จริงก็ใช้สีแบรนด์ (ไม่วาดโลโก้ปลอม) และชื่อที่ใกล้กันแต่คนละแบรนด์ไม่สลับกัน", async () => {
+    const { BRANDS, brandOf } = await import("../web/src/brands.js");
+    for (const b of BRANDS) {
+        assert.match(b.bg, /^#[0-9a-f]{6}$/i, "สีพื้นของ " + b.key);
+        assert.match(b.fg, /^#[0-9a-f]{6}$/i, "สีรูปของ " + b.key);
+        assert.ok(!("text" in b) && !("glyph" in b), b.key + " ห้ามมีโลโก้ที่วาดเอง");
+    }
+    assert.equal(brandOf("LINE MAN ข้าวกล่อง").key, "lineman");
+    assert.equal(brandOf("LINE Pay").key, "line");
+    assert.equal(brandOf("Amazon Prime").key, "amazon");
+    assert.equal(brandOf("ผ่อน Civic").key, "honda");
+    assert.equal(brandOf("YouTube Music").key, "youtubemusic");
+    assert.equal(brandOf("7-Eleven").si, undefined, "เซเว่นไม่มีโลโก้จริงในชุดฟรี ใช้สีแบรนด์");
 });
