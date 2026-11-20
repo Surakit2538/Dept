@@ -1,9 +1,10 @@
-// ฉัน: โปรไฟล์ (ชื่อจริง พร้อมเพย์) ตั้งค่า iPhone ผู้ดูแล ออกจากระบบ
+// ฉัน: โปรไฟล์ (ชื่อจริง พร้อมเพย์) แผนเดือนนี้ (งบ + เงินเก็บ) เป้าเก็บเงิน ตั้งค่า iPhone ผู้ดูแล ออกจากระบบ
 import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet, Lazy } from "../ui.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
+import { PlanCard, GoalStack } from "../plan.jsx";
 
 function EditProfileSheet({ realName, promptpay, onSave, onClose, busy, msg, setRealName, setPromptpay }) {
     return (
@@ -26,7 +27,7 @@ function EditProfileSheet({ realName, promptpay, onSave, onClose, busy, msg, set
     );
 }
 
-export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {} }) {
+export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {}, bm = null, onBudget = () => {}, onGoalAdd = () => {}, onGoalMove = () => {}, onGoalEdit = () => {} }) {
     const mine = (profiles || []).find((p) => p.id === auth.user.memberId) || (profiles || []).find((p) => p.name === auth.user.name) || {};
     const [realName, setRealName] = useState("");
     const [promptpay, setPromptpay] = useState("");
@@ -83,10 +84,12 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                         </button>
                     </div>
                 </section>
+                {bm ? <PlanCard bm={bm} onBudget={onBudget} /> : <section class="card plan-card skel" aria-busy="true"><p class="lbl">กำลังโหลดแผนเดือนนี้</p></section>}
             </div>
             <div class="col">
+                {bm && <GoalStack goals={bm.goals} month={bm.month} onAdd={onGoalAdd} onMove={onGoalMove} onEdit={onGoalEdit} />}
                 <section class="card">
-                    <SectionTitle icon="bell" title="ตั้งค่า" />
+                    <SectionTitle icon="sliders" title="ตั้งค่า" />
                     <button type="button" class="opt-row" onClick={() => setIphone(true)}><span class="ico"><Icon name="qr" /></span><span><b>ตั้งค่า iPhone</b><small>คัดลอกสคริปต์ติดตั้ง Widget และสแกนสลิปอัตโนมัติ</small></span><Icon name="right" size={16} class="mute" /></button>
                     <button type="button" class="opt-row" onClick={onRefresh}><span class="ico"><Icon name="swap" /></span><span><b>โหลดข้อมูลใหม่</b><small>ใช้เมื่อตัวเลขดูไม่อัปเดต</small></span></button>
                 </section>

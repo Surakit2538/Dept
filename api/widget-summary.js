@@ -1,6 +1,7 @@
 import { collection, getDocs, getDoc, doc, query, where } from "./auth-helpers.js";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
-import { memberMonthSummary, displayBaht, myClearLines } from "../lib/ledger.mjs";
+import { memberMonthSummary, displayBaht, myClearLines, normalizeName } from "../lib/ledger.mjs";
+import { PLAN_COL, planDocId, normalizePlan, budgetFor, budgetStatus } from "../lib/budget.mjs";
 
 const db = getDbInstance();
 
@@ -234,9 +235,22 @@ export default async function handler(req, res) {
             debtType = 'pay';
         }
 
+        // งบเดือนนี้ (อ่านเพิ่ม 1 ครั้ง) ไม่ได้ตั้ง = null แล้ว Widget แสดง "ใช้ไปเดือนนี้" แบบเดิม
+        let budget = null;
+        try {
+            const planSnap = await getDoc(doc(db, PLAN_COL, planDocId(normalizeName(auth.name))));
+            if (planSnap.exists()) {
+                const st = budgetStatus(budgetFor(normalizePlan(planSnap.data()), currentMonthStr), { totalSat: Math.round(Number(monthExpense) * 100), cats: {} });
+                if (st.set) budget = { budget: st.budgetSat / 100, spent: st.spentSat / 100, left: st.leftSat / 100, percent: st.percent, level: st.level };
+            }
+        } catch (e) {
+            console.warn('widget budget:', e.message);
+        }
+
         return res.status(200).json({
             success: true,
             user: auth.name,
+            budget,
             dateHeader: thaiDateHeader,
             todayExpense: todayExpense,
             monthExpense: monthExpense,

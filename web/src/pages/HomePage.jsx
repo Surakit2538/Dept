@@ -2,27 +2,56 @@
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { AvatarStack, DateTile, SectionTitle } from "../ui.jsx";
-import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS } from "../model.js";
+import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS, CATEGORIES } from "../model.js";
+
+const CATEGORY_LABEL = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
 
 const CAT_ICON = { food: "food", bills: "bolt", goods: "bag", travel: "car", fun: "film", other: "dots" };
 const TH_DAYS = ["วันอาทิตย์", "วันจันทร์", "วันอังคาร", "วันพุธ", "วันพฤหัสบดี", "วันศุกร์", "วันเสาร์"];
 const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 
-function Ring({ percent }) {
+function Ring({ percent, of = "รายรับ", sub = "ใช้ไปแล้ว" }) {
     const r = 42, c = 2 * Math.PI * r;
     const p = Math.max(0, Math.min(100, percent));
     return (
-        <div class="ring" role="img" aria-label={`ใช้ไปแล้ว ${percent}% ของรายรับ`}>
+        <div class="ring" role="img" aria-label={`ใช้ไปแล้ว ${percent}% ของ${of}`}>
             <svg viewBox="0 0 100 100" aria-hidden="true">
                 <circle cx="50" cy="50" r={r} fill="none" stroke="var(--chip)" stroke-width="10" />
                 <circle cx="50" cy="50" r={r} fill="none" stroke="var(--pay)" stroke-width="10" stroke-linecap="round" stroke-dasharray={`${(c * p) / 100} ${c}`} transform="rotate(-90 50 50)" />
             </svg>
-            <div class="ring-t"><b class="num">{percent}%</b><span>ใช้ไปแล้ว</span></div>
+            <div class="ring-t"><b class="num">{percent}%</b><span>{sub}</span></div>
         </div>
     );
 }
 
-export function Hero({ m, onAddIncome, today = "" }) {
+/** กล่องน้ำเงินเมื่อตั้งงบแล้ว: งบเหลือ / ใช้เกินงบ วงแหวน = ใช้ไปกี่ % ของงบ */
+function BudgetHero({ m, bm, today, onBudget }) {
+    const st = bm.status;
+    const over = st.leftSat < 0;
+    return (
+        <section class="card hero" aria-label="สรุปเดือนเทียบงบ">
+            <div class="hero-l">
+                <div class="hero-top">
+                    <DateTile month={m.month} today={today} />
+                    <div>
+                        <p class="lbl">{over ? "ใช้เกินงบแล้ว" : "งบเหลือเดือนนี้"}</p>
+                        <p class="big num">{baht(Math.round(Math.abs(st.leftSat) / 100))}</p>
+                    </div>
+                </div>
+                <div class="chips">
+                    <button type="button" class="chip chip-btn" onClick={onBudget} aria-label={`งบ ${baht(st.budgetSat / 100)} แตะเพื่อแก้งบ`}>งบ <b class="num">{baht(st.budgetSat / 100)}</b></button>
+                    <span class="chip"><Icon name="up" size={14} class="pay" />ใช้ไป <b class="num">{baht(st.spentSat / 100)}</b></span>
+                    {m.incomeSat > 0 && <span class="chip"><Icon name="down" size={14} class="rcv" />รายรับ <b class="num">{baht(m.incomeSat / 100)}</b></span>}
+                </div>
+                <p class="lbl hero-split">{bm.perDaySat > 0 ? <>เหลืออีก {bm.daysLeft} วัน ใช้ได้วันละ <b class="num">{baht(bm.perDaySat / 100)}</b></> : <>ส่วนตัว <span class="num">{baht(m.personalSat / 100)}</span> &middot; ส่วนของฉันในกลุ่ม <span class="num">{baht(m.groupShareSat / 100)}</span></>}</p>
+            </div>
+            <Ring percent={st.percent} of="งบ" sub="ของงบ" />
+        </section>
+    );
+}
+
+export function Hero({ m, onAddIncome, today = "", bm = null, onBudget = null }) {
+    if (bm && bm.status.set) return <BudgetHero m={m} bm={bm} today={today} onBudget={onBudget} />;
     const hasIncome = m.incomeSat > 0;
     const over = hasIncome && m.netSat < 0;
     const label = !hasIncome ? "ใช้ไปเดือนนี้" : over ? "ใช้เกินรายรับ" : "เหลือใช้เดือนนี้";
@@ -43,6 +72,7 @@ export function Hero({ m, onAddIncome, today = "" }) {
                     <span class="chip"><Icon name="up" size={14} class="pay" />ใช้ไป <b class="num">{baht(m.spentSat / 100)}</b></span>
                 </div>
                 <p class="lbl hero-split">ส่วนตัว <span class="num">{baht(m.personalSat / 100)}</span> &middot; ส่วนของฉันในกลุ่ม <span class="num">{baht(m.groupShareSat / 100)}</span></p>
+                {onBudget && <button type="button" class="set-budget" onClick={onBudget}><Icon name="plus" size={14} />ตั้งงบเดือนนี้</button>}
             </div>
             {hasIncome ? <Ring percent={m.spentPercent} /> : (
                 <button type="button" class="hint" onClick={onAddIncome}><Icon name="plus" size={20} />เพิ่มรายรับ<small>เพื่อดูว่าเหลือใช้เท่าไร</small></button>
@@ -73,19 +103,49 @@ export function OweCards({ m, profiles = [], month = "", nowMonth = "" }) {
     );
 }
 
-function Categories({ cats }) {
-    if (cats.length === 0) return null;
+const LEVEL_TAG = { near: "ใกล้เต็ม", over: "เกินงบ" };
+
+/** หมวดที่ตั้งงบไว้: แถบเทียบกับงบ (น้ำเงิน ปกติ / ทานตะวัน ใช้เกิน 80% / ส้มอิฐ เกินงบ) */
+function BudgetCat({ c, label }) {
+    const w = Math.max(c.spentSat > 0 ? 3 : 0, Math.min(100, c.percent));
+    return (
+        <li class="cat" key={c.key}>
+            <span class="ico big-ico"><Icon name={CAT_ICON[c.key] || "dots"} /></span>
+            <div class="cat-b">
+                <div class="cat-r">
+                    <span>{label}{LEVEL_TAG[c.level] && <span class={`lv-tag ${c.level}`}>{LEVEL_TAG[c.level]}</span>}</span>
+                    <span class="num"><b>{baht(c.spentSat / 100)}</b><em>/ {baht(c.budgetSat / 100)}</em></span>
+                </div>
+                <div class={`bar lv ${c.level}`} role="img" aria-label={`ใช้ไป ${c.percent}% ของงบ${label}`}><i style={{ width: `${w}%` }} /></div>
+                <div class="cat-s num"><span>{c.leftSat >= 0 ? `เหลือ ${baht(c.leftSat / 100)}` : `เกินงบ ${baht(-c.leftSat / 100)}`}</span><span>{c.percent}%</span></div>
+            </div>
+        </li>
+    );
+}
+
+function Categories({ cats, bm = null, onBudget = null }) {
+    const budCats = bm && bm.status.set ? bm.status.cats : [];
+    const budKeys = new Set(budCats.map((c) => c.key));
+    const rest = cats.filter((c) => !budKeys.has(c.key));
+    if (cats.length === 0 && budCats.length === 0) return null;
     const top = cats[0];
+    const labelOf = (k) => (CATEGORY_LABEL[k] || k);
+    const note = budCats.length ? `ตั้งงบไว้ ${budCats.length} หมวด` : top ? `ส่วนใหญ่ไปกับ${top.label} ${top.percent}%` : "";
+    const topRest = rest[0];
     return (
         <section class="card">
-            <SectionTitle icon="bag" title="ใช้ไปกับอะไร" note={`ส่วนใหญ่ไปกับ${top.label} ${top.percent}%`} />
+            <div class="sec-row">
+                <SectionTitle icon="bag" title="ใช้ไปกับอะไร" note={note} />
+                {bm && bm.status.set && onBudget && <button type="button" class="link-btn" onClick={onBudget}>แก้งบ</button>}
+            </div>
             <ul class="cats">
-                {cats.map((c) => (
+                {budCats.map((c) => <BudgetCat key={c.key} c={c} label={labelOf(c.key)} />)}
+                {rest.map((c) => (
                     <li class="cat" key={c.key}>
                         <span class="ico big-ico"><Icon name={CAT_ICON[c.key] || "dots"} /></span>
                         <div class="cat-b">
                             <div class="cat-r"><span>{c.label}</span><span class="num"><b>{c.percent}%</b><em>{baht(c.satang / 100)}</em></span></div>
-                            <div class="bar"><i style={{ width: `${Math.max(3, Math.round((c.percent / top.percent) * 100))}%` }} /></div>
+                            <div class="bar"><i style={{ width: `${Math.max(3, Math.round((c.percent / topRest.percent) * 100))}%` }} /></div>
                         </div>
                     </li>
                 ))}
@@ -262,14 +322,14 @@ export function SpendCalendar({ model, month, onMonth, since, nowMonth, series, 
     );
 }
 
-export function HomePage({ model, series, month, onMonth, onAddIncome, profiles = [], today = "", nowMonth = "", since = "", onNeedYear }) {
+export function HomePage({ model, series, month, onMonth, onAddIncome, profiles = [], today = "", nowMonth = "", since = "", onNeedYear, bm = null, onBudget = null }) {
     const now = nowMonth || month;
     return (
         <div class="home-grid">
             <div class="col">
-                <Hero m={model} onAddIncome={onAddIncome} today={today} />
+                <Hero m={model} onAddIncome={onAddIncome} today={today} bm={bm} onBudget={onBudget} />
                 <OweCards m={model} profiles={profiles} month={month} nowMonth={now} />
-                <Categories cats={model.categories} />
+                <Categories cats={model.categories} bm={bm} onBudget={onBudget} />
             </div>
             <div class="col">
                 <SpendCalendar model={model} month={month} onMonth={onMonth} since={since || shiftMonth(now, -11)} nowMonth={now} series={series} onNeedYear={onNeedYear} />

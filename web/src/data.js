@@ -428,6 +428,22 @@ export async function stopWalletTemplate(id) {
     await api("/api/shortcut-transaction", { action: "wallet-template-stop", id });
 }
 
+// ---------- งบรายเดือน + เป้าเก็บเงิน (เอกสารเดียวต่อคน ผ่าน API เท่านั้น) ทุกคำสั่งคืนแผนล่าสุด ----------
+const planOf = (r) => (r && r.plan && typeof r.plan === "object" ? r.plan : { budget: { total: 0, cats: {} }, months: {}, goals: [] });
+export async function loadPlan() {
+    const hit = cacheGet("plan", TTL_MEMBERS);
+    if (hit) return hit;
+    const p = planOf(await api("/api/shortcut-transaction", { action: "plan-get" }));
+    cacheSet("plan", p);
+    return p;
+}
+const planCall = async (body) => { const p = planOf(await api("/api/shortcut-transaction", body)); cacheSet("plan", p); return p; };
+/** scope "default" = ทุกเดือน, "month" = เฉพาะเดือน month · clear = กลับไปใช้งบปกติ */
+export const saveBudget = ({ scope, month, total, cats, clear = false }) => planCall({ action: "plan-budget-set", scope, month, total, cats, clear });
+export const saveGoal = (goal) => planCall({ action: "goal-save", ...goal });
+export const moveGoal = (id, amount, dir) => planCall({ action: "goal-move", id, amount, dir });
+export const deleteGoal = (id) => planCall({ action: "goal-delete", id });
+
 export async function addWallet(entry) {
     return api("/api/shortcut-transaction", { action: "wallet-add", ...entry, source: "web" });
 }

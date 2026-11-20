@@ -1,6 +1,7 @@
 // โมเดลข้อมูลหน้าแรก (ฟังก์ชันล้วน ไม่แตะเครือข่าย ทดสอบได้) ใช้แกนคำนวณกลาง lib/ledger.mjs ตัวเดียวกับเซิร์ฟเวอร์
 import { splitInstallments } from "../../lib/installments.mjs";
 import { guessCategoryKey } from "../../lib/categories.mjs";
+import { budgetFor, budgetStatus, goalStatus, savingPlan, suggestBudget } from "../../lib/budget.mjs";
 import {
     normalizeName, shareOf, paidBy, computeMonthLedger, toDisplayPlan, walletMonth, displayBaht
 } from "../../lib/ledger.mjs";
@@ -134,6 +135,29 @@ export function buildHomeModel({ name, month, today = "", members, transactions,
         iOweTotal: iOwe.reduce((a, o) => a + o.amount, 0),
         recent: recent.slice(0, 5),
         warnings: ledger.warnings
+    };
+}
+
+/**
+ * งบและเป้าของเดือน จากแผน (wallet_plan) + โมเดลหน้าแรกของเดือนเดียวกัน (ใช้ยอดใช้ไปและหมวดชุดเดียวกับหน้าแรก)
+ * คืน { status, goals: [{ ...goal, s }], saving: { planSat, doneSat }, suggestSat, daysLeft, perDaySat }
+ */
+export function buildBudgetModel(plan, m, today = "") {
+    const month = m.month;
+    const cats = {};
+    for (const c of m.categories || []) cats[c.key] = c.satang;
+    const status = budgetStatus(budgetFor(plan || {}, month), { totalSat: m.spentSat, cats });
+    const goals = ((plan && plan.goals) || []).map((g) => ({ ...g, s: goalStatus(g, month) }));
+    const isNow = today.startsWith(month);
+    const daysLeft = isNow ? daysInMonth(month) - Number(today.slice(8, 10)) + 1 : 0;
+    return {
+        month,
+        status,
+        goals,
+        saving: savingPlan(goals, month),
+        suggestSat: suggestBudget(m.incomeSat, goals, month),
+        daysLeft,
+        perDaySat: isNow && status.leftSat > 0 && daysLeft > 0 ? Math.floor(status.leftSat / daysLeft / 100) * 100 : 0
     };
 }
 

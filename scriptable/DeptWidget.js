@@ -4,15 +4,17 @@
 
 /**
  * Dept Money - iOS Scriptable Widget
- * เวอร์ชัน 3 "ยอดใหญ่ + รายชื่อ" พื้นน้ำเงินไล่สี ครบทุกขนาด:
- *   เล็ก   = ใช้ไปเดือนนี้ + แถบ + ยอดที่เพื่อนค้าง/คุณค้าง
- *   กลาง  = ใช้ไป + รายรับ + แถบ | รายชื่อที่ต้องเคลียร์ (สูงสุด 3)
- *   ใหญ่   = ใช้ไป + รายรับ + เหลือ + แถบ + เพื่อนค้างคุณ / คุณค้างเพื่อน แยกกลุ่ม
- *   หน้าล็อก = วงกลม (% ที่ใช้ไปของรายรับ), สี่เหลี่ยม (ใช้ไป + หนี้), บรรทัดเหนือเวลา
+ * เวอร์ชัน 3 "ยอดใหญ่ + รายชื่อ" ครบทุกขนาด (ตั้งงบไว้ = ยอดใหญ่เป็น "งบเหลือ" แถบ = ใช้ไปกี่ % ของงบ):
+ *   เล็ก   = ใช้ไป/งบเหลือ + แถบ + ยอดที่เพื่อนค้าง/คุณค้าง
+ *   กลาง  = ใช้ไป/งบเหลือ + รายรับ/งบ + แถบ | รายชื่อที่ต้องเคลียร์ (สูงสุด 3)
+ *   ใหญ่   = ใช้ไป/งบเหลือ + รายละเอียด + แถบ + เพื่อนค้างคุณ / คุณค้างเพื่อน แยกกลุ่ม
+ *   หน้าล็อก = วงกลม (% ที่ใช้ไป), สี่เหลี่ยม (ยอด + หนี้), บรรทัดเหนือเวลา
+ * พื้นหลัง: "กระจกน้ำเงิน" = ภาพวอลเปเปอร์ตรงตำแหน่ง Widget เคลือบน้ำเงินโปร่ง (ตั้งครั้งเดียว: รันสคริปต์นี้ในแอป)
+ *   ไม่ได้ตั้ง = พื้นน้ำเงินไล่สีแบบเดิม · ช่อง Parameter ของ Widget = ตำแหน่ง เช่น บน, กลาง, ล่างซ้าย
  * แตะ Widget เปิดเว็บ แตะชื่อเพื่อน (กลาง/ใหญ่) เปิดหน้าเคลียร์เงิน (Device Token Auth)
  */
 
-const SCRIPT_VERSION = "3.0.1";
+const SCRIPT_VERSION = "3.1.0";
 const BASE_URL = "https://dept-game.vercel.app";
 
 // ==========================================
@@ -20,8 +22,9 @@ const BASE_URL = "https://dept-game.vercel.app";
 // ==========================================
 const C = {
     accent: "#2343c9", accent2: "#4466f2", white: "#ffffff", soft: "#dbe4fd",
-    sun: "#ffc23d", sunInk: "#2e2100", ink: "#121a33"
+    sun: "#ffc23d", sunInk: "#2e2100", ink: "#121a33", navy: "#17245a", pay: "#b43f16"
 };
+const GLASS_TINT = 0.42; // ความเข้มของสีน้ำเงินที่เคลือบภาพพื้นหลัง (อ่านตัวหนังสือขาวได้ทุกวอลเปเปอร์)
 const col = (hex, a = 1) => new Color(hex, a);
 
 // ==========================================
@@ -35,8 +38,8 @@ if (config.runsInWidget || config.runsInAccessoryWidget) {
     widget.refreshAfterDate = new Date(Date.now() + 30 * 60 * 1000);
     Script.setWidget(widget);
 } else {
-    // กดรันในแอป Scriptable: พรีวิวขนาดกลาง
-    await widget.presentMedium();
+    // กดรันในแอป Scriptable: เมนู ดูตัวอย่าง / ตั้งพื้นหลังใส / ลบพื้นหลังใส
+    await appMenu(widget);
 }
 Script.complete();
 
@@ -54,6 +57,9 @@ async function createWidget(family) {
         g.startPoint = new Point(0, 0);
         g.endPoint = new Point(1, 1);
         lw.backgroundGradient = g;
+        // กระจกน้ำเงิน: มีภาพที่ตัดไว้ของขนาดและตำแหน่งนี้ ใช้ภาพนั้นแทนพื้นไล่สี
+        const bg = loadGlass(family, (args.widgetParameter || "").trim());
+        if (bg) lw.backgroundImage = bg;
         lw.setPadding(14, 14, 12, 14);
     }
 
@@ -71,12 +77,19 @@ async function createWidget(family) {
         debt: d.debt || { balance: 0, type: "settled", text: "เคลียร์ครบแล้ว" },
         owedToMe: (d.people && Array.isArray(d.people.owedToMe)) ? d.people.owedToMe : [],
         iOwe: (d.people && Array.isArray(d.people.iOwe)) ? d.people.iOwe : [],
-        offline: result.isOffline ? (result.cachedAt || "") : null
+        offline: result.isOffline ? (result.cachedAt || "") : null,
+        // งบเดือนนี้ (null = ไม่ได้ตั้ง แสดงแบบเดิม)
+        budget: d.budget && Number(d.budget.budget) > 0 ? d.budget : null
     };
     s.net = s.income - s.spent;
     s.inTotal = s.owedToMe.reduce((a, x) => a + (Number(x.amount) || 0), 0);
     s.outTotal = s.iOwe.reduce((a, x) => a + (Number(x.amount) || 0), 0);
-    s.pct = s.income > 0 ? Math.round((s.spent / s.income) * 100) : null;
+    s.pct = s.budget ? Math.round(Number(s.budget.percent) || 0) : s.income > 0 ? Math.round((s.spent / s.income) * 100) : null;
+    s.ratio = s.budget ? s.spent / Number(s.budget.budget) : s.income > 0 ? s.spent / s.income : (s.spent > 0 ? 1 : 0);
+    s.overBudget = Boolean(s.budget && Number(s.budget.left) < 0);
+    // ข้อความหลัก: ตั้งงบ = งบเหลือ/เกินงบ ไม่ตั้ง = ใช้ไปเดือนนี้
+    s.mainLabel = s.budget ? (s.overBudget ? "ใช้เกินงบแล้ว" : "งบเหลือเดือนนี้") : "ใช้ไปเดือนนี้";
+    s.mainValue = s.budget ? Math.abs(Number(s.budget.left) || 0) : s.spent;
 
     if (family === "accessoryInline") return renderInline(lw, s);
     if (family === "accessoryCircular") return renderCircular(lw, s);
@@ -90,11 +103,12 @@ async function createWidget(family) {
 function renderSmall(lw, s) {
     header(lw, true, s);
     lw.addSpacer(8);
-    label(lw, "ใช้ไปเดือนนี้");
+    label(lw, s.budget ? (s.overBudget ? "เกินงบ" : "งบเหลือ") : "ใช้ไปเดือนนี้");
     lw.addSpacer(2);
-    bigMoney(lw, s.spent, 24);
+    bigMoney(lw, s.mainValue, 24);
     lw.addSpacer(6);
     bar(lw, s, 130);
+    if (s.budget) { lw.addSpacer(3); label(lw, `ใช้ไป ${s.pct}% ของงบ`); }
     lw.addSpacer();
     debtPill(lw, s, true);
     offlineNote(lw, s);
@@ -110,11 +124,11 @@ function renderMedium(lw, s) {
     const left = row.addStack();
     left.layoutVertically();
     left.size = new Size(140, 0);
-    label(left, "ใช้ไปเดือนนี้");
+    label(left, s.mainLabel);
     left.addSpacer(2);
-    bigMoney(left, s.spent, 24);
+    bigMoney(left, s.mainValue, 24);
     left.addSpacer(2);
-    label(left, s.income > 0 ? `รายรับ ${money(s.income)}` : "ยังไม่มีรายรับเดือนนี้");
+    label(left, s.budget ? `ใช้ไป ${money(s.spent)} จาก ${money(s.budget.budget)}` : s.income > 0 ? `รายรับ ${money(s.income)}` : "ยังไม่มีรายรับเดือนนี้");
     left.addSpacer(6);
     bar(left, s, 136);
 
@@ -147,15 +161,21 @@ function renderMedium(lw, s) {
 function renderLarge(lw, s) {
     header(lw, false, s);
     lw.addSpacer(10);
-    label(lw, "ใช้ไปเดือนนี้");
+    label(lw, s.mainLabel);
     lw.addSpacer(2);
-    bigMoney(lw, s.spent, 32);
+    bigMoney(lw, s.mainValue, 32);
     lw.addSpacer(4);
     const sub = lw.addStack();
     sub.layoutHorizontally();
-    label(sub, s.income > 0 ? `รายรับ ${money(s.income)}` : "ยังไม่มีรายรับเดือนนี้");
-    sub.addSpacer();
-    if (s.income > 0) label(sub, `${s.net >= 0 ? "เหลือ" : "เกิน"} ${money(Math.abs(s.net))}`);
+    if (s.budget) {
+        label(sub, `ใช้ไป ${money(s.spent)} จากงบ ${money(s.budget.budget)}`);
+        sub.addSpacer();
+        label(sub, `${s.pct}%`);
+    } else {
+        label(sub, s.income > 0 ? `รายรับ ${money(s.income)}` : "ยังไม่มีรายรับเดือนนี้");
+        sub.addSpacer();
+        if (s.income > 0) label(sub, `${s.net >= 0 ? "เหลือ" : "เกิน"} ${money(Math.abs(s.net))}`);
+    }
     lw.addSpacer(6);
     bar(lw, s, 300);
 
@@ -191,7 +211,7 @@ function renderLarge(lw, s) {
 
 // ---------- หน้าล็อก (iPhone แสดงเป็นสีเดียวเอง) ----------
 function renderInline(lw, s) {
-    const t = lw.addText(`Dept ใช้ไป ${money(s.spent)}`);
+    const t = lw.addText(s.budget ? `Dept ${s.overBudget ? "เกินงบ" : "งบเหลือ"} ${money(s.mainValue)}` : `Dept ใช้ไป ${money(s.spent)}`);
     t.font = Font.semiboldSystemFont(13);
     return lw;
 }
@@ -205,9 +225,9 @@ function renderCircular(lw, s) {
 }
 
 function renderRectangular(lw, s) {
-    const a = lw.addText("ใช้ไปเดือนนี้");
+    const a = lw.addText(s.mainLabel);
     a.font = Font.systemFont(11);
-    const b = lw.addText(money(s.spent));
+    const b = lw.addText(money(s.mainValue));
     b.font = Font.boldSystemFont(18);
     b.minimumScaleFactor = 0.7;
     b.lineLimit = 1;
@@ -261,7 +281,7 @@ function bigMoney(parent, value, size) {
 }
 
 function bar(parent, s, width) {
-    const img = parent.addImage(drawBar(s.income, s.spent, width));
+    const img = parent.addImage(drawBar(s.ratio, width));
     img.imageSize = new Size(width, 6);
     img.resizable = false;
 }
@@ -321,8 +341,8 @@ function debtText(s) {
 }
 
 // ---------- วาดรูป ----------
-// แถบใช้ไปต่อรายรับ: รางขาวจาง ส่วนที่ใช้ไปสีทานตะวัน (ไม่มีรายรับแต่มีรายจ่าย = เต็มราง)
-function drawBar(income, spent, width) {
+// แถบใช้ไป (ต่องบ หรือต่อรายรับ): รางขาวจาง ส่วนที่ใช้ไปสีทานตะวัน ratio >= 1 = เต็มราง
+function drawBar(ratioIn, width) {
     const h = 6;
     const ctx = new DrawContext();
     ctx.size = new Size(width, h);
@@ -330,7 +350,7 @@ function drawBar(income, spent, width) {
     ctx.respectScreenScale = true;
     ctx.setFillColor(col(C.white, 0.25));
     fillShape(ctx, roundedRect(0, 0, width, h, h / 2));
-    const ratio = income > 0 ? Math.min(spent / income, 1) : (spent > 0 ? 1 : 0);
+    const ratio = Math.max(0, Math.min(Number(ratioIn) || 0, 1));
     if (ratio > 0) {
         ctx.setFillColor(col(C.sun));
         fillShape(ctx, roundedRect(0, 0, Math.max(width * ratio, h), h, h / 2));
@@ -424,6 +444,155 @@ function renderError(lw, family, title, message) {
     v.font = Font.systemFont(9);
     v.textColor = col(C.soft);
     return lw;
+}
+
+// ==========================================
+// เมนูเมื่อกดรันในแอป + พื้นหลัง "กระจกน้ำเงิน" (ตัดภาพวอลเปเปอร์ตรงตำแหน่ง Widget แล้วเคลือบน้ำเงินโปร่ง)
+// iPhone ไม่ให้ Widget ใสจริง วิธีนี้คือใช้ภาพหน้าโฮมที่ว่างมาตัดเป็นพื้นหลัง ภาพเก็บในเครื่องเท่านั้น ไม่ส่งไปไหน
+// ==========================================
+async function appMenu(widget) {
+    const a = new Alert();
+    a.title = `Dept Widget v${SCRIPT_VERSION}`;
+    a.message = "พื้นหลังกระจก = เห็นวอลเปเปอร์ผ่านสีน้ำเงินโปร่ง ตั้งครั้งเดียวต่อตำแหน่ง";
+    a.addAction("ดูตัวอย่าง Widget");
+    a.addAction("ตั้งพื้นหลังกระจก");
+    a.addDestructiveAction("ลบพื้นหลังกระจกทั้งหมด");
+    a.addCancelAction("ปิด");
+    const i = await a.presentSheet();
+    if (i === 0) return widget.presentMedium();
+    if (i === 1) return setupGlass();
+    if (i === 2) return clearGlass();
+}
+
+// ตำแหน่งที่พิมพ์ในช่อง Parameter -> รหัสไฟล์
+const POS_KEY = {
+    "บนซ้าย": "top-left", "บนขวา": "top-right", "กลางซ้าย": "middle-left", "กลางขวา": "middle-right", "ล่างซ้าย": "bottom-left", "ล่างขวา": "bottom-right",
+    "บน": "top", "กลาง": "middle", "ล่าง": "bottom"
+};
+const POS_BY_SIZE = {
+    small: ["บนซ้าย", "บนขวา", "กลางซ้าย", "กลางขวา", "ล่างซ้าย", "ล่างขวา"],
+    medium: ["บน", "กลาง", "ล่าง"],
+    large: ["บน", "ล่าง"]
+};
+
+function glassDir(fm) {
+    const d = fm.joinPath(fm.documentsDirectory(), "dept_glass");
+    if (!fm.fileExists(d)) fm.createDirectory(d, true);
+    return d;
+}
+
+/** ภาพพื้นหลังของขนาด/ตำแหน่งนี้ (ไม่ใส่ Parameter แต่มีภาพของขนาดนี้ภาพเดียว = ใช้ภาพนั้น) */
+function loadGlass(family, param) {
+    try {
+        const size = family === "extraLarge" ? "large" : family;
+        if (!POS_BY_SIZE[size]) return null;
+        const fm = FileManager.local();
+        const dir = glassDir(fm);
+        let name = "";
+        const pos = POS_KEY[String(param || "").replace(/\s+/g, "")];
+        if (pos) name = `${size}-${pos}.png`;
+        else {
+            const mine = fm.listContents(dir).filter((f) => f.startsWith(size + "-"));
+            if (mine.length === 1) name = mine[0];
+        }
+        if (!name) return null;
+        const p = fm.joinPath(dir, name);
+        return fm.fileExists(p) ? fm.readImage(p) : null;
+    } catch (e) {
+        return null;
+    }
+}
+
+async function choose(title, message, options) {
+    const a = new Alert();
+    a.title = title;
+    if (message) a.message = message;
+    options.forEach((o) => a.addAction(o));
+    a.addCancelAction("ยกเลิก");
+    const i = await a.presentSheet();
+    return i < 0 ? null : options[i];
+}
+
+async function notice(title, message) {
+    const a = new Alert();
+    a.title = title;
+    a.message = message;
+    a.addAction("ตกลง");
+    await a.present();
+}
+
+async function setupGlass() {
+    const intro = new Alert();
+    intro.title = "ตั้งพื้นหลังกระจก";
+    intro.message = "ต้องใช้ภาพหน้าจอของหน้าโฮมที่ว่าง:\n1. กดค้างที่หน้าโฮมจนไอคอนสั่น\n2. ปัดไปหน้าว่างขวาสุด\n3. แคปหน้าจอ\n\nมีภาพแล้วกด เลือกภาพ";
+    intro.addAction("เลือกภาพ");
+    intro.addCancelAction("ยกเลิก");
+    if ((await intro.present()) === -1) return;
+    let img;
+    try { img = await Photos.fromLibrary(); } catch (e) { return; }
+    const h = Math.round(img.size.height);
+    let phone = phoneSizes(String(h));
+    if (!phone) return notice("ยังไม่รองรับ iPhone รุ่นนี้", `ภาพสูง ${h} พิกเซล ส่งข้อความนี้ให้ผู้ดูแลเพื่อเพิ่มรุ่นนี้`);
+    if (phone.text) {
+        const t = await choose("ใต้ไอคอนแอปมีชื่อแอปไหม", "ดูที่หน้าโฮม (ตั้งค่า > หน้าจอโฮม > ไอคอนขนาดใหญ่ = ไม่มีชื่อ)", ["มีชื่อแอป", "ไม่มีชื่อ (ไอคอนใหญ่)"]);
+        if (!t) return;
+        phone = t === "มีชื่อแอป" ? phone.text : phone.notext;
+    }
+    if (phone.x) {
+        const t = await choose("เป็น iPhone รุ่นไหน", "", ["iPhone 12 mini / 13 mini", "iPhone X / XS / 11 Pro"]);
+        if (!t) return;
+        phone = t.includes("mini") ? phone.mini : phone.x;
+    }
+    const sizeTh = await choose("Widget ขนาดไหน", "", ["เล็ก", "กลาง", "ใหญ่"]);
+    if (!sizeTh) return;
+    const size = { "เล็ก": "small", "กลาง": "medium", "ใหญ่": "large" }[sizeTh];
+    const posTh = await choose("วาง Widget ตรงไหนของหน้าจอ", "นับจากด้านบนของหน้าโฮม", POS_BY_SIZE[size]);
+    if (!posTh) return;
+    const pos = POS_KEY[posTh];
+    const [row, side] = pos.split("-");
+    const w = size === "small" ? phone.small : phone.medium;
+    const ht = size === "large" ? phone.large : phone.small;
+    const x = size === "small" ? phone[side] : phone.left;
+    const y = size === "large" ? (row === "top" ? phone.top : phone.middle) : phone[row];
+    const ctx = new DrawContext();
+    ctx.size = new Size(w, ht);
+    ctx.respectScreenScale = false;
+    ctx.opaque = true;
+    ctx.drawImageAtPoint(img, new Point(-x, -y));
+    ctx.setFillColor(col(C.navy, GLASS_TINT));
+    ctx.fillRect(new Rect(0, 0, w, ht));
+    const fm = FileManager.local();
+    fm.writeImage(fm.joinPath(glassDir(fm), `${size}-${pos}.png`), ctx.getImage());
+    await notice("ตั้งเสร็จแล้ว", `กดค้างที่ Widget Dept ขนาด${sizeTh} > แก้ไข Widget > ช่อง Parameter พิมพ์\n\n${posTh}\n\n(ถ้ามี Widget ขนาด${sizeTh}ตัวเดียว ไม่ต้องพิมพ์ก็ได้) เปลี่ยนวอลเปเปอร์หรือย้าย Widget ให้ตั้งใหม่`);
+}
+
+async function clearGlass() {
+    const fm = FileManager.local();
+    const dir = glassDir(fm);
+    for (const f of fm.listContents(dir)) fm.remove(fm.joinPath(dir, f));
+    await notice("ลบแล้ว", "Widget กลับไปใช้พื้นน้ำเงินไล่สี");
+}
+
+// ขนาดและตำแหน่งของ Widget ตามความสูงภาพหน้าจอ (พิกเซล)
+// ตัวเลขจากสคริปต์ Widget Blur ของ Maxwell Zeryck (MIT License, Copyright (c) 2024 Maxwell Zeryck)
+// https://gist.github.com/mzeryck/3a97ccd1e059b3afa3c6666d27a496c9
+function phoneSizes(inputHeight) {
+    return {
+        "2868": { text: { small: 510, medium: 1092, large: 1146, left: 114, right: 696, top: 276, middle: 912, bottom: 1548 }, notext: { small: 530, medium: 1138, large: 1136, left: 91, right: 699, top: 276, middle: 882, bottom: 1488 } },
+        "2796": { text: { small: 510, medium: 1092, large: 1146, left: 98, right: 681, top: 252, middle: 888, bottom: 1524 }, notext: { small: 530, medium: 1139, large: 1136, left: 75, right: 684, top: 252, middle: 858, bottom: 1464 } },
+        "2622": { text: { small: 486, medium: 1032, large: 1098, left: 87, right: 633, top: 261, middle: 872, bottom: 1485 }, notext: { small: 495, medium: 1037, large: 1035, left: 84, right: 626, top: 270, middle: 810, bottom: 1350 } },
+        "2556": { text: { small: 474, medium: 1017, large: 1062, left: 81, right: 624, top: 240, middle: 828, bottom: 1416 }, notext: { small: 495, medium: 1047, large: 1047, left: 66, right: 618, top: 243, middle: 795, bottom: 1347 } },
+        "1334": { text: { small: 296, medium: 642, large: 648, left: 54, right: 400, top: 60, middle: 412, bottom: 764 }, notext: { small: 309, medium: 667, large: 667, left: 41, right: 399, top: 67, middle: 425, bottom: 783 } },
+        "2778": { small: 510, medium: 1092, large: 1146, left: 96, right: 678, top: 246, middle: 882, bottom: 1518 },
+        "2688": { small: 507, medium: 1080, large: 1137, left: 81, right: 654, top: 228, middle: 858, bottom: 1488 },
+        "2532": { small: 474, medium: 1014, large: 1062, left: 78, right: 618, top: 231, middle: 819, bottom: 1407 },
+        "2436": { x: { small: 465, medium: 987, large: 1035, left: 69, right: 591, top: 213, middle: 783, bottom: 1353 }, mini: { small: 465, medium: 987, large: 1035, left: 69, right: 591, top: 231, middle: 801, bottom: 1371 } },
+        "1792": { small: 338, medium: 720, large: 758, left: 55, right: 437, top: 159, middle: 579, bottom: 999 },
+        "1624": { small: 310, medium: 658, large: 690, left: 46, right: 394, top: 142, middle: 522, bottom: 902 },
+        "2208": { small: 471, medium: 1044, large: 1071, left: 99, right: 672, top: 114, middle: 696, bottom: 1278 },
+        "2001": { small: 444, medium: 963, large: 972, left: 81, right: 600, top: 90, middle: 618, bottom: 1146 },
+        "1136": { small: 282, medium: 584, large: 622, left: 30, right: 332, top: 59, middle: 399, bottom: 399 }
+    }[inputHeight];
 }
 
 // ==========================================

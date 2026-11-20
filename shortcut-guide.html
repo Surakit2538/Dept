@@ -2,147 +2,378 @@
 <html lang="th">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>ตั้งค่า iPhone ให้บันทึกเอง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anuphan:wght@400;500;600;700&display=swap">
 <style>
-  /* สีจาก design/tokens.json */
-  :root { --bg:#e9ecea; --card:#ffffff; --ink:#14202b; --mute:#5d6b76; --line:#d7dedc; --chip:#eef2f1; --accent:#0b6e69; --accent-ink:#ffffff; --pay:#b8470f; }
+  /* คู่มือทีละขั้น (4 ขั้น ขั้นละการ์ด มีภาพหน้าจอจำลอง) สีจาก design/tokens.json */
+  :root {
+    --bg:#f3f6fd; --bg-top:#dbe4fd; --surface:#ffffff; --ink:#121a33; --mute:#5e6883; --line:#e3e8f5; --chip:#ecf0fb;
+    --accent:#2343c9; --accent2:#4466f2; --accent-ink:#ffffff; --accent-text:#2343c9; --sun:#ffc23d; --sun-ink:#2e2100; --sun-soft:#fff0c2;
+    --receive:#0f7f63; --pay:#b43f16; --shadow:0 6px 18px rgba(35,67,201,.07);
+    --ui:"Anuphan","IBM Plex Sans Thai","Noto Sans Thai",system-ui,sans-serif;
+  }
   @media (prefers-color-scheme: dark) {
-    :root { --bg:#0b1113; --card:#141d20; --ink:#e8eeec; --mute:#93a3a0; --line:#25343a; --chip:#1c282c; --accent:#3cc4b4; --accent-ink:#06201d; --pay:#ff9a6b; }
+    :root {
+      --bg:#0b1020; --bg-top:#17245a; --surface:#151c33; --ink:#e8ecfa; --mute:#98a2c2; --line:#26304d; --chip:#1d2645;
+      --accent:#3152e0; --accent2:#1a2c8a; --accent-text:#a9bbff; --sun:#ffcd5a; --sun-soft:#4a3a10; --receive:#3fcf9f; --pay:#ff8a5c;
+      --shadow:0 6px 18px rgba(0,0,0,.25); color-scheme: dark;
+    }
   }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.7 "IBM Plex Sans Thai", "Noto Sans Thai", -apple-system, sans-serif; }
-  main { max-width: 640px; margin: 0 auto; padding: 20px 16px 64px; }
-  h1 { font-size: 26px; line-height: 1.3; margin: 8px 0 4px; }
-  h2 { font-size: 20px; line-height: 1.4; margin: 36px 0 8px; }
-  h2 .no { display:inline-grid; place-items:center; width:28px; height:28px; border-radius:50%; background:var(--accent); color:var(--accent-ink); font-size:15px; margin-right:8px; vertical-align: 2px; }
-  h3 { font-size: 17px; margin: 22px 0 6px; }
-  p { margin: 8px 0; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg) linear-gradient(180deg, var(--bg-top) 0, var(--bg) 320px) no-repeat; color: var(--ink); font: 16px/1.65 var(--ui); -webkit-tap-highlight-color: transparent; }
+  main { max-width: 600px; margin: 0 auto; padding: calc(20px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px)); display: flex; flex-direction: column; gap: 14px; }
+  h1, h2, h3, p { margin: 0; }
+  a { color: var(--accent-text); }
+  b { font-weight: 700; }
   .muted { color: var(--mute); font-size: 14px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin: 12px 0; }
-  .note { border-color: color-mix(in srgb, var(--pay) 35%, transparent); background: color-mix(in srgb, var(--pay) 8%, var(--card)); }
-  ol.steps { list-style: none; counter-reset: s; padding: 0; margin: 0; }
-  ol.steps > li { counter-increment: s; position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px 12px 50px; margin: 8px 0; }
-  ol.steps > li::before { content: counter(s); position: absolute; left: 12px; top: 12px; width: 26px; height: 26px; border-radius: 50%; background: var(--chip); border: 1px solid var(--line); font-weight: 700; font-size: 14px; display: grid; place-items: center; }
-  ol.steps > li.in { margin-left: 22px; border-left: 3px solid var(--accent); }
-  .act { font-weight: 700; }
-  .en { color: var(--mute); font-size: 13px; }
-  .chip { font: 14px ui-monospace, Menlo, monospace; background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 2px 8px; cursor: pointer; display: inline-block; color: var(--accent); }
-  .chip::after { content: " คัดลอก"; color: var(--mute); font-size: 12px; }
-  .chip.done::after { content: " คัดลอกแล้ว"; color: var(--accent); }
-  .flow { display: grid; gap: 6px; }
-  .flow div { background: var(--chip); border-radius: 10px; padding: 8px 12px; }
-  ul { padding-left: 20px; margin: 6px 0; }
-  table { width: 100%; border-collapse: collapse; font-size: 15px; }
-  td { padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  td:first-child { color: var(--mute); width: 34%; }
-  details { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 10px 14px; margin: 8px 0; }
-  summary { cursor: pointer; font-weight: 600; }
+  .ic { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  .hd { display: flex; flex-direction: column; gap: 8px; }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent-text); font-size: 14px; }
+  .brand i { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; }
+  .brand i::before { content: ""; width: 9px; height: 13px; border-radius: 2px; background: #ffffff; box-shadow: 4px 4px 0 -2px var(--sun); }
+  h1 { font-size: 26px; line-height: 1.3; text-wrap: balance; }
+  .prog { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; margin-top: 4px; }
+  .prog i { height: 7px; border-radius: 7px; background: var(--line); }
+  .prog i.d { background: var(--receive); } .prog i.a { background: var(--accent); }
+
+  .how { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow); padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .how ol { margin: 0; padding: 0; list-style: none; counter-reset: h; display: grid; gap: 6px; }
+  .how li { counter-increment: h; display: flex; gap: 10px; align-items: flex-start; font-size: 15px; }
+  .how li > span { flex: 1; min-width: 0; }
+  .how li::before { content: counter(h); width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--chip); color: var(--accent-text); font-size: 12px; font-weight: 700; display: grid; place-items: center; margin-top: 2px; }
+
+  .step { background: var(--surface); border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; }
+  .step-hd { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .no { width: 30px; height: 30px; flex: none; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 14px; background: var(--chip); color: var(--mute); }
+  .step.open .no { background: var(--accent); color: var(--accent-ink); }
+  .step.done .no { background: var(--receive); color: #ffffff; }
+  .step-hd b { flex: 1; font-size: 17px; line-height: 1.35; }
+  .step.done .step-hd b { color: var(--mute); }
+  .step-hd em { font-style: normal; font-size: 13px; font-weight: 600; color: var(--accent-text); white-space: nowrap; }
+  .step-bd { padding: 0 16px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .step:not(.open) .step-bd { display: none; }
+
+  .lead { font-size: 16px; }
+  .sub { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .sub li { display: flex; gap: 10px; align-items: flex-start; }
+  .sub li > span:first-child { flex: none; width: 22px; height: 22px; border-radius: 7px; background: var(--chip); color: var(--accent-text); font-size: 12px; font-weight: 700; display: grid; place-items: center; margin-top: 2px; }
+  .sub li > span:last-child { flex: 1; min-width: 0; }
+  .sub li.in { margin-left: 26px; }
+  .blk > span:not(.bi):not(.tap) { min-width: 0; }
+  .note { background: var(--sun-soft); color: var(--ink); border-radius: 14px; padding: 10px 12px; font-size: 14px; }
+
+  .ios { background: var(--chip); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 7px; position: relative; }
+  .ios .cap { font-size: 12px; color: var(--mute); text-align: center; }
+  .blk { background: var(--surface); border-radius: 12px; padding: 9px 10px; display: flex; align-items: center; gap: 9px; font-size: 14px; box-shadow: var(--shadow); position: relative; }
+  .blk.in { margin-left: 20px; }
+  .bi { width: 24px; height: 24px; border-radius: 7px; background: var(--accent); color: #ffffff; display: grid; place-items: center; flex: none; }
+  .bi.g { background: var(--mute); } .bi.s { background: var(--sun); color: var(--sun-ink); }
+  .tk { background: var(--chip); color: var(--accent-text); border-radius: 6px; padding: 1px 8px; font-weight: 600; }
+  .tap { position: absolute; width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--sun); box-shadow: 0 0 0 4px rgba(255,194,61,.35); pointer-events: none; }
+  .ab { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .ab span { background: var(--surface); border-radius: 12px; padding: 8px; text-align: center; font-size: 13px; color: var(--mute); }
+  .ab span.on { outline: 2px solid var(--accent); color: var(--ink); font-weight: 700; }
+  .notif { background: var(--surface); border-radius: 16px; padding: 10px 12px; display: flex; gap: 10px; box-shadow: var(--shadow); }
+  .notif i { width: 34px; height: 34px; border-radius: 9px; background: var(--ink); flex: none; display: grid; place-items: center; color: var(--surface); font-style: normal; font-weight: 700; font-size: 13px; }
+  .notif small { display: block; font-size: 11px; color: var(--mute); letter-spacing: .03em; }
+  .notif span { font-size: 13px; color: var(--mute); }
+
+  .btn { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px; border-radius: 999px; border: 0; padding: 0 18px; font: 700 16px var(--ui); text-decoration: none; cursor: pointer; }
+  .btn.main { background: var(--accent); color: var(--accent-ink); }
+  .btn.done { background: var(--chip); color: var(--receive); }
+  .btn.ghost { background: transparent; color: var(--accent-text); border: 1.5px solid var(--line); min-height: 40px; font-size: 14px; }
+  .chip { font: 600 14px var(--ui); background: var(--chip); border: 1px solid var(--line); border-radius: 8px; padding: 2px 10px; cursor: pointer; color: var(--accent-text); }
+  .chip::after { content: " คัดลอก"; color: var(--mute); font-size: 12px; font-weight: 400; }
+  .chip.copied::after { content: " คัดลอกแล้ว"; color: var(--receive); }
+
+  details { background: var(--surface); border-radius: 18px; box-shadow: var(--shadow); padding: 0 16px; }
+  details.inner { background: var(--chip); box-shadow: none; }
+  summary { cursor: pointer; font-weight: 600; min-height: 50px; display: flex; align-items: center; justify-content: space-between; gap: 8px; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: ""; width: 9px; height: 9px; border-right: 2px solid var(--mute); border-bottom: 2px solid var(--mute); transform: rotate(45deg); margin: -4px 4px 0 0; flex: none; }
+  details[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+  details > .dbody { padding: 0 0 14px; display: flex; flex-direction: column; gap: 10px; }
+  details small.d { display: block; font-weight: 400; font-size: 13px; color: var(--mute); }
+  h2.sec { font-size: 18px; margin-top: 10px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 8px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { color: var(--mute); width: 36%; }
+  .fin { background: linear-gradient(150deg, var(--accent), var(--accent2)); color: #ffffff; border-radius: 22px; padding: 16px; display: flex; gap: 12px; align-items: center; }
+  .fin .no { background: #ffffff; color: var(--receive); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+  <symbol id="i-if" viewBox="0 0 24 24"><path d="M6 4v16M6 8h8l4 4-4 4H6"/></symbol>
+  <symbol id="i-photo" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/></symbol>
+  <symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M8 19h8"/></symbol>
+  <symbol id="i-bank" viewBox="0 0 24 24"><path d="M3 10h18L12 4zM5 10v8M10 10v8M14 10v8M19 10v8M3 20h18"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 0-8 6 6 0 0 0-11.5 1.5A3.5 3.5 0 0 0 7 18z"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+</svg>
 <main>
-  <h1>ตั้งค่า iPhone ให้บันทึกรายจ่ายเอง</h1>
-  <p class="muted">อัปเดต 18 พ.ย. 2569 · ใช้กับสคริปต์ DeptAuto รุ่น 2.0.0 · ทำครั้งเดียวประมาณ 10 นาที</p>
+  <header class="hd">
+    <span class="brand"><i aria-hidden="true"></i>Dept Money</span>
+    <h1>ให้ iPhone บันทึกรายจ่ายเอง</h1>
+    <p class="muted">4 ขั้น ประมาณ 5 นาที · ทำครั้งเดียว · ใช้กับ DeptAuto รุ่น 2.2.0 · อัปเดต 21 พ.ย. 2569</p>
+    <div class="prog" id="prog" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <p class="muted" id="prog-t" aria-live="polite">ทำทีละขั้นจากบนลงล่าง กด "ทำขั้นนี้แล้ว" เมื่อเสร็จแต่ละขั้น</p>
+  </header>
 
-  <div class="card">
-    <b>ใช้งานจริงเป็นแบบนี้</b>
-    <div class="flow">
-      <div>1. จ่ายเงินตามปกติ (โอนแล้วแคปสลิป, รูดบัตรแล้วมี SMS หรืออีเมลจากธนาคาร)</div>
-      <div>2. iPhone เด้งแจ้งเตือน <b>"พบรายจ่าย ..."</b> แตะที่แจ้งเตือน (หรือกดค้างแล้วกด <b>แก้ไข</b>)</div>
-      <div>3. แอป Scriptable เปิดกล่องขึ้นมา แก้ชื่อรายการได้ กด <b>เปลี่ยนหมวด</b> ได้</div>
-      <div>4. กด <b>บันทึกส่วนตัว</b> (เสร็จเลย) หรือ <b>หารกับเพื่อน</b> (เปิดเว็บให้เลือกเพื่อน) หรือ <b>ไม่ใช่รายจ่าย (ลบ)</b></div>
+  <section class="how" aria-label="ใช้งานจริงเป็นแบบนี้">
+    <b>ตั้งเสร็จแล้ว ใช้งานแบบนี้</b>
+    <ol>
+      <li><span>จ่ายเงินตามปกติ (โอนแล้วแคปสลิป หรือรูดบัตรแล้วมี SMS/อีเมล)</span></li>
+      <li><span>iPhone เด้งแจ้งเตือน <b>"พบรายจ่าย ..."</b> แตะที่แจ้งเตือน</span></li>
+      <li><span>แก้ชื่อหรือหมวดได้ แล้วกด <b>บันทึกส่วนตัว</b> หรือ <b>หารกับเพื่อน</b></span></li>
+    </ol>
+    <p class="muted">ไม่กดอะไรก็ได้ ระบบเก็บเป็นรายจ่ายส่วนตัวให้ (ในเว็บมีป้าย ยังไม่ยืนยัน) ชื่อที่แก้ ระบบจำไว้ใช้ครั้งหน้า</p>
+  </section>
+
+  <!-- ขั้น 1 -->
+  <section class="step open" data-step="1" id="s1">
+    <button type="button" class="step-hd" aria-expanded="true"><span class="no">1</span><b>ติดตั้งสคริปต์ใน Scriptable</b><em hidden>ดูอีกครั้ง</em></button>
+    <div class="step-bd">
+      <ul class="sub">
+        <li><span>1</span><span>ติดตั้งแอป <b>Scriptable</b> (ฟรี) <a href="https://apps.apple.com/th/app/scriptable/id1405459188" target="_blank" rel="noopener">เปิด App Store</a></span></li>
+        <li><span>2</span><span>เปิดเว็บ Dept Money แท็บ <b>ฉัน</b> → <b>ตั้งค่า iPhone</b> → กด <b>สร้างรหัสและคัดลอกสคริปต์</b></span></li>
+        <li><span>3</span><span>เปิด Scriptable กด <b>+</b> ลบข้อความเดิม แล้ว <b>วาง</b> จากนั้นกดปุ่ม <b>เล่น</b> (สามเหลี่ยมมุมขวาล่าง)</span></li>
+        <li><span>4</span><span>ขึ้น <b>ติดตั้งสำเร็จ</b> และเห็น <b>DeptWidget</b> กับ <b>DeptAuto</b> ในแอป</span></li>
+      </ul>
+      <div class="ios" aria-hidden="true">
+        <div class="blk"><span class="bi"><svg class="ic"><use href="#i-check"/></svg></span><span><b>ติดตั้งสำเร็จ</b> · DeptWidget, DeptAuto v2.2.0</span></div>
+        <p class="cap">ถ้ามีหน้าต่าง "พบสคริปต์ Dept ที่ไม่ใช้แล้ว" กด ลบทั้งหมด</p>
+      </div>
+      <p class="note">ครั้งแรกที่ระบบเด้งแจ้งเตือน iPhone จะถามว่าให้ Scriptable แจ้งเตือนได้ไหม ให้กด <b>อนุญาต</b></p>
+      <button type="button" class="btn done" data-done="1"><svg class="ic"><use href="#i-check"/></svg>ทำขั้นนี้แล้ว</button>
     </div>
-    <p class="muted">ชื่อที่แก้ ระบบจำไว้ ครั้งหน้าจ่ายร้านเดิมจะได้ชื่อและหมวดนั้นเอง · ถ้าไม่กดอะไร ระบบเก็บเป็นรายจ่ายส่วนตัวไว้ให้ และในเว็บจะมีป้าย <b>ยังไม่ยืนยัน</b></p>
-  </div>
+  </section>
 
-  <h2><span class="no">1</span>ติดตั้งสคริปต์</h2>
-  <ol class="steps">
-    <li>ติดตั้งแอป <b>Scriptable</b> จาก App Store (ฟรี)</li>
-    <li>เปิดเว็บ Dept Money → แท็บ <b>ฉัน</b> → <b>ตั้งค่า iPhone</b> → กด <b>สร้างรหัสและคัดลอกสคริปต์</b></li>
-    <li>เปิด Scriptable → กด <b>+</b> → ลบข้อความเดิม แล้ว <b>วาง</b> → กดปุ่ม <b>เล่น</b> (สามเหลี่ยม)</li>
-    <li>ขึ้น <b>ติดตั้งสำเร็จ</b> และเห็น <b>DeptWidget</b> กับ <b>DeptAuto v2.0.0</b><br>
-      <span class="muted">ถ้ามีหน้าต่าง "พบสคริปต์ Dept ที่ไม่ใช้แล้ว" กด <b>ลบทั้งหมด</b></span></li>
-  </ol>
-  <p class="muted">ครั้งแรกที่ระบบจะเด้งแจ้งเตือน iPhone จะถามว่าให้ Scriptable แจ้งเตือนได้ไหม ให้กด <b>อนุญาต</b></p>
+  <!-- ขั้น 2 -->
+  <section class="step open" data-step="2" id="s2">
+    <button type="button" class="step-hd" aria-expanded="true"><span class="no">2</span><b>เพิ่มคำสั่งลัด "Dept บันทึก"</b><em hidden>ดูอีกครั้ง</em></button>
+    <div class="step-bd">
+      <div id="icloud-box" hidden>
+        <p class="lead">กดปุ่มข้างล่าง แล้วกด <b>เพิ่มคำสั่งลัด</b> ในแอปคำสั่งลัด เสร็จเลย</p>
+        <a class="btn main" id="icloud-link" href="#" target="_blank" rel="noopener"><svg class="ic"><use href="#i-cloud"/></svg>เพิ่มคำสั่งลัด</a>
+      </div>
+      <div id="manual-box">
+        <p class="lead">เปิดแอป <b>คำสั่งลัด</b> กด <b>+</b> ตั้งชื่อ <span class="chip" data-copy="Dept บันทึก">Dept บันทึก</span> แล้วใส่คำสั่งให้หน้าตาแบบนี้</p>
+        <div class="ios" role="img" aria-label="ภาพคำสั่งลัดที่เสร็จแล้ว: ถ้ามีข้อมูลเข้า ส่งให้ DeptAuto ไม่งั้นอ่านข้อความจากรูปล่าสุดแล้วส่งให้ DeptAuto">
+          <div class="blk"><span class="bi g"><svg class="ic"><use href="#i-if"/></svg></span><span>ถ้า <span class="tk">ข้อมูลเข้าของคำสั่งลัด</span> มีค่าใดค่าหนึ่ง</span></div>
+          <div class="blk in"><span class="bi"><svg class="ic"><use href="#i-play"/></svg></span><span>Run <span class="tk">DeptAuto</span> with <span class="tk">ข้อมูลเข้า</span></span><span class="tap" style="right:-6px;top:2px"></span></div>
+          <div class="blk"><span class="bi g"><svg class="ic"><use href="#i-if"/></svg></span><span>มิฉะนั้น</span></div>
+          <div class="blk in"><span class="bi s"><svg class="ic"><use href="#i-photo"/></svg></span><span>รับ <span class="tk">1</span> รูปภาพล่าสุด</span></div>
+          <div class="blk in"><span class="bi s"><svg class="ic"><use href="#i-text"/></svg></span><span>แยกข้อความออกจาก <span class="tk">รูปภาพ</span></span></div>
+          <div class="blk in"><span class="bi"><svg class="ic"><use href="#i-play"/></svg></span><span>Run <span class="tk">DeptAuto</span> with <span class="tk">ข้อความ</span></span></div>
+          <div class="blk"><span class="bi g"><svg class="ic"><use href="#i-if"/></svg></span><span>สิ้นสุดถ้า</span></div>
+          <p class="cap">วงสีเหลือง: แตะลูกศรท้ายแถว Run แล้วปิด <b>Run In App</b> และ <b>แสดงเมื่อสั่งทำงาน</b> (ทำทั้ง 2 แถว Run)</p>
+        </div>
+        <details class="inner">
+          <summary>ดูทีละขั้น (7 ขั้น)</summary>
+          <div class="dbody">
+            <ul class="sub">
+              <li><span>1</span><span>เพิ่ม <b>ถ้า</b> เลือก <b>ข้อมูลเข้าของคำสั่งลัด</b> → <b>มีค่าใดค่าหนึ่ง</b> (การ์ด "รับ ... จาก ไม่มีที่ไหน" ด้านบนโผล่มาเอง ไม่ต้องแก้)</span></li>
+              <li class="in"><span>2</span><span>ใต้ ถ้า: เพิ่ม <b>Run Script</b> ของ Scriptable เลือก <b>DeptAuto</b> ช่องหลังเลือก <b>ข้อมูลเข้าของคำสั่งลัด</b> แตะลูกศรท้ายแถว ปิด Run In App และ แสดงเมื่อสั่งทำงาน</span></li>
+              <li><span>3</span><span>ลากคำสั่งถัดไปมาไว้ใต้ <b>มิฉะนั้น</b></span></li>
+              <li class="in"><span>4</span><span><b>รับรูปภาพล่าสุด</b> จำนวน 1 และเปิด <b>รวมภาพถ่ายหน้าจอ</b></span></li>
+              <li class="in"><span>5</span><span><b>แยกข้อความออกจาก</b> รูปภาพล่าสุด</span></li>
+              <li class="in"><span>6</span><span><b>Run Script</b> DeptAuto ช่องหลังเลือก <b>ข้อความที่แยกออก</b> ปิด 2 ตัวเลือกเหมือนข้อ 2</span></li>
+              <li><span>7</span><span><b>สิ้นสุดถ้า</b> แอปเติมให้เอง ไม่ต้องใส่</span></li>
+            </ul>
+            <p class="muted">ไม่ต้องใส่คำสั่งแสดงการแจ้งเตือน เพราะ DeptAuto เด้งให้เอง</p>
+          </div>
+        </details>
+      </div>
+      <button type="button" class="btn done" data-done="2"><svg class="ic"><use href="#i-check"/></svg>ทำขั้นนี้แล้ว</button>
+    </div>
+  </section>
 
-  <h2><span class="no">2</span>สร้างคำสั่งลัด "Dept บันทึก"</h2>
-  <p class="muted">คำสั่งลัดเดียว ใช้ได้ทั้งสลิป SMS และอีเมล ไม่ต้องใส่คำสั่งแสดงการแจ้งเตือน เพราะ DeptAuto เด้งให้เอง</p>
-  <ol class="steps">
-    <li>เปิดแอป <b>คำสั่งลัด</b> → แท็บ <b>คำสั่งลัด</b> → <b>+</b> → ตั้งชื่อ <span class="chip" data-copy="Dept บันทึก">Dept บันทึก</span></li>
-    <li><span class="act">ถ้า</span> <span class="en">(If)</span> เลือก <b>ข้อมูลเข้าของคำสั่งลัด</b> → <b>มีค่าใดค่าหนึ่ง</b><br>
-      <span class="muted">ด้านบนจะมีการ์ด "รับ ... จาก ไม่มีที่ไหน" โผล่มาเอง ไม่ต้องแก้</span></li>
-    <li class="in"><span class="act">Run DeptAuto with</span> <span class="en">(Run Script ของ Scriptable)</span> ช่องหลังเลือก <b>ข้อมูลเข้าของคำสั่งลัด</b><br>
-      แตะลูกศรวงกลมท้ายแถว แล้วปิด <b>Run In App</b> และ <b>แสดงเมื่อสั่งทำงาน</b></li>
-    <li><span class="act">มิฉะนั้น</span> <span class="en">(Otherwise)</span> แล้วใส่ 3 คำสั่งต่อไปนี้ใต้คำว่ามิฉะนั้น</li>
-    <li class="in"><span class="act">รับรูปภาพล่าสุด</span> จำนวน <b>1</b> และเปิด <b>รวมภาพถ่ายหน้าจอ</b></li>
-    <li class="in"><span class="act">แยก ข้อความ ออกจาก</span> <b>รูปภาพล่าสุด</b></li>
-    <li class="in"><span class="act">Run DeptAuto with</span> ช่องหลังเลือก <b>ข้อความที่แยกออก</b> แล้วปิด Run In App และ แสดงเมื่อสั่งทำงาน เหมือนข้อ 3</li>
-    <li><span class="act">สิ้นสุดถ้า</span> <span class="muted">(แอปเติมให้เอง)</span></li>
-  </ol>
+  <!-- ขั้น 3 -->
+  <section class="step open" data-step="3" id="s3">
+    <button type="button" class="step-hd" aria-expanded="true"><span class="no">3</span><b>ให้ทำงานเองตอนปิดแอปธนาคาร</b><em hidden>ดูอีกครั้ง</em></button>
+    <div class="step-bd">
+      <p class="lead">แอปคำสั่งลัด แท็บ <b>การทำงานอัตโนมัติ</b> → <b>+</b> → <b>แอป</b></p>
+      <div class="ios" role="img" aria-label="ตั้งการทำงานอัตโนมัติ: เลือกแอปธนาคาร ถูกปิด รันทันที เรียกใช้คำสั่งลัด Dept บันทึก">
+        <div class="blk"><span class="bi"><svg class="ic"><use href="#i-bank"/></svg></span><span>แอป <span class="tk">แอปธนาคารที่ใช้</span> (เลือกได้หลายแอป)</span></div>
+        <div class="ab"><span>ถูกเปิด</span><span class="on">ถูกปิด</span></div>
+        <div class="ab"><span class="on">รันทันที</span><span>ยืนยันก่อนรัน</span></div>
+        <div class="blk"><span class="bi"><svg class="ic"><use href="#i-play"/></svg></span><span>เรียกใช้คำสั่งลัด <span class="tk">Dept บันทึก</span></span></div>
+        <p class="cap">คำสั่งเดียวพอ ไม่ต้องใส่อย่างอื่น</p>
+      </div>
+      <details class="inner" id="auto-more">
+        <summary><span>ใช้บัตรเครดิตด้วย?<small class="d">ตั้งให้อ่าน SMS บัตร และอีเมลธนาคาร (ไม่ทำก็ได้)</small></span></summary>
+        <div class="dbody">
+          <b>SMS บัตรเครดิต (KTC, CardX, ttb, SCB)</b>
+          <ul class="sub">
+            <li><span>1</span><span>การทำงานอัตโนมัติ → <b>+</b> → <b>ข้อความ</b> → <b>ข้อความประกอบด้วย</b> พิมพ์ <span class="chip" data-copy="THB">THB</span> → <b>รันทันที</b></span></li>
+            <li><span>2</span><span>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → <b>Dept บันทึก</b> ข้อมูลเข้าเป็น <b>ข้อมูลเข้าของคำสั่งลัด</b></span></li>
+          </ul>
+          <p class="note">ถ้าด้านบนขึ้นว่า <b>กำหนดค่า "ผู้ส่ง" เพื่อเปิดใช้งาน</b> ให้กดลบที่ท้ายแถว "ผู้ส่ง คือ" ถ้ายังเปิดไม่ได้ ให้ทำแยกทีละผู้ส่ง (KTC, CardX, ttbbank)</p>
+          <b>อีเมลจากธนาคาร</b>
+          <ul class="sub">
+            <li><span>1</span><span>ในแอปธนาคาร เปิดการส่งอีเมลแจ้งทุกรายการ และเพิ่มอีเมลนั้นในแอป <b>Mail</b> ของ iPhone</span></li>
+            <li><span>2</span><span>การทำงานอัตโนมัติ → <b>+</b> → <b>อีเมล</b> → <b>ผู้ส่ง</b> เป็นอีเมลของธนาคาร → <b>รันทันที</b></span></li>
+            <li><span>3</span><span>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → <b>Dept บันทึก</b> ข้อมูลเข้าเป็น <b>ข้อมูลเข้าของคำสั่งลัด</b></span></li>
+          </ul>
+          <p class="muted">อีเมลที่อ่านได้: KTC (Onlineservice@ktc.co.th), CardX (support@cardx.co.th เฉพาะยอดเป็นบาท), K PLUS ชำระค่าสินค้า (KPLUS@kasikornbank.com) · อีเมลโอนเงินและเติมเงิน e-Wallet ข้ามไว้ เพราะสลิปบันทึกให้แล้ว</p>
+        </div>
+      </details>
+      <button type="button" class="btn done" data-done="3"><svg class="ic"><use href="#i-check"/></svg>ทำขั้นนี้แล้ว</button>
+    </div>
+  </section>
 
-  <h2><span class="no">3</span>ตั้งให้ทำงานเอง</h2>
-  <p class="muted">แอปคำสั่งลัด → แท็บ <b>การทำงานอัตโนมัติ</b> → <b>+</b> ทำเฉพาะแบบที่ใช้ ทุกแบบเลือก <b>รันทันที</b> และมีคำสั่งเดียวคือ <b>เรียกใช้คำสั่งลัด Dept บันทึก</b></p>
+  <!-- ขั้น 4 -->
+  <section class="step open" data-step="4" id="s4">
+    <button type="button" class="step-hd" aria-expanded="true"><span class="no">4</span><b>ลองจ่ายดู</b><em hidden>ดูอีกครั้ง</em></button>
+    <div class="step-bd">
+      <p class="lead">โอนเงินแล้วแคปสลิป จากนั้นปิดแอปธนาคาร จะมีแจ้งเตือนเด้งแบบนี้</p>
+      <div class="ios" aria-hidden="true">
+        <div class="notif"><i>S</i><div><small>SCRIPTABLE · ตอนนี้</small><b>พบรายจ่าย ฿120 ร้านข้าวมันไก่</b><br><span>แตะเพื่อแก้ชื่อ เลือกส่วนตัว หรือหารกับเพื่อน</span></div></div>
+      </div>
+      <p class="muted">แตะแจ้งเตือนแล้วแอป Scriptable เปิดขึ้นมาเป็นเรื่องปกติ บันทึกเสร็จกลับไปแอปเดิมได้เลย ไม่มีอะไรเด้ง ดู "แก้ปัญหา" ข้างล่าง</p>
+      <button type="button" class="btn done" data-done="4"><svg class="ic"><use href="#i-check"/></svg>ใช้ได้แล้ว</button>
+    </div>
+  </section>
 
-  <h3>แบบ A: ปิดแอปธนาคาร (สลิปโอนเงิน)</h3>
-  <ol class="steps">
-    <li>เลือก <b>แอป</b> → เลือกแอปธนาคารที่ใช้ (เลือกได้หลายแอป) → ติ๊ก <b>ถูกปิด</b> → <b>รันทันที</b></li>
-    <li>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → เลือก <b>Dept บันทึก</b></li>
-  </ol>
+  <section class="fin" id="fin" hidden>
+    <span class="no"><svg class="ic"><use href="#i-check"/></svg></span>
+    <div><b>ตั้งครบแล้ว</b><br><span>จ่ายเงินตามปกติ ระบบบันทึกให้เอง</span></div>
+  </section>
 
-  <h3>แบบ B: SMS บัตรเครดิต (KTC, CardX, ttb)</h3>
-  <ol class="steps">
-    <li>เลือก <b>ข้อความ</b> → <b>ข้อความประกอบด้วย</b> พิมพ์ <span class="chip" data-copy="THB">THB</span> → <b>รันทันที</b></li>
-    <li>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → เลือก <b>Dept บันทึก</b> แล้วตั้งข้อมูลเข้าเป็น <b>ข้อมูลเข้าของคำสั่งลัด</b></li>
-  </ol>
-  <div class="card note">ถ้าด้านบนขึ้นว่า <b>กำหนดค่า "ผู้ส่ง" เพื่อเปิดใช้งาน</b> ให้กดปุ่มลบที่ท้ายแถว "ผู้ส่ง คือ" ถ้ายังเปิดใช้ไม่ได้ ให้ทำแบบ B แยกทีละผู้ส่ง (KTC, CardX, ttbbank) <span class="muted">(ส่วนนี้ยังอยู่ระหว่างทดสอบบนเครื่องจริง)</span></div>
+  <h2 class="sec">เพิ่มเติม</h2>
 
-  <h3>แบบ C: อีเมลจากธนาคาร</h3>
-  <ol class="steps">
-    <li>ในแอปธนาคาร เปิดการส่งอีเมลแจ้งทุกรายการ และเพิ่มอีเมลนั้นในแอป <b>Mail</b> ของ iPhone</li>
-    <li>เลือก <b>อีเมล</b> → <b>ผู้ส่ง</b> เป็นอีเมลของธนาคาร → <b>รันทันที</b></li>
-    <li>เพิ่มคำสั่ง <b>เรียกใช้คำสั่งลัด</b> → <b>Dept บันทึก</b> ข้อมูลเข้าเป็น <b>ข้อมูลเข้าของคำสั่งลัด</b></li>
-  </ol>
-  <p class="muted">ตอนนี้ระบบอ่าน SMS ของ KTC, CardX, ttb และ SCB ได้ ส่วนอีเมลอ่านได้: KTC (Onlineservice@ktc.co.th), CardX (support@cardx.co.th, เฉพาะยอดเป็นบาท) และ K PLUS ชำระค่าสินค้า (KPLUS@kasikornbank.com) อีเมลโอนเงินและเติมเงิน e-Wallet ข้ามไว้เพราะสลิปบันทึกให้แล้ว ธนาคารอื่นส่งตัวอย่างข้อความให้ผู้ดูแลเพื่อเพิ่มได้</p>
+  <details id="trouble">
+    <summary>แก้ปัญหา</summary>
+    <div class="dbody">
+      <p><b>จ่ายเงินแล้วไม่มีแจ้งเตือนอะไรเลย</b><br>ตรวจ (1) ตั้งค่า → การแจ้งเตือน → Scriptable → เปิดอนุญาต (2) การทำงานอัตโนมัติตั้งเป็น <b>รันทันที</b> (3) รันตัวติดตั้งล่าสุดแล้ว · ระบบเงียบโดยตั้งใจเมื่อเป็นรายการที่บันทึกแล้ว รูปล่าสุดไม่ใช่สลิป หรือ SMS ไม่ใช่รายจ่าย (เช่น ยอด THB0, จ่ายบิลบัตร)</p>
+      <p><b>แตะแจ้งเตือนแล้วแอป Scriptable เปิดขึ้นมา</b><br>เป็นปกติ กล่องแก้ไขอยู่ในแอป Scriptable ถ้ายังไม่ว่าง กด <b>ไว้ทีหลัง</b> รายการยังอยู่ในเว็บพร้อมป้ายยังไม่ยืนยัน</p>
+      <p><b>ยอดหรือชื่อร้านผิด</b><br>แตะแจ้งเตือน หรือเปิดเว็บแท็บ <b>รายการ</b> แล้วแตะรายการเพื่อแก้ ถ้าผิดบ่อย ส่ง SMS หรือภาพสลิปให้ผู้ดูแล (ปิดเลขบัญชีได้) เพื่อปรับให้อ่านถูก</p>
+      <p><b>ขึ้นว่า "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์" หรือ "รหัสไม่ถูกต้อง"</b><br>ทำขั้นที่ 1 ใหม่ (สร้างรหัสใหม่ แล้วรันตัวติดตั้ง) คำสั่งลัดไม่ต้องแก้</p>
+    </div>
+  </details>
 
-  <h2><span class="no">4</span>ลบของเก่าที่ไม่ใช้แล้ว</h2>
-  <div class="card">
-    <table>
-      <tr><td>Scriptable ควรเหลือ</td><td><b>DeptInstaller</b>, <b>DeptWidget</b>, <b>DeptAuto</b></td></tr>
-      <tr><td>คำสั่งลัดควรเหลือ</td><td><b>Dept บันทึก</b> (ลบ "สแกนสลิป" และ "สลิปอัตโนมัติ" ได้)</td></tr>
-      <tr><td>การทำงานอัตโนมัติ</td><td>เหลือแค่แบบ A, B, C ที่ใช้ แต่ละอันมีคำสั่งเดียว (ของเดิมที่มีหลายคำสั่ง เช่น AutoSMS ลบแล้วสร้างใหม่ได้เลย)</td></tr>
-    </table>
-  </div>
+  <details>
+    <summary>มีรุ่นใหม่ ต้องทำอะไร</summary>
+    <div class="dbody"><p>ไม่ต้องเช็กเอง ถ้าเครื่องเป็นรุ่นเก่า ระบบเด้งแจ้งเตือน <b>"มี DeptAuto รุ่นใหม่"</b> ให้เปิด Scriptable แล้วกดรัน <b>DeptInstaller</b> อีกครั้ง คำสั่งลัดและการทำงานอัตโนมัติไม่ต้องแก้</p></div>
+  </details>
 
-  <h2><span class="no">5</span>เช็กว่าเป็นรุ่นล่าสุด</h2>
-  <p>ไม่ต้องเช็กเอง ถ้าเครื่องเป็นรุ่นเก่า ระบบจะเด้งแจ้งเตือน <b>"มี DeptAuto รุ่นใหม่"</b> ให้เปิด Scriptable แล้วกดรัน <b>DeptInstaller</b> อีกครั้ง คำสั่งลัดและการทำงานอัตโนมัติไม่ต้องแก้</p>
+  <details>
+    <summary>ลบของเก่าที่ไม่ใช้แล้ว</summary>
+    <div class="dbody">
+      <table>
+        <tr><td>Scriptable ควรเหลือ</td><td><b>DeptInstaller</b>, <b>DeptWidget</b>, <b>DeptAuto</b></td></tr>
+        <tr><td>คำสั่งลัดควรเหลือ</td><td><b>Dept บันทึก</b> (ลบ "สแกนสลิป" และ "สลิปอัตโนมัติ" ได้)</td></tr>
+        <tr><td>การทำงานอัตโนมัติ</td><td>เหลือเฉพาะที่ใช้ (ปิดแอปธนาคาร, SMS, อีเมล) แต่ละอันมีคำสั่งเดียว ของเดิมที่มีหลายคำสั่ง เช่น AutoSMS ลบแล้วสร้างใหม่ได้เลย</td></tr>
+      </table>
+    </div>
+  </details>
 
-  <h2>แก้ปัญหา</h2>
-  <details><summary>จ่ายเงินแล้วไม่มีแจ้งเตือนอะไรเลย</summary>
-    <p>ตรวจ (1) ตั้งค่า → การแจ้งเตือน → Scriptable → เปิดอนุญาต (2) การทำงานอัตโนมัติตั้งเป็น <b>รันทันที</b> (3) รันตัวติดตั้งล่าสุดแล้ว ระบบเงียบโดยตั้งใจเมื่อเป็นรายการเดิมที่บันทึกแล้ว รูปล่าสุดไม่ใช่สลิป หรือ SMS ไม่ใช่รายจ่าย (เช่น ยอด THB0, จ่ายบิลบัตร)</p></details>
-  <details><summary>แตะแจ้งเตือนแล้วแอป Scriptable เปิดขึ้นมา</summary>
-    <p>เป็นปกติ กล่องแก้ไขอยู่ในแอป Scriptable บันทึกเสร็จแล้วกลับไปแอปเดิมได้เลย ถ้ายังไม่ว่าง กด <b>ไว้ทีหลัง</b> รายการยังอยู่ในเว็บพร้อมป้ายยังไม่ยืนยัน</p></details>
-  <details><summary>ยอดหรือชื่อร้านผิด</summary>
-    <p>แตะแจ้งเตือน หรือเปิดเว็บแท็บ <b>กระเป๋า</b> แล้วแตะรายการเพื่อแก้ ถ้าผิดบ่อย ส่งข้อความ SMS หรือภาพสลิปให้ผู้ดูแล (ปิดเลขบัญชีได้) เพื่อปรับให้อ่านถูก</p></details>
-  <details><summary>ขึ้นว่า "ยังไม่ได้ตั้งค่ารหัสอุปกรณ์" หรือ "รหัสไม่ถูกต้อง"</summary>
-    <p>ทำขั้นที่ 1 ใหม่ (สร้างรหัสใหม่ แล้วรันตัวติดตั้ง) คำสั่งลัดไม่ต้องแก้</p></details>
+  <details>
+    <summary>ธนาคารและบัตรที่อ่านได้</summary>
+    <div class="dbody">
+      <p><b>สลิปโอนเงิน</b> อ่านจากภาพด้วย Live Text ในเครื่อง รูปไม่ออกนอกเครื่อง</p>
+      <p><b>SMS</b> KTC, CardX, ttb, SCB</p>
+      <p><b>อีเมล</b> KTC, CardX (เฉพาะยอดเป็นบาท), K PLUS ชำระค่าสินค้า</p>
+      <p class="muted">ธนาคารอื่น ส่งตัวอย่างข้อความ (ปิดเลขบัญชีได้) ให้ผู้ดูแลเพื่อเพิ่ม</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>Widget พื้นหลังกระจก (เห็นวอลเปเปอร์)</summary>
+    <div class="dbody">
+      <ul class="sub">
+        <li><span>1</span><span>กดค้างที่หน้าโฮมจนไอคอนสั่น ปัดไปหน้าว่างขวาสุด แล้วแคปหน้าจอ</span></li>
+        <li><span>2</span><span>เปิด Scriptable กดรัน <b>DeptWidget</b> → <b>ตั้งพื้นหลังกระจก</b> → เลือกภาพที่แคป → เลือกขนาดและตำแหน่งของ Widget</span></li>
+        <li><span>3</span><span>กดค้างที่ Widget → <b>แก้ไข Widget</b> → ช่อง <b>Parameter</b> พิมพ์ตำแหน่งตามที่แอปบอก (เช่น <b>บน</b>)</span></li>
+      </ul>
+      <p class="muted">เปลี่ยนวอลเปเปอร์หรือย้าย Widget ให้ทำข้อ 1-2 ใหม่ ภาพเก็บในเครื่องเท่านั้น</p>
+    </div>
+  </details>
 </main>
 
 <script>
+  // ลิงก์ iCloud ของคำสั่งลัด "Dept บันทึก" (ใส่เมื่อเจ้าของแชร์แล้ว) มีลิงก์ = ขั้น 2 เหลือปุ่มเดียว
+  var ICLOUD_URL = "";
+  if (/^https:\/\/www\.icloud\.com\/shortcuts\//.test(ICLOUD_URL)) {
+    document.getElementById("icloud-link").href = ICLOUD_URL;
+    document.getElementById("icloud-box").hidden = false;
+    document.getElementById("manual-box").hidden = true;
+  }
+
+  // ทำแล้ว: จำในเครื่องนี้ ขั้นที่ทำแล้วพับเก็บ ขั้นถัดไปเปิดไว้ ขั้นที่ยังไม่ถึงพับไว้
+  var KEY = "dept-guide-done";
+  var done = {};
+  try { done = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { done = {}; }
+  var steps = Array.prototype.slice.call(document.querySelectorAll(".step"));
+  var opened = {};
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(done)); } catch (e) { /* ไม่เป็นไร */ } }
+  function render() {
+    var current = 0;
+    for (var i = 1; i <= 4; i++) { if (!done[i]) { current = i; break; } }
+    var bars = document.querySelectorAll("#prog i");
+    var n = 0;
+    steps.forEach(function (el, idx) {
+      var k = idx + 1;
+      var isDone = Boolean(done[k]);
+      if (isDone) n++;
+      var open = opened[k] !== undefined ? opened[k] : (k === current);
+      el.classList.toggle("done", isDone);
+      el.classList.toggle("open", open);
+      el.querySelector(".step-hd").setAttribute("aria-expanded", open ? "true" : "false");
+      el.querySelector(".step-hd em").hidden = !(isDone && !open);
+      bars[idx].className = isDone ? "d" : k === current ? "a" : "";
+    });
+    document.getElementById("prog-t").textContent = n === 4 ? "ทำครบ 4 ขั้นแล้ว" : "ขั้น " + current + " จาก 4 · ทำแล้ว " + n + " ขั้น";
+    document.getElementById("fin").hidden = n !== 4;
+  }
+  steps.forEach(function (el, idx) {
+    var k = idx + 1;
+    el.querySelector(".step-hd").addEventListener("click", function () {
+      opened[k] = !el.classList.contains("open");
+      render();
+    });
+  });
+  document.querySelectorAll("[data-done]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var k = Number(b.getAttribute("data-done"));
+      done[k] = true;
+      opened = {};
+      save();
+      render();
+      var next = document.getElementById("s" + (k + 1)) || document.getElementById("fin");
+      if (next && next.scrollIntoView) next.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
+  // เปิดจากลิงก์ #auto-more (หน้าตั้งค่า iPhone ในเว็บ) = กางขั้น 3 และกล่อง SMS/อีเมล
+  function openAutoMore() {
+    if (location.hash !== "#auto-more") return false;
+    opened[3] = true;
+    document.getElementById("auto-more").open = true;
+    return true;
+  }
+  var jump = openAutoMore();
+  render();
+  if (jump) document.getElementById("auto-more").scrollIntoView();
+  window.addEventListener("hashchange", function () { if (openAutoMore()) { render(); document.getElementById("auto-more").scrollIntoView(); } });
+
   // แตะข้อความที่มีคำว่าคัดลอก เพื่อคัดลอก
-  document.querySelectorAll('.chip[data-copy]').forEach(function (el) {
-    el.addEventListener('click', function () {
-      var text = el.getAttribute('data-copy');
-      var done = function () {
-        el.classList.add('done');
-        setTimeout(function () { el.classList.remove('done'); }, 2000);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(done, function () { window.prompt('คัดลอกข้อความนี้', text); });
-      } else {
-        window.prompt('คัดลอกข้อความนี้', text);
-      }
+  document.querySelectorAll(".chip[data-copy]").forEach(function (el) {
+    el.setAttribute("role", "button");
+    el.setAttribute("tabindex", "0");
+    el.addEventListener("click", function () {
+      var text = el.getAttribute("data-copy");
+      var ok = function () { el.classList.add("copied"); setTimeout(function () { el.classList.remove("copied"); }, 2000); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(ok, function () { window.prompt("คัดลอกข้อความนี้", text); });
+      else window.prompt("คัดลอกข้อความนี้", text);
     });
   });
 </script>
