@@ -1,6 +1,6 @@
 import { collection, getDocs, getDoc, doc, query, where } from "./auth-helpers.js";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
-import { memberMonthSummary, displayBaht } from "../lib/ledger.mjs";
+import { memberMonthSummary, displayBaht, myClearLines } from "../lib/ledger.mjs";
 
 const db = getDbInstance();
 
@@ -206,6 +206,9 @@ export default async function handler(req, res) {
             month: currentMonthStr
         });
         const roundedBalance = displayBaht(summary.balance);
+        // รายชื่อที่ต้องเคลียร์ (ใครค้างคุณ / คุณค้างใคร) คิดจากข้อมูลที่อ่านมาแล้วข้างบน ไม่อ่านฐานข้อมูลเพิ่ม
+        const settlementDocs = settlementsSnap.docs.map(d => d.data());
+        const people = myClearLines({ name: targetUser, transactions: allTrans, settlements: settlementDocs, month: currentMonthStr });
 
         // เรียงหารายการล่าสุด
         userTransactions.sort((a, b) => b.timestamp - a.timestamp);
@@ -243,6 +246,10 @@ export default async function handler(req, res) {
                 balance: roundedBalance,
                 type: debtType,
                 text: debtText
+            },
+            people: {
+                owedToMe: people.owedToMe.slice(0, 8),
+                iOwe: people.iOwe.slice(0, 8)
             }
         });
 

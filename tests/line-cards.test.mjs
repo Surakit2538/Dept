@@ -19,8 +19,8 @@ function seed() {
     db.seed("transactions", "t1", { date: "2026-11-02", payer: "GAME", amount: 400, splits: { GAME: 100, CARE: 100, AOY: 100, BEN: 100 }, icon: "fa-utensils" });
     // BEN จ่าย 50 หารกับ CARE
     db.seed("transactions", "t2", { date: "2026-11-03", payer: "GAME", amount: 100, splits: { GAME: 20, CARE: 80 } });
-    db.seed("wallet_entries", "w1", { ownerName: "GAME", type: "income", amount: 10000, date: "2026-11-01" });
-    db.seed("wallet_entries", "w2", { ownerName: "GAME", type: "expense", amount: 500, date: "2026-11-05" });
+    db.seed("wallet_entries", "w1", { ownerName: "GAME", type: "income", amount: 10000, date: "2026-11-01", month: "2026-11" });
+    db.seed("wallet_entries", "w2", { ownerName: "GAME", type: "expense", amount: 500, date: "2026-11-05", month: "2026-11" });
     return db;
 }
 const FS = (db) => ({ db: {}, fs: db.fs });
@@ -36,7 +36,10 @@ test("การ์ดรายเดือน: ไม่มี emoji, มีโ�
     assert.ok(json.includes("remind:CARE") && json.includes("remind:AOY") && json.includes("remind:all"));
     assert.match(card.altText, /เหลือใช้เดือนนี้ ฿4,063/);
     assert.match(card.altText, /฿1,733/);
-    assert.equal(card.contents.type, "bubble");
+    // สรุปเดือนแบบปัด: ภาพรวม + ใครค้างคุณ (ไม่มีข้อมูลหมวด/รายสัปดาห์ก็ไม่แสดงใบนั้น) และมีปุ่มลัดใต้ข้อความ
+    assert.equal(card.contents.type, "carousel");
+    assert.equal(card.contents.contents.length, 2);
+    assert.deepEqual(card.quickReply.items.map((i) => i.action.text), ["สรุปเดือนนี้", "ใครค้างฉัน", "ฉันต้องโอน", "รอยืนยัน", "วิธีใช้"]);
 });
 
 test("การ์ดรายเดือน: ไม่มีรายรับ → แสดง ใช้ไป, ไม่มีคนค้าง → ไม่มีปุ่มเตือน, ค้างเพื่อนแสดงสีส้ม", () => {
@@ -147,7 +150,7 @@ test("ข้อความที่ผู้ใช้เห็น (บอท, i
     }
 });
 
-test("การ์ดเตือนหนี้: แนบ QR เฉพาะผู้รับที่มีพร้อมเพย์ถูกต้อง สูงสุด 3 คน และลิงก์เปิดเว็บที่ราก", async () => {
+test("การ์ดเตือนหนี้: การ์ดละคน แนบ QR เฉพาะผู้รับที่มีพร้อมเพย์ถูกต้อง และลิงก์เปิดเว็บที่ราก", async () => {
     const { buildReminderCard, promptpayQrUrl } = await import("../lib/line-cards.mjs");
     assert.equal(promptpayQrUrl("081-234-5678", 100), "https://promptpay.io/0812345678/100.png");
     assert.equal(promptpayQrUrl("12345", 100), "");
@@ -162,11 +165,17 @@ test("การ์ดเตือนหนี้: แนบ QR เฉพาะ�
             { to: "E", amount: 5, promptpay: "0877777777" }
         ]
     });
-    const images = card.contents.body.contents.filter((x) => x.type === "image");
-    assert.equal(images.length, 3);
-    assert.equal(images[0].url, "https://promptpay.io/0812345678/100.5.png");
-    assert.equal(card.contents.footer.contents[0].action.uri, "https://liff.line.me/2008948704-db2goT00#clear");
+    // การ์ดละคน (5 ใบ) + ใบสรุป, QR เฉพาะคนที่มีพร้อมเพย์ถูกต้อง (A, D, E และ C ที่เป็นเลข 13 หลัก)
+    assert.equal(card.contents.type, "carousel");
+    assert.equal(card.contents.contents.length, 6);
+    const qrOf = (b) => b.body.contents.filter((x) => x.type === "image").map((x) => x.url);
+    assert.deepEqual(qrOf(card.contents.contents[0]), ["https://promptpay.io/0812345678/100.5.png"]);
+    assert.deepEqual(qrOf(card.contents.contents[1]), []);
+    assert.equal(card.contents.contents.slice(0, 5).filter((b) => qrOf(b).length).length, 4);
+    assert.ok(JSON.stringify(card.contents.contents[1]).includes("https://liff.line.me/2008948704-db2goT00#clear"));
+    assert.match(card.altText, /เตือนยอดค้างชำระ ฿186 ให้ 5 คน/);
     const none = buildReminderCard({ monthLabel: "x", debts: [{ to: "B", amount: 50 }] });
+    assert.equal(none.contents.type, "bubble");
     assert.equal(none.contents.body.contents.filter((x) => x.type === "image").length, 0);
 });
 

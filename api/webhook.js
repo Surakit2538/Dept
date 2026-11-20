@@ -1,12 +1,12 @@
 import { readRawBody, decideWebhookAccess } from '../lib/line-signature.mjs';
 import { splitInstallments } from '../lib/installments.mjs';
 import { computeMonthLedger, toDisplayPlan } from '../lib/ledger.mjs';
-import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, executeRemind, remindResultText, parsePostback } from '../lib/line-report.mjs';
+import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, executeRemind, remindResultText, parsePostback, buildOwedMessage, buildMyTransfersMessage, buildPendingMessage, buildExpenseSavedMessage, handleWalletAction } from '../lib/line-report.mjs';
 import { buildReminderFlex } from '../lib/reminders.mjs';
 import { parseIncomeText } from '../lib/line-income.mjs';
 import { parseQuickExpense, createQuickExpenseService, UNDO_COMMAND } from '../lib/line-expense.mjs';
 import { formatBaht } from '../lib/slip-core.mjs';
-import { buildIncomeSavedCard, monthLabelTh } from '../lib/line-cards.mjs';
+import { buildIncomeSavedCard, buildHowToCarousel, withChips, monthLabelTh } from '../lib/line-cards.mjs';
 import { buildWalletEntry, WALLET_COL } from '../lib/wallet-service.mjs';
 import * as fsApi from './auth-helpers.js';
 import {
@@ -133,7 +133,7 @@ async function handleTextMessage(event) {
 
     // 2. คำสั่งดูค่าใช้จ่าย (Global)
     // พิมพ์สั้นๆ ก็ได้ (เฉพาะแชทส่วนตัว ไม่ตอบในกลุ่มกันรบกวนเวลาเพื่อนคุยกันว่า "สรุป")
-    const REPORT_ALIASES = ["สรุป", "สรุปยอด", "ดูยอด", "ยอด"];
+    const REPORT_ALIASES = ["สรุป", "สรุปยอด", "ดูยอด", "ยอด", "สรุปเดือนนี้"];
     if (text === "ต้องการดูค่าใช้จ่ายของเดือนนี้" || (event.source.type === "user" && REPORT_ALIASES.includes(text))) {
         await deleteDoc(sessionRef); // Clear active session to avoid trapping
         const memberName = await getMemberNameByLineId(userId);
@@ -142,6 +142,16 @@ async function handleTextMessage(event) {
         }
         await generateMemberReport(replyToken, memberName, event.source.type === 'user');
         return;
+    }
+
+    // 2.0 ปุ่มลัดใต้ข้อความของบอท (แชตส่วนตัวเท่านั้น เพราะมีตัวเลขส่วนตัว): ใครค้างฉัน / ฉันต้องโอน / รอยืนยัน / วิธีใช้
+    const CHIP_COMMANDS = { "ใครค้างฉัน": buildOwedMessage, "ฉันต้องโอน": buildMyTransfersMessage, "รอยืนยัน": buildPendingMessage };
+    if (event.source.type === "user" && (CHIP_COMMANDS[text] || text === "วิธีใช้")) {
+        await deleteDoc(sessionRef); // ออกจากขั้นตอนจดบันทึกที่ค้างไว้ (ถ้ามี)
+        if (text === "วิธีใช้") return sendToLine(replyToken, buildHowToCarousel());
+        const memberName = await getMemberNameByLineId(userId);
+        if (!memberName) return replyText(replyToken, "ไม่พบข้อมูลสมาชิก กรุณาเข้าใช้งานผ่านเว็บ Dept Money ครั้งแรกก่อน");
+        return sendToLine(replyToken, await CHIP_COMMANDS[text]({ db, fs: fsApi, memberName }));
     }
 
     // 2.1 ดูตัวอย่างข้อความเตือนวันที่ 25 (ข้อมูลตัวอย่าง ตอบกลับเฉพาะคนที่พิมพ์ ไม่ได้ส่งหาใคร)
@@ -168,7 +178,7 @@ async function handleTextMessage(event) {
     // 2.3 ลบรายจ่ายที่เพิ่งพิมพ์บันทึกในแชต (ภายใน 15 นาที) ใช้คำว่า "ลบรายการล่าสุด" (ไม่ใช้ "ยกเลิก" เพราะใช้ยกเลิกการจดบันทึกอยู่แล้ว)
     if (event.source.type === "user" && text === UNDO_COMMAND) {
         const undone = await quickExpense.undo(userId);
-        if (undone.ok) return replyText(replyToken, `ลบรายการล่าสุดแล้ว\n${undone.desc} ${formatBaht(undone.amount)}`);
+        if (undone.ok) return sendToLine(replyToken, withChips({ type: "text", text: `ลบรายการล่าสุดแล้ว\n${undone.desc} ${formatBaht(undone.amount)}` }));
         return replyText(replyToken, undone.reason === "expired"
             ? "รายการล่าสุดเกิน 15 นาทีแล้ว ลบไม่ได้จากแชต ไปลบที่แท็บ กระเป๋า ในเว็บ Dept Money ได้เลย"
             : "ไม่มีรายการที่บันทึกจากแชตให้ลบ");
@@ -185,7 +195,12 @@ async function handleTextMessage(event) {
             if (!memberName) return replyText(replyToken, "ไม่พบข้อมูลสมาชิก กรุณาเข้าใช้งานผ่านเว็บ Dept Money ครั้งแรกก่อน");
             const saved = await quickExpense.save(userId, memberName, quick);
             if (!saved.ok) return replyText(replyToken, saved.message);
-            return replyText(replyToken, `บันทึกรายจ่ายส่วนตัวแล้ว\n${quick.desc} ${formatBaht(quick.amount)}\n(บันทึกผิด พิมพ์ ${UNDO_COMMAND})`);
+            try {
+                return await sendToLine(replyToken, await buildExpenseSavedMessage({ db, fs: fsApi, memberName, entry: saved.entry }));
+            } catch (e) {
+                console.error("expense card failed:", e && e.message);
+                return replyText(replyToken, `บันทึกรายจ่ายส่วนตัวแล้ว\n${quick.desc} ${formatBaht(quick.amount)}\n(บันทึกผิด พิมพ์ ${UNDO_COMMAND})`);
+            }
         }
     }
 
@@ -1430,12 +1445,18 @@ async function handlePostback(event, signatureValid) {
     const cmd = parsePostback(event.postback && event.postback.data);
     if (cmd.action === 'cancel') return replyText(replyToken, 'ยกเลิกแล้ว ไม่ได้ส่งข้อความหาใคร');
     if (cmd.action === 'unknown') return;
+    if (cmd.action === 'help-expense') {
+        return sendToLine(replyToken, withChips({ type: 'text', text: 'พิมพ์ชื่อรายการเว้นวรรคแล้วตามด้วยยอด ส่งในแชตนี้ได้เลย เช่น\nกาแฟ 65\nข้าวมันไก่ 50 บาท\n\nบอทบันทึกเป็นรายจ่ายส่วนตัว (เห็นเฉพาะคุณ) ถ้าบันทึกผิด พิมพ์ ลบรายการล่าสุด ภายใน 15 นาที\nรายรับพิมพ์ เช่น เงินเดือน 25000' }));
+    }
     const memberName = await getMemberNameByLineId(event.source.userId);
     if (!memberName) return replyText(replyToken, 'ไม่พบข้อมูลสมาชิก กรุณาลงทะเบียนก่อนใช้งาน');
     if (cmd.action === 'remind') {
         const prep = await prepareRemind({ db, fs: fsApi, memberName, target: cmd.target });
         if (!prep.ok) return replyText(replyToken, prep.message);
         return sendToLine(replyToken, prep.confirm);
+    }
+    if (cmd.action.startsWith('w-')) {
+        return sendToLine(replyToken, await handleWalletAction({ db, fs: fsApi, memberName, cmd }));
     }
     if (cmd.action === 'confirm-remind') {
         const result = await executeRemind({ db, fs: fsApi, memberName, target: cmd.target, push: pushToUser });
