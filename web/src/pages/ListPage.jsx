@@ -57,13 +57,14 @@ function BillRow({ b, canEdit, onDeleted, onError, onEdit, selecting, picked, on
     );
 }
 
-function WalletRow({ it, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
+function WalletRow({ it, monthly = false, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
     const income = it.type === "income";
     const name = it.desc || (income ? "รายรับ" : "รายจ่าย");
     const lead = <ItemIcon desc={income ? "" : it.desc} name={income ? "down" : iconFor(it.icon)} />;
     const sub = <><KindTag kind={income ? "income" : "personal"} />{it.card ? `บัตร ${it.card}` : income ? "" : "เห็นเฉพาะคุณ"}</>;
     // รายเดือนแสดงเหมือนบิลกลุ่ม (รายการที่ระบบสร้างจากรายจ่ายรายเดือนที่ตั้งไว้)
-    const badge = (it.unconfirmed || it.recurring) ? <>{it.recurring && <span class="tag">รายเดือน</span>}{it.unconfirmed && <span class="tag warn">ยังไม่ยืนยัน</span>}</> : null;
+    const recurring = it.recurring || monthly;
+    const badge = (it.unconfirmed || recurring) ? <>{recurring && <span class="tag">รายเดือน</span>}{it.unconfirmed && <span class="tag warn">ยังไม่ยืนยัน</span>}</> : null;
     const value = (income ? "+" : "") + baht(it.amount, { decimals: 2 });
     if (selecting) return <SelectRow picked={picked} label={name} onToggle={onToggle}><RowBody lead={lead} title={name} value={value} tone={income ? "rcv" : ""} sub={sub} badge={badge} /></SelectRow>;
     return (
@@ -116,9 +117,11 @@ function UnconfirmedBar({ items, onDone, onError, onInfo }) {
 }
 
 /** รายการที่ตั้งให้ทำซ้ำทุกเดือน: บิลกลุ่ม (หยุดได้เฉพาะคนจ่ายหรือแอดมิน) + รายจ่ายส่วนตัว (แก้ไข/หยุดได้) */
-function Recurring({ me, isAdmin, version, onError }) {
+function Recurring({ me, isAdmin, version, onError, onMine = () => {} }) {
     const [bills, setBills] = useState(null);
     const [mine, setMine] = useState(null);
+    // ส่งรายจ่ายรายเดือนส่วนตัวที่ตั้งไว้ให้หน้ารายการ ใช้ขึ้นป้าย "รายเดือน" กับรายการเดือนแรกที่ยังไม่ได้ผูกกับแม่แบบ (ไม่อ่านฐานข้อมูลเพิ่ม)
+    useEffect(() => { onMine(mine || []); }, [mine]);
     const [editing, setEditing] = useState(null);
     const [tick, setTick] = useState(0);
     useEffect(() => {
@@ -199,6 +202,8 @@ function groupByDay(list) {
 export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null }) {
     const [filter, setFilter] = useState("all");
     const [mineOnly, setMineOnly] = useState(false);
+    const [mineTpls, setMineTpls] = useState([]);
+    const isMonthly = (it) => it.type === "expense" && mineTpls.some((t) => String(t.desc) === String(it.desc) && Math.abs(Number(t.amount) - Number(it.amount)) < 0.005);
     const [editingBill, setEditingBill] = useState(null);
     const [editingWallet, setEditingWallet] = useState(null);
     const [selecting, setSelecting] = useState(false);
@@ -279,13 +284,13 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                             <ul class="plain">
                                 {list.map((x) => x.kind === "bill"
                                     ? <BillRow key={x.key} b={x.b} canEdit={canEdit(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
-                                    : <WalletRow key={x.key} it={x.it} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
+                                    : <WalletRow key={x.key} it={x.it} monthly={isMonthly(x.it)} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
                             </ul>
                         </div>
                     ))}
                 {selecting && <BulkBar count={live.length} total={selectable.length} onAll={() => setPicked(selectable)} onNone={() => setPicked([])} onCategory={bulkCategory} onDelete={bulkDelete} note="เปลี่ยนเฉพาะหมวด ไม่แก้ยอดและคนหาร รายรับไม่มีหมวด บิลที่เลือกได้คือบิลที่คุณจ่ายเอง (แอดมินเลือกได้ทุกบิล)" />}
             </section>
-            <Recurring me={me} isAdmin={isAdmin} version={version} onError={onError} />
+            <Recurring me={me} isAdmin={isAdmin} version={version} onError={onError} onMine={setMineTpls} />
             {editingBill && <Lazy load={() => import("../editbill.jsx")} name="EditBillSheet" bill={editingBill} onClose={() => setEditingBill(null)} onSaved={() => onChanged()} />}
             {editingWallet && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editingWallet} onClose={() => setEditingWallet(null)} onSaved={() => onChanged()} onSplit={onSplit ? (it) => { setEditingWallet(null); onSplit(it); } : null} />}
         </div>
