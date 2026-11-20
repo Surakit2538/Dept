@@ -503,3 +503,10 @@ test("สลับแท็บมี motion (เฉพาะเมื่อไ�
     assert.match(css, /\.card\.profile \{[^}]*var\(--accent\)/);
     assert.match(fs.readFileSync(path.join(root, "web/src/main.jsx"), "utf8"), /<PageSwap page=\{page\}>/);
 });
+
+test("รายการ: ปุ่มบิลที่ฉันเกี่ยวข้อง ชื่อชัดเจน และซ่อนตอนกรองส่วนตัวหรือรายรับ", () => {
+    const src = fs.readFileSync(path.join(root, "web/src/pages/ListPage.jsx"), "utf8");
+    assert.match(src, /บิลที่ฉันเกี่ยวข้อง/);
+    assert.ok(!src.includes(">เฉพาะของฉัน<"), "ชื่อเดิมกำกวมกับชิปส่วนตัว");
+    assert.match(src, /{!noBillFilter && <button[^>]*aria-pressed={mineOnly}/);
+});

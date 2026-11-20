@@ -1,5 +1,5 @@
 // รายการ: รวมบิลหารกับเพื่อน + รายรับรายจ่ายส่วนตัว ไว้แท็บเดียว (เดิมแยกเป็นหน้าบิลกับหน้ากระเป๋า)
-// มีค้นหา ตัวกรอง (ทั้งหมด/บิลกลุ่ม/ส่วนตัว/รายรับ) เฉพาะของฉัน เลือกหลายรายการ แก้ไข/ลบ ยืนยันรายการอัตโนมัติ จัดหมวดให้ และรายการที่ทำซ้ำทุกเดือน
+// มีค้นหา ตัวกรอง (ทั้งหมด/บิลกลุ่ม/ส่วนตัว/รายรับ) บิลที่ฉันเกี่ยวข้อง เลือกหลายรายการ แก้ไข/ลบ ยืนยันรายการอัตโนมัติ จัดหมวดให้ และรายการที่ทำซ้ำทุกเดือน
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile } from "../ui.jsx";
@@ -261,7 +261,8 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                     <input id="list-search" type="search" placeholder="ค้นหาชื่อรายการหรือคนจ่าย" value={search} onInput={(e) => onSearch(e.currentTarget.value)} />
                 </div>
                 <div class="lp-tools">
-                    <button type="button" class={`btn sm ${mineOnly ? "" : "ghost"}`} aria-pressed={mineOnly} disabled={noBillFilter} title={noBillFilter ? "ใช้กับบิลกลุ่มเท่านั้น" : undefined} onClick={() => setMineOnly(!mineOnly)}><Icon name="user" size={14} />เฉพาะของฉัน</button>
+                    {/* ใช้กับบิลกลุ่มเท่านั้น: ซ่อนบิลของเพื่อนที่ฉันไม่ได้หารด้วยและไม่ได้จ่าย (ตอนกรองส่วนตัว/รายรับไม่ต้องแสดง) */}
+                    {!noBillFilter && <button type="button" class={`btn sm ${mineOnly ? "" : "ghost"}`} aria-pressed={mineOnly} title="แสดงเฉพาะบิลกลุ่มที่ฉันหารด้วย หรือเป็นคนจ่าย" onClick={() => setMineOnly(!mineOnly)}><Icon name="user" size={14} />บิลที่ฉันเกี่ยวข้อง</button>}
                     <button type="button" class={`btn sm ${selecting ? "" : "ghost"}`} aria-pressed={selecting} disabled={selectable.length < 2 && !selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
                         <Icon name={selecting ? "check" : "sliders"} size={14} />{selecting ? "เสร็จสิ้น" : "เลือกหลายรายการ"}
                     </button>
