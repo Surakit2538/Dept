@@ -15,7 +15,7 @@ const FILTERS = [["all", "ทั้งหมด"], ["group", "บิลกลุ
 /** ป้ายบอกว่าเป็นบิลกลุ่ม รายจ่ายส่วนตัว หรือรายรับ (ทุกแถวมี จะได้แยกออกทันที) */
 const KindTag = ({ kind }) => <span class={`kind k-${kind}`}>{kind === "group" ? "กลุ่ม" : kind === "income" ? "รายรับ" : "ส่วนตัว"}</span>;
 
-/** แถบสีทานตะวันซ้ายสุดของแถว มีคำว่า "รายเดือน" ตั้งแนวตั้ง (เฉพาะรายการรายเดือน) */
+/** แถบสีน้ำเงินซ้ายสุดของแถว มีคำว่า "รายเดือน" ตั้งแนวตั้ง (เฉพาะรายการรายเดือน) */
 const MonthlyBar = () => <span class="mbar" aria-label="รายเดือน"><b aria-hidden="true">รายเดือน</b></span>;
 /** รูปคนจ่าย (วงทานตะวัน) */
 const Payer = ({ name, pictures }) => <span class="payer-av" title={`${name} จ่าย`}><Avatar name={name} pictureUrl={pictures[name]} size="xs" /></span>;
