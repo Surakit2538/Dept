@@ -118,9 +118,12 @@ function NextBills({ sched, me, onOpen, onCard, pictures = {} }) {
     return (
         <section class="nb" aria-label="บิลรายเดือนที่จะถึง">
             <button type="button" class="nb-main" onClick={tap(n)} aria-label={`${kicker(n)} ${n.desc} ${amt(n)} ${left(n)} แตะเพื่อเปิดปฏิทินบิล`}>
-                <span class="nb-count" aria-hidden="true">{n.daysLeft === 0 ? <b class="today">วันนี้</b> : <><small>อีก</small><b class="num">{n.daysLeft}</b><small>วัน</small></>}</span>
+                {n.daysLeft === 0
+                    // วันนี้ (แบบ A ที่เจ้าของเลือก): ปฏิทินฉีก แถบทานตะวัน + เลขวันที่ใหญ่ เข้าชุดกับป้ายวันที่บนกล่องงบ
+                    ? <span class="nb-cal num" aria-hidden="true"><span class="band">วันนี้</span><b>{Number(n.date.slice(8, 10))}</b><small>{monthShort(n.date.slice(0, 7))}</small></span>
+                    : <span class="nb-count" aria-hidden="true"><small>อีก</small><b class="num">{n.daysLeft}</b><small>วัน</small></span>}
                 <span class="nb-t">
-                    <small>{kicker(n)} · {when(n)}</small>
+                    <small>{kicker(n)} · {n.daysLeft === 0 ? (n.kind === "card" ? "วันนี้" : "ตัดวันนี้") : when(n)}</small>
                     <b>{n.desc}</b>
                     <span class="nb-amt num">{amt(n)}{n.kind === "group" && !n.coverFor && <em> จาก {money(n.totalSat)}</em>}</span>
                     {n.kind === "group" ? <span class="nb-flow"><PayFlow payer={n.payer} people={n.names || []} pictures={pictures} />{n.coverFor && <small>จ่ายแทน</small>}</span> : <small>{billWho(n, me)}</small>}

@@ -166,3 +166,16 @@ test("บัตร: กระเป๋าบัตรในแท็บ ฉั�
     assert.match(home, /ครบกำหนดจ่ายบัตร · 25 พ\.ย\./);
     assert.match(home, /KTC •• 1234/);
 });
+
+test("หน้าแรก: บิลที่ตัดวันนี้ = ป้ายปฏิทินฉีก (แบบ A) แถบ วันนี้ + เลขวันที่", { skip: !hasTools }, async () => {
+    const nm = path.join(root, "web", "node_modules");
+    const { h } = await import(pathToFileURL(path.join(nm, "preact", "dist", "preact.mjs")).href);
+    const { render: toString } = await import(pathToFileURL(path.join(nm, "preact-render-to-string", "dist", "index.mjs")).href);
+    const { HomePage } = await bundle("web/src/pages/HomePage.jsx", "home-today");
+    const model = (await import("../web/src/model.js")).buildHomeModel({ name: "GAME", month: "2026-11", today: "2026-11-25", members: ["GAME"], transactions: [], settlements: [], walletItems: [] });
+    const sched = buildBillSchedule({ me: "GAME", month: "2026-11", today: "2026-11-25", group, personal });
+    const home = toString(h(HomePage, { model, month: "2026-11", nowMonth: "2026-11", today: "2026-11-25", since: "2025-12", onMonth() {}, onAddIncome() {}, bills: sched, me: "GAME" }));
+    assert.match(home, /class="nb-cal num"[^>]*><span class="band">วันนี้<\/span><b>25<\/b><small>พ\.ย\.<\/small>/);
+    assert.match(home, /บิลถัดไป · ตัดวันนี้/);
+    assert.match(home, /YouTube Premium/);
+});
