@@ -2,7 +2,7 @@
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { AvatarStack, DateTile, SectionTitle } from "../ui.jsx";
-import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS, CATEGORIES } from "../model.js";
+import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS, CATEGORIES, billWho } from "../model.js";
 
 const CATEGORY_LABEL = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
 
@@ -100,6 +100,42 @@ export function OweCards({ m, profiles = [], month = "", nowMonth = "" }) {
                 {oweNames.length > 0 ? <AvatarStack names={oweNames} pictures={pic} /> : <span class="owe-ok"><Icon name="check" size={14} />ไม่ค้างใคร</span>}
             </a>
         </div>
+    );
+}
+
+/** บิลรายเดือนที่จะถึง (แบบ Datebell): การ์ดใหญ่ "อีก N วัน" + บิลถัดไปอีก 2 ใบ แตะแล้วเปิดปฏิทินบิล */
+function NextBills({ sched, me, onOpen }) {
+    const up = (sched && sched.upcoming) || [];
+    if (!up.length) return null;
+    const [n, ...rest] = up;
+    const money = (sat) => baht(sat / 100, { decimals: sat % 100 ? 2 : 0 });
+    const amt = (b) => (b.coverFor ? money(b.totalSat) : money(b.mySat));
+    const when = (b) => `${Number(b.date.slice(8, 10))} ${monthShort(b.date.slice(0, 7))}`;
+    const left = (b) => (b.daysLeft === 0 ? "วันนี้" : `อีก ${b.daysLeft} วัน`);
+    return (
+        <section class="nb" aria-label="บิลรายเดือนที่จะถึง">
+            <button type="button" class="nb-main" onClick={onOpen} aria-label={`บิลถัดไป ${n.desc} ${amt(n)} ${left(n)} แตะเพื่อเปิดปฏิทินบิล`}>
+                <span class="nb-count" aria-hidden="true">{n.daysLeft === 0 ? <b class="today">วันนี้</b> : <><small>อีก</small><b class="num">{n.daysLeft}</b><small>วัน</small></>}</span>
+                <span class="nb-t">
+                    <small>บิลถัดไป · {when(n)}</small>
+                    <b>{n.desc}</b>
+                    <span class="nb-amt num">{amt(n)}{n.kind === "group" && !n.coverFor && <em> จาก {money(n.totalSat)}</em>}</span>
+                    <small>{billWho(n, me)}</small>
+                </span>
+                <Icon name="calendar" size={18} class="nb-ic" />
+            </button>
+            {rest.length > 0 && (
+                <div class="nb-up">
+                    {rest.slice(0, 2).map((b) => (
+                        <button type="button" key={b.id + b.date} class="nb-mini" onClick={onOpen}>
+                            <span class="lbl">{when(b)} · {left(b)}</span>
+                            <b>{b.desc}</b>
+                            <span class="num">{amt(b)}{b.kind === "group" && !b.coverFor && <em> จาก {money(b.totalSat)}</em>}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -322,13 +358,14 @@ export function SpendCalendar({ model, month, onMonth, since, nowMonth, series, 
     );
 }
 
-export function HomePage({ model, series, month, onMonth, onAddIncome, profiles = [], today = "", nowMonth = "", since = "", onNeedYear, bm = null, onBudget = null }) {
+export function HomePage({ model, series, month, onMonth, onAddIncome, profiles = [], today = "", nowMonth = "", since = "", onNeedYear, bm = null, onBudget = null, bills = null, me = "", onBills = () => {} }) {
     const now = nowMonth || month;
     return (
         <div class="home-grid">
             <div class="col">
                 <Hero m={model} onAddIncome={onAddIncome} today={today} bm={bm} onBudget={onBudget} />
                 <OweCards m={model} profiles={profiles} month={month} nowMonth={now} />
+                {month === now && <NextBills sched={bills} me={me} onOpen={onBills} />}
                 <Categories cats={model.categories} bm={bm} onBudget={onBudget} />
             </div>
             <div class="col">

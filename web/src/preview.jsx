@@ -1,10 +1,10 @@
 // หน้าตัวอย่างตอนพัฒนา (npm run dev แล้วเปิด /app/preview.html): ข้อมูลสมมติ ไม่ล็อกอิน ไม่อ่านฐานข้อมูล
 // ?state=empty | loading | error | loader ดูสถานะต่างๆ (loader = ตัวโหลดตอนเข้าเว็บ), #home #list #clear #me เลือกหน้า (#bills #wallet = list)
-// ?plan=none ไม่ตั้งงบ/ไม่มีเป้า · ?plan=over ใช้เกินงบ · ?sheet=budget|move|goal เปิดหน้าต่างงบ/เป้า
+// ?bills=none ไม่มีบิลรายเดือน · ?sheet=billcal เปิดปฏิทินบิล · ?plan=none ไม่ตั้งงบ/ไม่มีเป้า · ?plan=over ใช้เกินงบ · ?sheet=budget|move|goal เปิดหน้าต่างงบ/เป้า
 import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
-import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, buildBudgetModel, lastMonths, shiftMonth } from "./model.js";
+import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, buildBudgetModel, buildBillSchedule, lastMonths, shiftMonth } from "./model.js";
 // โหลดหน้าแบบเดียวกับแอปจริง (Lazy) เพื่อให้ตรวจการสลับแท็บได้เหมือนของจริง
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.jsx";
 import { Loader } from "./icons.jsx";
@@ -14,6 +14,7 @@ const loadClear = () => import("./pages/ClearPage.jsx");
 const loadList = () => import("./pages/ListPage.jsx");
 const loadMe = () => import("./pages/MePage.jsx");
 const loadPlanUi = () => import("./plan.jsx");
+const loadBillCal = () => import("./billcal.jsx");
 
 const today = "2026-11-14";
 const now = "2026-11";
@@ -58,6 +59,18 @@ const SAMPLE_PLAN = {
         { id: "g3", name: "เที่ยวญี่ปุ่น", icon: "plane", color: "accent", target: 30000, deadline: "2027-03", monthly: 0, saved: 12000, log: [{ date: "2026-11-05", amount: 1500 }] }
     ]
 };
+const SAMPLE_BILLS = {
+    group: [
+        { id: "rent", desc: "ค่าห้อง", amount: 9000, billingDay: 1, payer: "GAME", splits: { GAME: 4500, CARE: 4500 }, icon: "fa-house", active: true },
+        { id: "nf", desc: "Netflix", amount: 419, billingDay: 16, payer: "GAME", splits: { GAME: 104.75, CARE: 104.75, AOY: 104.75, BEN: 104.75 }, icon: "fa-film", active: true },
+        { id: "sp", desc: "Spotify Family", amount: 279, billingDay: 5, payer: "CARE", splits: { CARE: 93, GAME: 93, AOY: 93 }, icon: "fa-film", active: true }
+    ],
+    personal: [
+        { id: "yt", desc: "YouTube Premium", amount: 399, billingDay: 14, icon: "fa-film" },
+        { id: "ic", desc: "iCloud+", amount: 35, billingDay: 15, icon: "fa-mobile-screen" },
+        { id: "ph", desc: "ค่าโทรศัพท์", amount: 499, billingDay: 25, icon: "fa-mobile-screen" }
+    ]
+};
 const OVER_PLAN = { ...SAMPLE_PLAN, budget: { total: 4000, cats: { food: 1000, travel: 500 } } };
 const EMPTY_PLAN = { budget: { total: 0, cats: {} }, months: {}, goals: [] };
 
@@ -72,6 +85,8 @@ function Preview() {
     const [sheet, setSheet] = useState(params.get("form") ? "menu" : null);
     const [toast, setToast] = useState("");
     const [plan, setPlan] = useState(params.get("plan") === "none" ? EMPTY_PLAN : params.get("plan") === "over" ? OVER_PLAN : SAMPLE_PLAN);
+    const billRaw = params.get("bills") === "none" ? { group: [], personal: [] } : SAMPLE_BILLS;
+    const [billCal, setBillCal] = useState(params.get("sheet") === "billcal");
     const [planSheet, setPlanSheet] = useState(() => { const k = params.get("sheet"); return k === "move" ? { kind: "move", goal: SAMPLE_PLAN.goals[2], dir: "in" } : k === "goal" ? { kind: "goal" } : k === "budget" ? { kind: "budget" } : null; });
     const fake = (msg) => new Promise((r) => setTimeout(() => { setToast(msg + " (ตัวอย่าง)"); r(plan); }, 400));
     useEffect(() => { const h = () => setTab(pageOf(location.hash.slice(1))); addEventListener("hashchange", h); return () => removeEventListener("hashchange", h); }, []);
@@ -91,12 +106,13 @@ function Preview() {
     else if (tab === "list") body = <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={buildBillsModel({ name: who, month, transactions: T, search })} wallet={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} month={month} today={today} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} onInfo={setToast} />;
     else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} back={{ receivedSat: 30000, paidSat: 0 }} onChanged={() => {}} />;
     else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} />;
-    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles} today={today} nowMonth={now} since={shiftMonth(now, -11)} bm={bmHome} onBudget={() => setPlanSheet({ kind: "budget" })} />;
+    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles} today={today} nowMonth={now} since={shiftMonth(now, -11)} bm={bmHome} onBudget={() => setPlanSheet({ kind: "budget" })} bills={buildBillSchedule({ me: who, month: now, today, ...billRaw })} me={who} onBills={() => setBillCal(true)} />;
     return (
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}><PageSwap page={tab}>{body}</PageSwap></Shell>
             {sheet && <Lazy load={loadAdd} name="AddSheet" initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
             {params.get("choose") && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={{ id: "auto0", type: "expense", amount: 175, date: `${now}-17`, desc: "LINE MAN Dragon", card: "ttb-0518", unconfirmed: true }} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} today={today} saveBill={async () => new Promise((r) => setTimeout(r, 600))} removeWallet={async () => {}} onClose={() => setToast("ปิด (ตัวอย่าง)")} onDone={setToast} onMoreSplit={() => setToast("เปิดฟอร์มบิลเต็ม (ตัวอย่าง)")} />}
+            {billCal && <Lazy load={loadBillCal} name="BillCalendarSheet" data={billRaw} me={who} today={today} onClose={() => setBillCal(false)} />}
             {planSheet && planSheet.kind === "budget" && <Lazy load={loadPlanUi} name="BudgetSheet" plan={plan} nowMonth={now} suggestSat={bmNow.suggestSat} onClose={() => setPlanSheet(null)} onSave={() => fake("บันทึกงบแล้ว")} />}
             {planSheet && planSheet.kind === "move" && <Lazy load={loadPlanUi} name="GoalMoveSheet" goal={planSheet.goal} dir={planSheet.dir} month={now} onClose={() => setPlanSheet(null)} onMove={() => fake("เก็บเข้าเป้าแล้ว")} />}
             {planSheet && planSheet.kind === "goal" && <Lazy load={loadPlanUi} name="GoalEditSheet" goal={planSheet.goal || null} nowMonth={now} onClose={() => setPlanSheet(null)} onSave={() => fake("บันทึกเป้าแล้ว")} onDelete={() => fake("ลบเป้าแล้ว")} />}

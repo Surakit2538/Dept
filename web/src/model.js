@@ -161,6 +161,60 @@ export function buildBudgetModel(plan, m, today = "") {
     };
 }
 
+/**
+ * ปฏิทินบิลรายเดือน: จากแม่แบบที่ตั้งให้ทำซ้ำทุกเดือน (กลุ่ม subscription_templates + ส่วนตัว wallet_templates)
+ * เฉพาะที่เกี่ยวกับฉัน (อยู่ในคนหาร หรือเป็นคนจ่าย) ยอดที่นับ = ส่วนของฉัน (จ่ายแทนเพื่อน = 0 แต่ยังแสดง)
+ * วันตัดเกินวันสุดท้ายของเดือน (เช่น 31 ในเดือน พ.ย.) = วันสุดท้ายของเดือนนั้น เหมือนตอนระบบสร้างบิล
+ * คืน { month, items (ของเดือนนั้น เรียงตามวัน), totalSat, dueSat (วันนี้ขึ้นไป), upcoming (ตั้งแต่วันนี้ ถึง 2 เดือนข้างหน้า) }
+ */
+export function buildBillSchedule({ me, month, today, group = [], personal = [] }) {
+    const my = normalizeName(me);
+    const sat = (v) => Math.round((Number(v) || 0) * 100);
+    const bills = [];
+    for (const t of group) {
+        if (!t || t.active === false) continue;
+        const splits = t.splits && typeof t.splits === "object" ? t.splits : {};
+        const key = Object.keys(splits).find((k) => normalizeName(k) === my);
+        const payer = normalizeName(t.payer);
+        if (!key && payer !== my) continue;
+        bills.push({
+            id: "g:" + t.id, kind: "group", desc: String(t.desc || "บิลรายเดือน"), icon: t.icon || "", billingDay: Number(t.billingDay) || 1,
+            mySat: key ? sat(splits[key]) : 0, totalSat: sat(t.amount), payer, people: Object.keys(splits).length, coverFor: !key
+        });
+    }
+    for (const t of personal) {
+        if (!t || t.active === false) continue;
+        bills.push({ id: "p:" + t.id, kind: "personal", desc: String(t.desc || "รายจ่ายรายเดือน"), icon: t.icon || "", billingDay: Number(t.billingDay) || 1, mySat: sat(t.amount), totalSat: sat(t.amount), payer: my, people: 1, coverFor: false });
+    }
+    const dayIn = (m, d) => Math.min(Math.max(1, Math.round(d) || 1), daysInMonth(m));
+    const at = (b, m) => {
+        const date = `${m}-${String(dayIn(m, b.billingDay)).padStart(2, "0")}`;
+        const daysLeft = Math.round((Date.parse(date + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000);
+        return { ...b, date, day: Number(date.slice(8, 10)), daysLeft, status: daysLeft < 0 ? "done" : daysLeft === 0 ? "today" : "soon" };
+    };
+    const items = bills.map((b) => at(b, month)).sort((a, b) => a.day - b.day || a.desc.localeCompare(b.desc));
+    const nowMonth = today.slice(0, 7);
+    const upcoming = [nowMonth, shiftMonth(nowMonth, 1), shiftMonth(nowMonth, 2)]
+        .flatMap((m) => bills.map((b) => at(b, m)))
+        .filter((x) => x.daysLeft >= 0)
+        .sort((a, b) => a.daysLeft - b.daysLeft || b.mySat - a.mySat);
+    return {
+        month,
+        items,
+        totalSat: items.reduce((a, x) => a + x.mySat, 0),
+        dueSat: items.filter((x) => x.daysLeft >= 0).reduce((a, x) => a + x.mySat, 0),
+        upcoming
+    };
+}
+
+/** คำบรรยายสั้นของบิลรายเดือน: "ส่วนตัว" / "คุณจ่าย หาร 4" / "CARE จ่าย หาร 3" / "คุณจ่ายแทน" */
+export function billWho(b, me) {
+    if (b.kind === "personal") return "ส่วนตัว";
+    const mine = b.payer === normalizeName(me);
+    if (b.coverFor) return "คุณจ่ายแทน";
+    return mine ? `คุณจ่าย หาร ${b.people}` : `${b.payer} จ่าย หาร ${b.people}`;
+}
+
 export function daysInMonth(month) {
     const [y, m] = month.split("-").map(Number);
     return new Date(Date.UTC(y, m, 0)).getUTCDate();

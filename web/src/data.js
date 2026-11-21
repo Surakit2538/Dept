@@ -440,10 +440,12 @@ export async function loadWalletTemplates() {
 /** แก้รายจ่ายรายเดือนที่ตั้งไว้ (ชื่อ ยอด หมวด) fields = { desc?, amount?, icon? } */
 export async function updateWalletTemplate(id, fields) {
     await api("/api/shortcut-transaction", { action: "wallet-template-update", id, ...fields });
+    invalidateBillSchedule();
 }
 
 export async function stopWalletTemplate(id) {
     await api("/api/shortcut-transaction", { action: "wallet-template-stop", id });
+    invalidateBillSchedule();
 }
 
 // ---------- งบรายเดือน + เป้าเก็บเงิน (เอกสารเดียวต่อคน ผ่าน API เท่านั้น) ทุกคำสั่งคืนแผนล่าสุด ----------
@@ -463,6 +465,7 @@ export const moveGoal = (id, amount, dir) => planCall({ action: "goal-move", id,
 export const deleteGoal = (id) => planCall({ action: "goal-delete", id });
 
 export async function addWallet(entry) {
+    if (entry && entry.recurring) invalidateBillSchedule();
     return api("/api/shortcut-transaction", { action: "wallet-add", ...entry, source: "web" });
 }
 
@@ -531,8 +534,28 @@ export async function loadTemplates() {
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+/**
+ * แม่แบบบิลรายเดือนสำหรับปฏิทินบิล: กลุ่ม (Firestore) + ส่วนตัว (API) จำไว้ 10 นาที
+ * ล้างเองเมื่อเพิ่ม/แก้/หยุดบิลรายเดือน
+ */
+export async function loadBillSchedule() {
+    const hit = cacheGet("billsched", TTL_MEMBERS);
+    if (hit) return hit;
+    const [group, personal] = await Promise.all([loadTemplates(), loadWalletTemplates().catch(() => [])]);
+    const v = {
+        group: group.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, payer: t.payer, splits: t.splits, icon: t.icon, active: t.active })),
+        personal: personal.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, icon: t.icon }))
+    };
+    cacheSet("billsched", v);
+    return v;
+}
+export function invalidateBillSchedule() {
+    try { localStorage.removeItem(KEY + "billsched"); } catch (e) { /* ไม่เป็นไร */ }
+}
+
 export async function stopTemplate(id) {
     await updateDoc(doc(db, "subscription_templates", String(id)), { active: false, stoppedAt: new Date() });
+    invalidateBillSchedule();
 }
 
 /** แก้ชื่อรายการ/หมวดของบิล (ไม่แก้ยอดและคนหาร) */
@@ -670,6 +693,7 @@ export async function saveBill({ docs, template }) {
     docs.forEach((d) => batch.set(doc(collection(db, "transactions")), d));
     if (template) batch.set(doc(collection(db, "subscription_templates")), template);
     await batch.commit();
+    if (template) invalidateBillSchedule();
 }
 
 // ---------- เริ่มบัตรผ่านตอนเปิดเว็บ (อยู่ท้ายไฟล์ เพราะต้องใช้ตัวแปรแคชที่ประกาศไว้ข้างบน) ----------
