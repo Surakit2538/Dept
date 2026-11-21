@@ -31,6 +31,19 @@ const adminLib = process.env.FIREBASE_SERVICE_ACCOUNT
     : null;
 
 /**
+ * ออกบัตรผ่าน Firebase (custom token) ให้สมาชิกที่เซิร์ฟเวอร์ตรวจตัวตนแล้ว ใช้ล็อกอินเว็บเข้า Firestore ตามกฎ firestore.rules
+ * ต้องใช้ firebase-admin (FIREBASE_SERVICE_ACCOUNT) ไม่มี = คืน null (เว็บยังใช้ได้ตราบที่กฎยังเปิด)
+ */
+export async function mintFirebaseToken(uid, claims) {
+    if (!adminLib) return null;
+    getDbInstance(); // ให้แอปแอดมินเริ่มทำงานก่อน
+    const app = adminLib.getAdminApps()[0];
+    if (!app) return null;
+    const { getAuth } = await import("firebase-admin/auth");
+    return getAuth(app).createCustomToken(uid, claims);
+}
+
+/**
  * ถ้าตั้ง FIREBASE_SERVICE_ACCOUNT บน Vercel จะใช้ firebase-admin (ข้ามกฎความปลอดภัย จึงปิดกฎให้เบราว์เซอร์ได้)
  * ถ้าไม่ตั้ง (หรือกุญแจเสีย) จะใช้แบบเดิม = ย้อนกลับได้ทันทีโดยลบตัวแปรนี้
  */

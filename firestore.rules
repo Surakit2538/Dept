@@ -2,22 +2,28 @@ rules_version = '2';
 
 // กฎความปลอดภัย Firestore ของ Dept Money
 // - เซิร์ฟเวอร์ (Vercel) ใช้กุญแจแอดมิน (FIREBASE_SERVICE_ACCOUNT) ซึ่ง "ข้ามกฎนี้" จึงอ่าน/เขียนได้ทุกคอลเลกชัน
-// - หน้าเว็บ (เบราว์เซอร์) ใช้ได้เฉพาะคอลเลกชันข้อมูลกลุ่มที่ระบุชื่อไว้ด้านล่าง
-// - คอลเลกชันที่ไม่ได้ระบุ (wallet_entries, personal_expenses, device_tokens, pending_slips, user_sessions, reminder_logs ฯลฯ)
+// - หน้าเว็บ (เบราว์เซอร์) ใช้ได้เฉพาะคอลเลกชันข้อมูลกลุ่มที่ระบุชื่อไว้ด้านล่าง และต้องถือ "บัตรผ่านสมาชิก"
+//   บัตรผ่าน = Firebase custom token ที่เซิร์ฟเวอร์ออกให้หลังตรวจกับ LINE ว่าเป็นสมาชิกที่ผูกบัญชีแล้ว (lib/member-login.mjs)
+//   ในบัตรมี mid (รหัสสมาชิก) member (ชื่อ) admin (เป็นผู้ดูแลไหม)
+// - คอลเลกชันที่ไม่ได้ระบุ (wallet_entries, wallet_plan, personal_expenses, device_tokens, pending_slips, user_sessions, reminder_logs ฯลฯ)
 //   ถูกปิดทั้งหมดโดยอัตโนมัติ ห้ามเพิ่มกฎแบบ match /{document=**} { allow ... } เด็ดขาด
+// - ย้อนกลับฉุกเฉิน: ดู FIRESTORE_RULES_ROLLOUT.md
 service cloud.firestore {
   match /databases/{database}/documents {
+    function isMember() {
+      return request.auth != null && request.auth.token.mid is string;
+    }
     match /members/{id} {
-      allow read, write: if true;
+      allow read, write: if isMember();
     }
     match /transactions/{id} {
-      allow read, write: if true;
+      allow read, write: if isMember();
     }
     match /settlements/{id} {
-      allow read, write: if true;
+      allow read, write: if isMember();
     }
     match /subscription_templates/{id} {
-      allow read, write: if true;
+      allow read, write: if isMember();
     }
   }
 }

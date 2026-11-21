@@ -1,10 +1,18 @@
 import crypto from "crypto";
 import { collection, getDocs, query, where, updateDoc, addDoc } from "./auth-helpers.js";
-import { getDbInstance, hashToken, verifyDeviceToken } from "./auth-helpers.js";
+import { getDbInstance, hashToken, verifyDeviceToken, mintFirebaseToken, getDoc, doc } from "./auth-helpers.js";
+import { createMemberLogin } from "../lib/member-login.mjs";
 
 const db = getDbInstance();
 const WEB_TOKEN_DAYS = 30; // เว็บจำการล็อกอินได้ 30 วัน
 const WEB_TOKENS_KEEP = 5; // เก็บรหัสเว็บได้หลายเบราว์เซอร์ ไม่เกิน 5 ตัวต่อคน
+// ล็อกอินเว็บ + บัตรผ่าน Firebase (lib/member-login.mjs) ปิดการสมัครเอง: ต้องมีชื่อที่ผู้ดูแลเพิ่มไว้ก่อน
+const memberLogin = createMemberLogin({
+    db,
+    fs: { collection, doc, getDoc, getDocs, query, where, updateDoc },
+    verifyLine: (t) => verifyLineIdToken(t),
+    mintToken: mintFirebaseToken
+});
 
 async function verifyLineIdToken(idToken) {
     if (!idToken || typeof idToken !== "string") {
@@ -53,6 +61,11 @@ export default async function handler(req, res) {
                     message: authResult.message
                 });
             }
+            // ?firebase=1: ต่อบัตรผ่าน Firebase ด้วยรหัสเว็บที่จำไว้
+            if (req.query && String(req.query.firebase || "") === "1") {
+                const r = await memberLogin.renew(authResult);
+                return res.status(r.status).json(r.body);
+            }
             return res.status(200).json({
                 success: true,
                 valid: true,
@@ -73,6 +86,15 @@ export default async function handler(req, res) {
         body = body || {};
 
         const { idToken } = body;
+        // เว็บล็อกอิน (action "login") และผูก LINE กับชื่อในกลุ่ม (action "link")
+        if (req.method === "POST" && body.action === "login") {
+            const r = await memberLogin.login(idToken);
+            return res.status(r.status).json(r.body);
+        }
+        if (req.method === "POST" && body.action === "link") {
+            const r = await memberLogin.link(idToken, body.memberId);
+            return res.status(r.status).json(r.body);
+        }
         if (!idToken) {
             return res.status(400).json({
                 success: false,

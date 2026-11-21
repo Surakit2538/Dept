@@ -47,6 +47,11 @@ export function createFakeFirestore() {
         setDoc: async (ref, data) => {
             col(ref.col).set(ref.id, clone(data));
         },
+        updateDoc: async (ref, data) => {
+            const cur = col(ref.col).get(ref.id);
+            if (cur === undefined) throw new Error("fake firestore: update on missing doc");
+            col(ref.col).set(ref.id, { ...cur, ...clone(data) });
+        },
         deleteDoc: async (ref) => {
             col(ref.col).delete(ref.id);
         },

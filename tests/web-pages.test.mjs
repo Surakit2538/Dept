@@ -142,8 +142,13 @@ test("หน้าผูกบัญชี กรอกข้อมูลคร�
     const { LinkPage, OnboardPage } = await bundle("web/src/onboard.jsx", "onboard");
     const link = toString(h(LinkPage, { profile: { userId: "U1", displayName: "NEW" }, candidates: [{ id: "a", name: "CARE" }, { id: "b", name: evil }], onDone() {} }));
     assert.match(link, /เลือกชื่อของคุณ/);
-    assert.match(link, /ฉันเป็นสมาชิกใหม่/);
+    assert.ok(!link.includes("ฉันเป็นสมาชิกใหม่"), "ปิดการสมัครเอง (เจ้าของเลือก 22 พ.ย.)");
+    assert.match(link, /ให้ผู้ดูแลเพิ่มชื่อก่อน/);
     assert.ok(!link.includes("<b onclick"), "ชื่อต้องถูก escape");
+    const none = toString(h(LinkPage, { profile: { displayName: "NEW" }, candidates: [], onDone() {} }));
+    assert.match(none, /ยังไม่มีชื่อคุณในกลุ่ม/);
+    const pre = toString(h(LinkPage, { profile: { displayName: "CARE" }, candidates: [{ id: "a", name: "CARE" }], suggest: "a", onDone() {} }));
+    assert.match(pre, /ยืนยัน ฉันคือ CARE/, "ชื่อที่ตรงกับ LINE ถูกเลือกไว้ให้");
     const ob = toString(h(OnboardPage, { user: { name: "CARE", memberId: "m", realName: "", promptpay: "" }, onDone() {} }));
     assert.match(ob, /ชื่อจริงภาษาไทย/);
     assert.match(ob, /พร้อมเพย์/);

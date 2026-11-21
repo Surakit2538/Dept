@@ -1,17 +1,29 @@
-// ครั้งแรกที่เข้าใช้: ผูกบัญชี LINE กับสมาชิกที่มีอยู่ (หรือสมัครใหม่) แล้วกรอกชื่อจริง/พร้อมเพย์
+// ครั้งแรกที่เข้าใช้: ผูกบัญชี LINE กับชื่อที่ผู้ดูแลเพิ่มไว้ (ปิดการสมัครเอง) แล้วกรอกชื่อจริง/พร้อมเพย์
 import { useState } from "preact/hooks";
 import { Mark, Icon } from "./icons.jsx";
 import { validPromptpay } from "./model.js";
-import { linkMember, createMember, saveMyProfile, logout } from "./data.js";
+import { linkMember, saveMyProfile, logout } from "./data.js";
 
-export function LinkPage({ profile, candidates, onDone }) {
-    const [pick, setPick] = useState(null);
+export function LinkPage({ profile, candidates, suggest = "", onDone }) {
+    const [pick, setPick] = useState(candidates.some((c) => c.id === suggest) ? suggest : null);
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
     async function run(fn) {
         setBusy(true);
         setErr("");
         try { onDone(await fn()); } catch (e) { setErr(e.message || "ไม่สำเร็จ ลองใหม่อีกครั้ง"); setBusy(false); }
+    }
+    if (candidates.length === 0) {
+        return (
+            <main class="gate">
+                <Mark size={48} />
+                <h1>ยังไม่มีชื่อคุณในกลุ่ม</h1>
+                <p class="lbl">ให้ผู้ดูแลเพิ่มชื่อคุณก่อน (แท็บ ฉัน → จัดการสมาชิก) แล้วเปิดหน้านี้ใหม่อีกครั้ง</p>
+                {profile.displayName && <p class="lbl">บัญชี LINE นี้: {profile.displayName}</p>}
+                <button type="button" class="btn block" onClick={() => location.reload()}>ลองใหม่</button>
+                <button type="button" class="link" onClick={logout}>ออกจากระบบ</button>
+            </main>
+        );
     }
     return (
         <main class="gate">
@@ -31,8 +43,7 @@ export function LinkPage({ profile, candidates, onDone }) {
             <button type="button" class="btn block" disabled={!pick || busy} onClick={() => run(() => linkMember(profile, pick))}>
                 {pick ? `ยืนยัน ฉันคือ ${candidates.find((c) => c.id === pick).name}` : "เลือกชื่อของคุณก่อน"}
             </button>
-            <button type="button" class="btn ghost block" disabled={busy} onClick={() => run(() => createMember(profile))}>ฉันเป็นสมาชิกใหม่ ไม่มีชื่อในรายการ</button>
-            <p class="lbl">ถ้าเลือกผิดคน แจ้งแอดมินให้แก้ให้ได้</p>
+            <p class="lbl">ไม่มีชื่อคุณในรายการ? ให้ผู้ดูแลเพิ่มชื่อก่อน (แท็บ ฉัน → จัดการสมาชิก) แล้วเปิดหน้านี้ใหม่ · ถ้าเลือกผิดคน แจ้งผู้ดูแลให้แก้ให้ได้</p>
         </main>
     );
 }

@@ -1,6 +1,10 @@
-// การเชื่อมต่อ: LINE (LIFF), Firestore (เฉพาะคอลเลกชันข้อมูลกลุ่มที่กฎอนุญาต) และ API ของเรา (กระเป๋า)
+// การเชื่อมต่อ: LINE (LIFF), Firestore (เฉพาะคอลเลกชันข้อมูลกลุ่มที่กฎอนุญาต ต้องถือบัตรผ่านสมาชิก) และ API ของเรา (กระเป๋า)
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, query, where, getDocs, getDoc, onSnapshot, doc, updateDoc, deleteDoc, addDoc, writeBatch, limit, FieldPath } from "firebase/firestore";
+import {
+    getFirestore, collection, query, where, doc, limit, FieldPath,
+    getDocs as fsGetDocs, getDoc as fsGetDoc, onSnapshot as fsOnSnapshot, updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc, addDoc as fsAddDoc, writeBatch as fsWriteBatch
+} from "firebase/firestore";
+import { getAuth, signInWithCustomToken, signOut } from "firebase/auth";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -12,7 +16,49 @@ const firebaseConfig = {
 };
 export const LIFF_ID = "2008948704-db2goT00";
 
-const db = getFirestore(initializeApp(firebaseConfig));
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const fbAuth = getAuth(app);
+
+// ---------- บัตรผ่าน Firebase (firestore.rules ให้อ่าน/เขียนข้อมูลกลุ่มได้เฉพาะสมาชิกที่ถือบัตร) ----------
+// เซิร์ฟเวอร์ออกบัตรหลังตรวจกับ LINE (lib/member-login.mjs) ทุกคำสั่งฐานข้อมูลรอ "ประตู" นี้ก่อน
+// ประตูเปิดเมื่อ ล็อกอิน Firebase สำเร็จ / ไม่มีบัตร / เกิน 10 วินาที (ไม่ค้างตลอดไป ช่วงกฎยังเปิดเว็บทำงานเหมือนเดิม)
+let openGateFn = () => {};
+const fbGateP = new Promise((r) => { openGateFn = r; });
+let gateOpened = false;
+const gateTimer = setTimeout(() => openGate(), 10000);
+function openGate() { if (!gateOpened) { gateOpened = true; clearTimeout(gateTimer); openGateFn(); } }
+const fbGate = () => fbGateP;
+const passUid = (memberId) => "m_" + memberId;
+
+/** ล็อกอิน Firebase ด้วยบัตรที่เซิร์ฟเวอร์ออกให้ (ถ้าล็อกอินเป็นคนนี้อยู่แล้วไม่ต้องทำซ้ำ) */
+async function useFirebasePass(token, memberId) {
+    try {
+        if (token && (!fbAuth.currentUser || fbAuth.currentUser.uid !== passUid(memberId))) await signInWithCustomToken(fbAuth, token);
+    } catch (e) {
+        console.warn("firebase sign-in:", e && e.message);
+    }
+    openGate();
+}
+
+// คำสั่งฐานข้อมูลที่ใช้ทั้งไฟล์: รอประตูก่อนทุกครั้ง
+const getDocs = async (...a) => { await fbGate(); return fsGetDocs(...a); };
+const getDoc = async (...a) => { await fbGate(); return fsGetDoc(...a); };
+const updateDoc = async (...a) => { await fbGate(); return fsUpdateDoc(...a); };
+const deleteDoc = async (...a) => { await fbGate(); return fsDeleteDoc(...a); };
+const addDoc = async (...a) => { await fbGate(); return fsAddDoc(...a); };
+function onSnapshot(q, next, fail) {
+    let un = null;
+    let stopped = false;
+    fbGate().then(() => { if (!stopped) un = fsOnSnapshot(q, next, fail); });
+    return () => { stopped = true; if (un) un(); };
+}
+function writeBatch(d) {
+    const b = fsWriteBatch(d);
+    const commit = b.commit.bind(b);
+    b.commit = async () => { await fbGate(); return commit(); };
+    return b;
+}
 
 export function bangkokToday(now = new Date()) {
     const p = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
@@ -104,7 +150,7 @@ function userFromMember(id, x, lineUserId) {
  * เข้าสู่ระบบด้วย LINE แล้วหาสมาชิกที่ผูกกับบัญชีนี้
  * คืนค่า:
  *  - { name, memberId, pictureUrl, isAdmin, realName, promptpay }   พบสมาชิกแล้ว
- *  - { needLink: true, profile, candidates:[{id,name}] }             ยังไม่ผูกบัญชี ให้เลือกว่าเป็นสมาชิกคนไหน หรือสมัครใหม่
+ *  - { needLink: true, profile, candidates:[{id,name}] }             ยังไม่ผูกบัญชี ให้เลือกชื่อที่ผู้ดูแลเพิ่มไว้ (ปิดการสมัครเอง)
  *  - null                                                             กำลังพาไปหน้าล็อกอิน LINE
  */
 // พารามิเตอร์ที่ LINE ต่อท้ายที่อยู่ตอนล็อกอินกลับมา รหัส code ใช้ได้ครั้งเดียว ถ้าค้างอยู่ในที่อยู่แล้วเปิดซ้ำ (เช่น คืนแท็บเดิม/รีเฟรช) จะล็อกอินไม่ผ่าน
@@ -166,61 +212,33 @@ export async function signIn() {
             }
         }
     } catch (e) { /* ไม่เป็นไร */ }
-    // อ่านรหัสผู้ใช้จาก ID token ในเครื่องได้เลย (เร็วกว่าถามเซิร์ฟเวอร์ LINE) ถ้าไม่มีค่อยถามด้วย getProfile
-    const decoded = typeof liff.getDecodedIDToken === "function" ? liff.getDecodedIDToken() : null;
-    let userId = decoded && decoded.sub ? decoded.sub : "";
-    let pictureUrl = decoded && decoded.picture ? decoded.picture : "";
-    let profile = null;
-    if (!userId || !pictureUrl) {
-        try {
-            profile = await liff.getProfile();
-            if (!userId) userId = profile.userId;
-            if (!pictureUrl) pictureUrl = profile.pictureUrl || "";
-        } catch (e) { /* profile fetch fallback */ }
+    // เซิร์ฟเวอร์ตรวจกับ LINE แล้วออกบัตรผ่าน Firebase ให้ (ยังไม่ผูกบัญชี = ได้รายชื่อที่ผู้ดูแลเพิ่มไว้ให้เลือก ไม่สมัครเอง)
+    const r = await lineLogin({ action: "login" });
+    if (r.member) {
+        await useFirebasePass(r.firebaseToken, r.member.id);
+        return userFromMember(r.member.id, r.member, r.member.lineUserId);
     }
-    const snap = await getDocs(query(collection(db, "members"), where("lineUserId", "==", userId)));
-    if (!snap.empty) {
-        const m = snap.docs.find((d) => d.data().realName) || snap.docs[0];
-        const d = m.data();
-        const pic = pictureUrl || d.pictureUrl || "";
-        if (pictureUrl && d.pictureUrl !== pictureUrl) {
-            updateDoc(doc(db, "members", m.id), { pictureUrl }).catch(() => {});
-        }
-        return userFromMember(m.id, { ...d, pictureUrl: pic }, userId);
-    }
-
-    // ยังไม่เคยผูกบัญชี: หาจากชื่อ LINE ที่ตรงกับสมาชิกที่ยังไม่ผูก ถ้าไม่พบให้ผู้ใช้เลือกเอง
-    if (!profile) profile = await liff.getProfile();
-    const p = { userId, displayName: cleanName(profile.displayName), pictureUrl: /^https:\/\//i.test(profile.pictureUrl || "") ? profile.pictureUrl : "" };
-    const all = await getDocs(collection(db, "members"));
-    const unlinked = all.docs.filter((d) => !d.data().lineUserId);
-    const same = unlinked.find((d) => cleanName(d.data().name) === p.displayName);
-    if (same) return linkMember(p, same.id);
-    if (unlinked.length === 0) return createMember(p);
-    return { needLink: true, profile: p, candidates: unlinked.map((d) => ({ id: d.id, name: cleanName(d.data().name) })).sort((a, b) => a.name.localeCompare(b.name)) };
+    if (r.needLink) return { needLink: true, profile: r.profile || {}, candidates: r.candidates || [], suggest: r.suggest || "" };
+    throw new Error(r.message || "เข้าสู่ระบบไม่สำเร็จ ลองใหม่อีกครั้ง");
 }
 
-/** ผูกบัญชี LINE นี้เข้ากับสมาชิกที่มีอยู่ (ไม่เปลี่ยนชื่อในระบบ ประวัติบิลทั้งหมดจึงอยู่ครบ) */
+/** เรียก /api/device-token ด้วยบัตร LINE (action "login" | "link") คืน JSON เสมอ (มี message เมื่อไม่สำเร็จ) */
+async function lineLogin(body) {
+    const idToken = liff.getIDToken();
+    if (!idToken) throw new Error("ยังเข้าสู่ระบบ LINE ไม่เสร็จ ลองรีเฟรชหน้านี้");
+    const res = await fetch("/api/device-token", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, idToken }) });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok && !json.message) json.message = `เข้าสู่ระบบไม่สำเร็จ (${res.status})`;
+    return json;
+}
+
+/** ผูกบัญชี LINE นี้เข้ากับชื่อที่ผู้ดูแลเพิ่มไว้ (ไม่เปลี่ยนชื่อในระบบ ประวัติบิลทั้งหมดจึงอยู่ครบ) */
 export async function linkMember(profile, memberId) {
-    const ref = doc(db, "members", String(memberId));
-    const cur = await getDoc(ref);
-    if (!cur.exists()) throw new Error("ไม่พบสมาชิกนี้ ลองรีเฟรชหน้า");
-    if (cur.data().lineUserId && cur.data().lineUserId !== profile.userId) throw new Error("ชื่อนี้ถูกผูกกับ LINE อื่นแล้ว");
-    await updateDoc(ref, { lineUserId: profile.userId, lineDisplayName: profile.displayName, pictureUrl: profile.pictureUrl || "", linkedAt: new Date().toISOString() });
+    const r = await lineLogin({ action: "link", memberId });
+    if (!r.member) throw new Error(r.message || "ผูกบัญชีไม่สำเร็จ ลองใหม่อีกครั้ง");
     invalidateProfiles();
-    return userFromMember(cur.id, { ...cur.data(), pictureUrl: profile.pictureUrl }, profile.userId);
-}
-
-/** สมัครเป็นสมาชิกใหม่ด้วยชื่อ LINE (ถ้าชื่อซ้ำกับสมาชิกเดิม ต่อท้ายด้วยเลข 4 ตัวจากรหัส LINE) */
-export async function createMember(profile) {
-    const dup = await getDocs(query(collection(db, "members"), where("lineUserId", "==", profile.userId)));
-    if (!dup.empty) return userFromMember(dup.docs[0].id, dup.docs[0].data(), profile.userId);
-    const taken = await getDocs(query(collection(db, "members"), where("name", "==", profile.displayName)));
-    const name = (taken.empty ? profile.displayName : `${profile.displayName} ${profile.userId.slice(-4).toUpperCase()}`) || `USER ${profile.userId.slice(-4).toUpperCase()}`;
-    const data = { name, lineUserId: profile.userId, pictureUrl: profile.pictureUrl || "", role: "member", joinedAt: new Date().toISOString() };
-    const ref = await addDoc(collection(db, "members"), data);
-    invalidateProfiles();
-    return userFromMember(ref.id, data, profile.userId);
+    await useFirebasePass(r.firebaseToken, r.member.id);
+    return userFromMember(r.member.id, r.member, r.member.lineUserId);
 }
 
 // ---------- แคชในเครื่อง: ประหยัดโควต้าอ่านของ Firestore (ฟรี 50,000 ครั้ง/วัน) ----------
@@ -641,6 +659,7 @@ export async function verifySlip(file, { to, amount, month }) {
 
 export function logout() {
     try { liff.logout(); } catch (e) { /* ไม่มีอะไร */ }
+    try { signOut(fbAuth); } catch (e) { /* ไม่มีอะไร */ }
     clearCache();
     location.href = "/";
 }
@@ -652,3 +671,19 @@ export async function saveBill({ docs, template }) {
     if (template) batch.set(doc(collection(db, "subscription_templates")), template);
     await batch.commit();
 }
+
+// ---------- เริ่มบัตรผ่านตอนเปิดเว็บ (อยู่ท้ายไฟล์ เพราะต้องใช้ตัวแปรแคชที่ประกาศไว้ข้างบน) ----------
+(async () => {
+    try {
+        if (typeof fbAuth.authStateReady === "function") await fbAuth.authStateReady();
+        // Firebase จำบัตรของสมาชิกไว้ในเครื่องแล้ว: ใช้ได้เลย (ถ้าล็อกอิน LINE เป็นคนอื่น signIn() จะเปลี่ยนบัตรให้เอง)
+        if (fbAuth.currentUser) return openGate();
+        const wt = readWebToken();
+        if (!wt) return; // ไม่มีรหัสเว็บ: รอ signIn() ด้วย LINE (หรือประตูเปิดเองเมื่อครบ 10 วินาที)
+        const res = await fetch("/api/device-token?firebase=1", { headers: { Authorization: "Bearer " + wt.token } });
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success && json.member) await useFirebasePass(json.firebaseToken, json.member.id);
+    } catch (e) {
+        console.warn("firebase pass:", e && e.message);
+    }
+})();

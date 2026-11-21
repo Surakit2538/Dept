@@ -16,6 +16,18 @@ export function __get(name, id) { return col(name).get(id); }
 export function initializeApp() { return {}; }
 export function getFirestore() { return {}; }
 
+// firebase/auth จำลอง: ค่าเริ่มต้น = มีบัตรสมาชิกจำไว้ในเครื่องแล้ว (ประตูเปิดทันที) เทสต์ตั้ง currentUser = null เพื่อดูขั้นขอบัตร
+export const authState = { currentUser: { uid: "m_test" }, signIns: [], order: [] };
+const authObj = { get currentUser() { return authState.currentUser; }, authStateReady: async () => {} };
+export function getAuth() { return authObj; }
+export async function signInWithCustomToken(_a, token) {
+    authState.signIns.push(token);
+    authState.order.push("signIn");
+    authState.currentUser = { uid: String(token).replace(/^fb-/, "") };
+    return {};
+}
+export async function signOut() { authState.currentUser = null; }
+
 export class FieldPath {
     constructor(...segments) { this.segments = segments; } // ไม่แยกจุดในชื่อ (เหมือนของจริง)
 }
@@ -46,6 +58,7 @@ export async function getDocs(q) {
         rows = rows.filter(([, d]) => test(read(d, c.path), c.value));
     }
     calls.queries.push({ name, cons: q.cons || [] });
+    authState.order.push("read:" + name);
     rows = rows.slice(0, max);
     const docs = rows.map(([id, d]) => ({ id, data: () => JSON.parse(JSON.stringify(d)) }));
     return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn) };

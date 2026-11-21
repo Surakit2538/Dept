@@ -21,7 +21,7 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 338 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 348 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
 พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1`, `?state=loader` (ตัวโหลด), `?as=CARE` (มุมมองคนอื่น) · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
@@ -52,7 +52,8 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 - แชร์ลิงก์ iCloud ของคำสั่งลัด "Dept บันทึก" ให้เพื่อน (เจ้าของต้องสร้างแล้วส่งลิงก์มา ใส่ในคู่มือ)
 - ความแม่นยำอ่านสลิป (`lib/slip-core.mjs`) เจอผิดให้ขอข้อความจริงมาเป็นเทสต์
 - เทสต์กฎลบสมาชิก (`deleteMemberIfUnused`) มีแล้ว `tests/member-delete.test.mjs` (bundle `web/src/data.js` จริง แทน Firebase ด้วย `tests/fake-firebase-web.mjs`) ใช้วิธีเดียวกันทดสอบโค้ดเว็บที่แตะ Firestore ได้
-- ความปลอดภัย: กฎ Firestore เปิดให้เบราว์เซอร์เขียน 4 คอลเลกชัน (ระยะยาวย้ายเข้า API) · เจ้าของเลือกไม่ทำ: สำรองข้อมูล, เปลี่ยนรหัส SlipOK, ลบ `dbMode`
+- ความปลอดภัย (22 พ.ย. เจ้าของเลือกแนวทาง A + ปิดการสมัครเอง): เว็บล็อกอิน Firebase ด้วยบัตรผ่านที่เซิร์ฟเวอร์ออกหลังตรวจ LINE (`lib/member-login.mjs`, `api/device-token.js` action `login`/`link`, `GET ?firebase=1` ต่อบัตรด้วยรหัสเว็บ) · `web/src/data.js` ทุกคำสั่ง Firestore รอ `fbGate` · คนใหม่ต้องให้ผู้ดูแลเพิ่มชื่อก่อน ไม่มีปุ่มสมัครเอง · กฎใหม่อยู่ `firestore.rules` (ต้องถือบัตร `mid`) **เจ้าของต้องเปิด Authentication และ Publish กฎเองตาม `FIRESTORE_RULES_ROLLOUT.md`** (มีวิธีย้อนกลับ) · ทำต่อได้: กฎตามสิทธิ์ (คนจ่าย/ผู้ดูแล) · เจ้าของเลือกไม่ทำ: สำรองข้อมูล, เปลี่ยนรหัส SlipOK, ลบ `dbMode`
+- พรีวิวเว็บหลังเพิ่มแพ็กเกจใหม่ ถ้าขึ้น "Component auth has not been registered" = แคช Vite เก่า ลบ `web/node_modules/.vite` แล้วเริ่มใหม่ (ไฟล์ build จริงไม่เป็น) · `dept-app-built` ใน launch.json เปิดไฟล์ build ที่ port 5200
 
 ## 9. แผนที่ไฟล์
 `web/src/` (Preact): `main.jsx` แอป+ลิงก์ deep, `data.js` ฐานข้อมูล/API/ล็อกอิน, `model.js` ตรรกะ, `pages/*` (Home, List=บิล+ส่วนตัวรวมกัน, Clear, Me), `brands.js`+`brand-paths.js` โลโก้ร้าน, `add.jsx` ฟอร์ม, `editbill.jsx` แก้ไข+ChooseSheet, `bulk.jsx` เลือกหลายรายการ, `iphone.jsx` ตัวติดตั้ง · `app/` ผล build · `lib/` ตรรกะเซิร์ฟเวอร์ · `api/` 12 ฟังก์ชัน · `scriptable/` · `tests/` (`fake-firestore.mjs`)
