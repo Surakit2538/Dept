@@ -1037,3 +1037,73 @@ button.env:hover { filter: brightness(1.05); }
 .bc-tag { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 1px 8px; white-space: nowrap; }
 .bc-tag.done { background: color-mix(in srgb, var(--receive) 14%, transparent); color: var(--receive); }
 .bc-tag.today, .bc-tag.soon { background: var(--sun-soft); color: var(--ink); }
+
+/* ---------- บัตรเครดิต (cards.jsx): ภาพบัตรลาย 3 เลือกสีได้ สีจาก tokens.json คงที่ทั้งโหมดสว่าง/มืด ---------- */
+.plastic { position: relative; display: flex; flex-direction: column; gap: 6px; width: 100%; aspect-ratio: 1.586 / 1; max-width: 100%; border: 0; border-radius: 18px; padding: 16px 18px; overflow: hidden; text-align: left; font: inherit; color: #ffffff; background: linear-gradient(140deg, #2343c9 0%, #4466f2 100%); box-shadow: 0 14px 30px rgba(35, 67, 201, .28); }
+.plastic::before { content: ""; position: absolute; right: -30%; top: -55%; width: 110%; aspect-ratio: 1; border-radius: 50%; border: 26px solid rgba(255, 194, 61, .18); pointer-events: none; }
+.plastic::after { content: ""; position: absolute; right: -8%; top: -18%; width: 60%; aspect-ratio: 1; border-radius: 50%; border: 14px solid rgba(255, 255, 255, .10); pointer-events: none; }
+.plastic > * { position: relative; z-index: 1; }
+.plastic.pc-navy { background: linear-gradient(140deg, #121a33 0%, #26304d 100%); box-shadow: 0 14px 30px rgba(18, 26, 51, .4); }
+.plastic.pc-sun { background: linear-gradient(140deg, #ffc23d 0%, #ffcd5a 100%); color: #2e2100; box-shadow: 0 14px 30px rgba(168, 98, 10, .28); }
+.plastic.pc-sun::before { border-color: rgba(35, 67, 201, .14); }
+.plastic.pc-green { background: linear-gradient(140deg, #0f7f63 0%, #3fcf9f 100%); box-shadow: 0 14px 30px rgba(15, 127, 99, .3); }
+button.plastic { cursor: pointer; }
+button.plastic:focus-visible { outline: 3px solid var(--sun); outline-offset: 2px; }
+.pc-top { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); }
+.pc-top b { font-size: 18px; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pc-nfc { width: 22px; height: 22px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; opacity: .85; }
+.pc-chip { width: 38px; height: 28px; border-radius: 6px; margin-top: 4px; background: linear-gradient(135deg, #ffc23d, #fff0c2 60%, #ffc23d); }
+.pc-sun .pc-chip { background: linear-gradient(135deg, #2343c9, #4466f2); }
+.pc-no { margin-top: auto; font-size: 15px; letter-spacing: .04em; white-space: nowrap; overflow: hidden; }
+.pc-bot { display: flex; justify-content: space-between; gap: var(--s2); font-size: 13px; font-weight: 600; margin-top: auto; }
+.pc-bot small, .pc-mid small { display: block; font-size: 11px; font-weight: 400; opacity: .85; }
+.pc-mid { margin-top: auto; display: flex; flex-direction: column; }
+.pc-mid b { font-size: 26px; font-weight: 700; line-height: 1.2; }
+.pc-tagrow { display: flex; justify-content: space-between; align-items: center; gap: var(--s2); font-size: 14px; letter-spacing: .04em; }
+.pc-due { font-size: 11px; font-weight: 700; letter-spacing: 0; border-radius: 999px; padding: 2px 9px; background: rgba(255, 255, 255, .2); white-space: nowrap; }
+.pc-due.hot { background: #ffc23d; color: #2e2100; }
+.pc-sun .pc-due { background: rgba(46, 33, 0, .12); }
+.pc-sun .pc-due.hot { background: #2343c9; color: #ffffff; }
+.plastic.peek { aspect-ratio: auto; height: 54px; padding: 12px 18px; border-radius: 18px 18px 0 0; margin-bottom: -14px; box-shadow: none; }
+.plastic.peek .pc-top b { font-size: 15px; }
+.cw { display: flex; flex-direction: column; gap: var(--s3); }
+.cw-hd { display: flex; align-items: center; justify-content: space-between; gap: var(--s2); }
+.cw-hd h3 { margin: 0; font-size: var(--fs-lg); }
+.cw-stack { display: flex; flex-direction: column; }
+.cw-note { margin: 0; }
+.cw-empty { display: flex; gap: var(--s3); align-items: flex-start; text-align: left; border: 1px dashed var(--line); border-radius: var(--r-md); background: var(--chip); color: var(--ink); padding: var(--s3); font: inherit; }
+.cw-empty span { display: flex; flex-direction: column; gap: 2px; }
+.cw-empty small { color: var(--mute); }
+.cc-sheet { display: flex; flex-direction: column; gap: var(--s3); }
+.cc-sheet .mchips { flex-wrap: wrap; overflow: visible; }
+.cc-two { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+.cc-colors { display: flex; gap: 12px; }
+.cc-colors button { width: 34px; height: 34px; border: 0; border-radius: 50%; padding: 0; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--line); background: linear-gradient(140deg, #2343c9, #4466f2); }
+.cc-colors button.pc-navy { background: linear-gradient(140deg, #121a33, #26304d); }
+.cc-colors button.pc-sun { background: linear-gradient(140deg, #ffc23d, #ffcd5a); }
+.cc-colors button.pc-green { background: linear-gradient(140deg, #0f7f63, #3fcf9f); }
+.cc-colors button.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+.cc-due { display: flex; align-items: center; gap: var(--s3); background: var(--sun-soft); border-radius: var(--r-md); padding: var(--s3); }
+.cc-due.paid { background: color-mix(in srgb, var(--receive) 12%, transparent); }
+.cc-due .grow { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.cc-due small { font-size: var(--fs-xs); color: var(--mute); }
+.cc-due b { font-size: var(--fs-lg); }
+.cc-items .row:first-child { border-top: 0; }
+.cc-switch { display: flex; align-items: center; gap: var(--s2); min-height: 40px; font-size: var(--fs-sm); cursor: pointer; }
+.cc-switch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.cc-switch .sw { position: relative; flex: none; width: 42px; height: 24px; border-radius: 999px; background: var(--line); transition: background .15s; }
+.cc-switch .sw::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 3px rgba(18, 26, 51, .25); transition: left .15s; }
+.cc-switch input:checked + .sw { background: var(--accent); }
+.cc-switch input:checked + .sw::after { left: 21px; }
+.cc-switch input:focus-visible + .sw { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .cc-switch .sw, .cc-switch .sw::after { transition: none; } }
+.lq { display: flex; flex-direction: column; gap: 6px; background: var(--chip); border-radius: var(--r-md); padding: var(--s3); margin-bottom: var(--s3); }
+.lq-t { display: flex; justify-content: space-between; gap: var(--s2); font-size: var(--fs-sm); }
+.lq-bar { height: 8px; border-radius: 999px; background: var(--surface); overflow: hidden; }
+.lq-bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+.lq-bar i.near { background: var(--sun); }
+.lq .lbl { margin: 0; }
+/* การ์ดบิลถัดไป: รูปคนจ่าย -> คนหาร บนพื้นน้ำเงิน */
+.nb-flow { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.nb-flow .flow-arr { color: rgba(255, 255, 255, .85); }
+.bc-list .flow, .billcal .row .s .flow { margin-left: 2px; }

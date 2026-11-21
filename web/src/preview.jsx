@@ -8,6 +8,7 @@ import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildB
 // โหลดหน้าแบบเดียวกับแอปจริง (Lazy) เพื่อให้ตรวจการสลับแท็บได้เหมือนของจริง
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.jsx";
 import { Loader } from "./icons.jsx";
+import { cardStatus } from "../../lib/card-cycle.mjs";
 import { HomePage } from "./pages/HomePage.jsx";
 const loadAdd = () => import("./add.jsx");
 const loadClear = () => import("./pages/ClearPage.jsx");
@@ -71,6 +72,31 @@ const SAMPLE_BILLS = {
         { id: "ph", desc: "ค่าโทรศัพท์", amount: 499, billingDay: 25, icon: "fa-mobile-screen" }
     ]
 };
+// บัตรเครดิตตัวอย่าง (?cards=none = ยังไม่มีบัตร, ?cards=off = ผู้ดูแลยังไม่เปิดให้) ยอดคำนวณด้วยตรรกะเดียวกับเซิร์ฟเวอร์
+const CARD_DEFS = [
+    { id: "k1", bank: "KTC", last4: "1234", color: "accent", statementDay: 5, dueDay: 17, paid: {} },
+    { id: "x1", bank: "CardX", last4: "5678", color: "navy", statementDay: 20, dueDay: 2, paid: {} },
+    { id: "t1", bank: "ttb", last4: "9012", color: "sun", statementDay: 28, dueDay: 12, paid: {} }
+];
+const CARD_ITEMS = [
+    ["2026-10-08", 1590, "Shell", "fa-gas-pump", "KTC-1234"], ["2026-10-19", 2450, "Central", "fa-cart-shopping", "KTC-1234"], ["2026-10-30", 890, "MK Restaurants", "fa-utensils", "KTC-1234"],
+    ["2026-11-03", 3120, "Agoda", "fa-plane", "KTC-1234"], ["2026-11-09", 420, "Starbucks", "fa-mug-hot", "KTC-1234"], ["2026-11-12", 1290, "Uniqlo", "fa-cart-shopping", "KTC-1234"],
+    ["2026-10-25", 699, "Netflix", "fa-film", "CardX-5678"], ["2026-11-02", 2340, "Lotus's", "fa-basket-shopping", "CardX-5678"], ["2026-11-10", 186, "Grab", "fa-car", "CardX-5678"]
+].map(([date, amount, desc, icon, card], i) => ({ id: "ci" + i, type: "expense", date, amount, desc, icon, card }));
+function sampleCards(mode) {
+    if (mode === "off") return { enabled: false, cards: [] };
+    if (mode === "none") return { enabled: true, cards: [] };
+    return {
+        enabled: true,
+        cards: CARD_DEFS.map((c) => {
+            const st = cardStatus(c, CARD_DEFS, CARD_ITEMS, today);
+            const pick = (cyc) => CARD_ITEMS.filter((x) => x.card.startsWith(c.bank) && x.date >= cyc.start && x.date <= cyc.end).reverse();
+            if (st.due) st.due.items = pick(st.due);
+            st.open.items = pick(st.open);
+            return st;
+        })
+    };
+}
 const OVER_PLAN = { ...SAMPLE_PLAN, budget: { total: 4000, cats: { food: 1000, travel: 500 } } };
 const EMPTY_PLAN = { budget: { total: 0, cats: {} }, months: {}, goals: [] };
 
@@ -87,6 +113,10 @@ function Preview() {
     const [plan, setPlan] = useState(params.get("plan") === "none" ? EMPTY_PLAN : params.get("plan") === "over" ? OVER_PLAN : SAMPLE_PLAN);
     const billRaw = params.get("bills") === "none" ? { group: [], personal: [] } : SAMPLE_BILLS;
     const [billCal, setBillCal] = useState(params.get("sheet") === "billcal");
+    const [cardsData, setCardsData] = useState(() => sampleCards(params.get("cards")));
+    const [cardSheet, setCardSheet] = useState(() => { const k = params.get("sheet"); return k === "card" ? { kind: "detail", id: "k1" } : k === "cardadd" ? { kind: "add" } : null; });
+    const cardFake = (msg, fn) => new Promise((r) => setTimeout(() => { if (fn) setCardsData((d) => ({ ...d, cards: fn(d.cards) })); setToast(msg + " (ตัวอย่าง)"); r(); }, 400));
+    const cardOpen = cardSheet && cardSheet.kind === "detail" ? cardsData.cards.find((c) => c.id === cardSheet.id) : null;
     const [planSheet, setPlanSheet] = useState(() => { const k = params.get("sheet"); return k === "move" ? { kind: "move", goal: SAMPLE_PLAN.goals[2], dir: "in" } : k === "goal" ? { kind: "goal" } : k === "budget" ? { kind: "budget" } : null; });
     const fake = (msg) => new Promise((r) => setTimeout(() => { setToast(msg + " (ตัวอย่าง)"); r(plan); }, 400));
     useEffect(() => { const h = () => setTab(pageOf(location.hash.slice(1))); addEventListener("hashchange", h); return () => removeEventListener("hashchange", h); }, []);
@@ -105,14 +135,16 @@ function Preview() {
     else if (state === "error") body = <ErrorState onRetry={() => {}} />;
     else if (tab === "list") body = <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={buildBillsModel({ name: who, month, transactions: T, search })} wallet={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} month={month} today={today} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} onInfo={setToast} />;
     else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} back={{ receivedSat: 30000, paidSat: 0 }} onChanged={() => {}} />;
-    else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} />;
-    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles} today={today} nowMonth={now} since={shiftMonth(now, -11)} bm={bmHome} onBudget={() => setPlanSheet({ kind: "budget" })} bills={buildBillSchedule({ me: who, month: now, today, ...billRaw })} me={who} onBills={() => setBillCal(true)} />;
+    else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} cards={cardsData} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} />;
+    else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles} today={today} nowMonth={now} since={shiftMonth(now, -11)} bm={bmHome} onBudget={() => setPlanSheet({ kind: "budget" })} bills={buildBillSchedule({ me: who, month: now, today, ...billRaw, cards: cardsData.cards })} me={who} onBills={() => setBillCal(true)} onCard={(id) => setCardSheet({ kind: "detail", id })} />;
     return (
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}><PageSwap page={tab}>{body}</PageSwap></Shell>
             {sheet && <Lazy load={loadAdd} name="AddSheet" initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
             {params.get("choose") && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={{ id: "auto0", type: "expense", amount: 175, date: `${now}-17`, desc: "LINE MAN Dragon", card: "ttb-0518", unconfirmed: true }} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} today={today} saveBill={async () => new Promise((r) => setTimeout(r, 600))} removeWallet={async () => {}} onClose={() => setToast("ปิด (ตัวอย่าง)")} onDone={setToast} onMoreSplit={() => setToast("เปิดฟอร์มบิลเต็ม (ตัวอย่าง)")} />}
-            {billCal && <Lazy load={loadBillCal} name="BillCalendarSheet" data={billRaw} me={who} today={today} onClose={() => setBillCal(false)} />}
+            {cardSheet && (cardSheet.kind === "add" || cardSheet.kind === "edit") && <Lazy load={() => import("./cards.jsx")} name="CardEditSheet" card={cardSheet.card || null} onClose={() => setCardSheet(null)} onSave={(c) => cardFake(c.id ? "แก้บัตรแล้ว" : "เพิ่มบัตรแล้ว")} onDelete={(id) => cardFake("ลบบัตรแล้ว", (cs) => cs.filter((x) => x.id !== id))} />}
+            {cardOpen && <Lazy load={() => import("./cards.jsx")} name="CardDetailSheet" card={cardOpen} onClose={() => setCardSheet(null)} onEdit={(c) => setCardSheet({ kind: "edit", card: c })} onPaid={(id, paid) => cardFake(paid ? "จ่ายแล้ว" : "ยกเลิก จ่ายแล้ว", (cs) => cs.map((x) => (x.id === id && x.due ? { ...x, due: { ...x.due, paid } } : x)))} />}
+            {billCal && <Lazy load={loadBillCal} name="BillCalendarSheet" data={{ ...billRaw, cards: cardsData.cards }} pictures={Object.fromEntries(profiles.map((p) => [p.name, p.pictureUrl]))} me={who} today={today} onClose={() => setBillCal(false)} />}
             {planSheet && planSheet.kind === "budget" && <Lazy load={loadPlanUi} name="BudgetSheet" plan={plan} nowMonth={now} suggestSat={bmNow.suggestSat} onClose={() => setPlanSheet(null)} onSave={() => fake("บันทึกงบแล้ว")} />}
             {planSheet && planSheet.kind === "move" && <Lazy load={loadPlanUi} name="GoalMoveSheet" goal={planSheet.goal} dir={planSheet.dir} month={now} onClose={() => setPlanSheet(null)} onMove={() => fake("เก็บเข้าเป้าแล้ว")} />}
             {planSheet && planSheet.kind === "goal" && <Lazy load={loadPlanUi} name="GoalEditSheet" goal={planSheet.goal || null} nowMonth={now} onClose={() => setPlanSheet(null)} onSave={() => fake("บันทึกเป้าแล้ว")} onDelete={() => fake("ลบเป้าแล้ว")} />}

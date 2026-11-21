@@ -51,6 +51,7 @@ const P = {
     heart: <path d="M12 20s-7.5-4.4-7.5-10a4.3 4.3 0 0 1 7.5-2.9A4.3 4.3 0 0 1 19.5 10c0 5.6-7.5 10-7.5 10z" />,
     star: <path d="m12 3.8 2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />,
     target: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.8" /><circle cx="12" cy="12" r="1.2" /></>,
+    card: <><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3 10h18M7 14.5h4" /></>,
     calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>
 };
 
@@ -69,7 +70,7 @@ const FA = {
     "fa-cart-shopping": "bag", "fa-basket-shopping": "bag", "fa-scissors": "bag", "fa-pills": "pill", "fa-paw": "paw", "fa-gift": "gift",
     "fa-film": "film", "fa-house": "key",
     "fa-bolt": "bolt", "fa-mobile-screen": "bolt", "fa-mobile-screen-button": "bolt",
-    "fa-arrow-down": "down"
+    "fa-arrow-down": "down", "fa-credit-card": "card"
 };
 export const iconFor = (fa) => FA[fa] || "bill";
 

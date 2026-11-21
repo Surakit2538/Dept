@@ -69,6 +69,15 @@ export function tintOf(name) {
 }
 
 /** รูปคนซ้อนกัน (ใช้แทนรายชื่อยาวๆ) แสดงสูงสุด max คน ที่เหลือขึ้น +N */
+/** รูปคนจ่าย (วงทานตะวัน) */
+export const PayerAv = ({ name, pictures = {} }) => <span class="payer-av" title={`${name} จ่าย`}><Avatar name={name} pictureUrl={pictures[name]} size="xs" /></span>;
+/** คนจ่าย -> คนหาร (รูปซ้อน สูงสุด 3 รูป ที่เหลือ +N) ใช้ในหน้ารายการ การ์ดบิลถัดไป และปฏิทินบิล */
+export const PayFlow = ({ payer, people = [], pictures = {} }) => (
+    <span class="flow" aria-label={`${payer} จ่าย หารกับ ${people.join(", ")}`}>
+        <PayerAv name={payer} pictures={pictures} /><Icon name="right" size={12} class="flow-arr" /><AvatarStack names={people} pictures={pictures} max={3} size="xs" />
+    </span>
+);
+
 export function AvatarStack({ names = [], pictures = {}, max = 3, size = "sm" }) {
     const shown = names.slice(0, max);
     return (

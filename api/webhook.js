@@ -5,7 +5,8 @@ import { buildMemberReportMessage, buildGroupReportMessage, prepareRemind, execu
 import { buildReminderFlex } from '../lib/reminders.mjs';
 import { parseIncomeText } from '../lib/line-income.mjs';
 import { parseQuickExpense, createQuickExpenseService, UNDO_COMMAND } from '../lib/line-expense.mjs';
-import { formatBaht } from '../lib/slip-core.mjs';
+import { formatBaht, normalizeName } from '../lib/slip-core.mjs';
+import { createCardService } from '../lib/card-service.mjs';
 import { buildIncomeSavedCard, buildHowToCarousel, withChips, monthLabelTh, buildPromptMessage, buildParticipantsCard, buildNoticeCard, buildInfoCard } from '../lib/line-cards.mjs';
 import { buildWalletEntry, WALLET_COL } from '../lib/wallet-service.mjs';
 import { createLineSplitService } from '../lib/line-split.mjs';
@@ -1370,6 +1371,11 @@ async function handlePostback(event, signatureValid) {
     if (cmd.action === 'sp-all') return sendToLine(replyToken, await lineSplit.toggle(uid, memberName, '', true));
     if (cmd.action === 'sp-cancel') return sendToLine(replyToken, await lineSplit.cancel(uid));
     if (cmd.action === 'sp-ok') return sendToLine(replyToken, await lineSplit.confirm(uid, memberName));
+    // เตือนบัตรเครดิต: กด "จ่ายแล้ว" = หยุดเตือนรอบนี้ (แก้ได้เฉพาะบัตรของคนที่กด เพราะเอกสารบัตรผูกกับชื่อ)
+    if (cmd.action === 'cc-paid') {
+        const r = await createCardService({ db, fs: fsApi }).setPaid(normalizeName(memberName), cmd.id, true, cmd.key);
+        return sendToLine(replyToken, buildNoticeCard(r.ok ? { title: 'จ่ายแล้ว', detail: r.message } : { title: 'ทำไม่สำเร็จ', detail: r.message, tone: 'info' }));
+    }
     if (cmd.action.startsWith('w-')) {
         return sendToLine(replyToken, await handleWalletAction({ db, fs: fsApi, memberName, cmd }));
     }

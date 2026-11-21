@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo } from "preact/hooks";
 import "./styles.css";
 import { Loader } from "./icons.jsx";
-import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth, loadPlan, saveBudget, saveGoal, moveGoal, deleteGoal, loadBillSchedule } from "./data.js";
+import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth, loadPlan, saveBudget, saveGoal, moveGoal, deleteGoal, loadBillSchedule, loadCards, saveCard, deleteCard, setCardPaid } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, buildBudgetModel, buildBillSchedule, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -15,6 +15,7 @@ const loadMe = () => import("./pages/MePage.jsx");
 const loadOnboard = () => import("./onboard.jsx");
 const loadPlanUi = () => import("./plan.jsx");
 const loadBillCal = () => import("./billcal.jsx");
+const loadCardsUi = () => import("./cards.jsx");
 
 const CACHED_USER = getCachedUser();
 
@@ -29,6 +30,11 @@ function parseDeep(t) {
     const m = /^(edit|split|choose)=([A-Za-z0-9_-]{1,100})$/.exec(String(t || ""));
     return m ? { kind: m[1], id: m[2] } : null;
 }
+/** ลิงก์ "card=รหัส" จากการ์ดเตือนบัตรใน LINE (ปุ่ม ดูรายการ): เปิดแท็บ ฉัน แล้วเปิดรายละเอียดบัตรใบนั้น */
+function parseCardLink(t) {
+    const m = /^card=([A-Za-z0-9_-]{1,60})$/.exec(String(t || ""));
+    return m ? m[1] : "";
+}
 const nowMonth0 = bangkokToday().slice(0, 7);
 
 const MONTHS_BACK = 12; // เลือกย้อนหลังได้กี่เดือน (ปฏิทินแบบปีใช้ทั้ง 12 เดือน โหลดเมื่อเปิดดูแบบปีเท่านั้น)
@@ -39,7 +45,7 @@ const pageOf = (t) => (t === "bills" || t === "wallet" ? "list" : PAGES.includes
 function App() {
     // มีตัวตนที่จำไว้ -> เข้าแอปทันที (ยืนยันกับ LINE เบื้องหลัง) ไม่ต้องรอหน้า "กำลังเข้าสู่ระบบ"
     const [auth, setAuth] = useState(CACHED_USER ? { state: "ok", user: CACHED_USER } : { state: "loading" });
-    const [tab, setTab] = useState(() => { const t = readTarget(); return parseDeep(t) ? "list" : pageOf(t); });
+    const [tab, setTab] = useState(() => { const t = readTarget(); return parseDeep(t) ? "list" : parseCardLink(t) ? "me" : pageOf(t); });
     const [deep, setDeep] = useState(() => parseDeep(readTarget())); // รายการที่ต้องเปิดจากลิงก์ในแจ้งเตือน
     const [openEdit, setOpenEdit] = useState(null);
     const [choose, setChoose] = useState(null); // รายการที่ถาม "บันทึกแบบไหน" (จากแจ้งเตือน)
@@ -66,6 +72,8 @@ function App() {
     const [plan, setPlan] = useState(null); // งบ + เป้าเก็บเงิน (wallet_plan) อ่านครั้งเดียว จำไว้ 10 นาที
     const [billRaw, setBillRaw] = useState(null); // แม่แบบบิลรายเดือน (กลุ่ม + ส่วนตัว) สำหรับการ์ดบิลถัดไปและปฏิทินบิล
     const [billCal, setBillCal] = useState(false);
+    const [cardsData, setCardsData] = useState(null); // บัตรเครดิต { enabled, cards } (เฉพาะคนที่ผู้ดูแลเปิดให้)
+    const [cardSheet, setCardSheet] = useState(() => { const id = parseCardLink(readTarget()); return id ? { kind: "detail", id } : null; }); // { kind: "add" } | { kind: "edit", card } | { kind: "detail", id }
     const [planSheet, setPlanSheet] = useState(null); // { kind: "budget" } | { kind: "move", goal, dir } | { kind: "goal", goal? } // เข้าแอปครั้งแรกโดยไม่มีข้อมูลที่จำไว้: แสดงตัวโหลดเต็มจอจนข้อมูลพร้อม
 
     // หลังล็อกอิน: ยังไม่ผูกบัญชี -> เลือกชื่อ / สมาชิกที่ยังไม่กรอกชื่อจริงและพร้อมเพย์ -> กรอกก่อน (แอดมินข้าม) / ไม่งั้นเข้าแอป
@@ -88,6 +96,7 @@ function App() {
             const t = readTarget();
             if (t === "add") { setSheet("menu"); setTab("home"); try { history.replaceState(null, "", location.pathname + "#home"); } catch (e) { /* ไม่เป็นไร */ } }
             else if (parseDeep(t)) { setDeep(parseDeep(t)); setTab("list"); }
+            else if (parseCardLink(t)) { setCardSheet({ kind: "detail", id: parseCardLink(t) }); setTab("me"); }
             else if (t && ["home", "list", "bills", "wallet", "clear", "me"].includes(t)) setTab(pageOf(t));
         }).catch((e) => { if (!CACHED_USER) setAuth({ state: "error", message: e.message }); else console.warn("signIn:", e.message); });
     }, []);
@@ -96,7 +105,7 @@ function App() {
         const h = () => {
             const t = location.hash.slice(1);
             const d = parseDeep(t);
-            if (d) { setDeep(d); setTab("list"); } else setTab(pageOf(t));
+            if (d) { setDeep(d); setTab("list"); } else if (parseCardLink(t)) { setCardSheet({ kind: "detail", id: parseCardLink(t) }); setTab("me"); } else setTab(pageOf(t));
         };
         addEventListener("hashchange", h);
         return () => removeEventListener("hashchange", h);
@@ -121,6 +130,14 @@ function App() {
         if (auth.state !== "ok" || tab !== "home") return;
         loadBillSchedule().then(setBillRaw).catch((e) => console.warn("loadBillSchedule:", e && e.message));
     }, [auth.state, tab, reload]);
+    // บัตรเครดิต: เฉพาะคนที่ผู้ดูแลเปิดให้ (ดูจากข้อมูลสมาชิกที่โหลดอยู่แล้ว ไม่เปิด = ไม่เรียก API) โหลดเมื่ออยู่หน้าแรกหรือแท็บ ฉัน
+    const mineProfile = profiles && auth.state === "ok" ? (profiles.find((p) => p.id === auth.user.memberId || (p.ids || []).includes(auth.user.memberId)) || profiles.find((p) => p.name === auth.user.name)) : null;
+    const cardsOn = Boolean(mineProfile && mineProfile.cardAlerts);
+    useEffect(() => {
+        if (auth.state !== "ok" || !profiles || !["home", "me"].includes(tab)) return;
+        if (!cardsOn) { setCardsData({ enabled: false, cards: [] }); return; }
+        loadCards().then(setCardsData).catch((e) => { if (!e.expired) console.warn("loadCards:", e && e.message); });
+    }, [auth.state, tab, reload, cardsOn, Boolean(profiles)]);
     // เดือนนี้: ฟังแบบสด (อ่านเฉพาะรายการที่เปลี่ยน)
     useEffect(() => {
         if (auth.state !== "ok") return undefined;
@@ -184,7 +201,14 @@ function App() {
     const nowModel = useMemo(() => (all ? (month === nowMonth ? model : buildHomeModel({ name: auth.user.name, month: nowMonth, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet })) : null), [all, model, month, nowMonth]);
     const bmHome = useMemo(() => (plan && model ? buildBudgetModel(plan, model, today) : null), [plan, model, today]);
     const bmNow = useMemo(() => (plan && nowModel ? buildBudgetModel(plan, nowModel, today) : null), [plan, nowModel, today]);
-    const billSched = useMemo(() => (billRaw && auth.state === "ok" ? buildBillSchedule({ me: auth.user.name, month: nowMonth, today, group: billRaw.group, personal: billRaw.personal }) : null), [billRaw, auth, nowMonth, today]);
+    const billSched = useMemo(() => (billRaw && auth.state === "ok" ? buildBillSchedule({ me: auth.user.name, month: nowMonth, today, group: billRaw.group, personal: billRaw.personal, cards: cardsData && cardsData.enabled ? cardsData.cards : [] }) : null), [billRaw, auth, nowMonth, today, cardsData]);
+    const cardDo = (p, msg) => p.then(() => loadCards({ force: true })).then((d) => { setCardsData(d); if (msg) setToast(msg); return d; });
+    const cardOpen = cardSheet && cardSheet.kind === "detail" && cardsData ? cardsData.cards.find((c) => c.id === cardSheet.id) : null;
+    useEffect(() => {
+        // ลิงก์จาก LINE ไปบัตรที่ไม่มีแล้ว (ลบไปแล้ว หรือผู้ดูแลปิด)
+        if (cardSheet && cardSheet.kind === "detail" && cardsData && !cardOpen) { setCardSheet(null); setToast(cardsData.enabled ? "ไม่พบบัตรนี้ (อาจถูกลบไปแล้ว)" : "ผู้ดูแลยังไม่ได้เปิดเตือนบัตรเครดิตให้คุณ"); }
+        if (cardSheet && cardSheet.kind === "detail" && cardsData) { try { history.replaceState(null, "", location.pathname + "#me"); } catch (e) { /* ไม่เป็นไร */ } }
+    }, [cardSheet, cardsData]);
     const planDo = (p, msg) => p.then((np) => { setPlan(np); if (msg) setToast(msg); return np; });
     const billsM = useMemo(() => (all ? buildBillsModel({ name: auth.user.name, month, transactions: all.transactions, search }) : null), [all, auth, month, search]);
     // หลังแก้ข้อมูล: ล้างที่จำไว้ของเดือนนั้นแล้วโหลดใหม่ (เดือนนี้บิลอัปเดตสดอยู่แล้ว โหลดเฉพาะกระเป๋าใหม่)
@@ -224,10 +248,10 @@ function App() {
     const needsData = page !== "me";
     let body;
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
-    else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles || []} today={today} nowMonth={nowMonth} since={since} onNeedYear={() => setWide(true)} bm={bmHome} onBudget={plan ? () => setPlanSheet({ kind: "budget" }) : null} bills={billSched} me={auth.user.name} onBills={() => setBillCal(true)} /> : <Skeleton blocks={5} />;
+    else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles || []} today={today} nowMonth={nowMonth} since={since} onNeedYear={() => setWide(true)} bm={bmHome} onBudget={plan ? () => setPlanSheet({ kind: "budget" }) : null} bills={billSched} me={auth.user.name} onBills={() => setBillCal(true)} onCard={(id) => setCardSheet({ kind: "detail", id })} /> : <Skeleton blocks={5} />;
     else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} bills={billsM} wallet={walletM} month={month} today={today} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
     else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} back={walletM ? { receivedSat: walletM.receivedBackSat, paidSat: walletM.paidBackSat } : null} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} /> : <Skeleton blocks={2} />;
+    else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { setProfiles(null); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} cards={cardsData} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} /> : <Skeleton blocks={2} />;
 
     return (
         <>
@@ -248,7 +272,11 @@ function App() {
                 onConfirmed={() => changed(String(choose.date).slice(0, 7))}
                 onDone={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }}
                 onMoreSplit={(it) => { setChoose(null); startSplit(it); }} />}
-            {billCal && billRaw && <Lazy load={loadBillCal} name="BillCalendarSheet" data={billRaw} me={auth.user.name} today={today} onClose={() => setBillCal(false)} />}
+            {cardSheet && (cardSheet.kind === "add" || cardSheet.kind === "edit") && <Lazy load={loadCardsUi} name="CardEditSheet" card={cardSheet.card || null} onClose={() => setCardSheet(null)}
+                onSave={(c) => cardDo(saveCard(c), c.id ? "แก้บัตรแล้ว" : "เพิ่มบัตรแล้ว")} onDelete={(id) => cardDo(deleteCard(id), "ลบบัตรแล้ว")} />}
+            {cardOpen && <Lazy load={loadCardsUi} name="CardDetailSheet" card={cardOpen} onClose={() => setCardSheet(null)} onEdit={(c) => setCardSheet({ kind: "edit", card: c })}
+                onPaid={(id, paid, key) => cardDo(setCardPaid(id, paid, key), paid ? "จ่ายแล้ว ไม่เตือนรอบนี้อีก" : "ยกเลิก จ่ายแล้ว").catch((e) => setToast(e.message))} />}
+            {billCal && billRaw && <Lazy load={loadBillCal} name="BillCalendarSheet" data={{ ...billRaw, cards: cardsData && cardsData.enabled ? cardsData.cards : [] }} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} me={auth.user.name} today={today} onClose={() => setBillCal(false)} />}
             {planSheet && planSheet.kind === "budget" && <Lazy load={loadPlanUi} name="BudgetSheet" plan={plan} nowMonth={nowMonth} suggestSat={bmNow ? bmNow.suggestSat : 0} onClose={() => setPlanSheet(null)} onSave={(b) => planDo(saveBudget(b), b.clear ? "กลับไปใช้งบปกติแล้ว" : "บันทึกงบแล้ว")} />}
             {planSheet && planSheet.kind === "move" && <Lazy load={loadPlanUi} name="GoalMoveSheet" goal={planSheet.goal} dir={planSheet.dir} month={nowMonth} onClose={() => setPlanSheet(null)} onMove={(id, a, dir) => planDo(moveGoal(id, a, dir), dir === "out" ? "ถอนออกจากเป้าแล้ว" : "เก็บเข้าเป้าแล้ว")} />}
             {planSheet && planSheet.kind === "goal" && <Lazy load={loadPlanUi} name="GoalEditSheet" goal={planSheet.goal || null} nowMonth={nowMonth} onClose={() => setPlanSheet(null)} onSave={(g) => planDo(saveGoal(g), g.id ? "แก้เป้าแล้ว" : "เพิ่มเป้าแล้ว")} onDelete={(id) => planDo(deleteGoal(id), "ลบเป้าแล้ว")} />}

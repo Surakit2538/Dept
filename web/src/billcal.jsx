@@ -2,7 +2,7 @@
 // ข้อมูลมาจากแม่แบบที่ตั้งให้ทำซ้ำทุกเดือน (loadBillSchedule) ไม่อ่านฐานข้อมูลเพิ่มตอนเลื่อนเดือน
 import { useState, useMemo } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "./icons.jsx";
-import { Sheet } from "./ui.jsx";
+import { Sheet, PayFlow } from "./ui.jsx";
 import { buildBillSchedule, billWho, baht, monthFullLabel, monthShort, shiftMonth } from "./model.js";
 
 const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
@@ -20,11 +20,11 @@ export function statusText(b) {
     return `อีก ${b.daysLeft} วัน`;
 }
 
-export function BillCalendarSheet({ data, me, today, onClose }) {
+export function BillCalendarSheet({ data, me, today, onClose, pictures = {} }) {
     const nowMonth = today.slice(0, 7);
     const [month, setMonth] = useState(nowMonth);
     const [day, setDay] = useState(null);
-    const sched = useMemo(() => buildBillSchedule({ me, month, today, group: data.group, personal: data.personal }), [data, me, month, today]);
+    const sched = useMemo(() => buildBillSchedule({ me, month, today, group: data.group, personal: data.personal, cards: data.cards || [] }), [data, me, month, today]);
     const [y, m] = month.split("-").map(Number);
     const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
     const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
@@ -81,7 +81,7 @@ export function BillCalendarSheet({ data, me, today, onClose }) {
                         {list.map((b) => (
                             <li class="row" key={b.id}>
                                 <ItemIcon desc={b.desc} name={iconFor(b.icon)} size={38} iconSize={18} />
-                                <div class="grow"><div class="t">{b.desc}</div><div class="s">ทุกวันที่ {b.billingDay > b.day ? `${b.day} (สิ้นเดือน)` : b.day} · {billWho(b, me)}</div></div>
+                                <div class="grow"><div class="t">{b.kind === "card" ? `จ่ายบัตร ${b.desc}` : b.desc}</div><div class="s">{b.kind === "card" ? billWho(b, me) : <>ทุกวันที่ {b.billingDay > b.day ? `${b.day} (สิ้นเดือน)` : b.day} · {b.kind === "group" ? <><PayFlow payer={b.payer} people={b.names || []} pictures={pictures} />{b.coverFor && " จ่ายแทน"}</> : billWho(b, me)}</>}</div></div>
                                 <div class="bc-v"><BillAmount b={b} /><span class={`bc-tag ${b.status}`}>{statusText(b)}</span></div>
                             </li>
                         ))}

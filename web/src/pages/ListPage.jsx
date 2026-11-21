@@ -2,7 +2,7 @@
 // มีค้นหา ตัวกรอง (ทั้งหมด/บิลกลุ่ม/ส่วนตัว/รายรับ) บิลที่ฉันเกี่ยวข้อง เลือกหลายรายการ แก้ไข/ลบ ยืนยันรายการอัตโนมัติ จัดหมวดให้ และรายการที่ทำซ้ำทุกเดือน
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
-import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile, Avatar, AvatarStack } from "../ui.jsx";
+import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile, PayerAv as Payer, PayFlow as Flow } from "../ui.jsx";
 import { baht, monthShort, guessBillIcon } from "../model.js";
 import {
     deleteBill, deleteBills, updateBillIcons, loadTemplates, stopTemplate,
@@ -17,14 +17,6 @@ const KindTag = ({ kind }) => <span class={`kind k-${kind}`}>{kind === "group" ?
 
 /** แถบสีน้ำเงินซ้ายสุดของแถว มีคำว่า "รายเดือน" ตั้งแนวตั้ง (เฉพาะรายการรายเดือน) */
 const MonthlyBar = () => <span class="mbar" aria-label="รายเดือน"><b aria-hidden="true">รายเดือน</b></span>;
-/** รูปคนจ่าย (วงทานตะวัน) */
-const Payer = ({ name, pictures }) => <span class="payer-av" title={`${name} จ่าย`}><Avatar name={name} pictureUrl={pictures[name]} size="xs" /></span>;
-/** คนจ่าย -> คนหาร (รูปซ้อน สูงสุด 3 รูป ที่เหลือ +N) */
-const Flow = ({ payer, people, pictures }) => (
-    <span class="flow" aria-label={`${payer} จ่าย หารกับ ${people.join(", ")}`}>
-        <Payer name={payer} pictures={pictures} /><Icon name="right" size={12} class="flow-arr" /><AvatarStack names={people} pictures={pictures} max={3} size="xs" />
-    </span>
-);
 
 const dayLabel = (d) => `${Number(d.slice(8, 10))} ${monthShort(d.slice(0, 7))}`;
 

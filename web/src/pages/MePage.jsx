@@ -5,6 +5,7 @@ import { Avatar, SectionTitle, Sheet, Lazy } from "../ui.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
 import { saveMyProfile, logout } from "../data.js";
 import { PlanCard, GoalStack } from "../plan.jsx";
+import { CardWallet } from "../cards.jsx";
 
 function EditProfileSheet({ realName, promptpay, onSave, onClose, busy, msg, setRealName, setPromptpay }) {
     return (
@@ -27,7 +28,7 @@ function EditProfileSheet({ realName, promptpay, onSave, onClose, busy, msg, set
     );
 }
 
-export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {}, bm = null, onBudget = () => {}, onGoalAdd = () => {}, onGoalMove = () => {}, onGoalEdit = () => {} }) {
+export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {}, bm = null, onBudget = () => {}, onGoalAdd = () => {}, onGoalMove = () => {}, onGoalEdit = () => {}, cards = null, onCardAdd = () => {}, onCardOpen = () => {} }) {
     const mine = (profiles || []).find((p) => p.id === auth.user.memberId) || (profiles || []).find((p) => p.name === auth.user.name) || {};
     const [realName, setRealName] = useState("");
     const [promptpay, setPromptpay] = useState("");
@@ -85,6 +86,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                     </div>
                 </section>
                 {bm ? <PlanCard bm={bm} onBudget={onBudget} /> : <section class="card plan-card skel" aria-busy="true"><p class="lbl">กำลังโหลดแผนเดือนนี้</p></section>}
+                {cards && cards.enabled && <CardWallet cards={cards.cards} onAdd={onCardAdd} onOpen={onCardOpen} />}
             </div>
             <div class="col">
                 {bm && <GoalStack goals={bm.goals} month={bm.month} onAdd={onGoalAdd} onMove={onGoalMove} onEdit={onGoalEdit} />}

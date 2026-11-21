@@ -464,6 +464,38 @@ export const saveGoal = (goal) => planCall({ action: "goal-save", ...goal });
 export const moveGoal = (id, amount, dir) => planCall({ action: "goal-move", id, amount, dir });
 export const deleteGoal = (id) => planCall({ action: "goal-delete", id });
 
+// ---------- บัตรเครดิต (รอบบิล + เตือนก่อนครบกำหนด) เฉพาะคนที่ผู้ดูแลเปิดให้ ผ่าน API เท่านั้น ----------
+const TTL_CARDS = 5 * 60 * 1000;
+/** บัตรพร้อมยอดรอบ (ยอดเปลี่ยนตามรายการที่บันทึก จึงจำไว้แค่ 5 นาที) คืน { enabled, cards } */
+export async function loadCards({ force = false } = {}) {
+    const hit = force ? null : cacheGet("cards", TTL_CARDS);
+    if (hit) return hit;
+    const r = await api("/api/shortcut-transaction", { action: "card-list" });
+    const v = { enabled: r.enabled === true, cards: Array.isArray(r.cards) ? r.cards : [] };
+    cacheSet("cards", v);
+    return v;
+}
+export function invalidateCards() {
+    try { localStorage.removeItem(KEY + "cards"); } catch (e) { /* ไม่เป็นไร */ }
+}
+const cardCall = async (body) => { const r = await api("/api/shortcut-transaction", body); invalidateCards(); return r; };
+/** เพิ่มบัตร (ไม่มี id) หรือแก้บัตร card = { id?, bank, last4, color, statementDay, dueDay } */
+export const saveCard = (card) => cardCall({ action: "card-save", ...card });
+export const deleteCard = (id) => cardCall({ action: "card-delete", id });
+/** กด จ่ายแล้ว (paid=true) หรือยกเลิก ของรอบ key */
+export const setCardPaid = (id, paid, key) => cardCall({ action: "card-paid", id, paid, key });
+
+/** ผู้ดูแล: เปิด/ปิดเตือนบัตรเครดิตให้สมาชิก (แก้ทุกเอกสารที่ชื่อเดียวกัน) */
+export async function setCardAlerts(p, on) {
+    for (const id of p.ids && p.ids.length ? p.ids : [p.id]) await updateDoc(doc(db, "members", String(id)), { cardAlerts: Boolean(on) });
+    invalidateProfiles();
+}
+/** ผู้ดูแล: ข้อความ LINE ที่ส่งหาเองได้ต่อเดือน { limit, used } หรือ null */
+export async function loadLineQuota() {
+    const r = await api("/api/shortcut-transaction", { action: "line-quota" });
+    return r && r.quota ? r.quota : null;
+}
+
 export async function addWallet(entry) {
     if (entry && entry.recurring) invalidateBillSchedule();
     return api("/api/shortcut-transaction", { action: "wallet-add", ...entry, source: "web" });
@@ -479,9 +511,12 @@ export async function loadProfiles() {
         const x = d.data();
         const name = upName(x.name);
         if (!name) return;
-        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), pictureUrl: /^https?:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "", role: x.role === "admin" ? "admin" : "member" };
+        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), pictureUrl: /^https?:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "", role: x.role === "admin" ? "admin" : "member", cardAlerts: x.cardAlerts === true, ids: [d.id] };
         const cur = byName.get(name);
+        // ชื่อซ้ำหลายเอกสาร: เก็บรหัสทุกเอกสารไว้ (เปิด/ปิดเตือนบัตรต้องแก้ทุกเอกสาร) และนับว่าเปิดถ้ามีเอกสารไหนเปิด
+        if (cur) { p.ids = [...cur.ids, d.id]; p.cardAlerts = p.cardAlerts || cur.cardAlerts; }
         if (!cur || (!cur.hasLine && p.hasLine) || (!cur.promptpay && p.promptpay) || (!cur.pictureUrl && p.pictureUrl)) byName.set(name, p);
+        else { cur.ids = p.ids; cur.cardAlerts = p.cardAlerts; }
     });
     const list = [...byName.values()];
     cacheSet("profiles", list);

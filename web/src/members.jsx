@@ -1,11 +1,47 @@
 // จัดการสมาชิก (เฉพาะแอดมิน): เพิ่มชื่อ แก้ชื่อจริง/พร้อมเพย์ ตั้งสิทธิ์แอดมิน ลบ (ลบได้เมื่อไม่มีชื่อนี้ในบิลหรือประวัติเคลียร์เงิน)
-import { useState } from "preact/hooks";
+import { useState, useEffect } from "preact/hooks";
 import { Avatar, Sheet, DeleteButton } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
 import { validPromptpay, maskPromptpay } from "./model.js";
-import { addMemberName, updateMember, deleteMemberIfUnused } from "./data.js";
+import { addMemberName, updateMember, deleteMemberIfUnused, setCardAlerts, loadLineQuota } from "./data.js";
+
+/** สวิตช์เปิดเตือนบัตรเครดิตทาง LINE ให้สมาชิกคนนี้ (ใช้โควต้าข้อความ LINE ที่ส่งหาเอง) */
+function CardSwitch({ p, onChanged, onToast }) {
+    const [on, setOn] = useState(Boolean(p.cardAlerts));
+    const [busy, setBusy] = useState(false);
+    async function flip() {
+        const v = !on;
+        setBusy(true);
+        try { await setCardAlerts(p, v); setOn(v); onToast(v ? `เปิดเตือนบัตรเครดิตให้ ${p.name} แล้ว` : `ปิดเตือนบัตรเครดิตของ ${p.name} แล้ว`); onChanged(); } catch (ex) { onToast(ex.message); }
+        setBusy(false);
+    }
+    return (
+        <label class="cc-switch">
+            <input type="checkbox" role="switch" checked={on} disabled={busy} onChange={flip} />
+            <span class="sw" aria-hidden="true" />
+            <span>เตือนบัตรเครดิตทาง LINE{!p.hasLine && on ? " (ยังไม่ผูก LINE จึงยังส่งไม่ได้)" : ""}</span>
+        </label>
+    );
+}
+
+/** โควต้าข้อความ LINE เดือนนี้ (ข้อความที่ LINE ส่งหาเอง เช่น เตือนหนี้วันที่ 25 และเตือนบัตร) */
+function LineQuota() {
+    const [q, setQ] = useState(undefined);
+    useEffect(() => { loadLineQuota().then(setQ).catch(() => setQ(null)); }, []);
+    if (q === undefined) return <p class="lbl">กำลังอ่านโควต้าข้อความ LINE</p>;
+    if (!q) return null;
+    const pct = q.limit ? Math.min(100, Math.round((q.used / q.limit) * 100)) : 0;
+    return (
+        <div class="lq">
+            <div class="lq-t"><b>ข้อความ LINE เดือนนี้</b><span class="num">{q.used.toLocaleString("en-US")}{q.limit ? ` / ${q.limit.toLocaleString("en-US")}` : " (ไม่จำกัด)"}</span></div>
+            {q.limit ? <div class="lq-bar" role="img" aria-label={`ใช้ไป ${pct}%`}><i style={{ width: `${Math.max(q.used > 0 ? 2 : 0, pct)}%` }} class={pct >= 80 ? "near" : ""} /></div> : null}
+            <p class="lbl">นับเฉพาะที่ LINE ส่งหาเอง (เตือนหนี้วันที่ 25, เตือนบัตร, ปุ่มเตือนเพื่อน) ข้อความตอบกลับในแชตไม่นับ · บัตร 1 ใบใช้ประมาณ 2 ข้อความต่อเดือน</p>
+        </div>
+    );
+}
 
 function Row({ p, isMe, onChanged, onToast }) {
+    const cardSw = <CardSwitch p={p} onChanged={onChanged} onToast={onToast} />;
     const [open, setOpen] = useState(false);
     const [realName, setRealName] = useState(p.realName || "");
     const [promptpay, setPromptpay] = useState(p.promptpay || "");
@@ -50,6 +86,7 @@ function Row({ p, isMe, onChanged, onToast }) {
                         {!p.hasLine && <span class="tag tag-mute">ยังไม่ผูก LINE</span>}
                         {!complete && <span class="tag warn">ข้อมูลไม่ครบ</span>}
                     </div>
+                    {cardSw}
                 </div>
                 <button type="button" class="btn sm ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "ปิด" : "แก้ไข"}</button>
             </div>
@@ -98,6 +135,7 @@ export function MembersSheet({ profiles, me, onClose, onChanged, onToast }) {
                 {err && <p class="msg" role="alert">{err}</p>}
                 <p class="lbl madd-hint">คนที่เพิ่มด้วยชื่อ จะผูกบัญชี LINE ของตัวเองได้ตอนเข้าใช้ครั้งแรก โดยเลือกชื่อนี้</p>
             </div>
+            <LineQuota />
             <div class="mlist-head"><span class="lbl">สมาชิก ({list.length} คน)</span></div>
             <ul class="plain mlist">{list.map((p) => <Row key={p.id} p={p} isMe={p.name === me} onChanged={onChanged} onToast={onToast} />)}</ul>
         </Sheet>

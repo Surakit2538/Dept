@@ -103,5 +103,66 @@ test("หน้าแรก: การ์ดบิลถัดไป (อีก 
     assert.match(cal, /ทั้งเดือน · 6 บิล/);
     assert.match(cal, /ตัดแล้ว/);
     assert.match(cal, /อีก 2 วัน/);
-    assert.match(cal, /คุณจ่ายแทน/);
+    assert.match(cal, /aria-label="GAME จ่าย หารกับ GAME, CARE"/, "บิลกลุ่มแสดงรูปคนจ่าย -> คนหาร");
+    assert.match(cal, /aria-label="GAME จ่าย หารกับ BEN"[^]*?จ่ายแทน/, "จ่ายแทนเพื่อนยังบอกว่าจ่ายแทน");
+});
+
+// ---------- บัตรเครดิต: วันครบกำหนดจ่ายบัตรต่อคิวในการ์ดบิลถัดไป/ปฏิทิน และหน้าบัตรในแท็บ ฉัน ----------
+import { cardStatus } from "../lib/card-cycle.mjs";
+const CARD_DEFS = [{ id: "k1", bank: "KTC", last4: "1234", color: "sun", statementDay: 15, dueDay: 25, paid: {} }];
+const CARD_ITEMS = [{ id: "a", type: "expense", date: "2026-11-10", amount: 1200, desc: "ร้าน A", card: "KTC-1234" }, { id: "b", type: "expense", date: "2026-11-20", amount: 300, desc: "ร้าน B", card: "KTC-1234" }];
+const cardsAt = (today, paid = {}) => CARD_DEFS.map((c) => {
+    const st = cardStatus({ ...c, paid }, CARD_DEFS, CARD_ITEMS, today);
+    if (st.due) st.due.items = [];
+    st.open.items = [];
+    return st;
+});
+
+test("บัตร: วันครบกำหนดจ่ายบัตรต่อคิวในบิลถัดไป (ยอดรอบ) ไม่นับรวมยอดบิลรายเดือน / จ่ายแล้วไม่ขึ้นรอบนั้น", () => {
+    const s = buildBillSchedule({ me: "GAME", month: "2026-11", today: "2026-11-22", group, personal, cards: cardsAt("2026-11-22") });
+    const card = s.upcoming.find((x) => x.kind === "card" && !x.pending);
+    assert.equal(card.desc, "KTC •• 1234");
+    assert.equal(card.date, "2026-11-25");
+    assert.equal(card.daysLeft, 3);
+    assert.equal(card.mySat, 120000);
+    assert.equal(billWho(card, "GAME"), "ยอดรอบ 16 ต.ค. - 15 พ.ย.");
+    const open = s.upcoming.find((x) => x.kind === "card" && x.pending);
+    assert.equal(open.date, "2026-12-25");
+    assert.equal(billWho(open, "GAME"), "ยังไม่ตัดรอบ (ตัดรอบ 15 ธ.ค.)");
+    const plain = buildBillSchedule({ me: "GAME", month: "2026-11", today: "2026-11-22", group, personal });
+    assert.equal(s.totalSat, plain.totalSat, "ยอดบัตรไม่บวกซ้ำกับบิลรายเดือน");
+    assert.ok(s.items.some((x) => x.kind === "card" && x.day === 25), "ปฏิทินเดือนนี้มีวันจ่ายบัตร");
+    const paid = buildBillSchedule({ me: "GAME", month: "2026-11", today: "2026-11-22", group, personal, cards: cardsAt("2026-11-22", { "2026-11": "x" }) });
+    assert.ok(!paid.upcoming.some((x) => x.kind === "card" && !x.pending), "กดจ่ายแล้ว รอบนั้นหายจากคิว");
+});
+
+test("บัตร: กระเป๋าบัตรในแท็บ ฉัน / หน้าเพิ่มบัตรมีภาพบัตรและสี 4 สี / รายละเอียดมีปุ่ม จ่ายแล้ว / การ์ดหน้าแรกขึ้น ครบกำหนดจ่ายบัตร", { skip: !hasTools }, async () => {
+    const nm = path.join(root, "web", "node_modules");
+    const { h } = await import(pathToFileURL(path.join(nm, "preact", "dist", "preact.mjs")).href);
+    const { render: toString } = await import(pathToFileURL(path.join(nm, "preact-render-to-string", "dist", "index.mjs")).href);
+    const { CardWallet, CardEditSheet, CardDetailSheet, cardOrder } = await bundle("web/src/cards.jsx", "cards");
+    const cards = cardsAt("2026-11-22");
+    const wallet = toString(h(CardWallet, { cards, onAdd() {}, onOpen() {} }));
+    assert.match(wallet, /บัตรเครดิต/);
+    assert.match(wallet, /ต้องจ่ายรอบนี้ \(16 ต\.ค\. - 15 พ\.ย\.\)/);
+    assert.match(wallet, /฿1,200/);
+    assert.match(wallet, /อีก 3 วัน/);
+    assert.match(wallet, /plastic pc-sun/);
+    assert.match(toString(h(CardWallet, { cards: [], onAdd() {}, onOpen() {} })), /เพิ่มบัตรใบแรก/);
+    const add = toString(h(CardEditSheet, { onSave() {}, onClose() {} }));
+    assert.match(add, /เพิ่มบัตรเครดิต/);
+    assert.equal((add.match(/aria-label="สี(น้ำเงิน|ดำ|ทานตะวัน|เขียว)"/g) || []).length, 4);
+    assert.match(add, /ตัดรอบทุกวันที่/);
+    const det = toString(h(CardDetailSheet, { card: cards[0], onEdit() {}, onPaid() {}, onClose() {} }));
+    assert.match(det, /KTC •• 1234/);
+    assert.match(det, /จ่ายแล้ว/);
+    assert.match(det, /รอบที่ต้องจ่าย \(1\)/);
+    assert.deepEqual(cardOrder([{ id: "a", open: { daysLeft: 5 } }, { id: "b", due: { daysLeft: 9, paid: false }, open: { daysLeft: 40 } }]).map((c) => c.id), ["b", "a"], "บัตรที่ต้องจ่ายอยู่บนสุด");
+
+    const { HomePage } = await bundle("web/src/pages/HomePage.jsx", "home-cards");
+    const model = (await import("../web/src/model.js")).buildHomeModel({ name: "GAME", month: "2026-11", today: "2026-11-24", members: ["GAME"], transactions: [], settlements: [], walletItems: [] });
+    const sched = buildBillSchedule({ me: "GAME", month: "2026-11", today: "2026-11-24", cards: cardsAt("2026-11-24") });
+    const home = toString(h(HomePage, { model, month: "2026-11", nowMonth: "2026-11", today: "2026-11-24", since: "2025-12", onMonth() {}, onAddIncome() {}, bills: sched, me: "GAME", onCard() {} }));
+    assert.match(home, /ครบกำหนดจ่ายบัตร · 25 พ\.ย\./);
+    assert.match(home, /KTC •• 1234/);
 });

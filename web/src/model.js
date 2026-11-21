@@ -165,9 +165,11 @@ export function buildBudgetModel(plan, m, today = "") {
  * ปฏิทินบิลรายเดือน: จากแม่แบบที่ตั้งให้ทำซ้ำทุกเดือน (กลุ่ม subscription_templates + ส่วนตัว wallet_templates)
  * เฉพาะที่เกี่ยวกับฉัน (อยู่ในคนหาร หรือเป็นคนจ่าย) ยอดที่นับ = ส่วนของฉัน (จ่ายแทนเพื่อน = 0 แต่ยังแสดง)
  * วันตัดเกินวันสุดท้ายของเดือน (เช่น 31 ในเดือน พ.ย.) = วันสุดท้ายของเดือนนั้น เหมือนตอนระบบสร้างบิล
+ * cards = สถานะบัตรเครดิตจาก card-list (lib/card-cycle.mjs cardStatus): วันครบกำหนดจ่ายบัตรต่อคิวในการ์ดบิลถัดไปและปฏิทิน
+ *   (รอบที่ตัดแล้วยังไม่จ่าย + รอบที่ใช้อยู่) ไม่นับรวมใน totalSat/dueSat เพราะค่ารายเดือนที่ตัดบัตรอยู่ในยอดบัตรแล้ว
  * คืน { month, items (ของเดือนนั้น เรียงตามวัน), totalSat, dueSat (วันนี้ขึ้นไป), upcoming (ตั้งแต่วันนี้ ถึง 2 เดือนข้างหน้า) }
  */
-export function buildBillSchedule({ me, month, today, group = [], personal = [] }) {
+export function buildBillSchedule({ me, month, today, group = [], personal = [], cards = [] }) {
     const my = normalizeName(me);
     const sat = (v) => Math.round((Number(v) || 0) * 100);
     const bills = [];
@@ -179,7 +181,7 @@ export function buildBillSchedule({ me, month, today, group = [], personal = [] 
         if (!key && payer !== my) continue;
         bills.push({
             id: "g:" + t.id, kind: "group", desc: String(t.desc || "บิลรายเดือน"), icon: t.icon || "", billingDay: Number(t.billingDay) || 1,
-            mySat: key ? sat(splits[key]) : 0, totalSat: sat(t.amount), payer, people: Object.keys(splits).length, coverFor: !key
+            mySat: key ? sat(splits[key]) : 0, totalSat: sat(t.amount), payer, people: Object.keys(splits).length, names: Object.keys(splits).map(normalizeName), coverFor: !key
         });
     }
     for (const t of personal) {
@@ -192,23 +194,55 @@ export function buildBillSchedule({ me, month, today, group = [], personal = [] 
         const daysLeft = Math.round((Date.parse(date + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000);
         return { ...b, date, day: Number(date.slice(8, 10)), daysLeft, status: daysLeft < 0 ? "done" : daysLeft === 0 ? "today" : "soon" };
     };
-    const items = bills.map((b) => at(b, month)).sort((a, b) => a.day - b.day || a.desc.localeCompare(b.desc));
+    const cardItems = cardBills(cards, today);
+    const items = [...bills.map((b) => at(b, month)), ...cardItems.filter((c) => c.date.startsWith(month))]
+        .sort((a, b) => a.day - b.day || a.desc.localeCompare(b.desc));
     const nowMonth = today.slice(0, 7);
-    const upcoming = [nowMonth, shiftMonth(nowMonth, 1), shiftMonth(nowMonth, 2)]
-        .flatMap((m) => bills.map((b) => at(b, m)))
+    const upcoming = [...[nowMonth, shiftMonth(nowMonth, 1), shiftMonth(nowMonth, 2)].flatMap((m) => bills.map((b) => at(b, m))), ...cardItems]
         .filter((x) => x.daysLeft >= 0)
         .sort((a, b) => a.daysLeft - b.daysLeft || b.mySat - a.mySat);
+    const monthly = items.filter((x) => x.kind !== "card");
     return {
         month,
         items,
-        totalSat: items.reduce((a, x) => a + x.mySat, 0),
-        dueSat: items.filter((x) => x.daysLeft >= 0).reduce((a, x) => a + x.mySat, 0),
+        totalSat: monthly.reduce((a, x) => a + x.mySat, 0),
+        dueSat: monthly.filter((x) => x.daysLeft >= 0).reduce((a, x) => a + x.mySat, 0),
         upcoming
     };
 }
 
-/** คำบรรยายสั้นของบิลรายเดือน: "ส่วนตัว" / "คุณจ่าย หาร 4" / "CARE จ่าย หาร 3" / "คุณจ่ายแทน" */
+/** ชื่อบัตร "KTC •• 1234" (เหมือน cardLabel ใน lib/card-cycle.mjs) */
+export function cardName(c) {
+    const b = c && c.bank && c.bank !== "อื่นๆ" ? c.bank : "บัตร";
+    return c && c.last4 ? `${b} •• ${c.last4}` : b;
+}
+/** "16 ต.ค." */
+export function dayShort(date) {
+    return `${Number(date.slice(8, 10))} ${monthShort(date.slice(0, 7))}`;
+}
+
+/** วันครบกำหนดจ่ายบัตร -> รายการในปฏิทินบิล (รอบที่ตัดแล้วยังไม่จ่าย + รอบที่ใช้อยู่) */
+function cardBills(cards, today) {
+    const out = [];
+    for (const c of cards || []) {
+        const add = (cyc, pending) => {
+            const daysLeft = Math.round((Date.parse(cyc.dueDate + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 86400000);
+            out.push({
+                id: `c:${c.id}:${cyc.key}`, kind: "card", cardId: c.id, color: c.color, desc: cardName(c), icon: "fa-credit-card",
+                date: cyc.dueDate, day: Number(cyc.dueDate.slice(8, 10)), billingDay: c.dueDay, daysLeft,
+                status: daysLeft < 0 ? "done" : daysLeft === 0 ? "today" : "soon",
+                mySat: Number(cyc.amountSat) || 0, totalSat: Number(cyc.amountSat) || 0, start: cyc.start, end: cyc.end, pending, people: 1, coverFor: false
+            });
+        };
+        if (c.due && !c.due.paid) add(c.due, false);
+        if (c.open) add(c.open, true);
+    }
+    return out;
+}
+
+/** คำบรรยายสั้นของบิลรายเดือน: "ส่วนตัว" / "คุณจ่าย หาร 4" / "CARE จ่าย หาร 3" / "คุณจ่ายแทน" / บัตร: "ยอดรอบ 16 ต.ค. - 15 พ.ย." */
 export function billWho(b, me) {
+    if (b.kind === "card") return b.pending ? `ยังไม่ตัดรอบ (ตัดรอบ ${dayShort(b.end)})` : `ยอดรอบ ${dayShort(b.start)} - ${dayShort(b.end)}`;
     if (b.kind === "personal") return "ส่วนตัว";
     const mine = b.payer === normalizeName(me);
     if (b.coverFor) return "คุณจ่ายแทน";
