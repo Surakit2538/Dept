@@ -2,28 +2,60 @@ rules_version = '2';
 
 // กฎความปลอดภัย Firestore ของ Dept Money
 // - เซิร์ฟเวอร์ (Vercel) ใช้กุญแจแอดมิน (FIREBASE_SERVICE_ACCOUNT) ซึ่ง "ข้ามกฎนี้" จึงอ่าน/เขียนได้ทุกคอลเลกชัน
-// - หน้าเว็บ (เบราว์เซอร์) ใช้ได้เฉพาะคอลเลกชันข้อมูลกลุ่มที่ระบุชื่อไว้ด้านล่าง และต้องถือ "บัตรผ่านสมาชิก"
-//   บัตรผ่าน = Firebase custom token ที่เซิร์ฟเวอร์ออกให้หลังตรวจกับ LINE ว่าเป็นสมาชิกที่ผูกบัญชีแล้ว (lib/member-login.mjs)
-//   ในบัตรมี mid (รหัสสมาชิก) member (ชื่อ) admin (เป็นผู้ดูแลไหม)
+//   (บอท LINE, Widget, สคริปต์ iPhone, ตรวจสลิปเคลียร์เงิน, cron ไม่ติดกฎนี้)
+// - หน้าเว็บ (เบราว์เซอร์) ต้องถือ "บัตรผ่านสมาชิก" = Firebase custom token ที่เซิร์ฟเวอร์ออกให้หลังตรวจกับ LINE (lib/member-login.mjs)
+//   ในบัตรมี mid (รหัสสมาชิก) และ member (ชื่อในกลุ่ม ตัวใหญ่ ช่องว่างเดียว)
+// - สิทธิ์ตรงกับที่หน้าเว็บทำอยู่:
+//     ทุกคน     อ่านข้อมูลกลุ่ม, เพิ่มบิล (เลือกคนจ่ายได้), แก้ชื่อจริง/พร้อมเพย์ของตัวเอง
+//     คนจ่ายบิล แก้ชื่อ/หมวดของบิลตัวเอง, ลบบิลตัวเอง, หยุดบิลรายเดือนของตัวเอง
+//     ผู้ดูแล    ทำได้ทุกอย่าง เพิ่ม/แก้/ลบสมาชิก, ยืนยัน/ย้ายเดือน/ลบประวัติเคลียร์เงิน, ลบข้อมูลทั้งเดือน
+//   ผู้ดูแลดูจากเอกสารสมาชิกปัจจุบัน (role หรือ LINE ของผู้ดูแลหลัก) จึงมีผลทันทีที่ตั้ง/ถอดผู้ดูแล
 // - คอลเลกชันที่ไม่ได้ระบุ (wallet_entries, wallet_plan, personal_expenses, device_tokens, pending_slips, user_sessions, reminder_logs ฯลฯ)
 //   ถูกปิดทั้งหมดโดยอัตโนมัติ ห้ามเพิ่มกฎแบบ match /{document=**} { allow ... } เด็ดขาด
-// - ย้อนกลับฉุกเฉิน: ดู FIRESTORE_RULES_ROLLOUT.md
+// - ทดสอบกับ Firestore emulator: tests/rules/firestore-rules.emulator.mjs · ย้อนกลับฉุกเฉิน: FIRESTORE_RULES_ROLLOUT.md
 service cloud.firestore {
   match /databases/{database}/documents {
     function isMember() {
       return request.auth != null && request.auth.token.mid is string;
     }
+    function myMemberPath() {
+      return /databases/$(database)/documents/members/$(request.auth.token.mid);
+    }
+    function isAdmin() {
+      return isMember() && exists(myMemberPath()) && (
+        get(myMemberPath()).data.get('role', '') == 'admin' ||
+        get(myMemberPath()).data.get('lineUserId', '') == 'U0d739eea39c312e11c487e22861920d1'
+      );
+    }
+    // ชื่อในบิลเทียบกับชื่อในบัตร (ตัดช่องว่างซ้ำ ตัวใหญ่ เหมือน cleanName ของเว็บและเซิร์ฟเวอร์)
+    function isMe(name) {
+      return name is string && name.replace('\\s+', ' ').trim().upper() == request.auth.token.member;
+    }
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
     match /members/{id} {
-      allow read, write: if isMember();
+      allow read: if isMember();
+      allow create, delete: if isAdmin();
+      allow update: if isMember() && (
+        (request.auth.token.mid == id && onlyChanged(['realName', 'promptpay', 'realNameUpdatedAt', 'promptpayUpdatedAt'])) ||
+        isAdmin()
+      );
     }
     match /transactions/{id} {
-      allow read, write: if isMember();
+      allow read, create: if isMember();
+      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['desc', 'icon'])) || isAdmin());
+      allow delete: if isMember() && (isMe(resource.data.get('payer', '')) || isAdmin());
     }
     match /settlements/{id} {
-      allow read, write: if isMember();
+      allow read: if isMember();
+      allow create, update, delete: if isAdmin();
     }
     match /subscription_templates/{id} {
-      allow read, write: if isMember();
+      allow read, create: if isMember();
+      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['active', 'stoppedAt'])) || isAdmin());
+      allow delete: if isAdmin();
     }
   }
 }
