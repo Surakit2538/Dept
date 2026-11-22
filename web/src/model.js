@@ -23,7 +23,7 @@ const monthOfDate = (d) => String(d || "").slice(0, 7);
  * @param {{name:string, month:string, today?:string, members:string[], transactions:object[], settlements:object[], walletItems:object[]}} p
  * walletItems: รายการจาก API wallet-list ({type, amount, date, desc, icon?, category?})
  */
-export function buildHomeModel({ name, month, today = "", members, transactions, settlements, walletItems = [] }) {
+export function buildHomeModel({ name, month, today = "", members, transactions, settlements, walletItems = [], planLines = null }) {
     const me = normalizeName(name);
     const ledger = computeMonthLedger({ memberNames: members, transactions, settlements, month });
     const w = walletMonth({
@@ -88,7 +88,8 @@ export function buildHomeModel({ name, month, today = "", members, transactions,
     const average = lastDay > 0 ? Math.round(spentSat / lastDay / 100) : 0;
 
     // หนี้: แผนโอนของเดือน (ปัดบาท) แยกเพื่อนค้างฉัน / ฉันค้างเพื่อน
-    const plan = toDisplayPlan(ledger.plan);
+    // เปิดซ่อนข้อมูลแล้ว: เครื่องเรามีแค่บิลของเรา ยอดโอนมาจากเซิร์ฟเวอร์ (planLines) แทน
+    const plan = planLines || toDisplayPlan(ledger.plan);
     const owedToMe = plan.filter((l) => l.to === me).map((l) => ({ name: l.from, amount: l.amount })).sort((a, b) => b.amount - a.amount);
     const iOwe = plan.filter((l) => l.from === me).map((l) => ({ name: l.to, amount: l.amount })).sort((a, b) => b.amount - a.amount);
     const maxOwed = owedToMe[0] ? owedToMe[0].amount : 0;
@@ -319,10 +320,10 @@ export function promptpayQrUrl(promptpay, amount) {
 }
 
 /** แผนโอนของเดือน: เรียงรายการของฉันก่อน แยกว่าฉันต้องโอน (pay) / รอรับ (receive) / ของคนอื่น (other) */
-export function buildClearModel({ name, month, members, transactions, settlements }) {
+export function buildClearModel({ name, month, members, transactions, settlements, planLines = null }) {
     const me = normalizeName(name);
-    const ledger = computeMonthLedger({ memberNames: members, transactions, settlements, month });
-    const lines = toDisplayPlan(ledger.plan).map((l) => ({
+    const plan = planLines || toDisplayPlan(computeMonthLedger({ memberNames: members, transactions, settlements, month }).plan);
+    const lines = plan.map((l) => ({
         from: l.from, to: l.to, amount: l.amount,
         role: l.from === me ? "pay" : l.to === me ? "receive" : "other"
     }));

@@ -3,7 +3,7 @@ import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet, Lazy } from "../ui.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
-import { saveMyProfile, logout, loadAdminStatus, sendGroupSummary, remindAllDebtors } from "../data.js";
+import { saveMyProfile, logout, loadAdminStatus, sendGroupSummary, remindAllDebtors, backfillPeople, checkPrivacyIndexes, setPrivacyHide } from "../data.js";
 
 const TH_M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const dShort = (iso) => { const d = String(iso || "").slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${Number(d.slice(8, 10))} ${TH_M[Number(d.slice(5, 7)) - 1]}` : ""; };
@@ -48,6 +48,84 @@ function JobStatus() {
         </div>
     );
 }
+/**
+ * ผู้ดูแลหลัก: ซ่อนข้อมูลของคนอื่น (สมาชิกเห็นเฉพาะบิลที่ตัวเองจ่ายหรือหาร)
+ * เริ่มซ่อน = เติมป้ายชื่อในข้อมูลเก่า -> ตรวจดัชนี (ยังไม่มีให้กดลิงก์สร้าง) -> เปิดสวิตช์ที่เซิร์ฟเวอร์
+ */
+export function PrivacyBox({ me, privacy, seeAll, onSeeAll, onPrivacy, onToast }) {
+    const [step, setStep] = useState(""); // "" | ข้อความระหว่างทำ
+    const [idx, setIdx] = useState(null); // ผลตรวจดัชนีที่ยังไม่ผ่าน
+    const [askOff, setAskOff] = useState(false);
+    async function start() {
+        try {
+            setStep("กำลังเติมป้ายชื่อในข้อมูลเก่า");
+            const b = await backfillPeople();
+            if (!b.done) { onToast("เติมป้ายยังไม่ครบ กด เริ่มซ่อน อีกครั้ง"); setStep(""); return; }
+            setStep("กำลังตรวจดัชนี");
+            const r = await checkPrivacyIndexes(me);
+            const bad = r.filter((x) => !x.ok);
+            if (bad.length) { setIdx(bad); setStep(""); return; }
+            setIdx(null);
+            setStep("กำลังเปิดซ่อน");
+            onToast(await setPrivacyHide(true));
+            onPrivacy(true);
+        } catch (ex) { onToast(ex.message); }
+        setStep("");
+    }
+    async function off() {
+        setStep("กำลังปิดซ่อน");
+        try { onToast(await setPrivacyHide(false)); onPrivacy(false); } catch (ex) { onToast(ex.message); }
+        setAskOff(false);
+        setStep("");
+    }
+    if (!privacy.hide) {
+        return (
+            <div class="privbox" aria-label="ซ่อนข้อมูลของคนอื่น">
+                <div class="opt-row as-div">
+                    <span class="ico"><Icon name="shield" /></span>
+                    <span><b>ซ่อนข้อมูลของคนอื่น</b><small>{step || "ตอนนี้ทุกคนเห็นบิลของทั้งกลุ่ม เปิดแล้วแต่ละคนเห็นเฉพาะบิลที่ตัวเองจ่ายหรือหาร (คุณดูได้ทั้งหมด)"}</small></span>
+                    <button type="button" class="btn sm" disabled={Boolean(step)} onClick={start}>{step ? "รอสักครู่" : idx ? "ตรวจอีกครั้ง" : "เริ่มซ่อน"}</button>
+                </div>
+                {idx && (
+                    <div class="jobst">
+                        <b>ต้องสร้างดัชนีก่อน ({idx.length} อัน)</b>
+                        <p class="lbl">กดปุ่ม สร้าง ทีละอัน ในหน้า Firebase ที่เปิดขึ้นมากด Save รอจนขึ้น Enabled (2-5 นาที) แล้วกลับมากด ตรวจอีกครั้ง</p>
+                        {idx.map((x) => (
+                            <div class="jobst-r" key={x.key}><span>ดัชนีของ{x.label}</span>
+                                {x.link ? <a class="btn sm ghost" href={x.link} target="_blank" rel="noopener">สร้าง</a> : <b>{x.error || "ตรวจไม่ได้"}</b>}
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    }
+    return (
+        <div class="privbox" aria-label="ซ่อนข้อมูลของคนอื่น">
+            <div class="jobst">
+                <b>ซ่อนข้อมูลของคนอื่น: เปิดอยู่</b>
+                <p class="lbl">สมาชิกเห็นเฉพาะบิลและการโอนที่ตัวเองเกี่ยวข้อง</p>
+                <p class="lbl">ถ้ายังไม่ได้ Publish กฎใหม่ใน Firebase ให้ทำครั้งเดียว ถึงจะซ่อนจริงในฐานข้อมูล</p>
+            </div>
+            <label class="cc-switch">
+                <input type="checkbox" role="switch" checked={seeAll} onChange={() => onSeeAll(!seeAll)} />
+                <span class="sw" aria-hidden="true" />
+                <span>ดูข้อมูลของทุกคน (เฉพาะคุณ)</span>
+            </label>
+            {askOff ? (
+                <div class="opt-row as-div">
+                    <span class="ico"><Icon name="alert" /></span>
+                    <span><b>ปิดซ่อนใช่ไหม</b><small>ทุกคนจะกลับมาเห็นบิลของทั้งกลุ่มเหมือนเดิม</small></span>
+                    <span class="confirm">
+                        <button type="button" class="btn sm" disabled={Boolean(step)} onClick={off}>{step ? "รอสักครู่" : "ปิดซ่อน"}</button>
+                        {!step && <button type="button" class="btn sm ghost" onClick={() => setAskOff(false)}>ยกเลิก</button>}
+                    </span>
+                </div>
+            ) : <button type="button" class="btn sm ghost privoff" onClick={() => setAskOff(true)}>ปิดซ่อน</button>}
+        </div>
+    );
+}
+
 import { PlanCard, GoalStack } from "../plan.jsx";
 import { CardWallet } from "../cards.jsx";
 
@@ -72,7 +150,7 @@ function EditProfileSheet({ realName, promptpay, onSave, onClose, busy, msg, set
     );
 }
 
-export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {}, bm = null, onBudget = () => {}, onGoalAdd = () => {}, onGoalMove = () => {}, onGoalEdit = () => {}, cards = null, onCardAdd = () => {}, onCardOpen = () => {} }) {
+export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {}, bm = null, onBudget = () => {}, onGoalAdd = () => {}, onGoalMove = () => {}, onGoalEdit = () => {}, cards = null, privacy = null, seeAll = false, onSeeAll = () => {}, onPrivacy = () => {}, onCardAdd = () => {}, onCardOpen = () => {} }) {
     const mine = (profiles || []).find((p) => p.id === auth.user.memberId) || (profiles || []).find((p) => p.name === auth.user.name) || {};
     const [realName, setRealName] = useState("");
     const [promptpay, setPromptpay] = useState("");
@@ -147,6 +225,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                         <ConfirmRow icon="plane" title="ส่งสรุปยอดเข้ากลุ่ม LINE" sub={'การ์ด "ใครต้องโอนให้ใคร" ของเดือนนี้ ไปที่กลุ่ม'} confirmText="ส่งการ์ดเข้ากลุ่ม LINE ตอนนี้ใช่ไหม" run={sendGroupSummary} onToast={onToast} />
                         <ConfirmRow icon="bell" title="เตือนทุกคนที่ค้าง" sub="ส่ง LINE หาคนที่ยังไม่โอน (ในหน้าเคลียร์เงินยังมีเหมือนเดิม)" confirmText="ส่ง LINE เตือนทุกคนที่ยังค้างเดือนนี้ใช่ไหม" run={remindAllDebtors} onToast={onToast} />
                         <JobStatus />
+                        {privacy && privacy.super && <PrivacyBox me={auth.user.name} privacy={privacy} seeAll={seeAll} onSeeAll={onSeeAll} onPrivacy={onPrivacy} onToast={onToast} />}
                     </section>
                 )}
                 <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>

@@ -1174,3 +1174,9 @@ button.plastic:focus-visible { outline: 3px solid var(--sun); outline-offset: 2p
 .cats-gl { font-size: var(--fs-xs); font-weight: 700; color: var(--mute); }
 .cats-all .link-btn { align-self: flex-start; }
 .ico.brand .brand-wm { font-weight: 800; line-height: 1; letter-spacing: -.2px; text-align: center; padding: 0 2px; white-space: nowrap; overflow: hidden; max-width: 100%; }
+
+/* ผู้ดูแลหลัก: ซ่อนข้อมูลของคนอื่น */
+.privbox { display: flex; flex-direction: column; gap: var(--s2); margin-top: var(--s2); }
+.privbox .jobst { margin-top: 0; }
+.privbox .jobst .lbl { margin: 0; }
+.privbox .privoff { align-self: flex-start; }

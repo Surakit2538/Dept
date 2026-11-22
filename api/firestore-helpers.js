@@ -3,6 +3,7 @@
 import { doc, getDoc, getDocs, setDoc, collection, query, where } from "./auth-helpers.js";
 import { matchSlipToDebt } from "../lib/settlement-match.mjs";
 import { normalizeName } from "../lib/ledger.mjs";
+import { settlementPeople } from "../lib/privacy.mjs";
 import { matchReceiverName } from "./slipok-helpers.js";
 import { buildInfoCard } from "../lib/line-cards.mjs";
 
@@ -105,6 +106,7 @@ export async function saveVerifiedSettlement(db, settlement, slip, uploadedBy, m
         month: settlement.month,
         from: settlement.from,
         to: settlement.to,
+        people: settlementPeople(settlement),
         amount: settlement.amount,
         partial: Boolean(settlement.partial),
         status: 'verified',

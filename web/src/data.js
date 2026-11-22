@@ -5,6 +5,7 @@ import {
     getDocs as fsGetDocs, getDoc as fsGetDoc, onSnapshot as fsOnSnapshot, updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc, addDoc as fsAddDoc, writeBatch as fsWriteBatch
 } from "firebase/firestore";
 import { getAuth, signInWithCustomToken, signOut } from "firebase/auth";
+import { withPeople, settlementPeople } from "../../lib/privacy.mjs";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -241,6 +242,8 @@ export async function linkMember(profile, memberId) {
     return userFromMember(r.member.id, r.member, r.member.lineUserId);
 }
 
+const upName = (n) => String(n || "").replace(/\s+/g, " ").trim().toUpperCase();
+
 // ---------- แคชในเครื่อง: ประหยัดโควต้าอ่านของ Firestore (ฟรี 50,000 ครั้ง/วัน) ----------
 const TTL_PAST = 24 * 60 * 60 * 1000; // เดือนที่ผ่านมาแล้วแทบไม่เปลี่ยน จำไว้ 1 วัน
 const TTL_MEMBERS = 10 * 60 * 1000;
@@ -267,13 +270,30 @@ export function getCachedUser() {
 }
 export function setCachedUser(u) { if (u && u.name && u.memberId) cacheSet("user", u); }
 
-/** ภาพล่าสุดของข้อมูลเดือนนี้ (เก็บในเครื่องของเจ้าของ แยกตามชื่อ ล้างตอนออกจากระบบ) */
-export function loadSnapshot(name, month) {
-    const v = cacheGet(`snap:${name}:${month}`, TTL_SNAP);
+// ---------- ซ่อนข้อมูลของคนอื่น (lib/privacy.mjs) ----------
+// สถานะจากเซิร์ฟเวอร์ { hide, super } จำไว้ในเครื่อง (ไม่หมดอายุ แต่ถามใหม่ทุกครั้งที่เปิดแอป)
+// ขอบเขตการอ่าน: null = อ่านทั้งกลุ่ม (ยังไม่เปิดซ่อน หรือผู้ดูแลหลักเปิด ดูข้อมูลของทุกคน) / ชื่อ = เฉพาะที่มีชื่อนี้ใน people
+let scope = null;
+const scopeKey = () => scope || "*";
+export function readPrivacy() { return cacheGet("privacy", Infinity); }
+export function readSeeAll() { return cacheGet("seeall", Infinity) === true; }
+export function setSeeAll(on) { cacheSet("seeall", Boolean(on)); }
+/** ขอบเขตการอ่านของคนนี้ ตามสถานะซ่อนและสวิตช์ ดูข้อมูลของทุกคน */
+export function readScopeFor(name, privacy = readPrivacy(), seeAll = readSeeAll()) {
+    if (!privacy || !privacy.hide) return null;
+    if (privacy.super && seeAll) return null;
+    return upName(name) || null;
+}
+export function setReadScope(name) { scope = name || null; }
+const mineTx = () => (scope ? [where("people", "array-contains", scope)] : []);
+
+/** ภาพล่าสุดของข้อมูลเดือนนี้ (เก็บในเครื่องของเจ้าของ แยกตามชื่อและขอบเขตการอ่าน ล้างตอนออกจากระบบ) */
+export function loadSnapshot(name, month, sc = scopeKey()) {
+    const v = cacheGet(`snap:${name}:${sc}:${month}`, TTL_SNAP);
     return v && Array.isArray(v.transactions) && Array.isArray(v.settlements) && Array.isArray(v.wallet) ? v : null;
 }
 export function saveSnapshot(name, month, part) {
-    cacheSet(`snap:${name}:${month}`, { transactions: part.transactions, settlements: part.settlements, wallet: part.wallet });
+    cacheSet(`snap:${name}:${scopeKey()}:${month}`, { transactions: part.transactions, settlements: part.settlements, wallet: part.wallet });
 }
 
 /** รายชื่อสมาชิกที่จำไว้ (ไม่สนอายุ ใช้แสดงก่อน แล้วค่อยโหลดใหม่) */
@@ -285,7 +305,6 @@ export function clearCache() {
     try { Object.keys(localStorage).filter((k) => k.startsWith(KEY)).forEach((k) => localStorage.removeItem(k)); } catch (e) { /* ไม่มีอะไร */ }
 }
 
-const upName = (n) => String(n || "").replace(/\s+/g, " ").trim().toUpperCase();
 
 /** รายชื่อสมาชิก (อ่านครั้งเดียว จำไว้ 10 นาที) */
 export async function loadMembers() {
@@ -299,14 +318,15 @@ export async function loadMembers() {
 
 /** บิลและประวัติเคลียร์เงินของเดือนที่ผ่านมาแล้ว อ่านครั้งเดียวแล้วจำไว้ */
 export async function loadPastMonth(month) {
-    const hit = cacheGet("m:" + month, TTL_PAST);
+    const key = `m:${scopeKey()}:${month}`;
+    const hit = cacheGet(key, TTL_PAST);
     if (hit) return hit;
     const [tx, st] = await Promise.all([
-        getDocs(query(collection(db, "transactions"), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`))),
-        getDocs(query(collection(db, "settlements"), where("month", "==", month)))
+        getDocs(query(collection(db, "transactions"), ...mineTx(), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`))),
+        getDocs(query(collection(db, "settlements"), ...mineTx(), where("month", "==", month)))
     ]);
     const v = { transactions: tx.docs.map((d) => ({ id: d.id, ...d.data() })), settlements: st.docs.map((d) => ({ id: d.id, ...d.data() })) };
-    cacheSet("m:" + month, v);
+    cacheSet(key, v);
     return v;
 }
 
@@ -316,11 +336,11 @@ export function watchMonth(month, onData) {
     const emit = () => { if (state.transactions && state.settlements) onData({ ...state }); };
     const fail = (e) => onData({ error: e });
     const un = [
-        onSnapshot(query(collection(db, "transactions"), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`)), (s) => {
+        onSnapshot(query(collection(db, "transactions"), ...mineTx(), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`)), (s) => {
             state.transactions = s.docs.map((d) => ({ id: d.id, ...d.data() }));
             emit();
         }, fail),
-        onSnapshot(query(collection(db, "settlements"), where("month", "==", month)), (s) => {
+        onSnapshot(query(collection(db, "settlements"), ...mineTx(), where("month", "==", month)), (s) => {
             state.settlements = s.docs.map((d) => ({ id: d.id, ...d.data() }));
             emit();
         }, fail)
@@ -525,7 +545,11 @@ export async function loadProfiles() {
 
 /** ล้างข้อมูลที่จำไว้ของเดือนหนึ่ง (หลังมีการแก้ไข) */
 export function invalidateMonth(month) {
-    try { localStorage.removeItem(KEY + "m:" + month); localStorage.removeItem(KEY + "w:" + month); } catch (e) { /* ไม่มีอะไร */ }
+    try {
+        Object.keys(localStorage).filter((k) => k.startsWith(KEY + "m:") && k.endsWith(":" + month)).forEach((k) => localStorage.removeItem(k));
+        localStorage.removeItem(KEY + "w:" + month);
+    } catch (e) { /* ไม่มีอะไร */ }
+    delete planMem[month];
 }
 export function invalidateProfiles() {
     try { localStorage.removeItem(KEY + "profiles"); localStorage.removeItem(KEY + "members"); } catch (e) { /* ไม่มีอะไร */ }
@@ -565,7 +589,7 @@ export async function deleteWalletEntries(ids) {
 
 /** บิลรายเดือนที่ตั้งไว้ (เปิดอยู่เท่านั้น) */
 export async function loadTemplates() {
-    const snap = await getDocs(query(collection(db, "subscription_templates"), where("active", "==", true)));
+    const snap = await getDocs(query(collection(db, "subscription_templates"), ...mineTx(), where("active", "==", true)));
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
@@ -574,18 +598,82 @@ export async function loadTemplates() {
  * ล้างเองเมื่อเพิ่ม/แก้/หยุดบิลรายเดือน
  */
 export async function loadBillSchedule() {
-    const hit = cacheGet("billsched", TTL_MEMBERS);
+    const key = "billsched:" + scopeKey();
+    const hit = cacheGet(key, TTL_MEMBERS);
     if (hit) return hit;
     const [group, personal] = await Promise.all([loadTemplates(), loadWalletTemplates().catch(() => [])]);
     const v = {
         group: group.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, payer: t.payer, splits: t.splits, icon: t.icon, active: t.active, every: t.every, startMonth: t.startMonth })),
         personal: personal.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, icon: t.icon, every: t.every, startMonth: t.startMonth }))
     };
-    cacheSet("billsched", v);
+    cacheSet(key, v);
     return v;
 }
 export function invalidateBillSchedule() {
-    try { localStorage.removeItem(KEY + "billsched"); } catch (e) { /* ไม่เป็นไร */ }
+    try { Object.keys(localStorage).filter((k) => k.startsWith(KEY + "billsched")).forEach((k) => localStorage.removeItem(k)); } catch (e) { /* ไม่เป็นไร */ }
+}
+
+/**
+ * ยอด "ใครต้องโอนให้ใคร" จากเซิร์ฟเวอร์ (ใช้เมื่อเปิดซ่อนข้อมูลแล้ว เพราะเครื่องเราไม่มีบิลของคนอื่นให้คำนวณ)
+ * ถามสถานะซ่อนไปด้วยทุกครั้ง: คืน { hide, super, plans: { "2026-11": [{from,to,amount}] } }
+ * จำไว้ในหน่วยความจำ: เดือนนี้ 5 นาที (หรือจนกว่าบิลของเราเปลี่ยน) เดือนที่ผ่านแล้ว 1 วัน
+ */
+const planMem = {};
+const planFlight = {};
+export async function loadClearPlan(months, { nowMonth = "", force = false, all = false } = {}) {
+    const fresh = (m) => planMem[m] && planMem[m].all === all && Date.now() - planMem[m].t < (m === nowMonth ? 5 * 60 * 1000 : TTL_PAST);
+    const need = force ? months : months.filter((m) => !fresh(m));
+    // ถามซ้ำพร้อมกัน (ตอนเปิดแอปมีสองจุดถามเดือนนี้) ใช้คำตอบเดียวกัน
+    const key = JSON.stringify([need, all]);
+    if (!planFlight[key]) planFlight[key] = api("/api/shortcut-transaction", { action: "clear-plan", months: need, all }).finally(() => { delete planFlight[key]; });
+    const r = await planFlight[key];
+    const privacy = { hide: r.hide === true, super: r.super === true };
+    cacheSet("privacy", privacy);
+    Object.entries(r.plans || {}).forEach(([m, lines]) => { planMem[m] = { t: Date.now(), all, lines }; });
+    const plans = {};
+    months.forEach((m) => { if (planMem[m] && planMem[m].all === all) plans[m] = planMem[m].lines; });
+    return { ...privacy, plans };
+}
+
+/** ผู้ดูแลหลัก: เปิด/ปิดซ่อนข้อมูลของคนอื่น */
+export async function setPrivacyHide(hide) {
+    const r = await api("/api/shortcut-transaction", { action: "privacy-set", hide: Boolean(hide) });
+    const cur = readPrivacy() || {};
+    cacheSet("privacy", { ...cur, hide: r.hide === true });
+    return r.message;
+}
+
+/** ผู้ดูแลหลัก: เติมป้ายชื่อคนที่เกี่ยวข้องให้ข้อมูลเก่า (กดต่อเองจนครบ ไม่เกิน 5 รอบ) */
+export async function backfillPeople() {
+    let updated = 0;
+    let checked = 0;
+    for (let i = 0; i < 5; i++) {
+        const r = await api("/api/shortcut-transaction", { action: "privacy-backfill" });
+        updated += Number(r.updated) || 0;
+        checked = Math.max(checked, Number(r.checked) || 0);
+        if (r.done) return { done: true, updated, checked };
+    }
+    return { done: false, updated, checked };
+}
+
+/**
+ * ตรวจดัชนีที่การอ่านแบบเฉพาะของตัวเองต้องใช้ (Firestore สร้างให้ฟรี แต่ต้องกดลิงก์สร้างครั้งแรก)
+ * คืน [{ key, label, ok, link }] link = ลิงก์หน้าสร้างดัชนีใน Firebase ที่ได้จากข้อความผิดพลาด
+ */
+export async function checkPrivacyIndexes(name) {
+    const me = upName(name);
+    const tries = [
+        ["tx", "บิล", query(collection(db, "transactions"), where("people", "array-contains", me), where("date", ">=", "2000-01-01"), where("date", "<=", "2999-12-31"), limit(1))],
+        ["st", "ประวัติเคลียร์เงิน", query(collection(db, "settlements"), where("people", "array-contains", me), where("month", "==", "2000-01"), limit(1))],
+        ["tpl", "บิลรายเดือน", query(collection(db, "subscription_templates"), where("people", "array-contains", me), where("active", "==", true), limit(1))]
+    ];
+    return Promise.all(tries.map(async ([key, label, q]) => {
+        try { await getDocs(q); return { key, label, ok: true, link: "" }; } catch (e) {
+            const msg = String((e && e.message) || "");
+            const m = msg.match(/https:\/\/console\.firebase\.google\.com\S+/);
+            return { key, label, ok: false, link: m ? m[0] : "", error: e && e.code === "failed-precondition" ? "" : msg.slice(0, 120) };
+        }
+    }));
 }
 
 /** แก้บิลกลุ่มรายเดือน (คนจ่ายหรือผู้ดูแล): ชื่อ หมวด วันที่ · ยอดแก้ไม่ได้เพราะแบ่งส่วนคนหารไว้แล้ว */
@@ -644,7 +732,7 @@ export async function deleteMemberIfUnused(p) {
 /** แอดมินยืนยันว่าคู่นี้โอนเคลียร์แล้ว (กรณีโอนนอกระบบ/ไม่มีสลิป) */
 export async function manualSettle({ from, to, amount, month, adminName }) {
     await addDoc(collection(db, "settlements"), {
-        status: "verified", month, from, to, amount: Number(amount), transactionIds: [],
+        status: "verified", month, from, to, people: settlementPeople({ from, to }), amount: Number(amount), transactionIds: [],
         createdAt: new Date().toISOString(), verifiedByAdmin: true, adminId: adminName || "unknown"
     });
 }
@@ -750,8 +838,8 @@ export function logout() {
 /** บันทึกบิลหารกับเพื่อน (หนึ่งบิลหรือหลายงวด) และ template รายเดือน ในครั้งเดียว: สำเร็จทั้งหมดหรือไม่เลย */
 export async function saveBill({ docs, template }) {
     const batch = writeBatch(db);
-    docs.forEach((d) => batch.set(doc(collection(db, "transactions")), d));
-    if (template) batch.set(doc(collection(db, "subscription_templates")), template);
+    docs.forEach((d) => batch.set(doc(collection(db, "transactions")), withPeople("transactions", d)));
+    if (template) batch.set(doc(collection(db, "subscription_templates")), withPeople("subscription_templates", template));
     await batch.commit();
     if (template) invalidateBillSchedule();
 }

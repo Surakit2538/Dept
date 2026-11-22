@@ -9,6 +9,7 @@ import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildB
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.jsx";
 import { Loader } from "./icons.jsx";
 import { cardStatus } from "../../lib/card-cycle.mjs";
+import { billPeople, settlementPeople, planLinesFor } from "../../lib/privacy.mjs";
 import { HomePage } from "./pages/HomePage.jsx";
 const loadAdd = () => import("./add.jsx");
 const loadClear = () => import("./pages/ClearPage.jsx");
@@ -122,8 +123,16 @@ function Preview() {
     useEffect(() => { const h = () => setTab(pageOf(location.hash.slice(1))); addEventListener("hashchange", h); return () => removeEventListener("hashchange", h); }, []);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
     const empty = state === "empty";
-    const T = empty ? [] : tx, S = empty ? [] : settlements, W = empty ? [] : wallet;
-    const home = useMemo(() => buildHomeModel({ name: who, month, today, members, transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [month, empty, who]);
+    // ?privacy=on ซ่อนข้อมูลของคนอื่นแล้ว (เห็นเฉพาะบิลที่ตัวเองเกี่ยวข้อง ยอดโอนจากเซิร์ฟเวอร์) ?privacy=off ผู้ดูแลหลักยังไม่เปิด
+    const priv = params.get("privacy");
+    const [seeAll, setSeeAll] = useState(false);
+    const [hideOn, setHideOn] = useState(priv === "on");
+    const mine = hideOn && !seeAll ? who : null;
+    const T0 = empty ? [] : tx, S0 = empty ? [] : settlements, W = empty ? [] : wallet;
+    const T = mine ? T0.filter((t) => billPeople(t).includes(mine)) : T0;
+    const S = mine ? S0.filter((x) => settlementPeople(x).includes(mine)) : S0;
+    const planL = (m) => (mine ? planLinesFor({ name: who, memberNames: members, transactions: T0, settlements: S0, month: m }) : null);
+    const home = useMemo(() => buildHomeModel({ name: who, month, today, members, transactions: T, settlements: S, walletItems: who === "GAME" ? W : [], planLines: planL(month) }), [month, empty, who, mine]);
     const series = useMemo(() => buildMonthly({ name: who, months: lastMonths(now, 12), transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [empty, who]);
     const nowHome = useMemo(() => buildHomeModel({ name: who, month: now, today, members, transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [empty, who]);
     const bmHome = buildBudgetModel(plan, home, today);
@@ -133,9 +142,9 @@ function Preview() {
     let body;
     if (state === "loading") body = <Skeleton blocks={5} />;
     else if (state === "error") body = <ErrorState onRetry={() => {}} />;
-    else if (tab === "list") body = <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={buildBillsModel({ name: who, month, transactions: T, search })} wallet={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} month={month} today={today} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} onInfo={setToast} />;
-    else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S })} profiles={profiles} month={month} back={{ receivedSat: 30000, paidSat: 0 }} onChanged={() => {}} />;
-    else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} cards={cardsData} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} />;
+    else if (tab === "list") body = <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={buildBillsModel({ name: who, month, transactions: T, search })} wallet={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} month={month} today={today} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} privateMode={Boolean(mine)} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} onInfo={setToast} />;
+    else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} privateMode={Boolean(mine)} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S, planLines: planL(month) })} profiles={profiles} month={month} back={{ receivedSat: 30000, paidSat: 0 }} onChanged={() => {}} />;
+    else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} cards={cardsData} privacy={priv && who === "GAME" ? { hide: hideOn, super: true } : null} seeAll={seeAll} onSeeAll={setSeeAll} onPrivacy={setHideOn} onToast={setToast} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} />;
     else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles} today={today} nowMonth={now} since={shiftMonth(now, -11)} bm={bmHome} onBudget={() => setPlanSheet({ kind: "budget" })} bills={buildBillSchedule({ me: who, month: now, today, ...billRaw, cards: cardsData.cards })} me={who} onBills={() => setBillCal(true)} onCard={(id) => setCardSheet({ kind: "detail", id })} />;
     return (
         <>

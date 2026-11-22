@@ -215,7 +215,7 @@ function groupByDay(list) {
     return out;
 }
 
-export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
+export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, privateMode = false, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
     const [filter, setFilter] = useState("all");
     const [mineOnly, setMineOnly] = useState(false);
     const [mineTpls, setMineTpls] = useState([]);
@@ -268,7 +268,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
             <section class="card hero lp-hero" aria-label="สรุปบิลของเดือน">
                 <div class="hero-top">
                     <DateTile month={month} today={today} />
-                    <div><p class="lbl">บิลกลุ่มทั้งหมด</p><p class="big num">{baht(bills.totalSat / 100)}</p></div>
+                    <div><p class="lbl">{privateMode ? "บิลกลุ่มที่ฉันเกี่ยวข้อง" : "บิลกลุ่มทั้งหมด"}</p><p class="big num">{baht(bills.totalSat / 100)}</p></div>
                 </div>
                 <div class="chips">
                     <span class="chip">ส่วนของฉันในบิลกลุ่ม <b class="num">{baht(bills.myShareSat / 100)}</b></span>
@@ -283,7 +283,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                 </div>
                 <div class="lp-tools">
                     {/* ใช้กับบิลกลุ่มเท่านั้น: ซ่อนบิลของเพื่อนที่ฉันไม่ได้หารด้วยและไม่ได้จ่าย (ตอนกรองส่วนตัว/รายรับไม่ต้องแสดง) */}
-                    {!noBillFilter && <button type="button" class={`btn sm ${mineOnly ? "" : "ghost"}`} aria-pressed={mineOnly} title="แสดงเฉพาะบิลกลุ่มที่ฉันหารด้วย หรือเป็นคนจ่าย" onClick={() => setMineOnly(!mineOnly)}><Icon name="user" size={14} />บิลที่ฉันเกี่ยวข้อง</button>}
+                    {!noBillFilter && !privateMode && <button type="button" class={`btn sm ${mineOnly ? "" : "ghost"}`} aria-pressed={mineOnly} title="แสดงเฉพาะบิลกลุ่มที่ฉันหารด้วย หรือเป็นคนจ่าย" onClick={() => setMineOnly(!mineOnly)}><Icon name="user" size={14} />บิลที่ฉันเกี่ยวข้อง</button>}
                     <button type="button" class={`btn sm ${selecting ? "" : "ghost"}`} aria-pressed={selecting} disabled={selectable.length < 2 && !selecting} onClick={() => (selecting ? stopSelecting() : setSelecting(true))}>
                         <Icon name={selecting ? "check" : "sliders"} size={14} />{selecting ? "เสร็จสิ้น" : "เลือกหลายรายการ"}
                     </button>

@@ -106,11 +106,14 @@ test("API: device-token รับ action login / link และต่อบั�
     const rules = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "utf8").split(/\r?\n/).filter((l) => !l.trim().startsWith("//")).join("\n");
     assert.ok(!/allow[^;]*if true/.test(rules), "ห้ามมีกฎเปิดให้ทุกคน");
     assert.ok(!/match \/\{document=\*\*\}/.test(rules), "ห้ามเปิดทุกคอลเลกชันรวด");
-    for (const c of ["members", "transactions", "settlements", "subscription_templates"]) {
-        assert.match(rules, new RegExp(`match /${c}/\\{id\\} \\{\\s*allow read[^;]*: if isMember\\(\\);`), `${c}: อ่านได้เฉพาะสมาชิก`);
+    assert.match(rules, /match \/members\/\{id\} \{\s*allow read: if isMember\(\);/, "members: อ่านได้เฉพาะสมาชิก");
+    // บิล/เคลียร์เงิน/บิลรายเดือน: สมาชิก + ซ่อนข้อมูลของคนอื่นเมื่อเปิดสวิตช์ (canSee เริ่มด้วย isMember())
+    assert.match(rules, /function canSee\(\) \{\s*return isMember\(\) && \(/);
+    for (const c of ["transactions", "settlements", "subscription_templates"]) {
+        assert.match(rules, new RegExp(`match /${c}/\\{id\\} \\{\\s*allow read: if canSee\\(\\);`), `${c}: อ่านได้เฉพาะสมาชิก (และคนที่เกี่ยวข้องเมื่อซ่อน)`);
     }
     assert.match(rules, /request\.auth != null && request\.auth\.token\.mid is string/);
-    assert.match(rules, /match \/settlements\/\{id\} \{[^}]*allow create, update, delete: if isAdmin\(\);/, "ประวัติเคลียร์เงินเขียนได้เฉพาะผู้ดูแล");
+    assert.match(rules, /match \/settlements\/\{id\} \{[^}]*allow create: if isAdmin\(\) && okPeople\(\);\s*allow update, delete: if isAdmin\(\);/, "ประวัติเคลียร์เงินเขียนได้เฉพาะผู้ดูแล");
     assert.match(rules, /onlyChanged\(\['realName', 'promptpay', 'realNameUpdatedAt', 'promptpayUpdatedAt'\]\)/, "แก้ข้อมูลตัวเองได้แค่ชื่อจริง/พร้อมเพย์");
     assert.ok(fs.existsSync(new URL("./rules/firestore-rules.emulator.mjs", import.meta.url)), "มีเทสต์กฎกับ emulator");
 });

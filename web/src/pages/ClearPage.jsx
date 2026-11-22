@@ -135,7 +135,7 @@ function Line({ l, profile, profiles, onQr, onSlip, admin, onMark }) {
     );
 }
 
-export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, adminName = "", onError = () => {}, onInfo = () => {}, back = null }) {
+export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, privateMode = false, adminName = "", onError = () => {}, onInfo = () => {}, back = null }) {
     const mark = async (l) => { try { await manualSettle({ from: l.from, to: l.to, amount: l.amount, month, adminName }); onChanged(); } catch (e) { onError(e.message); } };
     const owedToMe = model.lines.filter((l) => l.role === "receive").reduce((a, l) => a + l.amount, 0);
     const iOwe = model.lines.filter((l) => l.role === "pay").reduce((a, l) => a + l.amount, 0);
@@ -178,7 +178,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                             </div>
                             <div class="cleared-body">
                                 <h3 class="cleared-t">เคลียร์ครบแล้ว</h3>
-                                <p class="cleared-s">{month === bangkokToday().slice(0, 7) ? "ไม่มียอดค้างชำระในเดือนนี้ ทุกคนจ่ายครบเรียบร้อย" : `ไม่มียอดค้างชำระในเดือน ${monthLabel(month)} ทุกคนจ่ายครบเรียบร้อย`}</p>
+                                <p class="cleared-s">{month === bangkokToday().slice(0, 7) ? (privateMode ? "คุณไม่มียอดค้างกับใครในเดือนนี้" : "ไม่มียอดค้างชำระในเดือนนี้ ทุกคนจ่ายครบเรียบร้อย") : (privateMode ? `คุณไม่มียอดค้างกับใครในเดือน ${monthLabel(month)}` : `ไม่มียอดค้างชำระในเดือน ${monthLabel(month)} ทุกคนจ่ายครบเรียบร้อย`)}</p>
                             </div>
                         </div>
                     ) : (

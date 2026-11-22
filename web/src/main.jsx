@@ -1,8 +1,8 @@
 import { render } from "preact";
-import { useState, useEffect, useMemo } from "preact/hooks";
+import { useState, useEffect, useMemo, useRef } from "preact/hooks";
 import "./styles.css";
 import { Loader } from "./icons.jsx";
-import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth, loadPlan, saveBudget, saveGoal, moveGoal, deleteGoal, loadBillSchedule, loadCards, saveCard, deleteCard, setCardPaid } from "./data.js";
+import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth, loadPlan, saveBudget, saveGoal, moveGoal, deleteGoal, loadBillSchedule, loadCards, saveCard, deleteCard, setCardPaid, readPrivacy, readSeeAll, setSeeAll, readScopeFor, setReadScope, loadClearPlan } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, buildBudgetModel, buildBillSchedule, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.jsx";
 import { HomePage } from "./pages/HomePage.jsx";
@@ -18,6 +18,8 @@ const loadBillCal = () => import("./billcal.jsx");
 const loadCardsUi = () => import("./cards.jsx");
 
 const CACHED_USER = getCachedUser();
+// ขอบเขตการอ่านตอนเปิดแอป (ซ่อนข้อมูลของคนอื่นแล้ว = อ่านเฉพาะบิลที่มีชื่อเรา) ตั้งก่อนอ่านภาพที่จำไว้
+setReadScope(CACHED_USER ? readScopeFor(CACHED_USER.name) : null);
 
 // ปลายทางที่ต้องการเปิด: จากที่อยู่ (#clear, #add) หรือจากลิงก์ LIFF (liff.state) เช่น ปุ่มใน Rich menu ที่เปิด https://liff.line.me/...#add
 function readTarget() {
@@ -74,6 +76,9 @@ function App() {
     const [billCal, setBillCal] = useState(false);
     const [cardsData, setCardsData] = useState(null); // บัตรเครดิต { enabled, cards } (เฉพาะคนที่ผู้ดูแลเปิดให้)
     const [cardSheet, setCardSheet] = useState(() => { const id = parseCardLink(readTarget()); return id ? { kind: "detail", id } : null; }); // { kind: "add" } | { kind: "edit", card } | { kind: "detail", id }
+    const [privacy, setPrivacy] = useState(() => readPrivacy()); // { hide, super } จากเซิร์ฟเวอร์ (null = ยังไม่รู้ รอถามก่อนอ่านบิล)
+    const [seeAll, setSeeAllState] = useState(() => readSeeAll()); // ผู้ดูแลหลัก: ดูข้อมูลของทุกคน
+    const [clearPlans, setClearPlans] = useState({}); // { "2026-11": [{from,to,amount}] } ยอดโอนจากเซิร์ฟเวอร์ (ใช้เมื่อซ่อนข้อมูลแล้ว)
     const [planSheet, setPlanSheet] = useState(null); // { kind: "budget" } | { kind: "move", goal, dir } | { kind: "goal", goal? } // เข้าแอปครั้งแรกโดยไม่มีข้อมูลที่จำไว้: แสดงตัวโหลดเต็มจอจนข้อมูลพร้อม
 
     // หลังล็อกอิน: ยังไม่ผูกบัญชี -> เลือกชื่อ / สมาชิกที่ยังไม่กรอกชื่อจริงและพร้อมเพย์ -> กรอกก่อน (แอดมินข้าม) / ไม่งั้นเข้าแอป
@@ -87,6 +92,23 @@ function App() {
         if (!u.needLink) setCachedUser(u);
     };
     const patchMonth = (m, part) => setByMonth((cur) => ({ ...cur, [m]: { ...(cur[m] || {}), ...part } }));
+    const scope = auth.state === "ok" ? readScopeFor(auth.user.name, privacy, seeAll) : null;
+    setReadScope(scope);
+    const privacyKnown = privacy !== null;
+    const scopeRef = useRef(scope);
+    useEffect(() => {
+        if (scopeRef.current === scope) return;
+        scopeRef.current = scope;
+        setByMonth({});
+        setClearPlans({});
+    }, [scope]);
+    // ถามสถานะซ่อนทุกครั้งที่เปิดแอป (ได้ยอดโอนของเดือนนี้มาด้วยถ้าซ่อนอยู่)
+    useEffect(() => {
+        if (auth.state !== "ok") return;
+        loadClearPlan([nowMonth], { nowMonth })
+            .then((r) => { setPrivacy({ hide: r.hide, super: r.super }); setClearPlans((c) => ({ ...c, ...r.plans })); })
+            .catch((e) => { if (!e.expired) console.warn("clear-plan:", e.message); if (!readPrivacy()) setPrivacy({ hide: false, super: false }); });
+    }, [auth.state, reload]);
 
     useEffect(() => {
         signIn().then((u) => {
@@ -140,9 +162,9 @@ function App() {
     }, [auth.state, tab, reload, cardsOn, Boolean(profiles)]);
     // เดือนนี้: ฟังแบบสด (อ่านเฉพาะรายการที่เปลี่ยน)
     useEffect(() => {
-        if (auth.state !== "ok") return undefined;
+        if (auth.state !== "ok" || !privacyKnown) return undefined;
         return watchMonth(nowMonth, (d) => { if (d.error) setLoadError(true); else patchMonth(nowMonth, d); });
-    }, [auth.state, nowMonth]);
+    }, [auth.state, nowMonth, privacyKnown, scope]);
     // เดือนที่ผ่านมาแล้ว (เดือนที่เลือกดู + ทั้ง 12 เดือนเมื่อเปิดปฏิทินแบบปี): อ่านครั้งเดียวแล้วจำไว้ 1 วัน
     const wantedMonths = useMemo(() => [...new Set([...(wide ? lastMonths(nowMonth, MONTHS_BACK) : []), month])].filter((m) => m !== nowMonth), [nowMonth, month, wide]);
     // กระเป๋า: เรียก API ครั้งเดียวได้ทั้งเดือนนี้และเดือนที่ยังไม่มีในเครื่อง
@@ -155,15 +177,37 @@ function App() {
     }, [auth.state, nowMonth, reload, wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].wallet)).join("|")]);
     // บิลและประวัติเคลียร์เงินของเดือนที่ผ่านมา (อ่านจาก Firestore ตรงๆ พร้อมกันทุกเดือน)
     useEffect(() => {
-        if (auth.state !== "ok") return;
+        if (auth.state !== "ok" || !privacyKnown) return;
         wantedMonths.forEach((m) => {
             if (byMonth[m] && byMonth[m].transactions) return;
             loadPastMonth(m)
                 .then((g) => patchMonth(m, { transactions: g.transactions, settlements: g.settlements }))
                 .catch(() => setLoadError(true));
         });
-    }, [auth.state, wantedMonths, wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].transactions)).join("|")]);
+    }, [auth.state, privacyKnown, scope, wantedMonths, wantedMonths.filter((m) => !(byMonth[m] && byMonth[m].transactions)).join("|")]);
     const curPart = byMonth[nowMonth];
+    // ซ่อนข้อมูลแล้ว: ยอดโอนของเดือนที่ดูอยู่มาจากเซิร์ฟเวอร์ / บิลเดือนนี้ของเราเปลี่ยน (เพิ่ม/ลบ/เคลียร์) = ถามใหม่
+    useEffect(() => {
+        if (auth.state !== "ok" || !scope) return;
+        const need = [...new Set([nowMonth, month])].filter((m) => !clearPlans[m]);
+        if (!need.length) return;
+        loadClearPlan(need, { nowMonth }).then((r) => setClearPlans((c) => ({ ...c, ...r.plans }))).catch((e) => { if (!e.expired) setToast(e.message); });
+    }, [auth.state, scope, month, nowMonth, Boolean(clearPlans[month]), Boolean(clearPlans[nowMonth])]);
+    const curSig = curPart && curPart.transactions && curPart.settlements
+        ? curPart.transactions.map((t) => t.id + ":" + t.amount).sort().join(",") + "|" + curPart.settlements.map((x) => x.id + ":" + x.status).sort().join(",")
+        : "";
+    const sigRef = useRef("");
+    useEffect(() => {
+        if (!scope || !curSig) return undefined;
+        if (!sigRef.current) { sigRef.current = curSig; return undefined; }
+        if (sigRef.current === curSig) return undefined;
+        sigRef.current = curSig;
+        const t = setTimeout(() => {
+            loadClearPlan([nowMonth], { nowMonth, force: true }).then((r) => setClearPlans((c) => ({ ...c, ...r.plans }))).catch(() => {});
+        }, 1200);
+        return () => clearTimeout(t);
+    }, [scope, curSig]);
+    const planOf = (m) => (scope ? clearPlans[m] || [] : null);
     useEffect(() => {
         if (auth.state === "ok" && curPart && curPart.transactions && curPart.settlements && curPart.wallet) saveSnapshot(auth.user.name, nowMonth, curPart);
     }, [curPart]);
@@ -193,12 +237,12 @@ function App() {
         };
     }, [monthsReady, byMonth]);
     const suggested = useMemo(() => (all && members ? suggestPeople({ me: auth.user.name, members, transactions: all.transactions }) : []), [all, auth, members]);
-    const model = useMemo(() => (all ? buildHomeModel({ name: auth.user.name, month, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, auth, members, month, today]);
+    const model = useMemo(() => (all ? buildHomeModel({ name: auth.user.name, month, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet, planLines: planOf(month) }) : null), [all, auth, members, month, today, scope, clearPlans]);
     const series = useMemo(() => (all && wide && chartReady ? buildMonthly({ name: auth.user.name, months: lastMonths(nowMonth, MONTHS_BACK), transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet }) : null), [all, wide, chartReady, auth, nowMonth]);
-    const clearM = useMemo(() => (all ? buildClearModel({ name: auth.user.name, month, members, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, members, month]);
+    const clearM = useMemo(() => (all && (!scope || clearPlans[month]) ? buildClearModel({ name: auth.user.name, month, members, transactions: all.transactions, settlements: all.settlements, planLines: planOf(month) }) : null), [all, auth, members, month, scope, clearPlans]);
     const walletM = useMemo(() => (all ? buildWalletModel({ name: auth.user.name, month, walletItems: all.wallet, transactions: all.transactions, settlements: all.settlements }) : null), [all, auth, month]);
     // แท็บ ฉัน ใช้เดือนปัจจุบันเสมอ หน้าแรกใช้เดือนที่เลือกดู
-    const nowModel = useMemo(() => (all ? (month === nowMonth ? model : buildHomeModel({ name: auth.user.name, month: nowMonth, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet })) : null), [all, model, month, nowMonth]);
+    const nowModel = useMemo(() => (all ? (month === nowMonth ? model : buildHomeModel({ name: auth.user.name, month: nowMonth, today, members, transactions: all.transactions, settlements: all.settlements, walletItems: all.wallet, planLines: planOf(nowMonth) })) : null), [all, model, month, nowMonth, scope, clearPlans]);
     const bmHome = useMemo(() => (plan && model ? buildBudgetModel(plan, model, today) : null), [plan, model, today]);
     const bmNow = useMemo(() => (plan && nowModel ? buildBudgetModel(plan, nowModel, today) : null), [plan, nowModel, today]);
     const billSched = useMemo(() => (billRaw && auth.state === "ok" ? buildBillSchedule({ me: auth.user.name, month: nowMonth, today, group: billRaw.group, personal: billRaw.personal, cards: cardsData && cardsData.enabled ? cardsData.cards : [] }) : null), [billRaw, auth, nowMonth, today, cardsData]);
@@ -214,6 +258,7 @@ function App() {
     // หลังแก้ข้อมูล: ล้างที่จำไว้ของเดือนนั้นแล้วโหลดใหม่ (เดือนนี้บิลอัปเดตสดอยู่แล้ว โหลดเฉพาะกระเป๋าใหม่)
     const changed = (m = month) => {
         invalidateMonth(m);
+        setClearPlans((c) => { if (!c[m]) return c; const n = { ...c }; delete n[m]; return n; });
         if (m === nowMonth) setReload((n) => n + 1);
         else setByMonth((cur) => { const c = { ...cur }; delete c[m]; return c; });
     };
@@ -235,7 +280,10 @@ function App() {
         });
         return () => { on = false; };
     }, [deep, Boolean(all)]);
-    const refreshAll = () => { clearCache(); setByMonth({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
+    const refreshAll = () => { clearCache(); setByMonth({}); setClearPlans({}); setMembers(null); setLoadError(false); setReload((n) => n + 1); };
+    // ผู้ดูแลหลัก: สลับ ดูข้อมูลของทุกคน / หลังเปิด-ปิดซ่อน (ขอบเขตการอ่านเปลี่ยน ข้อมูลในหน้าโหลดใหม่เอง)
+    const onSeeAll = (on) => { setSeeAll(on); setSeeAllState(on); };
+    const onPrivacy = (hide) => setPrivacy((p) => ({ ...(p || {}), hide }));
 
     if (auth.state === "loading") return <div class="center"><Loader label="กำลังเข้าสู่ระบบ" /></div>;
     if (auth.state === "error") return <div class="center"><Loader /><p role="alert">{auth.message}</p><button type="button" class="btn" onClick={() => location.reload()}>ลองใหม่</button></div>;
@@ -249,9 +297,9 @@ function App() {
     let body;
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles || []} today={today} nowMonth={nowMonth} since={since} onNeedYear={() => setWide(true)} bm={bmHome} onBudget={plan ? () => setPlanSheet({ kind: "budget" }) : null} bills={billSched} me={auth.user.name} onBills={() => setBillCal(true)} onCard={(id) => setCardSheet({ kind: "detail", id })} /> : <Skeleton blocks={5} />;
-    else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} bills={billsM} wallet={walletM} month={month} today={today} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
-    else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} back={walletM ? { receivedSat: walletM.receivedBackSat, paidSat: walletM.paidBackSat } : null} onChanged={() => changed()} isAdmin={auth.user.isAdmin} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
-    else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { loadProfiles().then(setProfiles).catch(() => setProfiles(null)); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} cards={cardsData} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} /> : <Skeleton blocks={2} />;
+    else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} bills={billsM} wallet={walletM} month={month} today={today} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} privateMode={Boolean(scope)} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} back={walletM ? { receivedSat: walletM.receivedBackSat, paidSat: walletM.paidBackSat } : null} onChanged={() => changed()} isAdmin={auth.user.isAdmin} privateMode={Boolean(scope)} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
+    else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { loadProfiles().then(setProfiles).catch(() => setProfiles(null)); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} cards={cardsData} privacy={privacy} seeAll={seeAll} onSeeAll={onSeeAll} onPrivacy={onPrivacy} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} /> : <Skeleton blocks={2} />;
 
     return (
         <>

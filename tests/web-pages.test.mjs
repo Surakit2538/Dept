@@ -529,5 +529,5 @@ test("รายการ: ปุ่มบิลที่ฉันเกี่ย
     const src = fs.readFileSync(path.join(root, "web/src/pages/ListPage.jsx"), "utf8");
     assert.match(src, /บิลที่ฉันเกี่ยวข้อง/);
     assert.ok(!src.includes(">เฉพาะของฉัน<"), "ชื่อเดิมกำกวมกับชิปส่วนตัว");
-    assert.match(src, /{!noBillFilter && <button[^>]*aria-pressed={mineOnly}/);
+    assert.match(src, /{!noBillFilter && !privateMode && <button[^>]*aria-pressed={mineOnly}/, "ซ่อนข้อมูลแล้วไม่ต้องมีปุ่มนี้ (เห็นแค่บิลของตัวเองอยู่แล้ว)");
 });

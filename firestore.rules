@@ -12,6 +12,10 @@ rules_version = '2';
 //   ผู้ดูแลดูจากเอกสารสมาชิกปัจจุบัน (role หรือ LINE ของผู้ดูแลหลัก) จึงมีผลทันทีที่ตั้ง/ถอดผู้ดูแล
 // - คอลเลกชันที่ไม่ได้ระบุ (wallet_entries, wallet_plan, personal_expenses, device_tokens, pending_slips, user_sessions, reminder_logs ฯลฯ)
 //   ถูกปิดทั้งหมดโดยอัตโนมัติ ห้ามเพิ่มกฎแบบ match /{document=**} { allow ... } เด็ดขาด
+// - ซ่อนข้อมูลของคนอื่น (lib/privacy.mjs): บิล/ประวัติเคลียร์เงิน/บิลรายเดือนมีป้าย people (ชื่อคนที่เกี่ยวข้อง)
+//   เมื่อผู้ดูแลหลักเปิดสวิตช์ app_config/privacy.hide = true: อ่านได้เฉพาะใบที่มีชื่อตัวเองใน people (ผู้ดูแลหลักอ่านได้ทั้งหมด)
+//   ยังไม่เปิดสวิตช์ = อ่านได้ทั้งกลุ่มเหมือนเดิม (Publish กฎนี้ก่อนหรือหลังเปิดสวิตช์ก็ได้ ปิดสวิตช์ก็ไม่ต้องย้อนกฎ)
+//   ของใหม่ทุกใบต้องมี people (เว็บ เซิร์ฟเวอร์ บอท ใส่ให้เอง)
 // - ทดสอบกับ Firestore emulator: tests/rules/firestore-rules.emulator.mjs · ย้อนกลับฉุกเฉิน: FIRESTORE_RULES_ROLLOUT.md
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -26,6 +30,23 @@ service cloud.firestore {
         get(myMemberPath()).data.get('role', '') == 'admin' ||
         get(myMemberPath()).data.get('lineUserId', '') == 'U0d739eea39c312e11c487e22861920d1'
       );
+    }
+    // ผู้ดูแลหลัก = เจ้าของระบบ (LINE ID ตายตัว) เท่านั้น ผู้ดูแลคนอื่นเห็นเฉพาะของตัวเองเมื่อเปิดซ่อน
+    function isSuperAdmin() {
+      return isMember() && exists(myMemberPath()) && get(myMemberPath()).data.get('lineUserId', '') == 'U0d739eea39c312e11c487e22861920d1';
+    }
+    function privacyPath() {
+      return /databases/$(database)/documents/app_config/privacy;
+    }
+    function hideOn() {
+      return exists(privacyPath()) && get(privacyPath()).data.get('hide', false) == true;
+    }
+    // อ่านบิล/ประวัติเคลียร์เงิน/บิลรายเดือนได้ไหม (ต้องค้นด้วย where people array-contains ชื่อตัวเอง)
+    function canSee() {
+      return isMember() && (!hideOn() || isSuperAdmin() || request.auth.token.member in resource.data.get('people', []));
+    }
+    function okPeople() {
+      return request.resource.data.get('people', null) is list && request.resource.data.people.size() > 0 && request.resource.data.people.size() <= 40;
     }
     // ชื่อในบิลเทียบกับชื่อในบัตร (ตัดช่องว่างซ้ำ ตัวใหญ่ เหมือน cleanName ของเว็บและเซิร์ฟเวอร์)
     function isMe(name) {
@@ -52,16 +73,19 @@ service cloud.firestore {
       );
     }
     match /transactions/{id} {
-      allow read, create: if isMember();
+      allow read: if canSee();
+      allow create: if isMember() && okPeople();
       allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['desc', 'icon'])) || isAdmin());
       allow delete: if isMember() && (isMe(resource.data.get('payer', '')) || isAdmin());
     }
     match /settlements/{id} {
-      allow read: if isMember();
-      allow create, update, delete: if isAdmin();
+      allow read: if canSee();
+      allow create: if isAdmin() && okPeople();
+      allow update, delete: if isAdmin();
     }
     match /subscription_templates/{id} {
-      allow read, create: if isMember();
+      allow read: if canSee();
+      allow create: if isMember() && okPeople();
       allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['active', 'stoppedAt', 'desc', 'icon', 'billingDay', 'every', 'startMonth']) && okTemplateEdit()) || isAdmin());
       allow delete: if isAdmin();
     }

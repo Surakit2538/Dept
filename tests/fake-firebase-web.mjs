@@ -44,7 +44,8 @@ export const query = (c, ...cons) => ({ type: "query", name: c.name, cons });
 const OPS = {
     "==": (a, b) => a !== undefined && a === b,
     ">=": (a, b) => a !== undefined && typeof a === typeof b && a >= b,
-    "<=": (a, b) => a !== undefined && typeof a === typeof b && a <= b
+    "<=": (a, b) => a !== undefined && typeof a === typeof b && a <= b,
+    "array-contains": (a, b) => Array.isArray(a) && a.includes(b)
 };
 
 export async function getDocs(q) {

@@ -10,6 +10,7 @@ import { createCardService } from '../lib/card-service.mjs';
 import { buildIncomeSavedCard, buildHowToCarousel, withChips, monthLabelTh, buildPromptMessage, buildParticipantsCard, buildNoticeCard, buildInfoCard } from '../lib/line-cards.mjs';
 import { buildWalletEntry, WALLET_COL } from '../lib/wallet-service.mjs';
 import { createLineSplitService } from '../lib/line-split.mjs';
+import { billPeople } from '../lib/privacy.mjs';
 import * as fsApi from './auth-helpers.js';
 import {
     doc, getDoc, setDoc, deleteDoc,
@@ -1252,6 +1253,7 @@ async function saveTransaction(replyToken, userId, finalData) {
                     date: row.date,
                     desc: `${finalData.desc} (${row.index}/${finalData.installments})`,
                     amount: row.amount, payer: finalData.payer, splits: row.splits,
+                    people: billPeople({ payer: finalData.payer, splits: row.splits }),
                     paymentType: 'installment', installments: finalData.installments,
                     timestamp: Date.now() + i, groupId: groupId, icon: icon
                 });
@@ -1267,6 +1269,7 @@ async function saveTransaction(replyToken, userId, finalData) {
                 amount: finalData.amount,
                 payer: finalData.payer,
                 splits: splits,
+                people: billPeople({ payer: finalData.payer, splits }),
                 paymentType: 'subscription',
                 subscriptionRecurring: true,
                 subscriptionStartDate: getBangkokDateString(today),
@@ -1282,6 +1285,7 @@ async function saveTransaction(replyToken, userId, finalData) {
                 amount: finalData.amount,
                 payer: finalData.payer,
                 splits: splits,
+                people: billPeople({ payer: finalData.payer, splits }),
                 icon: icon,
                 billingDay: billingDay,
                 groupId: groupId,
@@ -1295,7 +1299,7 @@ async function saveTransaction(replyToken, userId, finalData) {
             batch.set(doc(collection(db, "transactions")), {
                 date: getBangkokDateString(today),
                 desc: finalData.desc, amount: finalData.amount, payer: finalData.payer,
-                splits: splits, paymentType: 'normal', timestamp: Date.now(), icon: icon
+                splits: splits, people: billPeople({ payer: finalData.payer, splits }), paymentType: 'normal', timestamp: Date.now(), icon: icon
             });
         }
 
