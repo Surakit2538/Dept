@@ -1,5 +1,6 @@
 // ชุดไอคอนเส้นบาง 1.8px ปลายมน (ชุดเดียวกับในหน้าเลือกแบบ) ไม่มี emoji
 import { brandOf } from "./brands.js";
+import { CATEGORY_LIST } from "../../lib/categories.mjs";
 import { useState, useEffect } from "preact/hooks";
 const P = {
     home: <><path d="M3.5 11 12 4l8.5 7" /><path d="M5.5 9.8V20h13V9.8" /><path d="M10 20v-5.5h4V20" /></>,
@@ -52,6 +53,32 @@ const P = {
     star: <path d="m12 3.8 2.5 5.2 5.7.8-4.1 4 1 5.7-5.1-2.7-5.1 2.7 1-5.7-4.1-4 5.7-.8z" />,
     target: <><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.8" /><circle cx="12" cy="12" r="1.2" /></>,
     card: <><rect x="3" y="5.5" width="18" height="13" rx="2.5" /><path d="M3 10h18M7 14.5h4" /></>,
+    cake: <path d="M6 11h12l-1.5 8.5h-9zM6 11a6 6 0 0 1 12 0M9.5 11.5l.6 8M14.5 11.5l-.6 8" />,
+    leaf: <path d="M5 19c0-8 5-13 14-14-1 9-6 14-14 14zM5 19l7.5-7.5" />,
+    box: <path d="M4 8l8-4 8 4v8l-8 4-8-4zM4 8l8 4 8-4M12 12v8" />,
+    glass: <path d="M8 3.5h8l-.5 5a3.5 3.5 0 0 1-7 0zM12 12v8M8.5 20h7" />,
+    water: <path d="M12 3.5c3.5 4 6 7.2 6 10.2a6 6 0 0 1-12 0c0-3 2.5-6.2 6-10.2z" />,
+    wifi: <path d="M4.5 9.5a11 11 0 0 1 15 0M7.5 12.8a7 7 0 0 1 9 0M10.5 16a3 3 0 0 1 3 0M12 19h.01" />,
+    building: <path d="M5 20V5h9v15M14 9h5v11M3.5 20h17M8 8h3M8 11h3M8 14h3" />,
+    shieldok: <><path d="M12 3s8 3 8 9c0 5-4.5 8.5-8 9.5-3.5-1-8-4.5-8-9.5 0-6 8-9 8-9z" /><path d="m8.8 12.2 2.2 2.2 4.2-4.4" /></>,
+    taxdoc: <path d="M7 3.5h7l4 4v13H7zM14 3.5v4h4M9.5 16.5l5-5M10 12h.01M14 16h.01" />,
+    apps: <><rect x="4" y="4" width="7" height="7" rx="2" /><rect x="13" y="4" width="7" height="7" rx="2" /><rect x="4" y="13" width="7" height="7" rx="2" /><path d="M16.5 13v7M13 16.5h7" /></>,
+    shirt: <path d="M8 4 4.5 6.5 6 10l2-1v11h8V9l2 1 1.5-3.5L16 4c-.8 1.5-2.2 2.2-4 2.2S8.8 5.5 8 4z" />,
+    beauty: <path d="M9 21h6v-8H9zM10 13V9.5l4-2V13M13.5 4.5l1.5-1.5M16 6l2-1" />,
+    laptop: <><rect x="5" y="5.5" width="14" height="10" rx="1.5" /><path d="M3 18.5h18" /></>,
+    sofa: <path d="M5 11V8.5A2.5 2.5 0 0 1 7.5 6h9A2.5 2.5 0 0 1 19 8.5V11M3.5 12a1.5 1.5 0 0 1 3 0v2h11v-2a1.5 1.5 0 0 1 3 0v5h-17zM6 17v2M18 17v2" />,
+    cross: <path d="M9.5 4h5v5.5H20v5h-5.5V20h-5v-5.5H4v-5h5.5z" />,
+    baby: <path d="M9 8h6v11a2 2 0 0 1-2 2h-2a2 2 0 0 1-2-2zM10 8V5.5h4V8M12 3v2.5M9 12h3M9 15h3" />,
+    fuel: <path d="M5 20V5.5A1.5 1.5 0 0 1 6.5 4h6A1.5 1.5 0 0 1 14 5.5V20M3.5 20h12M6.5 9h6M14 10h2a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 0 3 0V9l-2.5-3" />,
+    train: <path d="M7 4h10a2 2 0 0 1 2 2v8a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3V6a2 2 0 0 1 2-2zM5 10h14M9 13.5h.01M15 13.5h.01M8 17l-2 3M16 17l2 3" />,
+    moto: <><circle cx="5.5" cy="16.5" r="2.5" /><circle cx="18.5" cy="16.5" r="2.5" /><path d="M8 16.5h6l-2.5-6H8M11.5 10.5h3.5l3.5 6M15 10.5l1-3h2.5" /></>,
+    parking: <><rect x="4.5" y="4" width="15" height="16" rx="3" /><path d="M10 16V8h3a2.5 2.5 0 0 1 0 5h-3" /></>,
+    wrench: <path d="M14.5 6.5a4 4 0 0 0-5 5L4 17l3 3 5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2.5-.5-.5-2.5z" />,
+    game: <path d="M7 9h10a4 4 0 0 1 4 4v1a3 3 0 0 1-5.4 1.8L14.5 14h-5l-1.1 1.8A3 3 0 0 1 3 14v-1a4 4 0 0 1 4-4zM8 11.5v3M6.5 13h3M15.5 12.5h.01M17.5 14h.01" />,
+    dumbbell: <path d="M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10" />,
+    ticket: <path d="M4 7.5h16v3a1.5 1.5 0 0 0 0 3v3H4v-3a1.5 1.5 0 0 0 0-3zM14 7.5v9" />,
+    lotus: <path d="M12 19c-4 0-7-2.5-7.5-6 2.6 0 4.8 1 6 2.6M12 19c4 0 7-2.5 7.5-6-2.6 0-4.8 1-6 2.6M12 19c-1.8-2-2.5-4.3-2-7 .5-2.4 1.2-4 2-5.5.8 1.5 1.5 3.1 2 5.5.5 2.7-.2 5-2 7z" />,
+    grad: <path d="M2.5 9.5 12 5l9.5 4.5L12 14zM6.5 11.5V16c1.5 1.5 3.5 2.2 5.5 2.2s4-.7 5.5-2.2v-4.5M21.5 9.5V14" />,
     calendar: <><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></>
 };
 
@@ -64,42 +91,55 @@ export function Icon({ name, size, class: cls = "" }) {
 }
 
 /** ไอคอนรายการ จากไอคอนที่เลือกตอนบันทึก (fa-*) → ไอคอนชุดนี้ */
+// 40 หมวดจาก lib/categories.mjs + รหัสเก่าที่ยังมีในข้อมูล (สลิปรุ่นเก่าใช้ fa-shopping-basket, fa-shopping-bag, fa-receipt ฯลฯ)
 const FA = {
-    "fa-utensils": "food", "fa-mug-hot": "coffee", "fa-wine-glass": "coffee",
-    "fa-car": "car", "fa-gas-pump": "car", "fa-bus": "car", "fa-plane": "plane",
-    "fa-cart-shopping": "bag", "fa-basket-shopping": "bag", "fa-scissors": "bag", "fa-pills": "pill", "fa-paw": "paw", "fa-gift": "gift",
-    "fa-film": "film", "fa-house": "key",
-    "fa-bolt": "bolt", "fa-mobile-screen": "bolt", "fa-mobile-screen-button": "bolt",
+    ...Object.fromEntries(CATEGORY_LIST.map((c) => [c.fa, c.icon])),
+    "fa-basket-shopping": "bag", "fa-shopping-basket": "bag", "fa-shopping-bag": "bag", "fa-scissors": "beauty",
+    "fa-bus": "train", "fa-mobile-screen-button": "mobile", "fa-tv": "film", "fa-receipt": "bill",
     "fa-arrow-down": "down", "fa-credit-card": "card"
 };
 export const iconFor = (fa) => FA[fa] || "bill";
 
-// ข้อมูลรูปโลโก้ (หลายสิบกิโลไบต์) โหลดเมื่อมีรายการที่ตรงกับแบรนด์เท่านั้น ระหว่างรอใช้สีแบรนด์ + ไอคอนหมวดไปก่อน
-let PATHS = null;
-let pending = null;
+// รูปโลโก้แยกไฟล์ละแบรนด์ (brand-icons/<slug>.js ไฟล์ละไม่กี่ร้อยไบต์ถึงไม่กี่กิโลไบต์) โหลดเฉพาะแบรนด์ที่มีในหน้านั้น
+// ระหว่างรอใช้สีแบรนด์ + ไอคอนหมวดไปก่อน
+// Vite แปลงบรรทัดนี้เป็นรายการไฟล์ตอน build (ตอนเทสต์ด้วย node ไม่มี glob จึงได้รายการว่าง = ใช้ไอคอนหมวดแทน)
+let BRAND_FILES = {};
+try { BRAND_FILES = import.meta.glob("./brand-icons/*.js"); } catch (e) { /* นอก Vite */ }
+const PATHS = {};
+const pending = {};
 const waiting = new Set();
-function loadPaths() {
-    if (!pending) pending = import("./brand-paths.js").then((m) => { PATHS = m.SI; waiting.forEach((f) => f()); }).catch(() => {});
+function loadPath(si) {
+    if (PATHS[si] || pending[si]) return;
+    const load = BRAND_FILES[`./brand-icons/${si}.js`];
+    if (!load) return;
+    pending[si] = load().then((m) => { PATHS[si] = m.default; waiting.forEach((f) => f()); }).catch(() => {});
 }
-function useBrandPaths() {
+function useBrandPath(si) {
     const [, tick] = useState(0);
     useEffect(() => {
-        if (PATHS) return undefined;
+        if (!si || PATHS[si]) return undefined;
         const f = () => tick((n) => n + 1);
         waiting.add(f);
-        loadPaths();
+        loadPath(si);
         return () => waiting.delete(f);
-    }, []);
-    return PATHS;
+    }, [si]);
+    return si ? PATHS[si] : null;
 }
 
 function BrandBadge({ b, size, name }) {
-    const paths = useBrandPaths();
-    if (b.si && paths && paths[b.si]) {
-        const dim = Math.round(size * 0.58);
-        return <svg viewBox="0 0 24 24" width={dim} height={dim} aria-hidden="true"><path d={paths[b.si]} fill={b.fg} /></svg>;
+    const p = useBrandPath(b.si);
+    if (b.text) {
+        // บริษัทที่ไม่มีโลโก้จริงในชุดฟรี (เช่น บริษัทประกัน): ชื่อย่อบนสีบริษัท
+        // ตัวไทยแคบกว่า นับความยาวแค่ครึ่งเดียว
+        const len = /[ก-๙]/.test(b.text) ? Math.ceil(b.text.replace(/[ิีึืุูั่้๊๋็์]/g, "").length * 0.75) : b.text.length;
+        const fs = Math.round(size * (len > 5 ? 0.21 : len > 3 ? 0.26 : 0.32));
+        return <b class="brand-wm" style={{ fontSize: fs }}>{b.text}</b>;
     }
-    return <Icon name={name} size={Math.round(size * 0.5)} />;
+    if (p) {
+        const dim = Math.round(size * 0.58);
+        return <svg viewBox="0 0 24 24" width={dim} height={dim} aria-hidden="true"><path d={p} fill={b.fg} /></svg>;
+    }
+    return <Icon name={b.icon || name} size={Math.round(size * 0.5)} />;
 }
 
 /**

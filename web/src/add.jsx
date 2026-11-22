@@ -235,12 +235,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
                 )}
             </div>
 
-            <div class="field">
-                <div class="hd-row"><span class="fl" id="b-icon-l">หมวด</span>{catHint && <span class="cat-hint">{catHint}</span>}</div>
-                <div class="cats-pick" role="group" aria-labelledby="b-icon-l">
-                    {BILL_ICONS.map((i) => <button type="button" key={i.key} class={iconKey === i.key ? "on" : ""} aria-pressed={iconKey === i.key} onClick={() => { setIconKey(i.key); setIconTouched(true); }}><span class="ct"><Icon name={i.icon} /></span>{i.label}</button>)}
-                </div>
-            </div>
+            <CategoryPicker value={iconKey} onPick={(k) => { setIconKey(k); setIconTouched(true); }} labelId="b-icon-l" hint={catHint} />
 
             <div class={`result ${resultTone}`} role="status">
                 <span>{resultText}</span>

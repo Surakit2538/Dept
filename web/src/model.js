@@ -1,6 +1,6 @@
 // โมเดลข้อมูลหน้าแรก (ฟังก์ชันล้วน ไม่แตะเครือข่าย ทดสอบได้) ใช้แกนคำนวณกลาง lib/ledger.mjs ตัวเดียวกับเซิร์ฟเวอร์
 import { splitInstallments } from "../../lib/installments.mjs";
-import { guessCategoryKey } from "../../lib/categories.mjs";
+import { guessCategoryKey, CATEGORY_GROUPS, CATEGORY_LIST } from "../../lib/categories.mjs";
 import { budgetFor, budgetStatus, goalStatus, savingPlan, suggestBudget } from "../../lib/budget.mjs";
 import { isDueMonth, everyOf, startOf, freqLabel, freqTag } from "../../lib/recurrence.mjs";
 export { freqLabel, freqTag };
@@ -9,14 +9,8 @@ import {
 } from "../../lib/ledger.mjs";
 
 /** หมวดของรายการ จากไอคอนที่เลือกตอนบันทึก (ใช้ชุดไอคอนเดียวกับเว็บเดิม) */
-export const CATEGORIES = [
-    { key: "food", label: "อาหารและเครื่องดื่ม", icons: ["fa-utensils", "fa-mug-hot", "fa-wine-glass"] },
-    { key: "bills", label: "บิลและค่าบริการ", icons: ["fa-bolt", "fa-house", "fa-mobile-screen", "fa-mobile-screen-button"] },
-    { key: "goods", label: "ของใช้", icons: ["fa-cart-shopping", "fa-basket-shopping", "fa-scissors", "fa-pills", "fa-paw", "fa-gift"] },
-    { key: "travel", label: "เดินทาง", icons: ["fa-car", "fa-gas-pump", "fa-bus", "fa-plane"] },
-    { key: "fun", label: "บันเทิง", icons: ["fa-film"] },
-    { key: "other", label: "อื่นๆ", icons: [] }
-];
+// 6 กลุ่มสรุป สร้างจาก lib/categories.mjs ที่เดียว (ให้ตรงกับ LINE และงบเสมอ)
+export const CATEGORIES = CATEGORY_GROUPS.map((g) => ({ key: g.key, label: g.label, icons: g.icons }));
 
 export function categoryOf(icon) {
     const c = CATEGORIES.find((x) => x.icons.includes(icon));
@@ -380,20 +374,8 @@ const toSat = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.rou
 /* ---------- เพิ่มบิลหารกับเพื่อน ---------- */
 
 /** หมวดของบิล: fa คือรหัสไอคอนเดิมที่เก็บใน transactions.icon (หน้าเดิมและสรุปรายเดือนอ่านได้ต่อ) icon คือไอคอน SVG ที่แสดง */
-export const BILL_ICONS = [
-    { key: "food", label: "อาหาร", fa: "fa-utensils", icon: "food" },
-    { key: "drink", label: "เครื่องดื่ม", fa: "fa-mug-hot", icon: "coffee" },
-    { key: "goods", label: "ของใช้", fa: "fa-cart-shopping", icon: "bag" },
-    { key: "travel", label: "เดินทาง", fa: "fa-car", icon: "car" },
-    { key: "bills", label: "บิล", fa: "fa-bolt", icon: "bolt" },
-    { key: "rent", label: "ที่พัก", fa: "fa-house", icon: "key" },
-    { key: "fun", label: "บันเทิง", fa: "fa-film", icon: "film" },
-    { key: "health", label: "สุขภาพ", fa: "fa-pills", icon: "pill" },
-    { key: "trip", label: "เที่ยว", fa: "fa-plane", icon: "plane" },
-    { key: "gift", label: "ของขวัญ", fa: "fa-gift", icon: "gift" },
-    { key: "pet", label: "สัตว์เลี้ยง", fa: "fa-paw", icon: "paw" },
-    { key: "other", label: "อื่นๆ", fa: "fa-money-bill", icon: "dots" }
-];
+// 40 หมวดที่เลือกได้ (lib/categories.mjs) อื่นๆ อยู่ท้ายสุด
+export const BILL_ICONS = CATEGORY_LIST.map((c) => ({ key: c.key, label: c.label, fa: c.fa, icon: c.icon, group: c.group }));
 
 export const guessBillIcon = guessCategoryKey;
 

@@ -28,12 +28,7 @@ export function EditBillSheet({ bill, onClose, onSaved }) {
             {grouped
                 ? <p class="lbl">บิลผ่อนชำระ แก้ได้เฉพาะหมวด ชื่อรายการมีลำดับงวดกำกับอยู่</p>
                 : <div class="field"><label for="eb-desc">ชื่อรายการ</label><input id="eb-desc" type="text" maxLength={100} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>}
-            <div class="field">
-                <span class="fl" id="eb-cat">หมวด</span>
-                <div class="cats-pick" role="group" aria-labelledby="eb-cat">
-                    {BILL_ICONS.map((i) => <button type="button" key={i.key} class={iconKey === i.key ? "on" : ""} aria-pressed={iconKey === i.key} onClick={() => setIconKey(i.key)}><span class="ct"><Icon name={i.icon} /></span>{i.label}</button>)}
-                </div>
-            </div>
+            <CategoryPicker value={iconKey} onPick={setIconKey} labelId="eb-cat" />
             <p class="lbl">ยอดเงินและคนหารแก้ไม่ได้ เพราะกระทบยอดหนี้ของเพื่อน ถ้าผิดให้ลบบิลแล้วเพิ่มใหม่</p>
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>

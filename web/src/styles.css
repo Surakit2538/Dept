@@ -282,12 +282,12 @@ button.more { background: transparent; border: 0; cursor: pointer; padding: 0; f
 .person.on .pav { background: var(--accent); color: var(--accent-ink); }
 .pn { font-size: var(--fs-xs); max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--mute); }
 .person.on .pn { color: var(--ink); font-weight: 600; }
-.cats-pick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3) var(--s2); padding: var(--s1) 0 var(--s2); }
+.cats-pick, .cats-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s3) var(--s2); padding: var(--s1) 0 var(--s2); }
 @media (min-width: 480px) { .cats-pick { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-.cats-pick button { min-width: 0; border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--mute); }
-.cats-pick .ct { width: 48px; height: 48px; border-radius: 50%; background: var(--chip); display: grid; place-items: center; border: 2px solid transparent; }
-.cats-pick button.on { color: var(--ink); font-weight: 600; }
-.cats-pick button.on .ct { background: var(--accent); color: var(--accent-ink); }
+.cats-grid button, .cats-pick button { min-width: 0; border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--fs-xs); color: var(--mute); }
+.cats-grid .ct, .cats-pick .ct { width: 48px; height: 48px; border-radius: 50%; background: var(--chip); display: grid; place-items: center; border: 2px solid transparent; }
+.cats-grid button.on, .cats-pick button.on { color: var(--ink); font-weight: 600; }
+.cats-grid button.on .ct, .cats-pick button.on .ct { background: var(--accent); color: var(--accent-ink); }
 .result { margin-top: var(--s4); background: var(--chip); border-radius: 12px; padding: var(--s3) var(--s4); display: flex; align-items: center; justify-content: space-between; gap: var(--s3); flex-wrap: wrap; font-size: var(--fs-sm); }
 .result.mute { color: var(--mute); }
 .result b { font-size: var(--fs-lg); font-weight: 600; }
@@ -1163,3 +1163,14 @@ button.plastic:focus-visible { outline: 3px solid var(--sun); outline-offset: 2p
 .ybars-lg .r::before { background: var(--sun); }
 @media (max-width: 380px) { .fqrow { flex-direction: column; align-items: stretch; } .fqrow .yring { align-self: center; } }
 .fqpick button.on small { color: rgba(255, 255, 255, .85); }
+
+/* เลือกหมวดแบบ B: ปุ่ม ดูทั้งหมด + รายการเต็มแบ่งตามกลุ่ม */
+.cats-grid button.more .ct { color: var(--accent-text); }
+.cats-grid button .ct { color: var(--pay); }
+.cats-grid button.on .ct { color: var(--accent-ink); }
+.cats-grid button { text-align: center; line-height: 1.25; }
+.cats-all { display: flex; flex-direction: column; gap: var(--s3); padding-top: var(--s1); }
+.cats-g { display: flex; flex-direction: column; gap: 6px; }
+.cats-gl { font-size: var(--fs-xs); font-weight: 700; color: var(--mute); }
+.cats-all .link-btn { align-self: flex-start; }
+.ico.brand .brand-wm { font-weight: 800; line-height: 1; letter-spacing: -.2px; text-align: center; padding: 0 2px; white-space: nowrap; overflow: hidden; max-width: 100%; }

@@ -112,7 +112,7 @@ test("ฟอร์มบิลหารกับเพื่อน: แสดง
     assert.match(menu, /รายรับ/);
     const crowd = ["GAME", "CARE", evil, "Pim1", "Pim2", "Pim3", "Pim4", "Pim5", "Pim6", "Pim7"];
     const form = toString(h(AddSheet, { initial: "bill", today: "2026-11-14", members: crowd, suggested: ["CARE", evil], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} }));
-    for (const t of ["ยอดเต็มของบิล", "รายการ", "หารกับใคร", "หมวด", "ตัวเลือกเพิ่มเติม", "บันทึกบิล", "เครื่องดื่ม", "สัตว์เลี้ยง", "คนอื่น"]) assert.ok(form.includes(t), `ไม่พบ ${t}`);
+    for (const t of ["ยอดเต็มของบิล", "รายการ", "หารกับใคร", "หมวด", "ตัวเลือกเพิ่มเติม", "บันทึกบิล", "เครื่องดื่ม", "ดูทั้งหมด 40", "คนอื่น"]) assert.ok(form.includes(t), `ไม่พบ ${t}`);
     assert.ok(!form.includes("<script>alert"), "ชื่อต้องถูก escape");
     assert.ok(form.includes("&lt;script"), "ชื่อที่แนะนำต้องแสดงแบบ escape");
     assert.ok(!form.includes("Pim7"), "ต้องไม่แสดงสมาชิกทั้งกลุ่ม แสดงแค่ที่เลือกและคนที่แนะนำ");
@@ -234,17 +234,17 @@ test("รายจ่ายส่วนตัวเลือกหมวดไ�
     const props = { today: "2026-11-14", members: ["GAME"], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} };
     const expense = toString(h(AddSheet, { ...props, initial: "expense" }));
     assert.match(expense, /หมวด/);
-    assert.match(expense, /สัตว์เลี้ยง/);
+    assert.match(expense, /ดูทั้งหมด 40/, "หมวดแบบ B: 8 อันที่ใช้บ่อย + ดูทั้งหมด");
     const income = toString(h(AddSheet, { ...props, initial: "income" }));
-    assert.ok(!income.includes("สัตว์เลี้ยง"), "รายรับไม่มีหมวด");
+    assert.ok(!income.includes("ดูทั้งหมด"), "รายรับไม่มีหมวด");
     const { EditWalletSheet } = await bundle("web/src/editbill.jsx", "editbill2");
     const ex = toString(h(EditWalletSheet, { item: { id: "w", type: "expense", desc: "<b onclick=x>", icon: "fa-car" }, onClose() {}, onSaved() {} }));
     assert.match(ex, /แก้ไขรายจ่ายส่วนตัว/);
-    assert.match(ex, /เดินทาง/);
+    assert.ok(ex.includes("รถ/ผ่อนรถ"), "หมวดที่เลือกไว้ (fa-car) อยู่ในแถวหมวดเสมอ");
     assert.ok(!ex.includes("<b onclick"));
     const inc = toString(h(EditWalletSheet, { item: { id: "w", type: "income", desc: "เงินเดือน", icon: "" }, onClose() {}, onSaved() {} }));
     assert.match(inc, /แก้ไขรายรับ/);
-    assert.ok(!inc.includes("สัตว์เลี้ยง"));
+    assert.ok(!inc.includes("ดูทั้งหมด"));
 });
 
 const noBills = { all: [], mine: [], totalSat: 0, myShareSat: 0 };
@@ -303,7 +303,7 @@ test("แก้รายจ่ายรายเดือนที่ตั้�
     assert.match(html, /ยอดต่อครั้ง/);
     assert.match(html, /ปีละ/, "มีวงกลมปี");
     assert.match(html, /ทุกปี/);
-    assert.match(html, /เดินทาง/);
+    assert.ok(html.includes("รถ/ผ่อนรถ"));
     assert.ok(!html.includes("<b onclick"));
     assert.match(html, /วันที่จ่าย/);
     assert.match(html, /<option value="31">31/);

@@ -44,7 +44,7 @@ test("SMS ขอบคุณที่ใช้บัตร -> บันทึก
     assert.equal(rows[0].amount, 399);
     assert.equal(rows[0].source, "card_alert");
     assert.equal(rows[0].card, "KTC-5703");
-    assert.equal(rows[0].icon, "fa-bolt"); // youtube -> บิลและค่าบริการ
+    assert.equal(rows[0].icon, "fa-table-cells"); // youtube -> แอป/สมาชิก (กลุ่มบิลและค่าบริการเหมือนเดิม)
     assert.equal(rows[0].date, "2023-11-15");
     assert.equal(db.count("transactions"), 0);
 });
@@ -87,7 +87,7 @@ test("แจ้งเตือน ttb ในแอป (มีวันเวล�
     const row = db.all("wallet_entries")[0];
     assert.equal(row.desc, "LINE MAN Dragon");
     assert.equal(row.date, "2023-11-14");
-    assert.equal(row.icon, "fa-utensils");
+    assert.equal(row.icon, "fa-box"); // LINE MAN -> เดลิเวอรี่ (กลุ่มอาหารเหมือนเดิม)
     assert.equal(row.card, "ttb-0518");
 });
 

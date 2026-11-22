@@ -172,7 +172,7 @@ test("buildBill: ตรวจค่าผิด", () => {
 test("guessBillIcon / BILL_ICONS", () => {
     assert.equal(guessBillIcon("ก๋วยเตี๋ยวเรือ"), "food");
     assert.equal(guessBillIcon("ค่าไฟเดือนนี้"), "bills");
-    assert.equal(guessBillIcon("เติมน้ำมัน"), "travel");
+    assert.equal(guessBillIcon("เติมน้ำมัน"), "fuel");
     assert.equal(guessBillIcon("xyz"), "other");
     assert.equal(guessBillIcon(""), "other");
     assert.equal(guessBillIcon("กาแฟร้านประจำ"), "drink");
@@ -182,20 +182,32 @@ test("guessBillIcon / BILL_ICONS", () => {
     assert.equal(guessBillIcon("ตั๋วเครื่องบินไปเชียงใหม่"), "trip");
     assert.equal(guessBillIcon("ของขวัญวันเกิดเพื่อน"), "gift");
     assert.equal(guessBillIcon("อาหารแมว"), "pet");
-    assert.equal(guessBillIcon("Netflix"), "bills");
+    assert.equal(guessBillIcon("Netflix"), "app");
     assert.equal(guessBillIcon("ผ่อน CIVIC"), "travel");
-    assert.equal(guessBillIcon("Claude"), "bills");
-    assert.equal(guessBillIcon("APPLE Icloud"), "bills");
-    assert.equal(guessBillIcon("AIS"), "bills");
-    assert.equal(guessBillIcon("ตัดผม"), "goods");
+    assert.equal(guessBillIcon("Claude"), "app");
+    assert.equal(guessBillIcon("APPLE Icloud"), "app");
+    assert.equal(guessBillIcon("AIS"), "phone");
+    assert.equal(guessBillIcon("ตัดผม"), "beauty");
+    // ชื่อจริงจากข้อมูลของเจ้าของ (พ.ย. 2569) ที่เคยได้หมวดผิด
+    assert.equal(guessBillIcon("ประกันชีวิตแม่"), "insure");
+    assert.equal(guessBillIcon("แผ่นแปะสิว"), "beauty");
+    assert.equal(guessBillIcon("กางเกงยีน"), "clothes");
+    assert.equal(guessBillIcon("พวงมาลัย"), "merit");
+    assert.equal(guessBillIcon("บะหมี่ lineman"), "delivery");
+    assert.equal(guessBillIcon("Internet ideo"), "net");
+    assert.equal(guessBillIcon("True coffee"), "drink");
+    assert.equal(guessBillIcon("ขนม CJ"), "snack");
     assert.ok(BILL_ICONS.every((i) => i.fa.startsWith("fa-")));
 });
 
 import { suggestPeople } from "../web/src/model.js";
-test("BILL_ICONS: ครบ 12 หมวด ไม่ซ้ำ และทุกหมวดเดาได้ถูก key", () => {
-    assert.equal(BILL_ICONS.length, 12);
-    assert.equal(new Set(BILL_ICONS.map((i) => i.key)).size, 12);
-    assert.equal(new Set(BILL_ICONS.map((i) => i.fa)).size, 12);
+test("BILL_ICONS: 40 หมวด ไม่ซ้ำ 12 หมวดเดิมใช้รหัสเดิม (ข้อมูลเก่าไม่ต้องแก้) และทุกหมวดอยู่ใน 6 กลุ่ม", () => {
+    assert.equal(BILL_ICONS.length, 40);
+    assert.equal(new Set(BILL_ICONS.map((i) => i.key)).size, 40);
+    assert.equal(new Set(BILL_ICONS.map((i) => i.fa)).size, 40);
+    const old = { food: "fa-utensils", drink: "fa-mug-hot", goods: "fa-cart-shopping", travel: "fa-car", bills: "fa-bolt", rent: "fa-house", fun: "fa-film", health: "fa-pills", trip: "fa-plane", gift: "fa-gift", pet: "fa-paw", other: "fa-money-bill" };
+    for (const [k, fa] of Object.entries(old)) assert.equal(BILL_ICONS.find((i) => i.key === k).fa, fa, "รหัสเดิมของ " + k);
+    for (const i of BILL_ICONS) assert.ok(["food", "bills", "goods", "travel", "fun", "other"].includes(i.group));
     assert.equal(BILL_ICONS[BILL_ICONS.length - 1].key, "other");
     for (const i of BILL_ICONS) assert.ok(i.label && i.icon);
 });
@@ -241,8 +253,17 @@ test("โลโก้ร้าน: เดาแบรนด์จากชื่
 
 test("โลโก้ร้าน: ทุกแบรนด์ที่ระบุไอคอนจริงมีข้อมูลรูปครบ และแบรนด์เฉพาะมาก่อนแบรนด์กว้าง", async () => {
     const { BRANDS, brandOf } = await import("../web/src/brands.js");
-    const { SI } = await import("../web/src/brand-paths.js");
-    for (const b of BRANDS) if (b.si) assert.ok(SI[b.si] && /^[Mm]/.test(SI[b.si]), "ไม่มีรูปของ " + b.key);
+    // โลโก้แยกไฟล์ละแบรนด์ (web/src/brand-icons/<slug>.js) ทุกแบรนด์ที่ระบุไอคอนจริงต้องมีไฟล์
+    for (const b of BRANDS) if (b.si) {
+        const p = (await import(`../web/src/brand-icons/${b.si}.js`)).default;
+        assert.ok(/^[Mm]/.test(p), "ไม่มีรูปของ " + b.key);
+    }
+    for (const b of BRANDS) assert.ok(/^#[0-9a-f]{6}$/i.test(b.bg) && /^#[0-9a-f]{6}$/i.test(b.fg), "สีของ " + b.key);
+    assert.equal(brandOf("ประกันชีวิตแม่ AIA").text, "AIA");
+    assert.equal(brandOf("วิริยะประกันภัย").key, "viriyah");
+    assert.equal(brandOf("Apple Pay").key, "applepay");
+    assert.equal(brandOf("Uber Eats").key, "ubereats");
+    assert.equal(brandOf("Coway").icon, "water");
     assert.equal(brandOf("Apple Music").key, "applemusic");
     assert.equal(brandOf("iCloud 50GB").key, "icloud");
     assert.equal(brandOf("Apple Store").key, "apple");
@@ -255,7 +276,9 @@ test("โลโก้ร้าน: ไม่มีโลโก้จริงก
     for (const b of BRANDS) {
         assert.match(b.bg, /^#[0-9a-f]{6}$/i, "สีพื้นของ " + b.key);
         assert.match(b.fg, /^#[0-9a-f]{6}$/i, "สีรูปของ " + b.key);
-        assert.ok(!("text" in b) && !("glyph" in b), b.key + " ห้ามมีโลโก้ที่วาดเอง");
+        assert.ok(!("glyph" in b), b.key + " ห้ามมีโลโก้ที่วาดเอง");
+        // บริษัทที่ไม่มีโลโก้จริง (ประกัน) ใช้ได้แค่ชื่อย่อเป็นตัวหนังสือ ไม่เกิน 8 ตัว
+        if ("text" in b) assert.ok(typeof b.text === "string" && b.text.length <= 8 && !b.si, b.key);
     }
     assert.equal(brandOf("LINE MAN ข้าวกล่อง").key, "lineman");
     assert.equal(brandOf("LINE Pay").key, "line");

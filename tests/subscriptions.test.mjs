@@ -111,6 +111,6 @@ test("รายจ่ายส่วนตัวรายเดือน: แม
     await run();
     const byDesc = Object.fromEntries(db.all("wallet_entries").map((e) => [e.desc, e.icon]));
     assert.equal(byDesc["ผ่อน CIVIC"], "fa-car");
-    assert.equal(byDesc["Netflix"], "fa-bolt");
+    assert.equal(byDesc["Netflix"], "fa-table-cells");
     assert.equal(byDesc["ของที่เดาไม่ได้"], "fa-paw"); // หมวดที่ผู้ใช้เลือกไว้แล้วไม่ถูกเดาทับ
 });
