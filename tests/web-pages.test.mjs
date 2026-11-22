@@ -70,8 +70,14 @@ test("หน้าเคลียร์เงิน/รายการ/ฉัน
     assert.match(html4, /ชื่อจริงภาษาไทย/);
     assert.match(html4, /จัดการสมาชิก/);
     assert.match(html4, /ออกจากระบบ/);
+    // กล่องผู้ดูแล (แบบ A): ไม่มีปุ่ม หน้าแอดมิน แล้ว มีส่งสรุปเข้ากลุ่ม เตือนทุกคน และสถานะงานอัตโนมัติ
+    assert.ok(!html4.includes("admin.html") && !html4.includes("หน้าแอดมิน"));
+    assert.match(html4, /ส่งสรุปยอดเข้ากลุ่ม LINE/);
+    assert.match(html4, /เตือนทุกคนที่ค้าง/);
+    assert.match(html4, /งานอัตโนมัติ/);
     const member = toString(h(MePage, { auth: { user: { name: "CARE", memberId: "m2", isAdmin: false } }, profiles, onSaved() {} }));
     assert.ok(!member.includes("จัดการสมาชิก"));
+    assert.ok(!member.includes("ส่งสรุปยอดเข้ากลุ่ม") && !member.includes("งานอัตโนมัติ"));
 });
 
 test("เคลียร์เงิน: คนที่ผู้รับยังไม่ตั้งพร้อมเพย์ แสดงข้อความบอก ไม่พังตอนไม่มีโปรไฟล์", { skip: !hasTools }, async () => {
@@ -297,6 +303,14 @@ test("แก้รายจ่ายรายเดือนที่ตั้�
     assert.match(html, /ยอดต่อเดือน/);
     assert.match(html, /เดินทาง/);
     assert.ok(!html.includes("<b onclick"));
+    assert.match(html, /ตัดทุกวันที่/);
+    assert.match(html, /<option value="31">31/);
+    // บิลกลุ่มรายเดือน: แก้ชื่อ หมวด วันที่ได้ ยอดแก้ไม่ได้ (แบ่งส่วนคนหารไว้แล้ว)
+    const g = toString(h(EditTemplateSheet, { template: { id: "g", kind: "group", desc: "Netflix", amount: 419, icon: "fa-film", billingDay: 16 }, onClose() {}, onSaved() {} }));
+    assert.match(g, /แก้บิลกลุ่มรายเดือน/);
+    assert.match(g, /แก้ไม่ได้ เพราะแบ่งส่วนคนหารไว้แล้ว/);
+    assert.ok(!g.includes('id="et-amount"'));
+    assert.match(g, /<option selected value="16">16/);
 });
 
 test("ลิงก์ #add (ปุ่มเพิ่มบิลใน Rich menu) เปิดหน้าต่างบันทึกทันที ทั้งจากที่อยู่และจาก liff.state", () => {

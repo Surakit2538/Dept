@@ -7,7 +7,7 @@ rules_version = '2';
 //   ในบัตรมี mid (รหัสสมาชิก) และ member (ชื่อในกลุ่ม ตัวใหญ่ ช่องว่างเดียว)
 // - สิทธิ์ตรงกับที่หน้าเว็บทำอยู่:
 //     ทุกคน     อ่านข้อมูลกลุ่ม, เพิ่มบิล (เลือกคนจ่ายได้), แก้ชื่อจริง/พร้อมเพย์ของตัวเอง
-//     คนจ่ายบิล แก้ชื่อ/หมวดของบิลตัวเอง, ลบบิลตัวเอง, หยุดบิลรายเดือนของตัวเอง
+//     คนจ่ายบิล แก้ชื่อ/หมวดของบิลตัวเอง, ลบบิลตัวเอง, หยุดบิลรายเดือนของตัวเอง, แก้ชื่อ/หมวด/วันที่ของบิลรายเดือนตัวเอง (ยอดแก้ไม่ได้ เพราะแบ่งส่วนคนหารไว้แล้ว)
 //     ผู้ดูแล    ทำได้ทุกอย่าง เพิ่ม/แก้/ลบสมาชิก, ยืนยัน/ย้ายเดือน/ลบประวัติเคลียร์เงิน, ลบข้อมูลทั้งเดือน
 //   ผู้ดูแลดูจากเอกสารสมาชิกปัจจุบัน (role หรือ LINE ของผู้ดูแลหลัก) จึงมีผลทันทีที่ตั้ง/ถอดผู้ดูแล
 // - คอลเลกชันที่ไม่ได้ระบุ (wallet_entries, wallet_plan, personal_expenses, device_tokens, pending_slips, user_sessions, reminder_logs ฯลฯ)
@@ -30,6 +30,12 @@ service cloud.firestore {
     // ชื่อในบิลเทียบกับชื่อในบัตร (ตัดช่องว่างซ้ำ ตัวใหญ่ เหมือน cleanName ของเว็บและเซิร์ฟเวอร์)
     function isMe(name) {
       return name is string && name.replace('\\s+', ' ').trim().upper() == request.auth.token.member;
+    }
+    // แก้บิลรายเดือน: วันที่ 1-31, ชื่อไม่เกิน 100 ตัว, ไอคอนเป็นข้อความสั้น
+    function okTemplateEdit() {
+      return request.resource.data.get('billingDay', 1) is int && request.resource.data.get('billingDay', 1) >= 1 && request.resource.data.get('billingDay', 1) <= 31 &&
+        request.resource.data.get('desc', '') is string && request.resource.data.get('desc', '').size() <= 100 &&
+        request.resource.data.get('icon', '') is string && request.resource.data.get('icon', '').size() <= 40;
     }
     function onlyChanged(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
@@ -54,7 +60,7 @@ service cloud.firestore {
     }
     match /subscription_templates/{id} {
       allow read, create: if isMember();
-      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['active', 'stoppedAt'])) || isAdmin());
+      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['active', 'stoppedAt', 'desc', 'icon', 'billingDay']) && okTemplateEdit()) || isAdmin());
       allow delete: if isAdmin();
     }
   }

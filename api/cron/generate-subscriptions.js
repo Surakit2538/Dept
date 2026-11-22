@@ -2,6 +2,7 @@ import * as fs from "../auth-helpers.js";
 import { getDbInstance } from "../auth-helpers.js";
 import { createSubscriptionJob, createWalletSubscriptionJob } from "../../lib/subscriptions.mjs";
 import { createCleanupJob } from "../../lib/cleanup.mjs";
+import { writeJobLog } from "../../lib/admin-status.mjs";
 
 // ตรรกะอยู่ใน lib/subscriptions.mjs (ทดสอบด้วย tests/subscriptions.test.mjs)
 const run = createSubscriptionJob({ db: getDbInstance(), fs });
@@ -22,6 +23,8 @@ export default async function handler(req, res) {
         // ล้างข้อมูลเก่า (ทำแยก ถ้าพังต้องไม่กระทบการสร้างบิลรายเดือน)
         try { result.cleanup = await runCleanup(); } catch (e) { console.error("cleanup failed:", e); result.cleanup = { error: e.message }; }
         console.log("✅ Subscriptions:", JSON.stringify(result));
+        // สถานะในกล่องผู้ดูแล (แท็บ ฉัน): สร้างบิลรายเดือนครั้งล่าสุดกี่รายการ (บิลกลุ่ม + ส่วนตัว)
+        await writeJobLog({ db: getDbInstance(), fs, id: "subscriptions", data: { month: result.month || "", created: (Number(result.created) || 0) + (Number(result.wallet && result.wallet.created) || 0) } });
         return res.status(200).json({ success: true, ...result });
     } catch (err) {
         console.error("❌ Error generating subscriptions:", err);

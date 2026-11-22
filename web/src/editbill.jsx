@@ -3,7 +3,7 @@ import { useState } from "preact/hooks";
 import { Sheet } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
 import { BILL_ICONS, guessBillIcon, buildBill, equalSplit } from "./model.js";
-import { updateBillFields, updateWalletEntry, updateWalletTemplate, confirmWalletEntries } from "./data.js";
+import { updateBillFields, updateWalletEntry, updateWalletTemplate, updateTemplate, confirmWalletEntries } from "./data.js";
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 
 export function EditBillSheet({ bill, onClose, onSaved }) {
@@ -75,8 +75,13 @@ export function EditWalletSheet({ item, onClose, onSaved, onSplit = null }) {
     );
 }
 
-/** แก้รายจ่ายรายเดือนที่ตั้งไว้: ชื่อ ยอด หมวด มีผลกับรายการที่ระบบสร้างตั้งแต่เดือนถัดไป */
+/**
+ * แก้รายการรายเดือนที่ตั้งไว้ มีผลกับรายการที่ระบบสร้างตั้งแต่เดือนถัดไป
+ * ส่วนตัว: ชื่อ ยอด หมวด วันที่ (รายการเดือนนี้ที่ระบบสร้างไว้ย้ายวันตามด้วย) · บิลกลุ่ม (kind "group"): ชื่อ หมวด วันที่ ยอดแก้ไม่ได้
+ */
 export function EditTemplateSheet({ template, onClose, onSaved }) {
+    const group = template.kind === "group";
+    const [day, setDay] = useState(Number(template.billingDay) || 1);
     const [desc, setDesc] = useState(template.desc || "");
     const [amount, setAmount] = useState(String(template.amount ?? ""));
     const [iconKey, setIconKey] = useState(() => (hasCategory(template.icon) ? keyOfFa(template.icon) : guessBillIcon(template.desc)));
@@ -86,20 +91,26 @@ export function EditTemplateSheet({ template, onClose, onSaved }) {
         e.preventDefault();
         setErr("");
         const n = Number(amount);
-        if (!Number.isFinite(n) || n <= 0) return setErr("ใส่จำนวนเงินเป็นตัวเลขมากกว่า 0");
+        if (!group && (!Number.isFinite(n) || n <= 0)) return setErr("ใส่จำนวนเงินเป็นตัวเลขมากกว่า 0");
         setBusy(true);
         try {
-            await updateWalletTemplate(template.id, { desc: desc.trim() || "รายจ่าย", amount: n, icon: faOf(iconKey) });
+            if (group) await updateTemplate(template.id, { desc: desc.trim() || "บิลรายเดือน", icon: faOf(iconKey), billingDay: day });
+            else await updateWalletTemplate(template.id, { desc: desc.trim() || "รายจ่าย", amount: n, icon: faOf(iconKey), billingDay: day });
             onSaved();
             onClose();
         } catch (ex) { setErr(ex.message || "บันทึกไม่สำเร็จ"); setBusy(false); }
     }
     return (
-        <Sheet as="form" title="แก้รายจ่ายรายเดือน" onClose={onClose} onSubmit={save}>
+        <Sheet as="form" title={group ? "แก้บิลกลุ่มรายเดือน" : "แก้รายจ่ายรายเดือน"} onClose={onClose} onSubmit={save}>
             <div class="field"><label for="et-desc">ชื่อรายการ</label><input id="et-desc" type="text" maxLength={100} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
-            <div class="field amount"><label for="et-amount">ยอดต่อเดือน (บาท)</label><input id="et-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} /></div>
+            {group
+                ? <p class="lbl">ยอด {Number(template.amount || 0).toLocaleString("en-US", { maximumFractionDigits: 2 })} บาท แก้ไม่ได้ เพราะแบ่งส่วนคนหารไว้แล้ว (ถ้ายอดเปลี่ยน ให้หยุดบิลนี้แล้วสร้างใหม่)</p>
+                : <div class="field amount"><label for="et-amount">ยอดต่อเดือน (บาท)</label><input id="et-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} /></div>}
+            <div class="field"><label for="et-day">ตัดทุกวันที่</label>
+                <select id="et-day" class="num" value={day} onChange={(e) => setDay(Number(e.currentTarget.value))}>{Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{d >= 29 ? " (เดือนที่ไม่มีวันนี้ = วันสุดท้าย)" : ""}</option>)}</select>
+            </div>
             <CategoryPicker value={iconKey} onPick={setIconKey} labelId="et-cat-l" />
-            <p class="lbl">มีผลกับรายการที่ระบบสร้างให้ตั้งแต่เดือนถัดไป รายการที่สร้างไปแล้วไม่เปลี่ยน (แก้ได้ที่ไอคอนดินสอของรายการนั้น)</p>
+            <p class="lbl">{group ? "มีผลกับบิลที่ระบบสร้างให้ตั้งแต่เดือนถัดไป บิลที่สร้างไปแล้วไม่เปลี่ยน" : "มีผลกับรายการที่ระบบสร้างให้ตั้งแต่เดือนถัดไป ถ้าเปลี่ยนวันที่ รายการของเดือนนี้ที่ระบบสร้างไว้จะย้ายไปวันใหม่ด้วย"}</p>
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
         </Sheet>

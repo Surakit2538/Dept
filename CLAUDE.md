@@ -21,7 +21,7 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 369 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 373 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
 พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1`, `?state=loader` (ตัวโหลด), `?as=CARE` (มุมมองคนอื่น) · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
@@ -78,6 +78,10 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 1. ปฏิทินบิลรายเดือน (ข้อ 13) **ทำแล้ว แบบ A** (push แล้ว ลองกับข้อมูลจริงบนเว็บแล้ว ถูกต้อง): การ์ด "บิลถัดไป อีก N วัน" + อีก 2 ใบบนหน้าแรก (เฉพาะเดือนปัจจุบัน) แตะเปิด `BillCalendarSheet` (`web/src/billcal.jsx`) · ตรรกะ `buildBillSchedule`/`billWho` ใน model.js (เฉพาะบิลที่ฉันอยู่ในคนหารหรือเป็นคนจ่าย, ยอด = ส่วนของฉัน, จ่ายแทน = 0) · ข้อมูล `loadBillSchedule` (subscription_templates + wallet_templates จำ 10 นาที ล้างเองเมื่อเพิ่ม/แก้/หยุด) · เทสต์ `tests/bill-calendar.test.mjs` · ยังไม่ทำ: การ์ดถาม "ได้ใช้ไหม" (เจ้าของยังไม่ตอบ)
 2. รอบบิลบัตรเครดิต (ข้อ 3) **ทำแล้ว push แล้ว (เจ้าของยังไม่ได้เปิดสวิตช์ให้ใคร โควต้า LINE ฟรี 300 ข้อความ/เดือน)** mockup https://claude.ai/artifact/Qm4kutHQUXqpdpYFYSyR5m (เว็บแบบ A, ภาพบัตรลาย 3 เลือกสี 4 สี) · ผู้ดูแลเปิดให้รายคน (`members.cardAlerts`, สวิตช์ในจัดการสมาชิก + แถบโควต้าข้อความ LINE จริง action `line-quota`) · ข้อมูล `wallet_cards` เอกสารเดียวต่อคน (`lib/card-cycle.mjs` ฟังก์ชันล้วน, `lib/card-service.mjs`) action `card-list/save/delete/paid` · ยอดรอบ = รายจ่ายในกระเป๋าที่ระบุบัตร (`card` จาก SMS/อีเมล เลขท้ายตรง หรือธนาคารตรงและมีใบเดียว, รองรับ `cardId` ไว้สำหรับข้อ 3 ติดป้ายบัตรตอนบันทึกเอง) ไม่กรอกยอดใบแจ้งยอด · เตือน LINE ก่อน 3 วัน + วันครบกำหนด (`lib/card-reminders.mjs`, การ์ด `buildCardDueCard`, ปุ่ม `cc:paid:<id>:<YYYY-MM>`, ดูรายการ = LIFF `#card=<id>`) · สลิปจ่ายบิลบัตร = จ่ายแล้วอัตโนมัติถ้าระบุใบได้ · เว็บ: แท็บ ฉัน `CardWallet` (บัตรซ้อน), `CardEditSheet`, `CardDetailSheet` (`web/src/cards.jsx`), วันจ่ายบัตรต่อคิวในการ์ดบิลถัดไป/ปฏิทิน (ไม่บวกในยอดบิลรายเดือน) · พรีวิว `?sheet=card|cardadd`, `?cards=none|off` · เทสต์ `tests/card-cycle.test.mjs` + ใน bill-calendar
 3. หลายบัญชี (ข้อ 2): **แค่ติดป้ายว่าจ่ายจากบัญชี/บัตรไหน** ไม่มียอดคงเหลือ (รายการจาก SMS/อีเมลมี `card` อยู่แล้ว)
+**แผน 22 พ.ย. (7 เรื่อง ทำทีละอัน มี mockup):** แผนเต็มอยู่ใน ~/.claude/plans/zippy-brewing-dijkstra.md
+- เรื่อง 1 แก้วันที่รายการรายเดือน **ทำแล้ว ยังไม่ push**: ส่วนตัว `wallet-template-update` รับ `billingDay` (ย้ายวันที่ wsub_ ของเดือนนี้ด้วยถ้าไม่ใช่ cardAlert) · กลุ่ม `updateTemplate` ใน data.js (ชื่อ/หมวด/วันที่ ยอดแก้ไม่ได้) ปุ่มดินสอใน Recurring · กฎ `okTemplateEdit` (เจ้าของต้อง Publish กฎใหม่)
+- เรื่อง 2 กล่องผู้ดูแลแบบ A **ทำแล้ว ยังไม่ push** mockup https://claude.ai/artifact/9qZKbFwYBRwxFmnRRPBGx1: ลบปุ่มหน้าแอดมิน (/admin.html redirect ไป #me), action `group-summary` (ส่งการ์ดเข้ากลุ่ม LINE_GROUP_ID) และ `admin-status` (`lib/admin-status.mjs` อ่าน reminder_logs + `job_logs/subscriptions|cards` ที่ cron จด) · "ดูข้อมูลของทุกคน" ทำในเรื่อง 5
+- ต่อไป: เรื่อง 3 ความถี่ 1/3/6/12 เดือน, 4 ไอคอน (+บั๊ก fa-shopping-basket ฯลฯ จากสลิปเว็บไม่รู้จัก), 5 ซ่อนข้อมูลจริง (people array + action clear-plan + กฎ), 6 เป้าแชร์ (คนสร้างถอนได้ทั้งหมด), 7 ติดป้ายบัญชี/บัตร
 4. หารตามรายการสินค้า (ข้อ 8): **ถ่ายรูปใบเสร็จให้อ่านรายการเอง** ต้องหาวิธีอ่านใบเสร็จที่ฟรีก่อน (Live Text บน iPhone ผ่านคำสั่งลัด หรืออ่านในเบราว์เซอร์) แล้วให้แก้ได้ก่อนหาร · โหมดหารตอนนี้มี เท่ากัน/ใส่ยอดเอง
 
 ## 11. ดีไซน์ใหม่ (ทำในเว็บแล้ว 21 พ.ย. ยังไม่ push)

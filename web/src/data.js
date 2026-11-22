@@ -588,6 +588,16 @@ export function invalidateBillSchedule() {
     try { localStorage.removeItem(KEY + "billsched"); } catch (e) { /* ไม่เป็นไร */ }
 }
 
+/** แก้บิลกลุ่มรายเดือน (คนจ่ายหรือผู้ดูแล): ชื่อ หมวด วันที่ · ยอดแก้ไม่ได้เพราะแบ่งส่วนคนหารไว้แล้ว */
+export async function updateTemplate(id, fields) {
+    const data = {};
+    if (typeof fields.desc === "string") data.desc = fields.desc.trim().slice(0, 100) || "บิลรายเดือน";
+    if (typeof fields.icon === "string") data.icon = fields.icon;
+    if (fields.billingDay !== undefined) data.billingDay = Math.min(31, Math.max(1, Math.round(Number(fields.billingDay)) || 1));
+    await updateDoc(doc(db, "subscription_templates", String(id)), data);
+    invalidateBillSchedule();
+}
+
 export async function stopTemplate(id) {
     await updateDoc(doc(db, "subscription_templates", String(id)), { active: false, stoppedAt: new Date() });
     invalidateBillSchedule();
@@ -644,6 +654,17 @@ export async function moveSettlementMonth(id, month) {
 
 export async function deleteSettlement(id) {
     await deleteDoc(doc(db, "settlements", String(id)));
+}
+
+/** ผู้ดูแล: สถานะงานอัตโนมัติ { debt, subs, cards } (แต่ละอันเป็น null ได้ถ้ายังไม่เคยทำงาน) */
+export async function loadAdminStatus() {
+    const r = await api("/api/shortcut-transaction", { action: "admin-status" });
+    return r.status || { debt: null, subs: null, cards: null };
+}
+/** ผู้ดูแล: ส่งการ์ด "ใครต้องโอนให้ใคร" ของเดือนนี้เข้ากลุ่ม LINE คืนข้อความผลลัพธ์ */
+export async function sendGroupSummary() {
+    const r = await api("/api/shortcut-transaction", { action: "group-summary" });
+    return r.message || "ส่งแล้ว";
 }
 
 /** แอดมินสั่งเตือนทุกคนที่ค้างชำระ (ส่งทาง LINE ส่วนตัวถึงลูกหนี้) คืนข้อความสรุป */

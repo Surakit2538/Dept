@@ -3,6 +3,7 @@ import { getDbInstance } from "../auth-helpers.js";
 import { createReminderJob } from "../../lib/reminders.mjs";
 import { createCardReminderJob } from "../../lib/card-reminders.mjs";
 import { getBangkokDateString } from "../../lib/slip-core.mjs";
+import { writeJobLog } from "../../lib/admin-status.mjs";
 
 // ทำงานทุกวัน 10 โมงเช้า (vercel.json) เพราะ Vercel Hobby มีงานอัตโนมัติได้ 2 งาน
 // - วันที่ 25: เตือนยอดค้างชำระประจำเดือน (lib/reminders.mjs, tests/reminders.test.mjs) เหมือนเดิม
@@ -34,6 +35,7 @@ export default async function handler(req, res) {
     try {
         out.cards = await runCards();
         console.log("Card reminders:", JSON.stringify(out.cards));
+        if (!out.cards.dryRun) await writeJobLog({ db, fs, id: "cards", data: { date: out.cards.date || "", sent: (out.cards.sent || []).length, failed: (out.cards.failed || []).length } });
         if (out.cards.status === "partial") out.success = false;
     } catch (error) {
         console.error("Error sending card reminders:", error);

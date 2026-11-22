@@ -1111,3 +1111,11 @@ button.plastic:focus-visible { outline: 3px solid var(--sun); outline-offset: 2p
 .nb-cal .band { align-self: stretch; background: #ffc23d; color: #2e2100; font-size: var(--fs-xs); font-weight: 700; padding: 3px 0; }
 .nb-cal b { font-size: 30px; font-weight: 700; line-height: 1.15; padding-top: 4px; }
 .nb-cal small { font-size: 11px; color: #5e6883; padding-bottom: 6px; }
+
+/* กล่องสำหรับผู้ดูแล (แบบ A): แถวที่ต้องยืนยันก่อนส่ง + สถานะงานอัตโนมัติ */
+.opt-row.as-div .confirm { display: inline-flex; gap: 6px; flex: none; }
+.opt-row.as-div > .btn { flex: none; }
+.jobst { display: flex; flex-direction: column; gap: 6px; background: var(--chip); border-radius: var(--r-md); padding: var(--s3); margin-top: var(--s2); font-size: var(--fs-sm); }
+.jobst-r { display: flex; justify-content: space-between; gap: var(--s2); }
+.jobst-r b { font-weight: 600; text-align: right; }
+.jobst-r b.ok { color: var(--receive); }

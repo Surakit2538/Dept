@@ -146,8 +146,11 @@ function Recurring({ me, isAdmin, version, onError, onMine = () => {}, pictures 
                             <div class="lr-1"><span class="t">{t.desc || "ไม่ระบุ"}<em class="t-note"> &middot; ทุกวันที่ {t.billingDay}</em></span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
                             <div class="lr-2"><span class="s"><KindTag kind="group" /><Flow payer={String(t.payer || "").trim().toUpperCase()} people={Object.keys(t.splits || {}).map((n) => String(n).trim().toUpperCase())} pictures={pictures} /></span>
                                 {(isAdmin || String(t.payer || "").trim().toUpperCase() === me) && (
-                                    <span class="lr-acts"><DeleteButton verb="หยุด" busyText="กำลังหยุด" keepText="ไม่หยุด" label={t.desc || "บิลรายเดือน"}
-                                        onConfirm={async () => { try { await stopTemplate(t.id); setBills((cur) => cur.filter((x) => x.id !== t.id)); } catch (e) { onError(e.message); } }} /></span>
+                                    <span class="lr-acts">
+                                        <button type="button" class="icon-btn" aria-label={`แก้ไข ${t.desc || "บิลรายเดือน"}`} onClick={() => setEditing({ ...t, kind: "group" })}><Icon name="pencil" size={16} /></button>
+                                        <DeleteButton verb="หยุด" busyText="กำลังหยุด" keepText="ไม่หยุด" label={t.desc || "บิลรายเดือน"}
+                                            onConfirm={async () => { try { await stopTemplate(t.id); setBills((cur) => cur.filter((x) => x.id !== t.id)); } catch (e) { onError(e.message); } }} />
+                                    </span>
                                 )}
                             </div>
                         </div>

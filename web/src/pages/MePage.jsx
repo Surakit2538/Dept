@@ -3,7 +3,51 @@ import { useState, useEffect } from "preact/hooks";
 import { Icon } from "../icons.jsx";
 import { Avatar, SectionTitle, Sheet, Lazy } from "../ui.jsx";
 import { validPromptpay, maskPromptpay } from "../model.js";
-import { saveMyProfile, logout } from "../data.js";
+import { saveMyProfile, logout, loadAdminStatus, sendGroupSummary, remindAllDebtors } from "../data.js";
+
+const TH_M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const dShort = (iso) => { const d = String(iso || "").slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${Number(d.slice(8, 10))} ${TH_M[Number(d.slice(5, 7)) - 1]}` : ""; };
+const mShort = (m) => (/^\d{4}-\d{2}$/.test(m || "") ? TH_M[Number(m.slice(5, 7)) - 1] : "");
+
+/** ปุ่มแถวที่ต้องกดยืนยันก่อนทำ (ส่งข้อความเข้า LINE) */
+function ConfirmRow({ icon, title, sub, confirmText, run, onToast }) {
+    const [state, setState] = useState("idle"); // idle | confirm | busy
+    useEffect(() => { if (state !== "confirm") return undefined; const t = setTimeout(() => setState("idle"), 6000); return () => clearTimeout(t); }, [state]);
+    async function go() {
+        setState("busy");
+        try { onToast(await run()); } catch (ex) { onToast(ex.message); }
+        setState("idle");
+    }
+    return (
+        <div class="opt-row as-div">
+            <span class="ico"><Icon name={icon} /></span>
+            <span><b>{title}</b><small>{state === "confirm" ? confirmText : sub}</small></span>
+            {state === "idle"
+                ? <button type="button" class="btn sm ghost" onClick={() => setState("confirm")}>ส่ง</button>
+                : <span class="confirm">
+                    <button type="button" class="btn sm" disabled={state === "busy"} onClick={go}>{state === "busy" ? "กำลังส่ง" : "ส่งเลย"}</button>
+                    {state !== "busy" && <button type="button" class="btn sm ghost" onClick={() => setState("idle")}>ยกเลิก</button>}
+                </span>}
+        </div>
+    );
+}
+
+/** สถานะงานอัตโนมัติ (อ่าน 4 เอกสาร เฉพาะตอนเปิดแท็บ ฉัน ของผู้ดูแล) */
+function JobStatus() {
+    const [st, setSt] = useState(undefined);
+    useEffect(() => { loadAdminStatus().then(setSt).catch(() => setSt(null)); }, []);
+    if (st === undefined) return <div class="jobst"><b>งานอัตโนมัติ</b><p class="lbl">กำลังโหลด</p></div>;
+    if (!st) return null;
+    const row = (label, val, ok) => <div class="jobst-r"><span>{label}</span><b class={ok ? "ok" : ""}>{val}</b></div>;
+    return (
+        <div class="jobst" aria-label="สถานะงานอัตโนมัติ">
+            <b>งานอัตโนมัติ</b>
+            {row(st.debt ? `เตือนหนี้ 25 ${mShort(st.debt.month)}` : "เตือนหนี้วันที่ 25", st.debt ? (st.debt.status === "partial" ? `ส่งได้ ${st.debt.sentCount} คน (มีบางคนไม่สำเร็จ)` : `ส่งแล้ว ${st.debt.sentCount} คน`) : "ยังไม่มีบันทึก", Boolean(st.debt && st.debt.status !== "partial"))}
+            {row(st.subs ? `สร้างบิลรายเดือน 1 ${mShort(st.subs.month)}` : "สร้างบิลรายเดือนวันที่ 1", st.subs ? `${st.subs.created} รายการ` : "ยังไม่มีบันทึก", Boolean(st.subs))}
+            {row(st.cards ? `เตือนบัตรเครดิต ${dShort(st.cards.date)}` : "เตือนบัตรเครดิต (ทุกวัน 10 โมง)", st.cards ? (st.cards.sent ? `ส่งแล้ว ${st.cards.sent} ใบ` : "ไม่มีบัตรที่ต้องเตือน") : "ยังไม่มีบันทึก", Boolean(st.cards))}
+        </div>
+    );
+}
 import { PlanCard, GoalStack } from "../plan.jsx";
 import { CardWallet } from "../cards.jsx";
 
@@ -100,7 +144,9 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                         <SectionTitle icon="lock" title="สำหรับผู้ดูแล" />
                         <button type="button" class="opt-row" onClick={() => setMembers(true)}><span class="ico"><Icon name="people" /></span><span><b>จัดการสมาชิก</b><small>เพิ่มชื่อ แก้ชื่อจริง/พร้อมเพย์ ตั้งแอดมิน ลบ</small></span><Icon name="right" size={16} class="mute" /></button>
                         <button type="button" class="opt-row" onClick={() => setTools(true)}><span class="ico"><Icon name="chart" /></span><span><b>จัดการข้อมูล</b><small>ส่งออกไฟล์ CSV และลบข้อมูลทั้งเดือน</small></span><Icon name="right" size={16} class="mute" /></button>
-                        <a class="opt-row" href="/admin.html"><span class="ico"><Icon name="lock" /></span><span><b>หน้าแอดมิน</b><small>ยืนยันการจ่ายแทนคน ดูประวัติ</small></span><Icon name="right" size={16} class="mute" /></a>
+                        <ConfirmRow icon="plane" title="ส่งสรุปยอดเข้ากลุ่ม LINE" sub={'การ์ด "ใครต้องโอนให้ใคร" ของเดือนนี้ ไปที่กลุ่ม'} confirmText="ส่งการ์ดเข้ากลุ่ม LINE ตอนนี้ใช่ไหม" run={sendGroupSummary} onToast={onToast} />
+                        <ConfirmRow icon="bell" title="เตือนทุกคนที่ค้าง" sub="ส่ง LINE หาคนที่ยังไม่โอน (ในหน้าเคลียร์เงินยังมีเหมือนเดิม)" confirmText="ส่ง LINE เตือนทุกคนที่ยังค้างเดือนนี้ใช่ไหม" run={remindAllDebtors} onToast={onToast} />
+                        <JobStatus />
                     </section>
                 )}
                 <button type="button" class="btn ghost block logout" onClick={logout}><Icon name="close" size={16} />ออกจากระบบ</button>

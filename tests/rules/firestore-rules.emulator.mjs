@@ -120,6 +120,15 @@ await t("บิลรายเดือน: คนจ่ายหยุดได
     await assertFails(updateDoc(doc(as("ben", "BEN"), "subscription_templates/tp_care"), { active: false, stoppedAt: new Date() }));
     await assertFails(deleteDoc(doc(as("care", "CARE"), "subscription_templates/tp_care")));
 });
+await t("บิลรายเดือน: คนจ่ายแก้ชื่อ/หมวด/วันที่ได้ (วันที่ 1-31) / คนอื่นแก้ไม่ได้", async () => {
+    await seed();
+    await assertSucceeds(updateDoc(doc(as("care", "CARE"), "subscription_templates/tp_care"), { billingDay: 12, desc: "Netflix 4K", icon: "fa-film" }));
+    await assertFails(updateDoc(doc(as("care", "CARE"), "subscription_templates/tp_care"), { billingDay: 40 }));
+    await assertFails(updateDoc(doc(as("care", "CARE"), "subscription_templates/tp_care"), { billingDay: "5" }));
+    await assertFails(updateDoc(doc(as("care", "CARE"), "subscription_templates/tp_care"), { billingDay: 10, amount: 1 }));
+    await assertFails(updateDoc(doc(as("ben", "BEN"), "subscription_templates/tp_care"), { billingDay: 10 }));
+    await assertSucceeds(updateDoc(doc(as("admin1", "GAME"), "subscription_templates/tp_care"), { billingDay: 20 }));
+});
 await t("ข้อมูลส่วนตัว (กระเป๋า ฯลฯ) ปิดจากเบราว์เซอร์ทั้งหมด", async () => {
     const db = as("care", "CARE");
     await assertFails(getDoc(doc(db, "wallet_entries/w1")));

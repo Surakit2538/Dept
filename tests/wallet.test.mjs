@@ -262,6 +262,23 @@ test("wallet-template-update: แก้ชื่อ ยอด หมวดขอ
     assert.equal((await call({ action: "wallet-template-update", id: "nope", desc: "x", idToken: "good-me" })).statusCode, 404);
 });
 
+test("wallet-template-update: เปลี่ยนวันที่ตัด (1-31) รายการเดือนนี้ที่ระบบสร้างย้ายวันตาม แต่รายการจากแจ้งเตือนบัตรไม่ย้าย", async () => {
+    const { call, db } = setup();
+    db.seed("wallet_templates", "tpl1", { ownerName: "G A M E 👾", type: "expense", amount: 399, desc: "YouTube", billingDay: 3, active: true });
+    db.seed("wallet_entries", "wsub_tpl1_2026-11", { ownerName: "G A M E 👾", type: "expense", amount: 399, desc: "YouTube", date: "2026-11-03", month: "2026-11", templateId: "tpl1" });
+    const r = await call({ action: "wallet-template-update", id: "tpl1", billingDay: 31, idToken: "good-me" });
+    assert.equal(r.statusCode, 200);
+    assert.equal(r.body.moved, "2026-11-30", "พ.ย. ไม่มีวันที่ 31 = วันสุดท้ายของเดือน");
+    assert.equal(db.all("wallet_templates")[0].billingDay, 31);
+    assert.equal(db.all("wallet_entries").find((x) => x.templateId === "tpl1").date, "2026-11-30");
+    assert.equal((await call({ action: "wallet-template-update", id: "tpl1", billingDay: 0, idToken: "good-me" })).statusCode, 400);
+    assert.equal((await call({ action: "wallet-template-update", id: "tpl1", billingDay: 2.5, idToken: "good-me" })).statusCode, 400);
+    db.seed("wallet_entries", "wsub_tpl1_2026-11", { ownerName: "G A M E 👾", type: "expense", amount: 399, desc: "YouTube", date: "2026-11-07", month: "2026-11", templateId: "tpl1", cardAlert: true });
+    const r2 = await call({ action: "wallet-template-update", id: "tpl1", billingDay: 5, idToken: "good-me" });
+    assert.equal(r2.body.moved, "");
+    assert.equal(db.all("wallet_entries").find((x) => x.templateId === "tpl1").date, "2026-11-07", "วันที่ตัดจริงจากแจ้งเตือนบัตรไม่เปลี่ยน");
+});
+
 test("wallet-delete-many: ลบหลายรายการของตัวเอง ข้ามของคนอื่น/ไม่มีอยู่ และจำกัดจำนวน", async () => {
     const { db, call } = setup();
     const mine = [];
