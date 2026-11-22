@@ -85,7 +85,8 @@ export function EditTemplateSheet({ template, onClose, onSaved }) {
     const group = template.kind === "group";
     const [day, setDay] = useState(Number(template.billingDay) || 1);
     const [every, setEvery] = useState([1, 3, 6, 12].includes(Number(template.every)) ? Number(template.every) : 1);
-    const [startMonth, setStartMonth] = useState(Number(template.startMonth) || 1);
+    // แม่แบบเก่าที่ยังไม่เคยตั้งรอบ: เดือนแรกเริ่มที่เดือนนี้ (ไม่ใช่ ม.ค.)
+    const [startMonth, setStartMonth] = useState(Number(template.startMonth) || Number(new Date().toISOString().slice(5, 7)) || 1);
     const [desc, setDesc] = useState(template.desc || "");
     const [amount, setAmount] = useState(String(template.amount ?? ""));
     const [iconKey, setIconKey] = useState(() => (hasCategory(template.icon) ? keyOfFa(template.icon) : guessBillIcon(template.desc)));

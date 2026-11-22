@@ -13,6 +13,7 @@ export const FREQS = [
     { every: 12, label: "ทุกปี", times: "1 ครั้ง" }
 ];
 const money = (n) => baht(n, { decimals: Math.round(n * 100) % 100 ? 2 : 0 });
+const whole = (n) => baht(Math.round(n)); // กราฟทั้งปี: ปัดเป็นบาท อ่านง่าย
 
 function arc(r, a0, a1) {
     const p = (a) => [Math.cos(((a - 90) * Math.PI) / 180) * r, Math.sin(((a - 90) * Math.PI) / 180) * r];
@@ -122,13 +123,13 @@ export function YearBars({ items, nowMonth = 0 }) {
     return (
         <div class="ybars">
             <div class="ybars-sum num">
-                <div><span class="lbl">ทุกเดือน</span><b>{money(monthly)}</b></div>
-                <div><span class="lbl">เป็นรอบ (ต่อปี)</span><b>{money(roundYear)}</b></div>
+                <div><span class="lbl">ทุกเดือน</span><b>{whole(monthly)}</b></div>
+                <div><span class="lbl">เป็นรอบ (ต่อปี)</span><b>{whole(roundYear)}</b></div>
             </div>
             <div class="ybars-g num" role="img" aria-label={`ค่าใช้จ่ายประจำแต่ละเดือน สูงสุดเดือน ${peak >= 0 ? TH_MONTH[peak] : "-"}`}>
                 {cols.map((c, i) => (
                     <span class="yb" key={i}>
-                        {i === peak && <span class="yb-t">{money(c.total)}</span>}
+                        {i === peak && <span class="yb-t">{whole(c.total)}</span>}
                         <span class="yb-col">
                             {c.r > 0 && <i class="r" style={{ height: `${(c.r / max) * 100}%` }} />}
                             <i style={{ height: `${Math.max(c.m > 0 ? 3 : 0, (c.m / max) * 100)}%` }} />

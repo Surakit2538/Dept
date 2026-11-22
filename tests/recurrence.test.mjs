@@ -73,6 +73,9 @@ test("API: บันทึกรายจ่ายทุกปี (เดือ�
     assert.deepEqual([t.every, t.startMonth, t.billingDay], [12, 11, 15]);
     const list = await call({ action: "wallet-template-list" });
     assert.deepEqual([list.body.items[0].every, list.body.items[0].startMonth], [12, 11]);
+    db.seed("wallet_templates", "old", { ownerName: "GAME", type: "expense", desc: "เก่า", amount: 1, billingDay: 1, active: true });
+    const old = (await call({ action: "wallet-template-list" })).body.items.find((x) => x.id === "old");
+    assert.deepEqual([old.every, old.startMonth], [1, null], "แม่แบบเก่าไม่มีเดือนเริ่ม (หน้าแก้จะใช้เดือนนี้แทน ม.ค.)");
     const id = list.body.items[0].id;
     assert.equal((await call({ action: "wallet-template-update", id, every: 6, startMonth: 3 })).statusCode, 200);
     assert.deepEqual([db.all("wallet_templates")[0].every, db.all("wallet_templates")[0].startMonth], [6, 3]);
