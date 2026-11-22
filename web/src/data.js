@@ -6,6 +6,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, signInWithCustomToken, signOut } from "firebase/auth";
 import { withPeople, settlementPeople } from "../../lib/privacy.mjs";
+import { isClosedMonth, closedMonthMessage } from "../../lib/month-lock.mjs";
 
 const firebaseConfig = {
     apiKey: "AIzaSyDD_3oEFAFgZyUdW2n6S36P_Ln47DIeNpc",
@@ -760,8 +761,8 @@ export async function sendGroupSummary() {
 }
 
 /** แอดมินสั่งเตือนทุกคนที่ค้างชำระ (ส่งทาง LINE ส่วนตัวถึงลูกหนี้) คืนข้อความสรุป */
-export async function remindAllDebtors() {
-    const r = await api("/api/shortcut-transaction", { action: "remind-all" });
+export async function remindAllDebtors(month = "") {
+    const r = await api("/api/shortcut-transaction", { action: "remind-all", month });
     return r.message || "สั่งเตือนแล้ว";
 }
 
@@ -837,6 +838,9 @@ export function logout() {
 
 /** บันทึกบิลหารกับเพื่อน (หนึ่งบิลหรือหลายงวด) และ template รายเดือน ในครั้งเดียว: สำเร็จทั้งหมดหรือไม่เลย */
 export async function saveBill({ docs, template }) {
+    // เดือนที่ปิดยอดแล้ว เพิ่มบิลไม่ได้ (ยกเว้นผู้ดูแลหลัก) กฎ Firestore ก็ห้ามแบบเดียวกัน บอกให้ชัดก่อนส่ง
+    const old = docs.find((d) => isClosedMonth(d.date, Date.now()));
+    if (old && !(readPrivacy() || {}).super) throw new Error(closedMonthMessage(old.date));
     const batch = writeBatch(db);
     docs.forEach((d) => batch.set(doc(collection(db, "transactions")), withPeople("transactions", d)));
     if (template) batch.set(doc(collection(db, "subscription_templates")), withPeople("subscription_templates", template));

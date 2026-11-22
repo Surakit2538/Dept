@@ -8,6 +8,8 @@ import { saveMyProfile, logout, loadAdminStatus, sendGroupSummary, remindAllDebt
 const TH_M = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 const dShort = (iso) => { const d = String(iso || "").slice(0, 10); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? `${Number(d.slice(8, 10))} ${TH_M[Number(d.slice(5, 7)) - 1]}` : ""; };
 const mShort = (m) => (/^\d{4}-\d{2}$/.test(m || "") ? TH_M[Number(m.slice(5, 7)) - 1] : "");
+// เดือนที่เพิ่งปิด (บอทเตือนยอดของเดือนนี้ทุกวันที่ 1)
+const lastMonth = () => { const n = new Date(Date.now() + 7 * 3600 * 1000); const y = n.getUTCFullYear(); const m = n.getUTCMonth(); return m === 0 ? `${y - 1}-12` : `${y}-${String(m).padStart(2, "0")}`; };
 
 /** ปุ่มแถวที่ต้องกดยืนยันก่อนทำ (ส่งข้อความเข้า LINE) */
 function ConfirmRow({ icon, title, sub, confirmText, run, onToast }) {
@@ -42,7 +44,7 @@ function JobStatus() {
     return (
         <div class="jobst" aria-label="สถานะงานอัตโนมัติ">
             <b>งานอัตโนมัติ</b>
-            {row(st.debt ? (st.debt.manual ? `เตือนหนี้ (กดเอง) ${dShort(st.debt.at)}` : `เตือนหนี้ 25 ${mShort(st.debt.month)}`) : "เตือนหนี้วันที่ 25", st.debt ? (st.debt.status === "partial" ? `ส่งได้ ${st.debt.sentCount} คน (มีบางคนไม่สำเร็จ)` : `ส่งแล้ว ${st.debt.sentCount} คน`) : "ยังไม่มีบันทึก", Boolean(st.debt && st.debt.status !== "partial"))}
+            {row(st.debt ? (st.debt.manual ? `เตือนหนี้ (กดเอง) ${dShort(st.debt.at)}` : `เตือนหนี้ยอด ${mShort(st.debt.month)}`) : "เตือนหนี้วันที่ 1", st.debt ? (st.debt.status === "partial" ? `ส่งได้ ${st.debt.sentCount} คน (มีบางคนไม่สำเร็จ)` : `ส่งแล้ว ${st.debt.sentCount} คน`) : "ยังไม่มีบันทึก", Boolean(st.debt && st.debt.status !== "partial"))}
             {row(st.subs ? `สร้างบิลรายเดือน 1 ${mShort(st.subs.month)}` : "สร้างบิลรายเดือนวันที่ 1", st.subs ? `${st.subs.created} รายการ` : "ยังไม่มีบันทึก", Boolean(st.subs))}
             {row(st.cards ? `เตือนบัตรเครดิต ${dShort(st.cards.date)}` : "เตือนบัตรเครดิต (ทุกวัน 10 โมง)", st.cards ? (st.cards.sent ? `ส่งแล้ว ${st.cards.sent} ใบ` : "ไม่มีบัตรที่ต้องเตือน") : "ยังไม่มีบันทึก", Boolean(st.cards))}
         </div>
@@ -223,7 +225,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                         <button type="button" class="opt-row" onClick={() => setMembers(true)}><span class="ico"><Icon name="people" /></span><span><b>จัดการสมาชิก</b><small>เพิ่มชื่อ แก้ชื่อจริง/พร้อมเพย์ ตั้งแอดมิน ลบ</small></span><Icon name="right" size={16} class="mute" /></button>
                         <button type="button" class="opt-row" onClick={() => setTools(true)}><span class="ico"><Icon name="chart" /></span><span><b>จัดการข้อมูล</b><small>ส่งออกไฟล์ CSV และลบข้อมูลทั้งเดือน</small></span><Icon name="right" size={16} class="mute" /></button>
                         <ConfirmRow icon="plane" title="ส่งสรุปยอดเข้ากลุ่ม LINE" sub={'การ์ด "ใครต้องโอนให้ใคร" ของเดือนนี้ ไปที่กลุ่ม'} confirmText="ส่งการ์ดเข้ากลุ่ม LINE ตอนนี้ใช่ไหม" run={sendGroupSummary} onToast={onToast} />
-                        <ConfirmRow icon="bell" title="เตือนทุกคนที่ค้าง" sub="ส่ง LINE หาคนที่ยังไม่โอน (ในหน้าเคลียร์เงินยังมีเหมือนเดิม)" confirmText="ส่ง LINE เตือนทุกคนที่ยังค้างเดือนนี้ใช่ไหม" run={remindAllDebtors} onToast={onToast} />
+                        <ConfirmRow icon="bell" title="เตือนทุกคนที่ค้าง" sub={`ยอดเดือน ${mShort(lastMonth())} ที่ปิดแล้ว (เลือกเดือนอื่นได้ในหน้าเคลียร์เงิน)`} confirmText={`ส่ง LINE เตือนทุกคนที่ยังค้างยอดเดือน ${mShort(lastMonth())} ใช่ไหม`} run={() => remindAllDebtors(lastMonth())} onToast={onToast} />
                         <JobStatus />
                         {privacy && privacy.super && <PrivacyBox me={auth.user.name} privacy={privacy} seeAll={seeAll} onSeeAll={onSeeAll} onPrivacy={onPrivacy} onToast={onToast} />}
                     </section>

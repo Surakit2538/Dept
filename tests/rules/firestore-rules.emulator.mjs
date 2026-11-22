@@ -17,6 +17,8 @@ const env = await initializeTestEnvironment({
 });
 
 const SUPER = "U0d739eea39c312e11c487e22861920d1";
+const CUR = new Date(Date.now() + 7 * 3600 * 1000).toISOString().slice(0, 7);
+const OLD = (() => { const [y, m] = CUR.split("-").map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; })();
 async function seed() {
     await env.clearFirestore();
     await env.withSecurityRulesDisabled(async (ctx) => {
@@ -26,9 +28,9 @@ async function seed() {
         await setDoc(doc(db, "members/care"), { name: "CARE", role: "member", lineUserId: "U_care", realName: "แคร์", promptpay: "0811111111" });
         await setDoc(doc(db, "members/ben"), { name: "BEN", role: "member", lineUserId: "U_ben" });
         await setDoc(doc(db, "members/tha"), { name: "T H A 🍀", role: "member", lineUserId: "U_tha" });
-        await setDoc(doc(db, "transactions/t_care"), { payer: "CARE", amount: 300, desc: "ข้าว", icon: "fa-utensils", date: "2026-11-01", splits: { CARE: 150, BEN: 150 }, people: ["BEN", "CARE"] });
-        await setDoc(doc(db, "transactions/t_tha"), { payer: "T  H A 🍀 ", amount: 90, desc: "กาแฟ", icon: "fa-mug-hot", date: "2026-11-02", splits: { "T H A 🍀": 45, BEN: 45 }, people: ["BEN", "T H A 🍀"] });
-        await setDoc(doc(db, "settlements/s1"), { from: "BEN", to: "CARE", amount: 150, month: "2026-11", status: "verified", people: ["BEN", "CARE"] });
+        await setDoc(doc(db, "transactions/t_care"), { payer: "CARE", amount: 300, desc: "ข้าว", icon: "fa-utensils", date: `${CUR}-01`, splits: { CARE: 150, BEN: 150 }, people: ["BEN", "CARE"] });
+        await setDoc(doc(db, "transactions/t_tha"), { payer: "T  H A 🍀 ", amount: 90, desc: "กาแฟ", icon: "fa-mug-hot", date: `${CUR}-02`, splits: { "T H A 🍀": 45, BEN: 45 }, people: ["BEN", "T H A 🍀"] });
+        await setDoc(doc(db, "settlements/s1"), { from: "BEN", to: "CARE", amount: 150, month: `${CUR}`, status: "verified", people: ["BEN", "CARE"] });
         await setDoc(doc(db, "subscription_templates/tp_care"), { payer: "CARE", amount: 199, desc: "Netflix", active: true, billingDay: 5, splits: { CARE: 99.5, BEN: 99.5 }, people: ["BEN", "CARE"] });
         await setDoc(doc(db, "wallet_entries/w1"), { ownerName: "CARE", amount: 50 });
     });
@@ -60,16 +62,16 @@ await t("ล็อกอิน Firebase แต่ไม่มีบัตรส�
 await t("สมาชิก: อ่านข้อมูลกลุ่มได้ทั้ง 4 ชุด รวมคำค้นที่ใช้ตอนลบสมาชิก", async () => {
     const db = as("ben", "BEN");
     await assertSucceeds(getDocs(collection(db, "members")));
-    await assertSucceeds(getDocs(query(collection(db, "transactions"), where("date", ">=", "2026-11-01"), where("date", "<=", "2026-11-31"))));
-    await assertSucceeds(getDocs(query(collection(db, "settlements"), where("month", "==", "2026-11"))));
+    await assertSucceeds(getDocs(query(collection(db, "transactions"), where("date", ">=", `${CUR}-01`), where("date", "<=", `${CUR}-31`))));
+    await assertSucceeds(getDocs(query(collection(db, "settlements"), where("month", "==", `${CUR}`))));
     await assertSucceeds(getDocs(query(collection(db, "subscription_templates"), where("active", "==", true))));
     await assertSucceeds(getDocs(query(collection(db, "transactions"), where(new FieldPath("splits", "CARE"), ">=", 0), limit(1))));
 });
 await t("สมาชิก: เพิ่มบิลได้ (เลือกคนอื่นเป็นคนจ่ายได้) และตั้งบิลรายเดือนได้ ทั้งแบบทีละรายการและแบบชุด", async () => {
     const db = as("ben", "BEN");
-    await assertSucceeds(addDoc(collection(db, "transactions"), { payer: "CARE", amount: 100, splits: { CARE: 50, BEN: 50 }, people: ["BEN", "CARE"] }));
+    await assertSucceeds(addDoc(collection(db, "transactions"), { payer: "CARE", amount: 100, date: `${CUR}-05`, splits: { CARE: 50, BEN: 50 }, people: ["BEN", "CARE"] }));
     const b = writeBatch(db);
-    b.set(doc(collection(db, "transactions")), { payer: "BEN", amount: 1, people: ["BEN"] });
+    b.set(doc(collection(db, "transactions")), { payer: "BEN", amount: 1, date: `${CUR}-05`, people: ["BEN"] });
     b.set(doc(collection(db, "subscription_templates")), { payer: "BEN", amount: 1, active: true, people: ["BEN"] });
     await assertSucceeds(b.commit());
     // ของใหม่ต้องมีป้ายคนที่เกี่ยวข้อง (ไม่งั้นซ่อนข้อมูลไม่ได้)
@@ -152,8 +154,8 @@ await t("ผู้ดูแล (role): จัดการสมาชิก, แ
     await assertSucceeds(addDoc(collection(db, "members"), { name: "NEW", createdAt: new Date().toISOString(), quickAdded: true, role: "member" }));
     await assertSucceeds(updateDoc(doc(db, "members/ben"), { realName: "เบน", promptpay: "0833333333", role: "admin", realNameUpdatedAt: new Date(), promptpayUpdatedAt: new Date() }));
     await assertSucceeds(updateDoc(doc(db, "transactions/t_care"), { desc: "แก้โดยผู้ดูแล" }));
-    await assertSucceeds(addDoc(collection(db, "settlements"), { status: "verified", from: "BEN", to: "CARE", amount: 150, month: "2026-11", verifiedByAdmin: true, people: ["BEN", "CARE"] }));
-    await assertFails(addDoc(collection(db, "settlements"), { status: "verified", from: "BEN", to: "CARE", amount: 1, month: "2026-11" }));
+    await assertSucceeds(addDoc(collection(db, "settlements"), { status: "verified", from: "BEN", to: "CARE", amount: 150, month: `${CUR}`, verifiedByAdmin: true, people: ["BEN", "CARE"] }));
+    await assertFails(addDoc(collection(db, "settlements"), { status: "verified", from: "BEN", to: "CARE", amount: 1, month: `${CUR}` }));
     await assertSucceeds(updateDoc(doc(db, "settlements/s1"), { month: "2026-10" }));
     await assertSucceeds(deleteDoc(doc(db, "settlements/s1")));
     await assertSucceeds(updateDoc(doc(db, "subscription_templates/tp_care"), { active: false, stoppedAt: new Date() }));
@@ -169,7 +171,7 @@ await t("ผู้ดูแลลบข้อมูลทั้งเดือ�
 await t("ผู้ดูแลลบทั้งเดือนขนาดเต็ม 400 รายการในชุดเดียวได้ (ไม่ติดขีดจำกัดการตรวจผู้ดูแลต่อชุด)", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
         const db = ctx.firestore();
-        for (let i = 0; i < 300; i++) await setDoc(doc(db, "transactions/big" + i), { payer: "CARE", amount: 1 });
+        for (let i = 0; i < 300; i++) await setDoc(doc(db, "transactions/big" + i), { payer: "CARE", amount: 1, date: `${CUR}-02` });
         for (let i = 0; i < 100; i++) await setDoc(doc(db, "settlements/big" + i), { from: "BEN", to: "CARE", amount: 1 });
     });
     const db = as("admin1", "GAME");
@@ -190,8 +192,8 @@ await t("ตั้ง/ถอดผู้ดูแลมีผลทันที 
 
 // ---------- ซ่อนข้อมูลของคนอื่น (app_config/privacy.hide = true) ----------
 const hide = (on) => env.withSecurityRulesDisabled(async (ctx) => { await setDoc(doc(ctx.firestore(), "app_config/privacy"), { hide: on }); });
-const ALL_TX = (db) => query(collection(db, "transactions"), where("date", ">=", "2026-11-01"), where("date", "<=", "2026-11-31"));
-const MY_TX = (db, me) => query(collection(db, "transactions"), where("people", "array-contains", me), where("date", ">=", "2026-11-01"), where("date", "<=", "2026-11-31"));
+const ALL_TX = (db) => query(collection(db, "transactions"), where("date", ">=", `${CUR}-01`), where("date", "<=", `${CUR}-31`));
+const MY_TX = (db, me) => query(collection(db, "transactions"), where("people", "array-contains", me), where("date", ">=", `${CUR}-01`), where("date", "<=", `${CUR}-31`));
 await t("ซ่อนข้อมูล: ปิดสวิตช์อยู่ (หรือไม่มีเอกสาร) = อ่านทั้งกลุ่มได้เหมือนเดิม", async () => {
     await assertSucceeds(getDocs(ALL_TX(as("ben", "BEN"))));
     await hide(false);
@@ -212,8 +214,8 @@ await t("ซ่อนข้อมูล: เปิดแล้ว สมาช�
 await t("ซ่อนข้อมูล: ประวัติเคลียร์เงินและบิลรายเดือนก็ซ่อนเหมือนกัน", async () => {
     await hide(true);
     const tha = as("tha", "T H A 🍀");
-    await assertFails(getDocs(query(collection(tha, "settlements"), where("month", "==", "2026-11"))));
-    const st = await assertSucceeds(getDocs(query(collection(tha, "settlements"), where("people", "array-contains", "T H A 🍀"), where("month", "==", "2026-11"))));
+    await assertFails(getDocs(query(collection(tha, "settlements"), where("month", "==", `${CUR}`))));
+    const st = await assertSucceeds(getDocs(query(collection(tha, "settlements"), where("people", "array-contains", "T H A 🍀"), where("month", "==", `${CUR}`))));
     assert.equal(st.size, 0);
     await assertFails(getDocs(query(collection(tha, "subscription_templates"), where("active", "==", true))));
     await assertSucceeds(getDocs(query(collection(as("ben", "BEN"), "subscription_templates"), where("people", "array-contains", "BEN"), where("active", "==", true))));
@@ -222,7 +224,7 @@ await t("ซ่อนข้อมูล: ประวัติเคลียร
 await t("ซ่อนข้อมูล: ผู้ดูแลหลักอ่านทั้งกลุ่มได้ ผู้ดูแลคนอื่นเห็นเฉพาะของตัวเอง (แต่ยังจัดการได้เหมือนเดิม)", async () => {
     await hide(true);
     await assertSucceeds(getDocs(ALL_TX(as("boss", "BOSS"))));
-    await assertSucceeds(getDocs(query(collection(as("boss", "BOSS"), "settlements"), where("month", "==", "2026-11"))));
+    await assertSucceeds(getDocs(query(collection(as("boss", "BOSS"), "settlements"), where("month", "==", `${CUR}`))));
     await assertSucceeds(getDocs(query(collection(as("boss", "BOSS"), "transactions"), where(new FieldPath("splits", "CARE"), ">=", 0), limit(1))), "ลบสมาชิก (ผู้ดูแลหลัก)");
     await assertFails(getDocs(ALL_TX(as("admin1", "GAME"))));
     await assertSucceeds(deleteDoc(doc(as("admin1", "GAME"), "settlements/s1")));
@@ -237,6 +239,31 @@ await t("ซ่อนข้อมูล: คนจ่ายยังแก้ช
 await t("ซ่อนข้อมูล: เบราว์เซอร์อ่าน/แก้สวิตช์เองไม่ได้", async () => {
     await assertFails(getDoc(doc(as("boss", "BOSS"), "app_config/privacy")));
     await assertFails(setDoc(doc(as("boss", "BOSS"), "app_config/privacy"), { hide: false }));
+});
+
+// ---------- ปิดเดือน (เดือนที่จบแล้วเพิ่ม/ลบบิลไม่ได้ ยกเว้นผู้ดูแลหลัก) ----------
+const seedOld = () => env.withSecurityRulesDisabled(async (ctx) => { await setDoc(doc(ctx.firestore(), "transactions/t_old"), { payer: "CARE", amount: 100, desc: "เก่า", icon: "fa-utensils", date: `${OLD}-28`, splits: { CARE: 50, BEN: 50 }, people: ["BEN", "CARE"] }); });
+await t("ปิดเดือน: สมาชิกเพิ่มบิลลงวันที่เดือนที่ปิดแล้วไม่ได้ เดือนนี้ได้", async () => {
+    const db = as("care", "CARE");
+    await assertFails(addDoc(collection(db, "transactions"), { payer: "CARE", amount: 1, date: `${OLD}-30`, splits: { CARE: 1 }, people: ["CARE"] }));
+    await assertFails(addDoc(collection(db, "transactions"), { payer: "CARE", amount: 1, splits: { CARE: 1 }, people: ["CARE"] }), "ไม่มีวันที่");
+    await assertSucceeds(addDoc(collection(db, "transactions"), { payer: "CARE", amount: 1, date: `${CUR}-01`, splits: { CARE: 1 }, people: ["CARE"] }));
+    await assertFails(addDoc(collection(as("admin1", "GAME"), "transactions"), { payer: "GAME", amount: 1, date: `${OLD}-30`, people: ["GAME"] }), "ผู้ดูแลคนอื่นก็ไม่ได้");
+    await assertSucceeds(addDoc(collection(as("boss", "BOSS"), "transactions"), { payer: "BOSS", amount: 1, date: `${OLD}-30`, people: ["BOSS"] }), "ผู้ดูแลหลักได้");
+});
+await t("ปิดเดือน: คนจ่าย/ผู้ดูแลลบบิลเดือนที่ปิดไม่ได้ แต่แก้ชื่อ/หมวดได้ / ผู้ดูแลหลักลบได้", async () => {
+    await seedOld();
+    await assertFails(deleteDoc(doc(as("care", "CARE"), "transactions/t_old")));
+    await assertFails(deleteDoc(doc(as("admin1", "GAME"), "transactions/t_old")));
+    await assertSucceeds(updateDoc(doc(as("care", "CARE"), "transactions/t_old"), { desc: "ข้าวเก่า" }));
+    await assertSucceeds(updateDoc(doc(as("admin1", "GAME"), "transactions/t_old"), { icon: "fa-mug-hot" }));
+    await assertFails(updateDoc(doc(as("admin1", "GAME"), "transactions/t_old"), { amount: 1 }), "ผู้ดูแลแก้ยอดเดือนที่ปิดไม่ได้");
+    await assertFails(updateDoc(doc(as("admin1", "GAME"), "transactions/t_care"), { date: `${OLD}-01` }), "ย้ายบิลไปเดือนที่ปิดไม่ได้");
+    await assertSucceeds(deleteDoc(doc(as("boss", "BOSS"), "transactions/t_old")));
+});
+await t("ปิดเดือน: โอนเคลียร์ของเดือนเก่ายังทำได้ (ผู้ดูแลยืนยัน/ย้ายเดือน)", async () => {
+    await assertSucceeds(addDoc(collection(as("admin1", "GAME"), "settlements"), { status: "verified", from: "BEN", to: "CARE", amount: 50, month: OLD, verifiedByAdmin: true, people: ["BEN", "CARE"] }));
+    await assertSucceeds(updateDoc(doc(as("admin1", "GAME"), "settlements/s1"), { month: OLD }));
 });
 
 await env.cleanup();

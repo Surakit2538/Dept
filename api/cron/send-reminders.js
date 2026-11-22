@@ -2,11 +2,11 @@ import * as fs from "../auth-helpers.js";
 import { getDbInstance } from "../auth-helpers.js";
 import { createReminderJob } from "../../lib/reminders.mjs";
 import { createCardReminderJob } from "../../lib/card-reminders.mjs";
-import { getBangkokDateString } from "../../lib/slip-core.mjs";
 import { writeJobLog } from "../../lib/admin-status.mjs";
+import { debtReminderMonth } from "../../lib/month-lock.mjs";
 
 // ทำงานทุกวัน 10 โมงเช้า (vercel.json) เพราะ Vercel Hobby มีงานอัตโนมัติได้ 2 งาน
-// - วันที่ 25: เตือนยอดค้างชำระประจำเดือน (lib/reminders.mjs, tests/reminders.test.mjs) เหมือนเดิม
+// - วันที่ 1: เตือนยอดค้างชำระของเดือนที่เพิ่งปิด (lib/reminders.mjs + lib/month-lock.mjs) เดิมวันที่ 25 เปลี่ยน 22 พ.ย. 2569
 // - ทุกวัน: เตือนครบกำหนดจ่ายบัตรเครดิต (lib/card-reminders.mjs, tests/card-cycle.test.mjs)
 // ตั้ง REMINDER_DRY_RUN=1 เพื่อดูรายชื่อคนที่จะถูกเตือนโดยไม่ส่งจริงและไม่บันทึก log
 const db = getDbInstance();
@@ -21,9 +21,10 @@ export default async function handler(req, res) {
 
     const out = { success: true };
     try {
-        if (getBangkokDateString(new Date()).slice(8, 10) === "25") {
-            console.log("Starting debt reminders (Vercel Cron)...");
-            out.debt = await runDebt();
+        const debtMonth = debtReminderMonth(Date.now());
+        if (debtMonth) {
+            console.log("Starting debt reminders (Vercel Cron) for", debtMonth);
+            out.debt = await runDebt({ month: debtMonth });
             console.log("Debt reminders:", JSON.stringify(out.debt));
             if (out.debt.status === "partial") out.success = false;
         }

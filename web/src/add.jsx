@@ -7,9 +7,9 @@ import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
 import { FreqBox } from "./freq.jsx";
 
-export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null }) {
+export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null, openFrom = "" }) {
     const [mode, setMode] = useState(initial); // null | "bill" | "expense" | "income"
-    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} prefill={prefill} convertWallet={convertWallet} />;
+    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} prefill={prefill} convertWallet={convertWallet} openFrom={openFrom} />;
     if (mode) return <AddForm type={mode} onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} save={save} today={today} />;
     return (
         <Sheet title="บันทึกอะไร" onClose={onClose}>
@@ -118,12 +118,15 @@ const PANELS = [
 ];
 
 /** ฟอร์มบิลหารกับเพื่อน แบบสั้นหน้าเดียว: ยอด รายการ หารกับใคร (ชิปทางลัด) หมวด และตัวเลือกเพิ่มเติมแบบเปิดทีละหัวข้อ */
-function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [], prefill = null, convertWallet = null }) {
+// openFrom: วันแรกของเดือนที่ยังเปิด (เดือนที่ปิดยอดแล้วลงบิลไม่ได้ lib/month-lock.mjs) ว่าง = ผู้ดูแลหลัก เลือกได้ทุกวัน
+function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [], prefill = null, convertWallet = null, openFrom = "" }) {
     const all = members || [];
     const quick = suggested.filter((m) => all.includes(m));
     const [amount, setAmount] = useState(prefill ? String(prefill.amount) : "");
     const [desc, setDesc] = useState(prefill ? prefill.desc || "" : "");
-    const [date, setDate] = useState(prefill && prefill.date && prefill.date <= today ? prefill.date : today);
+    // รายการส่วนตัวของเดือนที่ปิดยอดแล้ว เปลี่ยนเป็นบิลหารได้ แต่ลงเป็นบิลของวันนี้แทน
+    const movedFrom = prefill && prefill.date && openFrom && prefill.date < openFrom ? prefill.date : "";
+    const [date, setDate] = useState(prefill && prefill.date && prefill.date <= today && !movedFrom ? prefill.date : today);
     const [payer, setPayer] = useState(me);
     const [people, setPeople] = useState(() => new Set()); // เริ่มต้นไม่เลือกใครให้ ผู้ใช้เลือกเอง
     const [more, setMore] = useState(false);
@@ -204,7 +207,8 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     return (
         <Sheet as="form" title="บิลหารกับเพื่อน" onClose={onClose} onSubmit={submit}
             action={<button type="button" class="btn sm ghost" onClick={onBack}>เปลี่ยนประเภท</button>}>
-            <DatePickerField id="b-date" label="วันที่" value={date} onChange={setDate} max={today} today={today} />
+            <DatePickerField id="b-date" label="วันที่" value={date} onChange={setDate} max={today} min={openFrom} today={today} />
+            {movedFrom && <small class="payer-note">รายการนี้อยู่ในเดือนที่ปิดยอดแล้ว จึงลงเป็นบิลของวันนี้แทน (ยอดเคลียร์เงินของเดือนเก่าจะได้ไม่เปลี่ยน)</small>}
             <div class="field amount">
                 <label for="b-amount">ยอดเต็มของบิล (บาท)</label>
                 <input id="b-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" required value={amount} onInput={(e) => setAmount(e.currentTarget.value)} />

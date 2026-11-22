@@ -16,6 +16,8 @@ rules_version = '2';
 //   เมื่อผู้ดูแลหลักเปิดสวิตช์ app_config/privacy.hide = true: อ่านได้เฉพาะใบที่มีชื่อตัวเองใน people (ผู้ดูแลหลักอ่านได้ทั้งหมด)
 //   ยังไม่เปิดสวิตช์ = อ่านได้ทั้งกลุ่มเหมือนเดิม (Publish กฎนี้ก่อนหรือหลังเปิดสวิตช์ก็ได้ ปิดสวิตช์ก็ไม่ต้องย้อนกฎ)
 //   ของใหม่ทุกใบต้องมี people (เว็บ เซิร์ฟเวอร์ บอท ใส่ให้เอง)
+// - ปิดเดือน (lib/month-lock.mjs): บิลที่ลงวันที่ในเดือนที่จบแล้ว (เวลาไทย) เพิ่ม/ลบไม่ได้ ยกเว้นผู้ดูแลหลัก (แก้ชื่อ/หมวดได้)
+//   วันที่ 1 บอทเตือนยอดของเดือนที่เพิ่งปิด ยอดจึงไม่เปลี่ยนหลังเตือน
 // - ทดสอบกับ Firestore emulator: tests/rules/firestore-rules.emulator.mjs · ย้อนกลับฉุกเฉิน: FIRESTORE_RULES_ROLLOUT.md
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -44,6 +46,14 @@ service cloud.firestore {
     // อ่านบิล/ประวัติเคลียร์เงิน/บิลรายเดือนได้ไหม (ต้องค้นด้วย where people array-contains ชื่อตัวเอง)
     function canSee() {
       return isMember() && (!hideOn() || isSuperAdmin() || request.auth.token.member in resource.data.get('people', []));
+    }
+    // วันแรกของเดือนที่ยังเปิด (เวลาไทย) เช่น "2026-11-01"
+    function monthStart() {
+      let t = request.time + duration.value(7, 'h');
+      return string(t.year()) + '-' + ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'][t.month() - 1] + '-01';
+    }
+    function openMonth(date) {
+      return date is string && date >= monthStart();
     }
     function okPeople() {
       return request.resource.data.get('people', null) is list && request.resource.data.people.size() > 0 && request.resource.data.people.size() <= 40;
@@ -74,9 +84,9 @@ service cloud.firestore {
     }
     match /transactions/{id} {
       allow read: if canSee();
-      allow create: if isMember() && okPeople();
-      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['desc', 'icon'])) || isAdmin());
-      allow delete: if isMember() && (isMe(resource.data.get('payer', '')) || isAdmin());
+      allow create: if isMember() && okPeople() && (openMonth(request.resource.data.get('date', '')) || isSuperAdmin());
+      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && onlyChanged(['desc', 'icon'])) || (isAdmin() && (onlyChanged(['desc', 'icon']) || (openMonth(resource.data.get('date', '')) && openMonth(request.resource.data.get('date', '')))) ) || isSuperAdmin());
+      allow delete: if isMember() && (((isMe(resource.data.get('payer', '')) || isAdmin()) && openMonth(resource.data.get('date', ''))) || isSuperAdmin());
     }
     match /settlements/{id} {
       allow read: if canSee();

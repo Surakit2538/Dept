@@ -97,13 +97,13 @@ function AdminMark({ l, onMark }) {
 }
 
 /** แอดมิน: ส่งข้อความเตือนยอดค้างให้ทุกคนที่ติดหนี้ (ทาง LINE ส่วนตัว พร้อม QR) ถามยืนยันก่อน และระบบกันส่งซ้ำภายใน 12 ชั่วโมง */
-function RemindAll({ onError, onInfo }) {
+function RemindAll({ month, onError, onInfo }) {
     const [state, setState] = useState("idle");
     if (state === "idle") return <div class="xfer-acts"><button type="button" class="btn sm ghost" onClick={() => setState("ask")}><Icon name="bell" size={14} />เตือนทุกคนที่ค้าง</button></div>;
     return (
         <div class="xfer-acts ask">
-            <span class="lbl">ส่งข้อความเตือนทาง LINE ให้ทุกคนที่ติดหนี้ในเดือนนี้ใช่ไหม</span>
-            <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { onInfo(await remindAllDebtors()); } catch (e) { onError(e.message); } setState("idle"); }}>{state === "busy" ? "กำลังส่ง" : "ใช่ ส่งเลย"}</button>
+            <span class="lbl">ส่งข้อความเตือนทาง LINE ให้ทุกคนที่ยังค้างยอดเดือน {monthLabel(month)} ใช่ไหม</span>
+            <button type="button" class="btn sm" disabled={state === "busy"} onClick={async () => { setState("busy"); try { onInfo(await remindAllDebtors(month)); } catch (e) { onError(e.message); } setState("idle"); }}>{state === "busy" ? "กำลังส่ง" : "ใช่ ส่งเลย"}</button>
             <button type="button" class="btn sm ghost" disabled={state === "busy"} onClick={() => setState("idle")}>ยกเลิก</button>
         </div>
     );
@@ -170,7 +170,7 @@ export function ClearPage({ model, profiles, month, onChanged, isAdmin = false, 
                 )}
                 <section class="card">
                     <SectionTitle icon="swap" title={month === bangkokToday().slice(0, 7) ? "ยอดที่ต้องโอนเดือนนี้" : `ยอดที่ต้องโอนของเดือน ${monthLabel(month)}`} note={model.cleared ? undefined : `${model.lines.length} รายการ`} />
-                    {isAdmin && !model.cleared && <RemindAll onError={onError} onInfo={onInfo} />}
+                    {isAdmin && !model.cleared && <RemindAll month={month} onError={onError} onInfo={onInfo} />}
                     {model.cleared ? (
                         <div class="cleared-box">
                             <div class="cleared-ico">

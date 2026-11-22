@@ -24,7 +24,7 @@ function CardSwitch({ p, onChanged, onToast }) {
     );
 }
 
-/** โควต้าข้อความ LINE เดือนนี้ (ข้อความที่ LINE ส่งหาเอง เช่น เตือนหนี้วันที่ 25 และเตือนบัตร) */
+/** โควต้าข้อความ LINE เดือนนี้ (ข้อความที่ LINE ส่งหาเอง เช่น เตือนหนี้วันที่ 1 และเตือนบัตร) */
 function LineQuota() {
     const [q, setQ] = useState(undefined);
     useEffect(() => { loadLineQuota().then(setQ).catch(() => setQ(null)); }, []);
@@ -35,7 +35,7 @@ function LineQuota() {
         <div class="lq">
             <div class="lq-t"><b>ข้อความ LINE เดือนนี้</b><span class="num">{q.used.toLocaleString("en-US")}{q.limit ? ` / ${q.limit.toLocaleString("en-US")}` : " (ไม่จำกัด)"}</span></div>
             {q.limit ? <div class="lq-bar" role="img" aria-label={`ใช้ไป ${pct}%`}><i style={{ width: `${Math.max(q.used > 0 ? 2 : 0, pct)}%` }} class={pct >= 80 ? "near" : ""} /></div> : null}
-            <p class="lbl">นับเฉพาะที่ LINE ส่งหาเอง (เตือนหนี้วันที่ 25, เตือนบัตร, ปุ่มเตือนเพื่อน) ข้อความตอบกลับในแชตไม่นับ · บัตร 1 ใบใช้ประมาณ 2 ข้อความต่อเดือน</p>
+            <p class="lbl">นับเฉพาะที่ LINE ส่งหาเอง (เตือนหนี้วันที่ 1, เตือนบัตร, ปุ่มเตือนเพื่อน) ข้อความตอบกลับในแชตไม่นับ · บัตร 1 ใบใช้ประมาณ 2 ข้อความต่อเดือน</p>
         </div>
     );
 }

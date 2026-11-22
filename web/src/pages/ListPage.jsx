@@ -35,7 +35,7 @@ function RowBody({ lead, title, value, tone = "", sub, badge = null, actions = n
     );
 }
 
-function BillRow({ b, pictures = {}, canEdit, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
+function BillRow({ b, pictures = {}, canEdit, canDelete = canEdit, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
     const monthly = b.type === "subscription";
     const name = b.desc || "ไม่ระบุ";
     const has = b.myShareSat > 0;
@@ -53,7 +53,7 @@ function BillRow({ b, pictures = {}, canEdit, onDeleted, onError, onEdit, select
             <RowBody lead={lead} title={title} value={value} tone={tone} sub={sub} badge={badge} monthly={monthly} actions={canEdit ? (
                 <>
                     <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(b)}><Icon name="pencil" size={16} /></button>
-                    <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />
+                    {canDelete && <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />}
                 </>
             ) : null} />
         </li>
@@ -215,7 +215,7 @@ function groupByDay(list) {
     return out;
 }
 
-export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, privateMode = false, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
+export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, isSuper = false, openFrom = "", privateMode = false, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
     const [filter, setFilter] = useState("all");
     const [mineOnly, setMineOnly] = useState(false);
     const [mineTpls, setMineTpls] = useState([]);
@@ -228,6 +228,9 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
     useEffect(() => { if (openEdit) setEditingWallet(openEdit); }, [openEdit]);
 
     const canEdit = (b) => isAdmin || b.payer.trim().toUpperCase() === me;
+    // เดือนที่ปิดยอดแล้ว: แก้ชื่อ/หมวดได้ แต่ลบไม่ได้ (ยกเว้นผู้ดูแลหลัก)
+    const locked = (b) => !isSuper && Boolean(openFrom) && String(b.date || "") < openFrom;
+    const canDelete = (b) => canEdit(b) && !locked(b);
     const items = mergeItems({ bills, wallet, filter, mineOnly, search });
     const selectable = items.filter((x) => x.kind === "wallet" || canEdit(x.b)).map((x) => x.key);
     const live = picked.filter((k) => selectable.includes(k));
@@ -240,7 +243,10 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
     async function bulkDelete() {
         try {
             const parts = [];
-            if (billIds.length) parts.push(`${await deleteBills(billIds)} บิล`);
+            const lockedIds = billIds.filter((id) => { const it = items.find((x) => x.key === "b:" + id); return it && locked(it.b); });
+            const delIds = billIds.filter((id) => !lockedIds.includes(id));
+            if (delIds.length) parts.push(`${await deleteBills(delIds)} บิล`);
+            if (lockedIds.length) parts.push(`ข้าม ${lockedIds.length} บิลของเดือนที่ปิดยอดแล้ว`);
             if (walletIds.length) {
                 const r = await deleteWalletEntries(walletIds);
                 parts.push(`${r.deleted} รายการ${r.failed ? ` (ลบไม่ได้ ${r.failed})` : ""}`);
@@ -299,7 +305,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                             <h3 class="day-h">{dayLabel(d)}</h3>
                             <ul class="plain">
                                 {list.map((x) => x.kind === "bill"
-                                    ? <BillRow key={x.key} b={x.b} pictures={pictures} canEdit={canEdit(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
+                                    ? <BillRow key={x.key} b={x.b} pictures={pictures} canEdit={canEdit(x.b)} canDelete={canDelete(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
                                     : <WalletRow key={x.key} it={x.it} me={me} pictures={pictures} monthly={isMonthly(x.it)} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
                             </ul>
                         </div>

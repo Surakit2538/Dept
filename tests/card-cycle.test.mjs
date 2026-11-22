@@ -250,12 +250,13 @@ test("การ์ด LINE เตือนบัตร: สีจาก tokens �
     assert.equal(parsePostback("cc:paid:k1:bad").action, "unknown");
 });
 
-test("งานอัตโนมัติ: เตือนรายวัน 10 โมงเช้า แต่เตือนหนี้เฉพาะวันที่ 25 / ปุ่ม จ่ายแล้ว ใน webhook แก้ได้เฉพาะบัตรของคนที่กด", () => {
+test("งานอัตโนมัติ: เตือนรายวัน 10 โมงเช้า แต่เตือนหนี้เฉพาะวันที่ 1 (ยอดเดือนที่เพิ่งปิด) / ปุ่ม จ่ายแล้ว ใน webhook แก้ได้เฉพาะบัตรของคนที่กด", () => {
     const vercel = JSON.parse(fs.readFileSync(new URL("../vercel.json", import.meta.url), "utf8"));
     assert.equal(vercel.crons.length, 2, "Hobby มีงานอัตโนมัติได้ 2 งาน");
     assert.equal(vercel.crons.find((c) => c.path === "/api/cron/send-reminders").schedule, "0 3 * * *");
     const cron = fs.readFileSync(new URL("../api/cron/send-reminders.js", import.meta.url), "utf8");
-    assert.match(cron, /slice\(8, 10\) === "25"/);
+    assert.match(cron, /debtReminderMonth\(Date\.now\(\)\)/);
+    assert.match(cron, /runDebt\(\{ month: debtMonth \}\)/);
     assert.match(cron, /runCards\(\)/);
     const hook = fs.readFileSync(new URL("../api/webhook.js", import.meta.url), "utf8");
     assert.match(hook, /setPaid\(normalizeName\(memberName\)/);

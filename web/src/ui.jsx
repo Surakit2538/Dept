@@ -180,7 +180,7 @@ export function CustomSelect({ label, value, options, onChange, icon = "calendar
     );
 }
 
-export function CalendarSheet({ value, max, today, onSelect, onClose }) {
+export function CalendarSheet({ value, max, min = "", today, onSelect, onClose }) {
     const [viewMonth, setViewMonth] = useState(() => (value || today).slice(0, 7));
     const [sel, setSel] = useState(value || today);
 
@@ -204,6 +204,7 @@ export function CalendarSheet({ value, max, today, onSelect, onClose }) {
                         type="button"
                         class="icon-btn"
                         aria-label="เดือนก่อนหน้า"
+                        disabled={Boolean(min) && shiftMonth(viewMonth, -1).slice(0, 7) < min.slice(0, 7)}
                         onClick={() => setViewMonth(shiftMonth(viewMonth, -1))}
                     >
                         <Icon name="left" size={16} />
@@ -230,7 +231,7 @@ export function CalendarSheet({ value, max, today, onSelect, onClose }) {
                             const dayNum = Number(dateStr.slice(8, 10));
                             const isToday = dateStr === today;
                             const isSelected = dateStr === sel;
-                            const isFuture = max && dateStr > max;
+                            const isFuture = (max && dateStr > max) || (min && dateStr < min);
 
                             return (
                                 <button
@@ -268,7 +269,7 @@ export function CalendarSheet({ value, max, today, onSelect, onClose }) {
     );
 }
 
-export function DatePickerField({ id, label = "วันที่", value, onChange, max, today }) {
+export function DatePickerField({ id, label = "วันที่", value, onChange, max, min = "", today }) {
     const [open, setOpen] = useState(false);
     
     // Calculate yesterday
@@ -314,6 +315,7 @@ export function DatePickerField({ id, label = "วันที่", value, onCha
                     <button
                         type="button"
                         class={`date-quick-btn ${isYesterday ? "on" : ""}`}
+                        disabled={Boolean(min) && yesterday < min}
                         onClick={() => onChange(yesterday)}
                     >
                         เมื่อวาน
@@ -331,6 +333,7 @@ export function DatePickerField({ id, label = "วันที่", value, onCha
                 <CalendarSheet
                     value={value || today}
                     max={max || today}
+                    min={min}
                     today={today}
                     onSelect={(d) => { onChange(d); setOpen(false); }}
                     onClose={() => setOpen(false)}
