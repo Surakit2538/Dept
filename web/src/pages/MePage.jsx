@@ -42,7 +42,7 @@ function JobStatus() {
     return (
         <div class="jobst" aria-label="สถานะงานอัตโนมัติ">
             <b>งานอัตโนมัติ</b>
-            {row(st.debt ? `เตือนหนี้ 25 ${mShort(st.debt.month)}` : "เตือนหนี้วันที่ 25", st.debt ? (st.debt.status === "partial" ? `ส่งได้ ${st.debt.sentCount} คน (มีบางคนไม่สำเร็จ)` : `ส่งแล้ว ${st.debt.sentCount} คน`) : "ยังไม่มีบันทึก", Boolean(st.debt && st.debt.status !== "partial"))}
+            {row(st.debt ? (st.debt.manual ? `เตือนหนี้ (กดเอง) ${dShort(st.debt.at)}` : `เตือนหนี้ 25 ${mShort(st.debt.month)}`) : "เตือนหนี้วันที่ 25", st.debt ? (st.debt.status === "partial" ? `ส่งได้ ${st.debt.sentCount} คน (มีบางคนไม่สำเร็จ)` : `ส่งแล้ว ${st.debt.sentCount} คน`) : "ยังไม่มีบันทึก", Boolean(st.debt && st.debt.status !== "partial"))}
             {row(st.subs ? `สร้างบิลรายเดือน 1 ${mShort(st.subs.month)}` : "สร้างบิลรายเดือนวันที่ 1", st.subs ? `${st.subs.created} รายการ` : "ยังไม่มีบันทึก", Boolean(st.subs))}
             {row(st.cards ? `เตือนบัตรเครดิต ${dShort(st.cards.date)}` : "เตือนบัตรเครดิต (ทุกวัน 10 โมง)", st.cards ? (st.cards.sent ? `ส่งแล้ว ${st.cards.sent} ใบ` : "ไม่มีบัตรที่ต้องเตือน") : "ยังไม่มีบันทึก", Boolean(st.cards))}
         </div>

@@ -20,6 +20,9 @@ test("สถานะงานอัตโนมัติ: ยังไม่เ
     assert.equal(s.subs.created, 12);
     assert.equal(s.cards.sent, 0);
     assert.equal(db.all(JOB_LOG_COL).length, 2);
+    db.seed("reminder_logs", "2026-11_manual", { status: "success", sentCount: 2, timestamp: NOW });
+    const m = (await readAdminStatus({ db: {}, fs: db.fs, now: () => NOW })).debt;
+    assert.deepEqual([m.month, m.sentCount, m.manual], ["2026-11", 2, true], "เดือนนี้กดเตือนเองแล้ว ใช้อันนั้นก่อนเดือนที่แล้ว");
     db.seed("reminder_logs", "2026-11", { status: "partial", sentCount: 3, timestamp: NOW });
     assert.equal((await readAdminStatus({ db: {}, fs: db.fs, now: () => NOW })).debt.status, "partial");
 });
@@ -51,7 +54,8 @@ test("ส่งสรุปยอดเข้ากลุ่ม LINE: เฉพ�
     assert.equal(pushes[0].body.to, "Cgroup");
     assert.match(JSON.stringify(pushes[0].body.messages[0]), /CARE/);
     const st = await call({ action: "admin-status" });
-    assert.deepEqual(st.body.status, { debt: null, subs: null, cards: null });
+    assert.equal(st.body.status, "listed");
+    assert.deepEqual(st.body.jobs, { debt: null, subs: null, cards: null });
     const noGroup = setup({ group: "" });
     assert.equal((await noGroup.call({ action: "group-summary" })).statusCode, 400);
 });

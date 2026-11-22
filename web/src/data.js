@@ -659,7 +659,7 @@ export async function deleteSettlement(id) {
 /** ผู้ดูแล: สถานะงานอัตโนมัติ { debt, subs, cards } (แต่ละอันเป็น null ได้ถ้ายังไม่เคยทำงาน) */
 export async function loadAdminStatus() {
     const r = await api("/api/shortcut-transaction", { action: "admin-status" });
-    return r.status || { debt: null, subs: null, cards: null };
+    return r.jobs || { debt: null, subs: null, cards: null };
 }
 /** ผู้ดูแล: ส่งการ์ด "ใครต้องโอนให้ใคร" ของเดือนนี้เข้ากลุ่ม LINE คืนข้อความผลลัพธ์ */
 export async function sendGroupSummary() {
