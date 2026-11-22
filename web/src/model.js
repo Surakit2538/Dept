@@ -2,6 +2,8 @@
 import { splitInstallments } from "../../lib/installments.mjs";
 import { guessCategoryKey } from "../../lib/categories.mjs";
 import { budgetFor, budgetStatus, goalStatus, savingPlan, suggestBudget } from "../../lib/budget.mjs";
+import { isDueMonth, everyOf, startOf, freqLabel, freqTag } from "../../lib/recurrence.mjs";
+export { freqLabel, freqTag };
 import {
     normalizeName, shareOf, paidBy, computeMonthLedger, toDisplayPlan, walletMonth, displayBaht
 } from "../../lib/ledger.mjs";
@@ -181,12 +183,13 @@ export function buildBillSchedule({ me, month, today, group = [], personal = [],
         if (!key && payer !== my) continue;
         bills.push({
             id: "g:" + t.id, kind: "group", desc: String(t.desc || "บิลรายเดือน"), icon: t.icon || "", billingDay: Number(t.billingDay) || 1,
-            mySat: key ? sat(splits[key]) : 0, totalSat: sat(t.amount), payer, people: Object.keys(splits).length, names: Object.keys(splits).map(normalizeName), coverFor: !key
+            mySat: key ? sat(splits[key]) : 0, totalSat: sat(t.amount), payer, people: Object.keys(splits).length, names: Object.keys(splits).map(normalizeName), coverFor: !key,
+            every: everyOf(t), startMonth: startOf(t)
         });
     }
     for (const t of personal) {
         if (!t || t.active === false) continue;
-        bills.push({ id: "p:" + t.id, kind: "personal", desc: String(t.desc || "รายจ่ายรายเดือน"), icon: t.icon || "", billingDay: Number(t.billingDay) || 1, mySat: sat(t.amount), totalSat: sat(t.amount), payer: my, people: 1, coverFor: false });
+        bills.push({ id: "p:" + t.id, kind: "personal", desc: String(t.desc || "รายจ่ายรายเดือน"), icon: t.icon || "", billingDay: Number(t.billingDay) || 1, mySat: sat(t.amount), totalSat: sat(t.amount), payer: my, people: 1, coverFor: false, every: everyOf(t), startMonth: startOf(t) });
     }
     const dayIn = (m, d) => Math.min(Math.max(1, Math.round(d) || 1), daysInMonth(m));
     const at = (b, m) => {
@@ -195,10 +198,11 @@ export function buildBillSchedule({ me, month, today, group = [], personal = [],
         return { ...b, date, day: Number(date.slice(8, 10)), daysLeft, status: daysLeft < 0 ? "done" : daysLeft === 0 ? "today" : "soon" };
     };
     const cardItems = cardBills(cards, today);
-    const items = [...bills.map((b) => at(b, month)), ...cardItems.filter((c) => c.date.startsWith(month))]
+    // รายการเป็นรอบ (3/6/12 เดือน) ขึ้นเฉพาะเดือนที่ถึงรอบ
+    const items = [...bills.filter((b) => isDueMonth(b, month)).map((b) => at(b, month)), ...cardItems.filter((c) => c.date.startsWith(month))]
         .sort((a, b) => a.day - b.day || a.desc.localeCompare(b.desc));
     const nowMonth = today.slice(0, 7);
-    const upcoming = [...[nowMonth, shiftMonth(nowMonth, 1), shiftMonth(nowMonth, 2)].flatMap((m) => bills.map((b) => at(b, m))), ...cardItems]
+    const upcoming = [...[nowMonth, shiftMonth(nowMonth, 1), shiftMonth(nowMonth, 2)].flatMap((m) => bills.filter((b) => isDueMonth(b, m)).map((b) => at(b, m))), ...cardItems]
         .filter((x) => x.daysLeft >= 0)
         .sort((a, b) => a.daysLeft - b.daysLeft || b.mySat - a.mySat);
     const monthly = items.filter((x) => x.kind !== "card");
@@ -469,12 +473,15 @@ export function buildBill(f) {
     if (f.type === "subscription") {
         const groupId = `sub_${now}`;
         const recurring = f.recurring !== false;
+        const every = [1, 3, 6, 12].includes(Number(f.every)) ? Number(f.every) : 1;
         const doc = { ...base, date: f.date, desc, amount, splits, paymentType: "subscription", subscriptionRecurring: recurring, subscriptionStartDate: f.date, groupId, timestamp: now };
         const template = recurring ? {
             desc, amount, payer, splits, icon, billingDay: Number(f.date.slice(8, 10)) || 1, groupId, active: true,
-            createdAt: new Date(now), createdBy: payer, lastGeneratedMonth: f.date.slice(0, 7)
+            createdAt: new Date(now), createdBy: payer, lastGeneratedMonth: f.date.slice(0, 7),
+            every, startMonth: Number(f.date.slice(5, 7)) || 1
         } : null;
-        return { ok: true, docs: [doc], template, summary: recurring ? "สร้างซ้ำทุกเดือนอัตโนมัติ" : "ครั้งเดียว" };
+        const when = every === 1 ? "ทุกเดือน" : every === 12 ? "ทุกปี" : `ทุก ${every} เดือน`;
+        return { ok: true, docs: [doc], template, summary: recurring ? `สร้างซ้ำ${when}อัตโนมัติ` : "ครั้งเดียว" };
     }
     return {
         ok: true,

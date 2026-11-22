@@ -170,3 +170,11 @@ test("อีเมล K PLUS ชำระค่าสินค้า: บัน�
     assert.equal(r2.body.message, "");
     assert.equal(b.db.count("wallet_entries"), 1);
 });
+
+test("รายการรายปี (เช่น เบี้ยประกัน) ยอดเท่ากันแต่ยังไม่ถึงรอบ -> ไม่จับคู่ เป็นรายการใหม่ตามปกติ", async () => {
+    const { db, auto } = setup();
+    db.seed("wallet_templates", "t1", { ownerName: ME, type: "expense", desc: "YouTube Premium", amount: 399, billingDay: 3, icon: "fa-film", active: true, lastGeneratedMonth: "2023-03", every: 12, startMonth: 3 });
+    await auto(KTC_THANKS);
+    assert.equal(db.has("wallet_entries", "wsub_t1_2023-11"), false);
+    assert.equal(db.all("wallet_templates")[0].lastGeneratedMonth, "2023-03");
+});

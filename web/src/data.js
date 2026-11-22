@@ -578,8 +578,8 @@ export async function loadBillSchedule() {
     if (hit) return hit;
     const [group, personal] = await Promise.all([loadTemplates(), loadWalletTemplates().catch(() => [])]);
     const v = {
-        group: group.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, payer: t.payer, splits: t.splits, icon: t.icon, active: t.active })),
-        personal: personal.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, icon: t.icon }))
+        group: group.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, payer: t.payer, splits: t.splits, icon: t.icon, active: t.active, every: t.every, startMonth: t.startMonth })),
+        personal: personal.map((t) => ({ id: t.id, desc: t.desc, amount: t.amount, billingDay: t.billingDay, icon: t.icon, every: t.every, startMonth: t.startMonth }))
     };
     cacheSet("billsched", v);
     return v;
@@ -594,6 +594,10 @@ export async function updateTemplate(id, fields) {
     if (typeof fields.desc === "string") data.desc = fields.desc.trim().slice(0, 100) || "บิลรายเดือน";
     if (typeof fields.icon === "string") data.icon = fields.icon;
     if (fields.billingDay !== undefined) data.billingDay = Math.min(31, Math.max(1, Math.round(Number(fields.billingDay)) || 1));
+    if (fields.every !== undefined) {
+        data.every = [1, 3, 6, 12].includes(Number(fields.every)) ? Number(fields.every) : 1;
+        data.startMonth = Math.min(12, Math.max(1, Math.round(Number(fields.startMonth)) || 1));
+    }
     await updateDoc(doc(db, "subscription_templates", String(id)), data);
     invalidateBillSchedule();
 }

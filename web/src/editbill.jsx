@@ -4,6 +4,8 @@ import { Sheet } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
 import { BILL_ICONS, guessBillIcon, buildBill, equalSplit } from "./model.js";
 import { updateBillFields, updateWalletEntry, updateWalletTemplate, updateTemplate, confirmWalletEntries } from "./data.js";
+import { YearRing, FreqPicker } from "./freq.jsx";
+const TH_MONTH_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 
 export function EditBillSheet({ bill, onClose, onSaved }) {
@@ -82,6 +84,8 @@ export function EditWalletSheet({ item, onClose, onSaved, onSplit = null }) {
 export function EditTemplateSheet({ template, onClose, onSaved }) {
     const group = template.kind === "group";
     const [day, setDay] = useState(Number(template.billingDay) || 1);
+    const [every, setEvery] = useState([1, 3, 6, 12].includes(Number(template.every)) ? Number(template.every) : 1);
+    const [startMonth, setStartMonth] = useState(Number(template.startMonth) || 1);
     const [desc, setDesc] = useState(template.desc || "");
     const [amount, setAmount] = useState(String(template.amount ?? ""));
     const [iconKey, setIconKey] = useState(() => (hasCategory(template.icon) ? keyOfFa(template.icon) : guessBillIcon(template.desc)));
@@ -94,19 +98,32 @@ export function EditTemplateSheet({ template, onClose, onSaved }) {
         if (!group && (!Number.isFinite(n) || n <= 0)) return setErr("ใส่จำนวนเงินเป็นตัวเลขมากกว่า 0");
         setBusy(true);
         try {
-            if (group) await updateTemplate(template.id, { desc: desc.trim() || "บิลรายเดือน", icon: faOf(iconKey), billingDay: day });
-            else await updateWalletTemplate(template.id, { desc: desc.trim() || "รายจ่าย", amount: n, icon: faOf(iconKey), billingDay: day });
+            const rec = { every, startMonth };
+            if (group) await updateTemplate(template.id, { desc: desc.trim() || "บิลรายเดือน", icon: faOf(iconKey), billingDay: day, ...rec });
+            else await updateWalletTemplate(template.id, { desc: desc.trim() || "รายจ่าย", amount: n, icon: faOf(iconKey), billingDay: day, ...rec });
             onSaved();
             onClose();
         } catch (ex) { setErr(ex.message || "บันทึกไม่สำเร็จ"); setBusy(false); }
     }
     return (
-        <Sheet as="form" title={group ? "แก้บิลกลุ่มรายเดือน" : "แก้รายจ่ายรายเดือน"} onClose={onClose} onSubmit={save}>
+        <Sheet as="form" title={group ? "แก้บิลกลุ่มที่ทำซ้ำ" : "แก้รายจ่ายที่ทำซ้ำ"} onClose={onClose} onSubmit={save}>
             <div class="field"><label for="et-desc">ชื่อรายการ</label><input id="et-desc" type="text" maxLength={100} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
             {group
                 ? <p class="lbl">ยอด {Number(template.amount || 0).toLocaleString("en-US", { maximumFractionDigits: 2 })} บาท แก้ไม่ได้ เพราะแบ่งส่วนคนหารไว้แล้ว (ถ้ายอดเปลี่ยน ให้หยุดบิลนี้แล้วสร้างใหม่)</p>
-                : <div class="field amount"><label for="et-amount">ยอดต่อเดือน (บาท)</label><input id="et-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} /></div>}
-            <div class="field"><label for="et-day">ตัดทุกวันที่</label>
+                : <div class="field amount"><label for="et-amount">ยอดต่อครั้ง (บาท)</label><input id="et-amount" class="num" type="number" inputmode="decimal" step="0.01" min="0" value={amount} onInput={(e) => setAmount(e.currentTarget.value)} /></div>}
+            <div class="field">
+                <span class="fl" id="fq-l">จ่ายทุกๆ</span>
+                <div class="fqrow">
+                    <YearRing every={every} startMonth={startMonth} day={day} amount={Number(template.amount) || 0} size={112} />
+                    <FreqPicker every={every} onChange={setEvery} idLabel="fq-l" />
+                </div>
+            </div>
+            {every > 1 && (
+                <div class="field"><label for="et-sm">เดือนแรกที่จ่าย</label>
+                    <select id="et-sm" value={startMonth} onChange={(e) => setStartMonth(Number(e.currentTarget.value))}>{TH_MONTH_FULL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}</select>
+                </div>
+            )}
+            <div class="field"><label for="et-day">วันที่จ่าย</label>
                 <select id="et-day" class="num" value={day} onChange={(e) => setDay(Number(e.currentTarget.value))}>{Array.from({ length: 31 }, (_, i) => i + 1).map((d) => <option key={d} value={d}>{d}{d >= 29 ? " (เดือนที่ไม่มีวันนี้ = วันสุดท้าย)" : ""}</option>)}</select>
             </div>
             <CategoryPicker value={iconKey} onPick={setIconKey} labelId="et-cat-l" />

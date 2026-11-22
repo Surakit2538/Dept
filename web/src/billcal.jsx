@@ -3,7 +3,7 @@
 import { useState, useMemo } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "./icons.jsx";
 import { Sheet, PayFlow } from "./ui.jsx";
-import { buildBillSchedule, billWho, baht, monthFullLabel, monthShort, shiftMonth } from "./model.js";
+import { buildBillSchedule, billWho, baht, monthFullLabel, monthShort, shiftMonth, freqLabel } from "./model.js";
 
 const DOW = ["อา", "จ", "อ", "พ", "พฤ", "ศ", "ส"];
 const money = (sat) => baht(sat / 100, { decimals: sat % 100 ? 2 : 0 });
@@ -81,7 +81,7 @@ export function BillCalendarSheet({ data, me, today, onClose, pictures = {} }) {
                         {list.map((b) => (
                             <li class="row" key={b.id}>
                                 <ItemIcon desc={b.desc} name={iconFor(b.icon)} size={38} iconSize={18} />
-                                <div class="grow"><div class="t">{b.kind === "card" ? `จ่ายบัตร ${b.desc}` : b.desc}</div><div class="s">{b.kind === "card" ? billWho(b, me) : <>ทุกวันที่ {b.billingDay > b.day ? `${b.day} (สิ้นเดือน)` : b.day} · {b.kind === "group" ? <><PayFlow payer={b.payer} people={b.names || []} pictures={pictures} />{b.coverFor && " จ่ายแทน"}</> : billWho(b, me)}</>}</div></div>
+                                <div class="grow"><div class="t">{b.kind === "card" ? `จ่ายบัตร ${b.desc}` : b.desc}</div><div class="s">{b.kind === "card" ? billWho(b, me) : <>{b.every > 1 ? freqLabel(b) : <>ทุกวันที่ {b.billingDay > b.day ? `${b.day} (สิ้นเดือน)` : b.day}</>} · {b.kind === "group" ? <><PayFlow payer={b.payer} people={b.names || []} pictures={pictures} />{b.coverFor && " จ่ายแทน"}</> : billWho(b, me)}</>}</div></div>
                                 <div class="bc-v"><BillAmount b={b} /><span class={`bc-tag ${b.status}`}>{statusText(b)}</span></div>
                             </li>
                         ))}

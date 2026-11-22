@@ -3,7 +3,8 @@
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile, PayerAv as Payer, PayFlow as Flow } from "../ui.jsx";
-import { baht, monthShort, guessBillIcon } from "../model.js";
+import { baht, monthShort, guessBillIcon, freqLabel } from "../model.js";
+import { YearBars, MonthStrip } from "../freq.jsx";
 import {
     deleteBill, deleteBills, updateBillIcons, loadTemplates, stopTemplate,
     deleteWalletEntry, deleteWalletEntries, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries, confirmWalletEntries
@@ -16,7 +17,7 @@ const FILTERS = [["all", "ทั้งหมด"], ["group", "บิลกลุ
 const KindTag = ({ kind }) => <span class={`kind k-${kind}`}>{kind === "group" ? "กลุ่ม" : kind === "income" ? "รายรับ" : "ส่วนตัว"}</span>;
 
 /** แถบสีน้ำเงินซ้ายสุดของแถว มีคำว่า "รายเดือน" ตั้งแนวตั้ง (เฉพาะรายการรายเดือน) */
-const MonthlyBar = () => <span class="mbar" aria-label="รายเดือน"><b aria-hidden="true">รายเดือน</b></span>;
+const MonthlyBar = ({ label = "รายเดือน", round = false }) => <span class={`mbar ${round ? "round" : ""}`} aria-label={label}><b aria-hidden="true">{label}</b></span>;
 
 const dayLabel = (d) => `${Number(d.slice(8, 10))} ${monthShort(d.slice(0, 7))}`;
 
@@ -134,16 +135,24 @@ function Recurring({ me, isAdmin, version, onError, onMine = () => {}, pictures 
     }, [version, tick]);
     const b = bills || [], w = mine || [];
     if (b.length + w.length === 0) return null;
-    const total = [...b, ...w].reduce((a, t) => a + (Number(t.amount) || 0), 0);
+    const ev = (t) => ([3, 6, 12].includes(Number(t.every)) ? Number(t.every) : 1);
+    // ยอดของฉัน: บิลกลุ่ม = ส่วนของฉัน (จ่ายแทนเพื่อน = 0), ส่วนตัว = ทั้งหมด (ใช้กับกราฟทั้งปี)
+    const myShare = (t) => { const k = Object.keys(t.splits || {}).find((n) => String(n).trim().toUpperCase() === me); return k ? Number(t.splits[k]) || 0 : 0; };
+    const mineAmt = [...b.map((t) => ({ amount: myShare(t), every: ev(t), startMonth: t.startMonth })), ...w.map((t) => ({ amount: Number(t.amount) || 0, every: ev(t), startMonth: t.startMonth }))];
+    const total = [...b, ...w].filter((t) => ev(t) === 1).reduce((a, t) => a + (Number(t.amount) || 0), 0);
+    const roundYear = [...b, ...w].filter((t) => ev(t) > 1).reduce((a, t) => a + (Number(t.amount) || 0) * (12 / ev(t)), 0);
+    const nowM = Number(new Date().toISOString().slice(5, 7));
+    const note = (t) => (ev(t) > 1 ? <><em class="t-note"> &middot; {freqLabel(t)}</em><MonthStrip t={{ every: ev(t), startMonth: t.startMonth }} /></> : <em class="t-note"> &middot; ทุกวันที่ {t.billingDay}</em>);
     return (
-        <Collapsible icon="swap" title="รายการที่ตั้งให้ทำซ้ำทุกเดือน" summary={`บิลกลุ่ม ${b.length} · ส่วนตัว ${w.length} · รวม ${baht(total)} ต่อเดือน`}>
+        <Collapsible icon="swap" title="รายการที่ตั้งให้ทำซ้ำ" summary={`บิลกลุ่ม ${b.length} · ส่วนตัว ${w.length} · รวม ${baht(total)} ต่อเดือน${roundYear > 0 ? ` · เป็นรอบ ${baht(roundYear)} ต่อปี` : ""}`}>
+            <YearBars items={mineAmt} nowMonth={nowM} />
             <ul class="plain">
                 {b.map((t) => (
                     <li class="row monthly" key={"b" + t.id}>
-                        <MonthlyBar />
+                        <MonthlyBar label={ev(t) === 1 ? "รายเดือน" : ev(t) === 12 ? "รายปี" : `${ev(t)} เดือน`} round={ev(t) > 1} />
                         <ItemIcon desc={t.desc} name={iconFor(t.icon)} />
                         <div class="lr-b">
-                            <div class="lr-1"><span class="t">{t.desc || "ไม่ระบุ"}<em class="t-note"> &middot; ทุกวันที่ {t.billingDay}</em></span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
+                            <div class="lr-1"><span class="t">{t.desc || "ไม่ระบุ"}{note(t)}</span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
                             <div class="lr-2"><span class="s"><KindTag kind="group" /><Flow payer={String(t.payer || "").trim().toUpperCase()} people={Object.keys(t.splits || {}).map((n) => String(n).trim().toUpperCase())} pictures={pictures} /></span>
                                 {(isAdmin || String(t.payer || "").trim().toUpperCase() === me) && (
                                     <span class="lr-acts">
@@ -158,10 +167,10 @@ function Recurring({ me, isAdmin, version, onError, onMine = () => {}, pictures 
                 ))}
                 {w.map((t) => (
                     <li class="row monthly" key={"w" + t.id}>
-                        <MonthlyBar />
+                        <MonthlyBar label={ev(t) === 1 ? "รายเดือน" : ev(t) === 12 ? "รายปี" : `${ev(t)} เดือน`} round={ev(t) > 1} />
                         <ItemIcon desc={t.desc} name={iconFor(t.icon)} />
                         <div class="lr-b">
-                            <div class="lr-1"><span class="t">{t.desc || "รายจ่าย"}<em class="t-note"> &middot; ทุกวันที่ {t.billingDay}</em></span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
+                            <div class="lr-1"><span class="t">{t.desc || "รายจ่าย"}{note(t)}</span><span class="num v">{baht(Number(t.amount) || 0, { decimals: 2 })}</span></div>
                             <div class="lr-2"><span class="s"><KindTag kind="personal" /><Payer name={me} pictures={pictures} /><span class="s-t">เห็นเฉพาะคุณ</span></span>
                                 <span class="lr-acts">
                                     <button type="button" class="icon-btn" aria-label={`แก้ไข ${t.desc || "รายจ่ายรายเดือน"}`} onClick={() => setEditing(t)}><Icon name="pencil" size={16} /></button>

@@ -129,6 +129,13 @@ await t("บิลรายเดือน: คนจ่ายแก้ชื่
     await assertFails(updateDoc(doc(as("ben", "BEN"), "subscription_templates/tp_care"), { billingDay: 10 }));
     await assertSucceeds(updateDoc(doc(as("admin1", "GAME"), "subscription_templates/tp_care"), { billingDay: 20 }));
 });
+await t("บิลที่ทำซ้ำ: คนจ่ายเปลี่ยนรอบได้ (1/3/6/12 เดือน, เดือนเริ่ม 1-12) / ค่าแปลกไม่ได้", async () => {
+    await seed();
+    await assertSucceeds(updateDoc(doc(as("care", "CARE"), "subscription_templates/tp_care"), { every: 12, startMonth: 3 }));
+    await assertFails(updateDoc(doc(as("care", "CARE"), "subscription_templates/tp_care"), { every: 5, startMonth: 3 }));
+    await assertFails(updateDoc(doc(as("care", "CARE"), "subscription_templates/tp_care"), { every: 6, startMonth: 13 }));
+    await assertFails(updateDoc(doc(as("ben", "BEN"), "subscription_templates/tp_care"), { every: 12, startMonth: 3 }));
+});
 await t("ข้อมูลส่วนตัว (กระเป๋า ฯลฯ) ปิดจากเบราว์เซอร์ทั้งหมด", async () => {
     const db = as("care", "CARE");
     await assertFails(getDoc(doc(db, "wallet_entries/w1")));

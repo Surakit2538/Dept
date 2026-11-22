@@ -5,6 +5,7 @@ import { brandOf } from "./brands.js";
 import { Sheet, Avatar, DatePickerField } from "./ui.jsx";
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
+import { FreqBox } from "./freq.jsx";
 
 export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null }) {
     const [mode, setMode] = useState(initial); // null | "bill" | "expense" | "income"
@@ -38,6 +39,7 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
     const [monthly, setMonthly] = useState(false);
+    const [every, setEvery] = useState(1); // รอบ: ทุกเดือน / 3 / 6 / 12 เดือน (เริ่มจากเดือนของวันที่)
     const [iconKey, setIconKey] = useState("other");
     const [iconTouched, setIconTouched] = useState(false);
     const income = type === "income";
@@ -50,8 +52,8 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) { setErr("เลือกวันที่ไม่เกินวันนี้"); return; }
         setBusy(true);
         try {
-            await save({ type, amount: n, desc: desc.trim() || undefined, date, ...(income ? {} : { icon: faOf(iconKey) }), ...(monthly && !income ? { recurring: true } : {}) });
-            onSaved(income ? "บันทึกรายรับแล้ว" : monthly ? "บันทึกรายจ่ายแล้ว และจะสร้างซ้ำทุกเดือน" : "บันทึกรายจ่ายแล้ว", [date.slice(0, 7)]);
+            await save({ type, amount: n, desc: desc.trim() || undefined, date, ...(income ? {} : { icon: faOf(iconKey) }), ...(monthly && !income ? { recurring: true, every } : {}) });
+            onSaved(income ? "บันทึกรายรับแล้ว" : monthly ? `บันทึกรายจ่ายแล้ว และจะสร้างซ้ำ${every === 1 ? "ทุกเดือน" : every === 12 ? "ทุกปี" : `ทุก ${every} เดือน`}` : "บันทึกรายจ่ายแล้ว", [date.slice(0, 7)]);
             onClose();
         } catch (ex) {
             setErr(ex.message || "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
@@ -73,9 +75,10 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
                     <span class="fl" id="f-type-l">ชำระแบบ</span>
                     <div class="seg" role="group" aria-labelledby="f-type-l">
                         <button type="button" class={!monthly ? "on" : ""} aria-pressed={!monthly} onClick={() => setMonthly(false)}>ครั้งเดียว</button>
-                        <button type="button" class={monthly ? "on" : ""} aria-pressed={monthly} onClick={() => setMonthly(true)}>รายเดือน</button>
+                        <button type="button" class={monthly ? "on" : ""} aria-pressed={monthly} onClick={() => setMonthly(true)}>ทำซ้ำ</button>
                     </div>
-                    {monthly && <small>ระบบสร้างรายจ่ายนี้ให้เองทุกเดือน ตามวันที่ {Number(date.slice(8, 10))} ของเดือน (วันที่ 29 ถึง 31 จะปรับเป็นวันสุดท้ายของเดือนที่สั้นกว่า) หยุดได้ที่หน้ากระเป๋า</small>}
+                    {monthly && <FreqBox every={every} onEvery={setEvery} date={date} amount={Number(amount) || 0} today={today} />}
+                    {monthly && <small>ระบบสร้างรายจ่ายนี้ให้เองเมื่อถึงรอบ ตามวันที่ {Number(date.slice(8, 10))} (วันที่ 29 ถึง 31 จะปรับเป็นวันสุดท้ายของเดือนที่สั้นกว่า) หยุดได้ที่หน้ารายการ</small>}
                 </div>
             )}
             {err && <p class="msg" role="alert">{err}</p>}
@@ -87,7 +90,7 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
 const TYPES = [
     { key: "normal", label: "ครั้งเดียว" },
     { key: "installment", label: "ผ่อนชำระ" },
-    { key: "subscription", label: "รายเดือน" }
+    { key: "subscription", label: "ทำซ้ำ" }
 ];
 const MODES = [{ key: "equal", label: "หารเท่ากัน" }, { key: "custom", label: "กำหนดยอดเอง" }];
 
@@ -130,6 +133,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const [type, setType] = useState("normal");
     const [installments, setInstallments] = useState("3");
     const [recurring, setRecurring] = useState(true);
+    const [every, setEvery] = useState(1);
     const [iconKey, setIconKey] = useState(() => (prefill ? (hasCategory(prefill.icon) ? keyOfFa(prefill.icon) : guessBillIcon(prefill.desc)) : "other"));
     const [iconTouched, setIconTouched] = useState(Boolean(prefill && hasCategory(prefill.icon)));
     const [panel, setPanel] = useState(null);
@@ -160,7 +164,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const values = {
         payer: payer === me ? "ฉัน" : payer,
         split: mode === "custom" ? "ยอดเอง" : "เท่ากัน",
-        type: type === "installment" ? `ผ่อน ${installments} งวด` : type === "subscription" ? "รายเดือน" : "ครั้งเดียว"
+        type: type === "installment" ? `ผ่อน ${installments} งวด` : type === "subscription" ? (every === 1 ? "ทุกเดือน" : every === 12 ? "ทุกปี" : `ทุก ${every} เดือน`) : "ครั้งเดียว"
     };
     const catHint = !iconTouched && desc.trim() ? "เลือกให้อัตโนมัติ" : "";
 
@@ -168,7 +172,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
         e.preventDefault();
         setErr("");
         const fa = (BILL_ICONS.find((i) => i.key === iconKey) || BILL_ICONS[BILL_ICONS.length - 1]).fa;
-        const r = buildBill({ amount, desc, payer, date, today, participants: chosen, mode, custom, type, installments, recurring, icon: fa });
+        const r = buildBill({ amount, desc, payer, date, today, participants: chosen, mode, custom, type, installments, recurring, every, icon: fa });
         if (!r.ok) {
             setErr(r.error);
             // ปัญหาอยู่ในหัวข้อที่ปิดอยู่ ให้เปิดหัวข้อนั้นให้เห็นเลย
@@ -305,7 +309,10 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
                             <div class="field"><label for="b-inst">ผ่อนกี่เดือน (2 ถึง 60)</label><input id="b-inst" class="num" type="number" inputmode="numeric" min="2" max="60" value={installments} onInput={(e) => setInstallments(e.currentTarget.value)} /></div>
                         )}
                         {type === "subscription" && (
-                            <label class="check"><input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.currentTarget.checked)} /><span>สร้างบิลนี้ซ้ำทุกเดือนอัตโนมัติ (ยกเลิกได้ภายหลัง)</span></label>
+                            <>
+                                <FreqBox every={every} onEvery={setEvery} date={date} amount={n || 0} today={today} />
+                                <label class="check"><input type="checkbox" checked={recurring} onChange={(e) => setRecurring(e.currentTarget.checked)} /><span>สร้างบิลนี้ซ้ำอัตโนมัติเมื่อถึงรอบ (ยกเลิกได้ภายหลัง)</span></label>
+                            </>
                         )}
                     </div>
                 )}

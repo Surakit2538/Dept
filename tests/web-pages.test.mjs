@@ -200,15 +200,15 @@ test("Sheet ซ้อนกัน: กด Esc ปิดเฉพาะหน้�
     assert.match(ui, /sheetStack\.splice\(i, 1\)/);
 });
 
-test("รายจ่ายส่วนตัว: มีตัวเลือกชำระแบบรายเดือน ส่วนรายรับไม่มี", { skip: !hasTools }, async () => {
+test("รายจ่ายส่วนตัว: มีตัวเลือกชำระแบบทำซ้ำ (เลือกรอบได้) ส่วนรายรับไม่มี", { skip: !hasTools }, async () => {
     const { h, toString } = await render();
     const { AddSheet } = await bundle("web/src/add.jsx", "add");
     const props = { today: "2026-11-14", members: ["GAME"], me: "GAME", save() {}, saveBill() {}, onClose() {}, onSaved() {} };
     const expense = toString(h(AddSheet, { ...props, initial: "expense" }));
     assert.match(expense, /ชำระแบบ/);
-    assert.match(expense, /รายเดือน/);
+    assert.match(expense, />ทำซ้ำ</);
     const income = toString(h(AddSheet, { ...props, initial: "income" }));
-    assert.ok(!income.includes("รายเดือน"), "รายรับไม่มีตัวเลือกรายเดือน");
+    assert.ok(!income.includes("ทำซ้ำ"), "รายรับไม่มีตัวเลือกทำซ้ำ");
 });
 
 test("บัตรล็อกอิน LINE หมดอายุ: ไม่ออกจากระบบ/โหลดหน้าใหม่เอง แต่แจ้งด้วยแถบและให้กดเข้าสู่ระบบใหม่", () => {
@@ -299,15 +299,17 @@ test("แก้รายจ่ายรายเดือนที่ตั้�
     const { h, toString } = await render();
     const { EditTemplateSheet } = await bundle("web/src/editbill.jsx", "editbill3");
     const html = toString(h(EditTemplateSheet, { template: { id: "t", desc: "<b onclick=x>", amount: 518, icon: "" }, onClose() {}, onSaved() {} }));
-    assert.match(html, /แก้รายจ่ายรายเดือน/);
-    assert.match(html, /ยอดต่อเดือน/);
+    assert.match(html, /แก้รายจ่ายที่ทำซ้ำ/);
+    assert.match(html, /ยอดต่อครั้ง/);
+    assert.match(html, /ปีละ/, "มีวงกลมปี");
+    assert.match(html, /ทุกปี/);
     assert.match(html, /เดินทาง/);
     assert.ok(!html.includes("<b onclick"));
-    assert.match(html, /ตัดทุกวันที่/);
+    assert.match(html, /วันที่จ่าย/);
     assert.match(html, /<option value="31">31/);
     // บิลกลุ่มรายเดือน: แก้ชื่อ หมวด วันที่ได้ ยอดแก้ไม่ได้ (แบ่งส่วนคนหารไว้แล้ว)
     const g = toString(h(EditTemplateSheet, { template: { id: "g", kind: "group", desc: "Netflix", amount: 419, icon: "fa-film", billingDay: 16 }, onClose() {}, onSaved() {} }));
-    assert.match(g, /แก้บิลกลุ่มรายเดือน/);
+    assert.match(g, /แก้บิลกลุ่มที่ทำซ้ำ/);
     assert.match(g, /แก้ไม่ได้ เพราะแบ่งส่วนคนหารไว้แล้ว/);
     assert.ok(!g.includes('id="et-amount"'));
     assert.match(g, /<option selected value="16">16/);

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "preact/hooks";
 import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { AvatarStack, DateTile, SectionTitle, PayFlow } from "../ui.jsx";
-import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS, CATEGORIES, billWho } from "../model.js";
+import { monthLabel, monthShort, monthFullLabel, daysInMonth, shiftMonth, baht, TH_MONTHS, CATEGORIES, billWho, freqTag } from "../model.js";
 
 const CATEGORY_LABEL = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
 
@@ -123,7 +123,7 @@ function NextBills({ sched, me, onOpen, onCard, pictures = {} }) {
                     ? <span class="nb-cal num" aria-hidden="true"><span class="band">วันนี้</span><b>{Number(n.date.slice(8, 10))}</b><small>{monthShort(n.date.slice(0, 7))}</small></span>
                     : <span class="nb-count" aria-hidden="true"><small>อีก</small><b class="num">{n.daysLeft}</b><small>วัน</small></span>}
                 <span class="nb-t">
-                    <small>{kicker(n)} · {n.daysLeft === 0 ? (n.kind === "card" ? "วันนี้" : "ตัดวันนี้") : when(n)}</small>
+                    <small>{kicker(n)} · {n.daysLeft === 0 ? (n.kind === "card" ? "วันนี้" : "ตัดวันนี้") : when(n)}{n.every > 1 && <span class="nb-pill">{freqTag(n)}</span>}</small>
                     <b>{n.desc}</b>
                     <span class="nb-amt num">{amt(n)}{n.kind === "group" && !n.coverFor && <em> จาก {money(n.totalSat)}</em>}</span>
                     {n.kind === "group" ? <span class="nb-flow"><PayFlow payer={n.payer} people={n.names || []} pictures={pictures} />{n.coverFor && <small>จ่ายแทน</small>}</span> : <small>{billWho(n, me)}</small>}
