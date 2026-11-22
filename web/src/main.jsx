@@ -99,7 +99,8 @@ function App() {
     useEffect(() => {
         if (scopeRef.current === scope) return;
         scopeRef.current = scope;
-        setByMonth({});
+        // ล้างเฉพาะบิลและประวัติเคลียร์เงิน (อ่านใหม่ตามขอบเขตใหม่) กระเป๋าเป็นของเราเองอยู่แล้ว เก็บไว้ ไม่งั้นหน้าค้างรอกระเป๋าที่ไม่มีใครโหลด
+        setByMonth((cur) => Object.fromEntries(Object.entries(cur).filter(([, v]) => v.wallet).map(([m, v]) => [m, { wallet: v.wallet }])));
         setClearPlans({});
     }, [scope]);
     // ถามสถานะซ่อนทุกครั้งที่เปิดแอป (ได้ยอดโอนของเดือนนี้มาด้วยถ้าซ่อนอยู่)
