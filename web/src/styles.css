@@ -377,6 +377,8 @@ button.more { background: transparent; border: 0; cursor: pointer; padding: 0; f
 /* ---------- กันป๊อปอัปเลื่อนข้าง + กล่องวันที่ให้ขนาดเท่าช่องอื่น (iOS วาดช่องวันที่เล็กกว่าปกติ) ---------- */
 .sheet { overflow-x: hidden; overscroll-behavior-x: none; touch-action: pan-y; }
 .sheet .field, .sheet form { min-width: 0; max-width: 100%; }
+/* หน้าต่างที่ยาวเกินจอเลื่อนทั้งหน้าต่าง ห้ามบีบลูกที่เลื่อนแนวนอนได้ (เช่นแถวไอคอนเป้า) ให้เตี้ยลง */
+.sheet > *, .sheet > form > * { flex-shrink: 0; }
 .field input[type="date"] { -webkit-appearance: none; appearance: none; display: block; width: 100%; max-width: 100%; min-width: 0; min-height: 46px; margin-top: 0; text-align: left; }
 .field input[type="date"]::-webkit-date-and-time-value { text-align: left; min-height: 1.5em; }
 
