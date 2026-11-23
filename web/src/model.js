@@ -144,15 +144,23 @@ export function buildBudgetModel(plan, m, today = "") {
     const cats = {};
     for (const c of m.categories || []) cats[c.key] = c.satang;
     const status = budgetStatus(budgetFor(plan || {}, month), { totalSat: m.spentSat, cats });
-    const goals = ((plan && plan.goals) || []).map((g) => ({ ...g, s: goalStatus(g, month) }));
+    const personal = ((plan && plan.goals) || []).map((g) => ({ ...g, s: goalStatus(g, month) }));
+    // เป้าแชร์อยู่ท้ายกอง (ซองหน้าสุด) · เงินเก็บต่อเดือนนับเฉพาะส่วนของฉัน
+    const shared = ((plan && plan.shared) || []).map((g) => ({ ...g, s: goalStatus(g, month) }));
+    const goals = [...personal, ...shared];
+    const own = savingPlan(personal, month);
+    let sharedPlanSat = 0;
+    let sharedDoneSat = 0;
+    for (const g of shared) { if (!g.s.done) sharedPlanSat += Number(g.perPersonSat) || 0; sharedDoneSat += Number(g.mineMonthSat) || 0; }
+    const saving = { planSat: own.planSat + sharedPlanSat, doneSat: Math.max(0, own.doneSat + sharedDoneSat) };
     const isNow = today.startsWith(month);
     const daysLeft = isNow ? daysInMonth(month) - Number(today.slice(8, 10)) + 1 : 0;
     return {
         month,
         status,
         goals,
-        saving: savingPlan(goals, month),
-        suggestSat: suggestBudget(m.incomeSat, goals, month),
+        saving,
+        suggestSat: Math.max(0, suggestBudget(m.incomeSat, personal, month) - Math.ceil(sharedPlanSat / 10000) * 10000),
         daysLeft,
         perDaySat: isNow && status.leftSat > 0 && daysLeft > 0 ? Math.floor(status.leftSat / daysLeft / 100) * 100 : 0
     };

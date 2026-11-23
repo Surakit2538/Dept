@@ -152,7 +152,7 @@ function EditProfileSheet({ realName, promptpay, onSave, onClose, busy, msg, set
     );
 }
 
-export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {}, bm = null, onBudget = () => {}, onGoalAdd = () => {}, onGoalMove = () => {}, onGoalEdit = () => {}, cards = null, privacy = null, seeAll = false, onSeeAll = () => {}, onPrivacy = () => {}, onCardAdd = () => {}, onCardOpen = () => {} }) {
+export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast, transactions = [], onDataChanged = () => {}, bm = null, onBudget = () => {}, onGoalAdd = () => {}, onGoalMove = () => {}, onGoalEdit = () => {}, onGoalShared = () => {}, cards = null, privacy = null, seeAll = false, onSeeAll = () => {}, onPrivacy = () => {}, onCardAdd = () => {}, onCardOpen = () => {} }) {
     const mine = (profiles || []).find((p) => p.id === auth.user.memberId) || (profiles || []).find((p) => p.name === auth.user.name) || {};
     const [realName, setRealName] = useState("");
     const [promptpay, setPromptpay] = useState("");
@@ -213,7 +213,7 @@ export function MePage({ auth, profiles, onSaved, onRefresh, onMembers, onToast,
                 {cards && cards.enabled && <CardWallet cards={cards.cards} onAdd={onCardAdd} onOpen={onCardOpen} />}
             </div>
             <div class="col">
-                {bm && <GoalStack goals={bm.goals} month={bm.month} onAdd={onGoalAdd} onMove={onGoalMove} onEdit={onGoalEdit} />}
+                {bm && <GoalStack goals={bm.goals} month={bm.month} onAdd={onGoalAdd} onMove={onGoalMove} onEdit={onGoalEdit} onShared={onGoalShared} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} />}
                 <section class="card">
                     <SectionTitle icon="sliders" title="ตั้งค่า" />
                     <button type="button" class="opt-row" onClick={() => setIphone(true)}><span class="ico"><Icon name="qr" /></span><span><b>ตั้งค่า iPhone</b><small>คัดลอกสคริปต์ติดตั้ง Widget และสแกนสลิปอัตโนมัติ</small></span><Icon name="right" size={16} class="mute" /></button>

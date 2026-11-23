@@ -26,7 +26,8 @@ export function createFakeFirestore() {
                         "<=": (a, b) => a !== undefined && a <= b,
                         ">": (a, b) => a !== undefined && a > b,
                         "<": (a, b) => a !== undefined && a < b,
-                        "in": (a, b) => Array.isArray(b) && b.includes(a)
+                        "in": (a, b) => Array.isArray(b) && b.includes(a),
+                        "array-contains": (a, b) => Array.isArray(a) && a.includes(b)
                     }[c.op];
                     if (!test) throw new Error("fake firestore: unsupported op " + c.op);
                     docs = docs.filter((d) => test(d.data()[c.field], c.value));
@@ -50,8 +51,17 @@ export function createFakeFirestore() {
         updateDoc: async (ref, data) => {
             const cur = col(ref.col).get(ref.id);
             if (cur === undefined) throw new Error("fake firestore: update on missing doc");
-            col(ref.col).set(ref.id, { ...cur, ...clone(data) });
+            const next = { ...cur };
+            for (const [k, v] of Object.entries(data)) {
+                if (v && typeof v === "object" && Array.isArray(v.__union)) {
+                    const arr = Array.isArray(next[k]) ? [...next[k]] : [];
+                    for (const x of v.__union) if (!arr.some((y) => JSON.stringify(y) === JSON.stringify(x))) arr.push(clone(x));
+                    next[k] = arr;
+                } else next[k] = clone(v);
+            }
+            col(ref.col).set(ref.id, next);
         },
+        arrayUnion: (...values) => ({ __union: values }),
         deleteDoc: async (ref) => {
             col(ref.col).delete(ref.id);
         },

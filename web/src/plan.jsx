@@ -1,7 +1,7 @@
 // งบรายเดือน + เป้าเก็บเงิน: การ์ดในแท็บ ฉัน (แผนเดือนนี้ + ซองเป้าซ้อนกัน) และหน้าต่างตั้งงบ / เก็บเข้าเป้า / เพิ่มเป้า
 import { useState } from "preact/hooks";
 import { Icon } from "./icons.jsx";
-import { Sheet, DeleteButton } from "./ui.jsx";
+import { Sheet, DeleteButton, AvatarStack, Avatar } from "./ui.jsx";
 import { baht, monthLabel, monthShort, shiftMonth } from "./model.js";
 import { CATEGORY_GROUPS } from "../../lib/categories.mjs";
 import { goalStatus, GOAL_ICONS, GOAL_COLORS, monthsInclusive } from "../../lib/budget.mjs";
@@ -53,7 +53,26 @@ export function PlanCard({ bm, onBudget }) {
 // ======================================================================
 // เป้าเก็บเงิน: ซองซ้อนกัน แตะซองไหน ซองนั้นเลื่อนมาหน้าสุดและกางออก
 // ======================================================================
-export function GoalStack({ goals, month, onAdd, onMove, onEdit }) {
+/** ยอดแต่ละคนในเป้าแชร์ เป็นช่วงสีบนแถบ (กว้างตามสัดส่วนที่ใส่ รวมกันเท่ากับ % ที่เก็บได้) */
+function ShareBar({ g, percent }) {
+    const by = g.bySat || {};
+    const total = Object.values(by).reduce((a, b) => a + b, 0);
+    const names = (g.members || []).filter((n) => by[n] > 0).concat(Object.keys(by).filter((n) => !(g.members || []).includes(n) && by[n] > 0));
+    return (
+        <span class="env-bar seg-bar" role="img" aria-label={names.map((n) => `${n} ${B(by[n])}`).join(", ")}>
+            {total > 0 && names.map((n, i) => <i key={n} class={`sb${i % 4}`} style={{ width: `${(by[n] / total) * percent}%` }} />)}
+        </span>
+    );
+}
+
+function sharedLine(g, s) {
+    if (s.done) return "ครบเป้าแล้ว";
+    if (s.late) return `เลยกำหนด ${monthShort(g.deadline)} แล้ว`;
+    if (g.perPersonSat > 0) return `คนละ ${B(g.perPersonSat)}/เดือน${g.deadline ? ` ถึง ${monthShort(g.deadline)}` : ""}`;
+    return "ไม่กำหนดเวลา";
+}
+
+export function GoalStack({ goals, month, onAdd, onMove, onEdit, onShared = () => {}, pictures = {} }) {
     const [openId, setOpenId] = useState(null);
     const list = goals || [];
     const front = list.find((g) => g.id === openId) || list[list.length - 1];
@@ -79,7 +98,7 @@ export function GoalStack({ goals, month, onAdd, onMove, onEdit }) {
                             return (
                                 <button type="button" key={g.id} class={`env c-${g.color}`} style={{ "--i": i }} onClick={() => setOpenId(g.id)} aria-label={`${g.name} เก็บได้ ${s.percent}% แตะเพื่อดู`}>
                                     <span class="flap" aria-hidden="true" />
-                                    <span class="env-row"><span class="env-name"><Icon name={GOAL_ICON[g.icon] || "target"} size={16} />{g.name}</span><b class="num">{s.done ? "ครบแล้ว" : `${s.percent}%`}</b></span>
+                                    <span class="env-row"><span class="env-name"><Icon name={GOAL_ICON[g.icon] || "target"} size={16} />{g.name}{g.shared && <small class="env-tag">แชร์</small>}</span><b class="num">{s.done ? "ครบแล้ว" : `${s.percent}%`}</b></span>
                                 </button>
                             );
                         }
@@ -87,13 +106,17 @@ export function GoalStack({ goals, month, onAdd, onMove, onEdit }) {
                             <div key={g.id} class={`env front c-${g.color}`} style={{ "--i": i }}>
                                 <span class="flap" aria-hidden="true" />
                                 <span class="env-row"><span class="env-name"><span class="env-ic"><Icon name={GOAL_ICON[g.icon] || "target"} size={18} /></span>{g.name}</span><b class="num">{s.done ? "ครบแล้ว" : `${s.percent}%`}</b></span>
+                                {g.shared && <span class="env-share"><AvatarStack names={g.members || []} pictures={pictures} max={4} size="sm" />แชร์ {(g.members || []).length} คน</span>}
                                 <b class="env-big num">{B(s.savedSat)}</b>
-                                <span class="env-sub num">จาก {B(s.targetSat)} · {goalLine(g, s)}</span>
-                                <span class="env-bar" aria-hidden="true"><i style={{ width: `${s.percent}%` }} /></span>
+                                <span class="env-sub num">จาก {B(s.targetSat)} · {g.shared ? sharedLine(g, s) : goalLine(g, s)}</span>
+                                {g.shared ? <ShareBar g={g} percent={s.percent} /> : <span class="env-bar" aria-hidden="true"><i style={{ width: `${s.percent}%` }} /></span>}
+                                {g.shared && <span class="env-sub num">คุณใส่แล้ว {B(g.mineSat || 0)}{s.done ? "" : g.mineMonthSat > 0 ? " · เดือนนี้ใส่แล้ว" : g.perPersonSat > 0 ? " · เดือนนี้ยังไม่ใส่" : ""}</span>}
                                 <span class="env-acts">
                                     <button type="button" class="env-btn main" onClick={() => onMove(g, "in")}><Icon name="plus" size={16} />เก็บเข้า</button>
-                                    <button type="button" class="env-btn" onClick={() => onMove(g, "out")} disabled={s.savedSat <= 0}>ถอนออก</button>
-                                    <button type="button" class="env-btn icon" onClick={() => onEdit(g)} aria-label={`แก้ไขเป้า ${g.name}`}><Icon name="pencil" size={16} /></button>
+                                    {(!g.shared || g.isOwner) && <button type="button" class="env-btn" onClick={() => onMove(g, "out")} disabled={s.savedSat <= 0}>ถอนออก</button>}
+                                    {g.shared
+                                        ? <button type="button" class="env-btn icon" onClick={() => onShared(g)} aria-label={`ประวัติและตั้งค่าเป้า ${g.name}`}><Icon name="dots" size={16} /></button>
+                                        : <button type="button" class="env-btn icon" onClick={() => onEdit(g)} aria-label={`แก้ไขเป้า ${g.name}`}><Icon name="pencil" size={16} /></button>}
                                 </span>
                             </div>
                         );
@@ -219,8 +242,10 @@ export function BudgetSheet({ plan, nowMonth, suggestSat = 0, onSave, onClose })
 // ======================================================================
 export function GoalMoveSheet({ goal, month, dir: dir0 = "in", onMove, onClose }) {
     const s = goalStatus(goal, month);
-    const [dir, setDir] = useState(dir0);
-    const planLeft = Math.max(0, s.perMonthSat - s.thisMonthSat);
+    const canOut = !goal.shared || goal.isOwner;
+    const [dir, setDir] = useState(canOut ? dir0 : "in");
+    // เป้าแชร์: ตามแผน = ส่วนของฉันเดือนนี้ที่ยังไม่ได้ใส่
+    const planLeft = goal.shared ? Math.max(0, (goal.perPersonSat || 0) - (goal.mineMonthSat || 0)) : Math.max(0, s.perMonthSat - s.thisMonthSat);
     const [amount, setAmount] = useState(dir0 === "in" && planLeft > 0 ? String(planLeft / 100) : "");
     const [busy, setBusy] = useState(false);
     const [msg, setMsg] = useState("");
@@ -246,7 +271,9 @@ export function GoalMoveSheet({ goal, month, dir: dir0 = "in", onMove, onClose }
     if (afterSat >= s.targetSat && s.targetSat > 0) note = "ครบเป้าแล้ว";
     else if (goal.deadline && deltaSat !== 0) {
         const left = monthsInclusive(shiftMonth(month, 1), goal.deadline);
-        note = left > 0 ? `เดือนต่อไปเก็บเดือนละ ${B(after.perMonthSat)} อีก ${left} เดือน ก็ทันกำหนด` : "";
+        const n = goal.shared ? Math.max(1, (goal.members || []).length) : 1;
+        const per = Math.ceil(after.perMonthSat / n / 100) * 100;
+        note = left > 0 ? `เดือนต่อไปเก็บ${n > 1 ? "คนละ" : "เดือนละ"} ${B(per)} อีก ${left} เดือน ก็ทันกำหนด` : "";
     }
 
     return (
@@ -257,8 +284,9 @@ export function GoalMoveSheet({ goal, month, dir: dir0 = "in", onMove, onClose }
             </div>
             <div class="seg" role="group" aria-label="เก็บเข้าหรือถอนออก">
                 <button type="button" class={dir === "in" ? "on" : ""} aria-pressed={dir === "in"} onClick={() => setDir("in")}>เก็บเข้า</button>
-                <button type="button" class={dir === "out" ? "on" : ""} aria-pressed={dir === "out"} onClick={() => setDir("out")} disabled={s.savedSat <= 0}>ถอนออก</button>
+                <button type="button" class={dir === "out" ? "on" : ""} aria-pressed={dir === "out"} onClick={() => setDir("out")} disabled={s.savedSat <= 0 || !canOut}>ถอนออก</button>
             </div>
+            {!canOut && <p class="lockline"><Icon name="lock" size={14} />ถอนออกได้เฉพาะ {goal.owner} (คนสร้างเป้า) ถ้าต้องการเงินคืนให้บอก {goal.owner}</p>}
             <div class="jarbig">
                 <div class="jarw" role="img" aria-label={`ตอนนี้ ${B(s.savedSat)} หลัง${dir === "in" ? "เก็บ" : "ถอน"} ${B(afterSat)}`}>
                     <span class="jar-now" style={{ height: `${nowP}%` }} />
@@ -277,7 +305,7 @@ export function GoalMoveSheet({ goal, month, dir: dir0 = "in", onMove, onClose }
             </label>
             {dir === "in" && (
                 <div class="qchips">
-                    {planLeft > 0 && <button type="button" onClick={() => setAmount(String(planLeft / 100))}>ตามแผน {baht(planLeft / 100)}</button>}
+                    {planLeft > 0 && <button type="button" onClick={() => setAmount(String(planLeft / 100))}>{goal.shared ? "ส่วนของฉัน" : "ตามแผน"} {baht(planLeft / 100)}</button>}
                     {[500, 1000, 3000].map((n) => <button type="button" key={n} onClick={() => add(n)}>+{n.toLocaleString("en-US")}</button>)}
                 </div>
             )}
@@ -292,8 +320,14 @@ export function GoalMoveSheet({ goal, month, dir: dir0 = "in", onMove, onClose }
 // ======================================================================
 // เพิ่มเป้า / แก้เป้า
 // ======================================================================
-export function GoalEditSheet({ goal = null, nowMonth, onSave, onDelete, onClose }) {
+export function GoalEditSheet({ goal = null, nowMonth, onSave, onDelete, onClose, members = [], me = "", pictures = {} }) {
     const g = goal || {};
+    const myName = String(me || "").toUpperCase();
+    // เป้าใหม่เลือกได้ว่าเก็บคนเดียวหรือกับเพื่อน เป้าเดิมเปลี่ยนชนิดไม่ได้
+    const [withFriends, setWithFriends] = useState(Boolean(g.shared));
+    const [friends, setFriends] = useState(() => new Set((g.members || []).filter((n) => n !== myName && n !== g.owner)));
+    const others = (members || []).filter((n) => n !== myName && n !== g.owner);
+    const toggleF = (n) => setFriends((cur) => { const x = new Set(cur); if (x.has(n)) x.delete(n); else x.add(n); return x; });
     const [icon, setIcon] = useState(g.icon || GOAL_ICONS[0]);
     const [color, setColor] = useState(g.color || GOAL_COLORS[0]);
     const [name, setName] = useState(g.name || "");
@@ -306,21 +340,30 @@ export function GoalEditSheet({ goal = null, nowMonth, onSave, onDelete, onClose
     const presets = [[3, "3 เดือน"], [6, "6 เดือน"], [12, "1 ปี"]];
     const tV = num(target);
     const preview = goalStatus({ target: tV, saved: g.saved || 0, deadline: noDeadline ? "" : deadline, monthly: num(monthly) }, nowMonth);
+    const people = withFriends ? friends.size + 1 : 1;
+    const perPerson = Math.ceil(preview.perMonthSat / people / 100) * 100;
 
     async function save(e) {
         e.preventDefault();
         if (!name.trim()) return setMsg("ใส่ชื่อเป้าก่อน");
         if (!(tV > 0)) return setMsg("ใส่ยอดที่อยากได้");
+        if (withFriends && friends.size === 0) return setMsg("เลือกเพื่อนที่จะเก็บด้วยอย่างน้อย 1 คน");
         setBusy(true);
         setMsg("");
         try {
-            await onSave({ ...(goal ? { id: goal.id } : {}), name: name.trim(), icon, color, target: tV, deadline: noDeadline ? "" : deadline, monthly: noDeadline ? num(monthly) : 0 });
+            await onSave({ ...(goal ? { id: goal.id } : {}), name: name.trim(), icon, color, target: tV, deadline: noDeadline ? "" : deadline, monthly: noDeadline ? num(monthly) : 0, ...(withFriends ? { shared: true, members: [...friends] } : {}) });
             onClose();
         } catch (ex) { setMsg(ex.message); setBusy(false); }
     }
 
     return (
         <Sheet title={goal ? "แก้เป้า" : "เป้าใหม่"} onClose={onClose} as="form" onSubmit={save} class="plan-sheet">
+            {!goal && (
+                <div class="seg" role="group" aria-label="เก็บคนเดียวหรือกับเพื่อน">
+                    <button type="button" class={withFriends ? "" : "on"} aria-pressed={!withFriends} onClick={() => setWithFriends(false)}>เก็บคนเดียว</button>
+                    <button type="button" class={withFriends ? "on" : ""} aria-pressed={withFriends} onClick={() => setWithFriends(true)}>เก็บกับเพื่อน</button>
+                </div>
+            )}
             <div class="icopick" role="group" aria-label="รูปของเป้า">
                 {GOAL_ICONS.map((k) => <button type="button" key={k} class={icon === k ? "on" : ""} aria-pressed={icon === k} aria-label={k} onClick={() => setIcon(k)}><Icon name={GOAL_ICON[k]} size={20} /></button>)}
             </div>
@@ -352,11 +395,24 @@ export function GoalEditSheet({ goal = null, nowMonth, onSave, onDelete, onClose
                     <input id="goal-monthly" class="num" inputmode="decimal" autocomplete="off" placeholder="3000" value={monthly} onInput={(e) => setMonthly(e.currentTarget.value)} />
                 </div>
             )}
+            {withFriends && (
+                <div class="field">
+                    <span class="field-l" id="goal-friends-l">เก็บกับใคร <span class="mute">({friends.size} คน)</span></span>
+                    <div class="pchips" role="group" aria-labelledby="goal-friends-l">
+                        {others.map((n) => (
+                            <button type="button" key={n} class={`pchip ${friends.has(n) ? "on" : ""}`} aria-pressed={friends.has(n)} onClick={() => toggleF(n)}>
+                                {friends.has(n) ? <span class="pav-s"><Icon name="check" size={14} /></span> : <Avatar name={n} pictureUrl={pictures[n]} size="sm" />}{n}
+                            </button>
+                        ))}
+                    </div>
+                    <small class="field-note">เพื่อนจะเห็นเป้านี้ในแท็บ ฉัน และใส่เงินได้ ถอนออกได้เฉพาะคุณ</small>
+                </div>
+            )}
             <div class={`goal-preview c-${color}`} aria-live="polite">
                 <span class="gp-ic"><Icon name={GOAL_ICON[icon]} size={24} /></span>
                 <div>
-                    <small>{noDeadline ? "ตั้งใจเก็บเดือนละ" : "ต้องเก็บเดือนละ"}</small>
-                    <b class="num">{preview.perMonthSat > 0 ? B(preview.perMonthSat) : "-"}</b>
+                    <small>{people > 1 ? `ต้องเก็บคนละ (${people} คน)` : noDeadline ? "ตั้งใจเก็บเดือนละ" : "ต้องเก็บเดือนละ"}</small>
+                    <b class="num">{preview.perMonthSat > 0 ? B(people > 1 ? perPerson : preview.perMonthSat) : "-"}</b>
                     <small>{noDeadline ? "ไม่กำหนดเวลา" : `${preview.monthsLeft} เดือน ถึง ${monthLabel(deadline)}`}</small>
                 </div>
             </div>
@@ -365,10 +421,54 @@ export function GoalEditSheet({ goal = null, nowMonth, onSave, onDelete, onClose
             {goal && onDelete && (
                 <div class="goal-del">
                     <DeleteButton label="ลบเป้านี้" onConfirm={async () => { await onDelete(goal.id); onClose(); }} />
-                    {s0(goal) > 0 && <p class="lbl">เงินที่เก็บไว้ {baht(goal.saved)} จะไม่ถูกนับต่อ (เงินจริงของคุณไม่หายไปไหน)</p>}
+                    {s0(goal) > 0 && <p class="lbl">{goal.shared ? `ในเป้ายังมีเงิน ${baht(goal.saved)} ของทุกคน ถอนคืนเพื่อนก่อนลบ` : `เงินที่เก็บไว้ ${baht(goal.saved)} จะไม่ถูกนับต่อ (เงินจริงของคุณไม่หายไปไหน)`}</p>}
                 </div>
             )}
         </Sheet>
     );
 }
 const s0 = (g) => Number(g && g.saved) || 0;
+
+// ======================================================================
+// เป้าแชร์: ประวัติ + ยอดแต่ละคน · คนสร้างแก้/ลบได้ · คนอื่นออกจากเป้าได้
+// ======================================================================
+const TH_D = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+const dShort = (d) => (/^\d{4}-\d{2}-\d{2}/.test(d || "") ? `${Number(d.slice(8, 10))} ${TH_D[Number(d.slice(5, 7)) - 1]}` : "");
+export function SharedGoalSheet({ goal, month, me = "", pictures = {}, onEdit, onLeave, onClose }) {
+    const s = goalStatus(goal, month);
+    const [ask, setAsk] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [msg, setMsg] = useState("");
+    const by = goal.bySat || {};
+    async function leave() {
+        setBusy(true);
+        try { await onLeave(goal.id); onClose(); } catch (e) { setMsg(e.message); setBusy(false); }
+    }
+    return (
+        <Sheet title={goal.name} onClose={onClose} class="plan-sheet">
+            <div class="goalhd">
+                <span class={`gico c-${goal.color}`}><Icon name={GOAL_ICON[goal.icon] || "target"} size={24} /></span>
+                <span class="lbl num">{B(s.savedSat)} จาก {B(s.targetSat)}{goal.deadline ? ` ภายใน ${monthLabel(goal.deadline)}` : ""} · สร้างโดย {goal.owner}</span>
+            </div>
+            <ul class="plain sg-people">
+                {(goal.members || []).map((n) => (
+                    <li key={n}><Avatar name={n} pictureUrl={pictures[n]} size="sm" /><span>{n}{n === String(me).toUpperCase() ? " (คุณ)" : ""}</span><b class="num">{B(by[n] || 0)}</b></li>
+                ))}
+            </ul>
+            <h3 class="sg-h">ประวัติ</h3>
+            {(goal.log || []).length === 0 ? <p class="lbl">ยังไม่มีใครใส่เงิน</p> : (
+                <ul class="plain sg-log">
+                    {goal.log.map((x) => (
+                        <li key={x.at + x.by}><Avatar name={x.by} pictureUrl={pictures[x.by]} size="sm" /><span>{x.by} {x.amount < 0 ? "ถอนออก" : "เก็บเข้า"}<small>{dShort(x.date)}</small></span><b class={`num ${x.amount < 0 ? "out" : "in"}`}>{x.amount < 0 ? "-" : "+"}{baht(Math.abs(x.amount))}</b></li>
+                    ))}
+                </ul>
+            )}
+            {msg && <p class="msg" role="alert">{msg}</p>}
+            {goal.isOwner
+                ? <button type="button" class="btn ghost block" onClick={() => onEdit(goal)}><Icon name="pencil" size={16} />แก้ชื่อ ยอด หรือคนในเป้า</button>
+                : ask
+                    ? <div class="sg-ask"><span class="lbl">ออกจากเป้านี้ใช่ไหม เงินที่คุณใส่ไว้ยังอยู่ในเป้า</span><button type="button" class="btn sm" disabled={busy} onClick={leave}>{busy ? "กำลังออก" : "ออกจากเป้า"}</button><button type="button" class="btn sm ghost" disabled={busy} onClick={() => setAsk(false)}>ยกเลิก</button></div>
+                    : <button type="button" class="btn ghost block" onClick={() => setAsk(true)}>ออกจากเป้านี้</button>}
+        </Sheet>
+    );
+}

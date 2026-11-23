@@ -470,10 +470,16 @@ export async function stopWalletTemplate(id) {
 }
 
 // ---------- งบรายเดือน + เป้าเก็บเงิน (เอกสารเดียวต่อคน ผ่าน API เท่านั้น) ทุกคำสั่งคืนแผนล่าสุด ----------
-const planOf = (r) => (r && r.plan && typeof r.plan === "object" ? r.plan : { budget: { total: 0, cats: {} }, months: {}, goals: [] });
+// เป้าแชร์ (shared) มากับ plan-get และคำสั่งเป้าแชร์ คำสั่งงบ/เป้าส่วนตัวไม่ส่งมา จึงใช้ชุดล่าสุดที่มี
+let lastShared = [];
+const planOf = (r) => {
+    const p = r && r.plan && typeof r.plan === "object" ? r.plan : { budget: { total: 0, cats: {} }, months: {}, goals: [] };
+    if (r && Array.isArray(r.shared)) lastShared = r.shared;
+    return { ...p, shared: lastShared };
+};
 export async function loadPlan() {
     const hit = cacheGet("plan", TTL_MEMBERS);
-    if (hit) return hit;
+    if (hit) { lastShared = Array.isArray(hit.shared) ? hit.shared : []; return hit; }
     const p = planOf(await api("/api/shortcut-transaction", { action: "plan-get" }));
     cacheSet("plan", p);
     return p;
@@ -484,6 +490,19 @@ export const saveBudget = ({ scope, month, total, cats, clear = false }) => plan
 export const saveGoal = (goal) => planCall({ action: "goal-save", ...goal });
 export const moveGoal = (id, amount, dir) => planCall({ action: "goal-move", id, amount, dir });
 export const deleteGoal = (id) => planCall({ action: "goal-delete", id });
+// เป้าเก็บเงินแบบแชร์ (lib/shared-goals.mjs) คืนแผนเดิม + รายการเป้าแชร์ใหม่
+const sharedCall = async (body) => {
+    const r = await api("/api/shortcut-transaction", body);
+    lastShared = Array.isArray(r.shared) ? r.shared : lastShared;
+    const cur = cacheGet("plan", Infinity) || { budget: { total: 0, cats: {} }, months: {}, goals: [] };
+    const p = { ...cur, shared: lastShared };
+    cacheSet("plan", p);
+    return p;
+};
+export const saveSharedGoal = (goal) => sharedCall({ action: "shared-goal-save", ...goal });
+export const moveSharedGoal = (id, amount, dir) => sharedCall({ action: "shared-goal-move", id, amount, dir });
+export const deleteSharedGoal = (id) => sharedCall({ action: "shared-goal-delete", id });
+export const leaveSharedGoal = (id) => sharedCall({ action: "shared-goal-leave", id });
 
 // ---------- บัตรเครดิต (รอบบิล + เตือนก่อนครบกำหนด) เฉพาะคนที่ผู้ดูแลเปิดให้ ผ่าน API เท่านั้น ----------
 const TTL_CARDS = 5 * 60 * 1000;

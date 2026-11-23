@@ -1180,3 +1180,30 @@ button.plastic:focus-visible { outline: 3px solid var(--sun); outline-offset: 2p
 .privbox .jobst { margin-top: 0; }
 .privbox .jobst .lbl { margin: 0; }
 .privbox .privoff { align-self: flex-start; }
+
+/* เป้าเก็บเงินแบบแชร์ (แบบ A): ป้าย แชร์ + รูปเพื่อนซ้อน แถบแบ่งสีตามคนใส่ */
+.env-tag { font-size: var(--fs-xs); font-weight: 600; background: rgba(255, 255, 255, .22); border-radius: 999px; padding: 0 8px; margin-left: 2px; }
+.c-sun .env-tag { background: rgba(46, 33, 0, .12); }
+.env-share { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; background: rgba(255, 255, 255, .2); border-radius: 999px; padding: 2px 10px 2px 3px; font-size: var(--fs-xs); font-weight: 600; }
+.c-sun .env-share { background: rgba(46, 33, 0, .12); }
+.env-share .avstack .av { border-color: rgba(255, 255, 255, .85); width: 24px; height: 24px; }
+.seg-bar { display: flex; }
+.seg-bar i { border-radius: 0; }
+.seg-bar i:first-child { border-radius: 8px 0 0 8px; }
+.seg-bar i:last-child { border-radius: 0 8px 8px 0; }
+.seg-bar i:only-child { border-radius: 8px; }
+.seg-bar .sb0 { background: var(--sun); }
+.seg-bar .sb1 { background: color-mix(in srgb, var(--pay) 40%, #ffffff); }
+.seg-bar .sb2 { background: color-mix(in srgb, var(--receive) 40%, #ffffff); }
+.seg-bar .sb3 { background: #ffffff; }
+.c-sun .seg-bar .sb0 { background: var(--accent); }
+.lockline { display: flex; align-items: flex-start; gap: 6px; margin: 0; font-size: var(--fs-sm); color: var(--mute); background: var(--chip); border-radius: var(--r-md); padding: var(--s2) var(--s3); }
+.field-note { display: block; color: var(--mute); font-size: var(--fs-xs); margin-top: var(--s2); }
+.sg-people, .sg-log { display: flex; flex-direction: column; }
+.sg-people li, .sg-log li { display: grid; grid-template-columns: 28px 1fr auto; gap: var(--s2); align-items: center; padding: var(--s2) 0; border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
+.sg-people li:last-child, .sg-log li:last-child { border-bottom: 0; }
+.sg-log small { display: block; color: var(--mute); font-size: var(--fs-xs); }
+.sg-log b.in { color: var(--receive); }
+.sg-log b.out { color: var(--pay); }
+.sg-h { margin: var(--s2) 0 0; font-size: var(--fs-md); }
+.sg-ask { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2); }

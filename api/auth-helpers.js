@@ -140,6 +140,11 @@ export function writeBatch(db) {
     return isAdminDb(db) ? db.batch() : client.writeBatch(db);
 }
 
+/** เพิ่มค่าเข้า array แบบไม่ทับกัน (เป้าเก็บเงินแบบแชร์: หลายคนใส่เงินพร้อมกันได้) */
+export function arrayUnion(...values) {
+    return adminFieldValue ? adminFieldValue.arrayUnion(...values) : client.arrayUnion(...values);
+}
+
 export function serverTimestamp() {
     return adminFieldValue ? adminFieldValue.serverTimestamp() : client.serverTimestamp();
 }

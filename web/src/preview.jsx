@@ -10,6 +10,14 @@ import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.j
 import { Loader } from "./icons.jsx";
 import { cardStatus } from "../../lib/card-cycle.mjs";
 import { billPeople, settlementPeople, planLinesFor } from "../../lib/privacy.mjs";
+import { sharedView } from "../../lib/shared-goals.mjs";
+// เป้าแชร์ตัวอย่าง (GAME สร้าง เก็บกับ CARE และ BEN) ?sheet=smove ใส่เงิน · ?sheet=shared ประวัติ · ?sheet=sgoal แก้ · ?as=BEN มุมมองเพื่อน
+const SHARED_RAW = [{ id: "sg1", name: "ค่าส่วนกลางคอนโด", icon: "home", color: "accent", target: 18000, deadline: "2027-02", monthly: 0, owner: "GAME", members: ["GAME", "CARE", "BEN"], log: [
+    { at: "2026-10-28T01:00:00Z", date: "2026-10-28", amount: 2000, by: "BEN" },
+    { at: "2026-11-02T01:00:00Z", date: "2026-11-02", amount: 4000, by: "GAME" },
+    { at: "2026-11-10T01:00:00Z", date: "2026-11-10", amount: -1000, by: "GAME" },
+    { at: "2026-11-12T01:00:00Z", date: "2026-11-12", amount: 4000, by: "CARE" }
+] }];
 import { HomePage } from "./pages/HomePage.jsx";
 const loadAdd = () => import("./add.jsx");
 const loadClear = () => import("./pages/ClearPage.jsx");
@@ -119,6 +127,9 @@ function Preview() {
     const cardFake = (msg, fn) => new Promise((r) => setTimeout(() => { if (fn) setCardsData((d) => ({ ...d, cards: fn(d.cards) })); setToast(msg + " (ตัวอย่าง)"); r(); }, 400));
     const cardOpen = cardSheet && cardSheet.kind === "detail" ? cardsData.cards.find((c) => c.id === cardSheet.id) : null;
     const [planSheet, setPlanSheet] = useState(() => { const k = params.get("sheet"); return k === "move" ? { kind: "move", goal: SAMPLE_PLAN.goals[2], dir: "in" } : k === "goal" ? { kind: "goal" } : k === "budget" ? { kind: "budget" } : null; });
+    const planX = { ...plan, shared: params.get("shared") === "none" ? [] : SHARED_RAW.filter((d) => d.members.includes(who)).map((d) => sharedView(d.id, d, who, now)) };
+    const sharedG = planX.shared[0];
+    useEffect(() => { const k = params.get("sheet"); if (sharedG && k === "smove") setPlanSheet({ kind: "move", goal: sharedG, dir: "in" }); if (sharedG && k === "shared") setPlanSheet({ kind: "shared", goal: sharedG }); if (sharedG && k === "sgoal") setPlanSheet({ kind: "goal", goal: sharedG }); }, []);
     const fake = (msg) => new Promise((r) => setTimeout(() => { setToast(msg + " (ตัวอย่าง)"); r(plan); }, 400));
     useEffect(() => { const h = () => setTab(pageOf(location.hash.slice(1))); addEventListener("hashchange", h); return () => removeEventListener("hashchange", h); }, []);
     useEffect(() => { if (toast) { const t = setTimeout(() => setToast(""), 3200); return () => clearTimeout(t); } return undefined; }, [toast]);
@@ -135,8 +146,8 @@ function Preview() {
     const home = useMemo(() => buildHomeModel({ name: who, month, today, members, transactions: T, settlements: S, walletItems: who === "GAME" ? W : [], planLines: planL(month) }), [month, empty, who, mine]);
     const series = useMemo(() => buildMonthly({ name: who, months: lastMonths(now, 12), transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [empty, who]);
     const nowHome = useMemo(() => buildHomeModel({ name: who, month: now, today, members, transactions: T, settlements: S, walletItems: who === "GAME" ? W : [] }), [empty, who]);
-    const bmHome = buildBudgetModel(plan, home, today);
-    const bmNow = buildBudgetModel(plan, nowHome, today);
+    const bmHome = buildBudgetModel(planX, home, today);
+    const bmNow = buildBudgetModel(planX, nowHome, today);
     const go = (k) => { location.hash = k; setTab(k); };
     if (state === "loader") return <div class="center"><Loader label="กำลังโหลดข้อมูล" /></div>;
     let body;
@@ -144,7 +155,7 @@ function Preview() {
     else if (state === "error") body = <ErrorState onRetry={() => {}} />;
     else if (tab === "list") body = <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} bills={buildBillsModel({ name: who, month, transactions: T, search })} wallet={buildWalletModel({ name: who, month, walletItems: who === "GAME" ? W : [], transactions: T, settlements: S })} month={month} today={today} search={search} onSearch={setSearch} me={who} isAdmin={who === "GAME"} openFrom={`${now}-01`} privateMode={Boolean(mine)} onChanged={() => setToast("ลบแล้ว (ตัวอย่าง)")} onError={setToast} onInfo={setToast} />;
     else if (tab === "clear") body = <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} isAdmin={who === "GAME"} privateMode={Boolean(mine)} model={buildClearModel({ name: who, month, members, transactions: T, settlements: S, planLines: planL(month) })} profiles={profiles} month={month} back={{ receivedSat: 30000, paidSat: 0 }} onChanged={() => {}} />;
-    else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} cards={cardsData} privacy={priv && who === "GAME" ? { hide: hideOn, super: true } : null} seeAll={seeAll} onSeeAll={setSeeAll} onPrivacy={setHideOn} onToast={setToast} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} />;
+    else if (tab === "me") body = <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={{ user: { name: who, memberId: "m1", isAdmin: who === "GAME" } }} profiles={profiles} onSaved={() => {}} onRefresh={() => {}} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} onGoalShared={(goal) => setPlanSheet({ kind: "shared", goal })} cards={cardsData} privacy={priv && who === "GAME" ? { hide: hideOn, super: true } : null} seeAll={seeAll} onSeeAll={setSeeAll} onPrivacy={setHideOn} onToast={setToast} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} />;
     else body = <HomePage model={home} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles} today={today} nowMonth={now} since={shiftMonth(now, -11)} bm={bmHome} onBudget={() => setPlanSheet({ kind: "budget" })} bills={buildBillSchedule({ me: who, month: now, today, ...billRaw, cards: cardsData.cards })} me={who} onBills={() => setBillCal(true)} onCard={(id) => setCardSheet({ kind: "detail", id })} />;
     return (
         <>
@@ -156,7 +167,8 @@ function Preview() {
             {billCal && <Lazy load={loadBillCal} name="BillCalendarSheet" data={{ ...billRaw, cards: cardsData.cards }} pictures={Object.fromEntries(profiles.map((p) => [p.name, p.pictureUrl]))} me={who} today={today} onClose={() => setBillCal(false)} />}
             {planSheet && planSheet.kind === "budget" && <Lazy load={loadPlanUi} name="BudgetSheet" plan={plan} nowMonth={now} suggestSat={bmNow.suggestSat} onClose={() => setPlanSheet(null)} onSave={() => fake("บันทึกงบแล้ว")} />}
             {planSheet && planSheet.kind === "move" && <Lazy load={loadPlanUi} name="GoalMoveSheet" goal={planSheet.goal} dir={planSheet.dir} month={now} onClose={() => setPlanSheet(null)} onMove={() => fake("เก็บเข้าเป้าแล้ว")} />}
-            {planSheet && planSheet.kind === "goal" && <Lazy load={loadPlanUi} name="GoalEditSheet" goal={planSheet.goal || null} nowMonth={now} onClose={() => setPlanSheet(null)} onSave={() => fake("บันทึกเป้าแล้ว")} onDelete={() => fake("ลบเป้าแล้ว")} />}
+            {planSheet && planSheet.kind === "goal" && <Lazy load={loadPlanUi} name="GoalEditSheet" goal={planSheet.goal || null} nowMonth={now} members={members} me={who} onClose={() => setPlanSheet(null)} onSave={() => fake("บันทึกเป้าแล้ว")} onDelete={() => fake("ลบเป้าแล้ว")} />}
+            {planSheet && planSheet.kind === "shared" && <Lazy load={loadPlanUi} name="SharedGoalSheet" goal={planSheet.goal} month={now} me={who} onClose={() => setPlanSheet(null)} onEdit={(goal) => setPlanSheet({ kind: "goal", goal })} onLeave={() => fake("ออกจากเป้าแล้ว")} />}
             {toast && <div class="toast" role="status">{toast}</div>}
         </>
     );
