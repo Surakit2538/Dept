@@ -21,7 +21,9 @@ export function lastPay(options) {
     return readUse().find((k) => keys.has(k)) || "";
 }
 
-const short = (bank) => String(bank || "").replace(/[^A-Za-z0-9ก-๙]/g, "").slice(0, 4) || "บัตร";
+// ชื่อย่อบนป้ายบัตร (ตามรายชื่อธนาคารบัตรใน lib/card-cycle.mjs) ไม่รู้จัก = 3 ตัวแรก
+const CARD_SHORT = { KTC: "KTC", CardX: "CX", ttb: "ttb", SCB: "SCB", KBank: "K", Krungsri: "BAY", UOB: "UOB" };
+const short = (bank) => CARD_SHORT[bank] || String(bank || "").replace(/[^A-Za-z0-9ก-๙]/g, "").slice(0, 3) || "บัตร";
 
 /** ตัวเลือกทั้งหมด: บัตรของฉันก่อน แล้วเงินสด/ธนาคาร เรียงอันที่ใช้บ่อยไว้หน้า */
 export function payOptions(cards = []) {

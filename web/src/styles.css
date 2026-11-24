@@ -1215,7 +1215,7 @@ button.plastic:focus-visible { outline: 3px solid var(--sun); outline-offset: 2p
 .paychips::-webkit-scrollbar { display: none; }
 .paychips button { flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 var(--s3) 0 5px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; }
 .paychips button.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--surface)); color: var(--accent-text); }
-.paybk { display: inline-grid; place-items: center; flex: none; font-weight: 700; line-height: 1; letter-spacing: 0; }
+.paybk { display: inline-grid; place-items: center; flex: none; font-weight: 700; line-height: 1; letter-spacing: 0; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 14%, transparent); }
 .paybk.s { min-width: 26px; height: 26px; padding: 0 4px; border-radius: 8px; font-size: 10px; }
 .paytag { display: inline-flex; align-items: center; gap: 4px; background: var(--chip); border-radius: 999px; padding: 1px 8px 1px 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink); white-space: nowrap; }
 .paytag .paybk.s { min-width: 20px; height: 20px; border-radius: 999px; font-size: 9px; padding: 0 4px; }
