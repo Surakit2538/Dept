@@ -157,7 +157,7 @@ function App() {
     const mineProfile = profiles && auth.state === "ok" ? (profiles.find((p) => p.id === auth.user.memberId || (p.ids || []).includes(auth.user.memberId)) || profiles.find((p) => p.name === auth.user.name)) : null;
     const cardsOn = Boolean(mineProfile && mineProfile.cardAlerts);
     useEffect(() => {
-        if (auth.state !== "ok" || !profiles || !["home", "me"].includes(tab)) return;
+        if (auth.state !== "ok" || !profiles || !["home", "me", "list"].includes(tab)) return;
         if (!cardsOn) { setCardsData({ enabled: false, cards: [] }); return; }
         loadCards().then(setCardsData).catch((e) => { if (!e.expired) console.warn("loadCards:", e && e.message); });
     }, [auth.state, tab, reload, cardsOn, Boolean(profiles)]);
@@ -257,6 +257,7 @@ function App() {
         if (cardSheet && cardSheet.kind === "detail" && cardsData && !cardOpen) { setCardSheet(null); setToast(cardsData.enabled ? "ไม่พบบัตรนี้ (อาจถูกลบไปแล้ว)" : "ผู้ดูแลยังไม่ได้เปิดเตือนบัตรเครดิตให้คุณ"); }
         if (cardSheet && cardSheet.kind === "detail" && cardsData) { try { history.replaceState(null, "", location.pathname + "#me"); } catch (e) { /* ไม่เป็นไร */ } }
     }, [cardSheet, cardsData]);
+    const myCards = cardsData && cardsData.enabled ? cardsData.cards : [];
     const pictureMap = useMemo(() => Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl])), [profiles]);
     const planDo = (p, msg) => p.then((np) => { setPlan(np); if (msg) setToast(msg); return np; });
     const billsM = useMemo(() => (all ? buildBillsModel({ name: auth.user.name, month, transactions: all.transactions, search }) : null), [all, auth, month, search]);
@@ -302,7 +303,7 @@ function App() {
     let body;
     if (needsData && loadError) body = <ErrorState onRetry={refreshAll} />;
     else if (page === "home") body = model ? <HomePage model={model} series={series} month={month} onMonth={setMonth} onAddIncome={() => setSheet("income")} profiles={profiles || []} today={today} nowMonth={nowMonth} since={since} onNeedYear={() => setWide(true)} bm={bmHome} onBudget={plan ? () => setPlanSheet({ kind: "budget" }) : null} bills={billSched} me={auth.user.name} onBills={() => setBillCal(true)} onCard={(id) => setCardSheet({ kind: "detail", id })} /> : <Skeleton blocks={5} />;
-    else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} bills={billsM} wallet={walletM} month={month} today={today} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} isSuper={isSuper} openFrom={nowMonth + "-01"} privateMode={Boolean(scope)} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
+    else if (page === "list") body = billsM && walletM ? <Lazy load={loadList} name="ListPage" fallback={<Skeleton blocks={3} />} pictures={Object.fromEntries((profiles || []).map((p) => [p.name, p.pictureUrl]))} bills={billsM} wallet={walletM} month={month} today={today} search={search} onSearch={setSearch} me={auth.user.name} isAdmin={auth.user.isAdmin} isSuper={isSuper} openFrom={nowMonth + "-01"} privateMode={Boolean(scope)} cards={myCards} version={reload} openEdit={openEdit} onSplit={startSplit} onChanged={() => changed()} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={3} />;
     else if (page === "clear") body = clearM && profiles ? <Lazy load={loadClear} name="ClearPage" fallback={<Skeleton blocks={2} />} model={clearM} profiles={profiles} month={month} back={walletM ? { receivedSat: walletM.receivedBackSat, paidSat: walletM.paidBackSat } : null} onChanged={() => changed()} isAdmin={auth.user.isAdmin} privateMode={Boolean(scope)} adminName={auth.user.name} onError={setToast} onInfo={setToast} /> : <Skeleton blocks={2} />;
     else body = profiles ? <Lazy load={loadMe} name="MePage" fallback={<Skeleton blocks={2} />} auth={auth} profiles={profiles} onSaved={() => setProfiles(null)} onRefresh={refreshAll} onMembers={() => { loadProfiles().then(setProfiles).catch(() => setProfiles(null)); setReload((n) => n + 1); }} onToast={setToast} transactions={all ? all.transactions : []} onDataChanged={(m) => changed(m)} bm={bmNow} onBudget={() => setPlanSheet({ kind: "budget" })} onGoalAdd={() => setPlanSheet({ kind: "goal" })} onGoalMove={(goal, dir) => setPlanSheet({ kind: "move", goal, dir })} onGoalEdit={(goal) => setPlanSheet({ kind: "goal", goal })} onGoalShared={(goal) => setPlanSheet({ kind: "shared", goal })} cards={cardsData} privacy={privacy} seeAll={seeAll} onSeeAll={onSeeAll} onPrivacy={onPrivacy} onCardAdd={() => setCardSheet({ kind: "add" })} onCardOpen={(c) => setCardSheet({ kind: "detail", id: c.id })} /> : <Skeleton blocks={2} />;
 
@@ -318,7 +319,7 @@ function App() {
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 <PageSwap page={page}>{body}</PageSwap>
             </Shell>
-            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} openFrom={openFrom} onClose={() => { setSheet(null); setPrefill(null); }}
+            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} openFrom={openFrom} cards={myCards} onClose={() => { setSheet(null); setPrefill(null); }}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
             {choose && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={choose} members={members || []} me={auth.user.name} suggested={suggested} today={today}
                 saveBill={saveBill} removeWallet={deleteWalletEntry} onClose={() => setChoose(null)}

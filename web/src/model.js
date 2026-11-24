@@ -355,7 +355,7 @@ export function buildWalletModel({ name, month, walletItems, transactions, settl
     const items = walletItems
         .filter((x) => String(x.date).startsWith(month))
         .sort((a, b) => b.date.localeCompare(a.date) || (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0))
-        .map((x) => ({ id: x.id, type: x.type === "income" ? "income" : "expense", desc: x.desc || "", amount: Number(x.amount) || 0, date: x.date, icon: x.icon || "", card: x.card || "", unconfirmed: x.unconfirmed === true, recurring: x.recurring === true || String(x.id || "").startsWith("wsub_"), ts: Number(x.timestamp) || 0 }));
+        .map((x) => ({ id: x.id, type: x.type === "income" ? "income" : "expense", desc: x.desc || "", amount: Number(x.amount) || 0, date: x.date, icon: x.icon || "", card: x.card || "", cardId: x.cardId || "", account: x.account || "", unconfirmed: x.unconfirmed === true, recurring: x.recurring === true || String(x.id || "").startsWith("wsub_"), ts: Number(x.timestamp) || 0 }));
     return {
         incomeSat: w.income, personalSat: w.personalExpense, groupShareSat: w.groupShare, spentSat: w.expenseTotal,
         netSat: w.net, receivedBackSat: w.receivedBack, paidBackSat: w.paidBack, items

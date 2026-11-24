@@ -6,11 +6,12 @@ import { Sheet, Avatar, DatePickerField } from "./ui.jsx";
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
 import { FreqBox } from "./freq.jsx";
+import { PayFromPicker, payOptions, lastPay, payFields, rememberPay } from "./payfrom.jsx";
 
-export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null, openFrom = "" }) {
+export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null, openFrom = "", cards = [] }) {
     const [mode, setMode] = useState(initial); // null | "bill" | "expense" | "income"
     if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} prefill={prefill} convertWallet={convertWallet} openFrom={openFrom} />;
-    if (mode) return <AddForm type={mode} onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} save={save} today={today} />;
+    if (mode) return <AddForm type={mode} onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} save={save} today={today} cards={cards} />;
     return (
         <Sheet title="บันทึกอะไร" onClose={onClose}>
             <button type="button" class="opt-row" onClick={() => setMode("bill")}>
@@ -32,7 +33,7 @@ export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me,
     );
 }
 
-function AddForm({ type, onBack, onClose, onSaved, save, today }) {
+function AddForm({ type, onBack, onClose, onSaved, save, today, cards = [] }) {
     const [amount, setAmount] = useState("");
     const [desc, setDesc] = useState("");
     const [date, setDate] = useState(today);
@@ -42,6 +43,8 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
     const [every, setEvery] = useState(1); // รอบ: ทุกเดือน / 3 / 6 / 12 เดือน (เริ่มจากเดือนของวันที่)
     const [iconKey, setIconKey] = useState("other");
     const [iconTouched, setIconTouched] = useState(false);
+    // จ่ายจาก: เลือกอันที่ใช้ล่าสุดไว้ให้ (แตะซ้ำ = ไม่ระบุ)
+    const [pay, setPay] = useState(() => (type === "income" ? "" : lastPay(payOptions(cards))));
     const income = type === "income";
     const onDesc = (v) => { setDesc(v); if (!iconTouched && !income) setIconKey(guessBillIcon(v)); };
     async function submit(e) {
@@ -52,7 +55,8 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
         if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today) { setErr("เลือกวันที่ไม่เกินวันนี้"); return; }
         setBusy(true);
         try {
-            await save({ type, amount: n, desc: desc.trim() || undefined, date, ...(income ? {} : { icon: faOf(iconKey) }), ...(monthly && !income ? { recurring: true, every } : {}) });
+            await save({ type, amount: n, desc: desc.trim() || undefined, date, ...(income ? {} : { icon: faOf(iconKey) }), ...(monthly && !income ? { recurring: true, every } : {}), ...(!income && pay ? payFields(pay) : {}) });
+            if (!income && pay) rememberPay(pay);
             onSaved(income ? "บันทึกรายรับแล้ว" : monthly ? `บันทึกรายจ่ายแล้ว และจะสร้างซ้ำ${every === 1 ? "ทุกเดือน" : every === 12 ? "ทุกปี" : `ทุก ${every} เดือน`}` : "บันทึกรายจ่ายแล้ว", [date.slice(0, 7)]);
             onClose();
         } catch (ex) {
@@ -69,6 +73,7 @@ function AddForm({ type, onBack, onClose, onSaved, save, today }) {
             </div>
             <div class="field"><div class="hd-row"><label for="f-desc">รายการ</label>{!income && brandOf(desc) && <ItemIcon desc={desc} name="dots" size={24} iconSize={12} />}</div><input id="f-desc" type="text" maxLength={100} placeholder={income ? "เช่น เงินเดือน" : "เช่น กาแฟ"} value={desc} onInput={(e) => onDesc(e.currentTarget.value)} /></div>
             {!income && <CategoryPicker value={iconKey} onPick={(k) => { setIconKey(k); setIconTouched(true); }} labelId="f-cat-l" hint={!iconTouched && desc.trim() ? "เลือกให้อัตโนมัติ" : ""} />}
+            {!income && <PayFromPicker value={pay} onChange={setPay} cards={cards} labelId="f-pay-l" />}
             <DatePickerField id="f-date" label="วันที่" value={date} onChange={setDate} max={today} today={today} />
             {!income && (
                 <div class="field">

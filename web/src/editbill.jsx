@@ -5,6 +5,7 @@ import { Icon } from "./icons.jsx";
 import { BILL_ICONS, guessBillIcon, buildBill, equalSplit } from "./model.js";
 import { updateBillFields, updateWalletEntry, updateWalletTemplate, updateTemplate, confirmWalletEntries } from "./data.js";
 import { YearRing, FreqPicker } from "./freq.jsx";
+import { PayFromPicker, payKeyFor, payFields, rememberPay } from "./payfrom.jsx";
 const TH_MONTH_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 
@@ -37,9 +38,12 @@ export function EditBillSheet({ bill, onClose, onSaved }) {
 }
 
 /** แก้รายการส่วนตัว (กระเป๋า): เปลี่ยนชื่อและหมวดได้ ยอดและวันที่ไม่แก้ ถ้าผิดให้ลบแล้วเพิ่มใหม่ */
-export function EditWalletSheet({ item, onClose, onSaved, onSplit = null }) {
+export function EditWalletSheet({ item, onClose, onSaved, onSplit = null, cards = [] }) {
     const isIncome = item.type === "income";
     const [desc, setDesc] = useState(item.desc || "");
+    // จ่ายจาก: ป้ายเดิม (รายการจาก SMS/อีเมลบัตรที่ยังจับคู่บัตรไม่ได้ ไม่ได้เลือกไว้ แต่แสดงบรรทัดยอดเหมือนเดิม)
+    const payStart = (() => { const k = payKeyFor(item, cards); return k.startsWith("s:") ? "" : k; })();
+    const [pay, setPay] = useState(payStart);
     // รายการที่ยังไม่มีหมวด: เดาจากชื่อให้เลย (เปลี่ยนเองได้)
     const [iconKey, setIconKey] = useState(() => (hasCategory(item.icon) ? keyOfFa(item.icon) : guessBillIcon(item.desc)));
     const [busy, setBusy] = useState(false);
@@ -49,7 +53,8 @@ export function EditWalletSheet({ item, onClose, onSaved, onSplit = null }) {
         setErr("");
         setBusy(true);
         try {
-            await updateWalletEntry(item.id, { desc: desc.trim() || (isIncome ? "รายรับ" : "รายจ่าย"), ...(isIncome ? {} : { icon: faOf(iconKey) }), confirm: true });
+            await updateWalletEntry(item.id, { desc: desc.trim() || (isIncome ? "รายรับ" : "รายจ่าย"), ...(isIncome ? {} : { icon: faOf(iconKey) }), ...(!isIncome && pay !== payStart ? payFields(pay) : {}), confirm: true });
+            if (!isIncome && pay && pay !== payStart) rememberPay(pay);
             onSaved();
             onClose();
         } catch (ex) { setErr(ex.message || "บันทึกไม่สำเร็จ"); setBusy(false); }
@@ -62,6 +67,7 @@ export function EditWalletSheet({ item, onClose, onSaved, onSplit = null }) {
             <p class="lbl">ยอด <b class="num">{Number(item.amount || 0).toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท</b> &middot; วันที่ {String(item.date || "").slice(8, 10)}/{String(item.date || "").slice(5, 7)}{item.card ? ` · บัตร ${item.card}` : ""}</p>
             <div class="field"><label for="ew-desc">ชื่อรายการ</label><input id="ew-desc" type="text" maxLength={100} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>
             {!isIncome && <CategoryPicker value={iconKey} onPick={setIconKey} labelId="ew-cat-l" />}
+            {!isIncome && <PayFromPicker value={pay} onChange={setPay} cards={cards} labelId="ew-pay-l" />}
             <p class="lbl">ยอดเงินและวันที่แก้ไม่ได้ ถ้าผิดให้ลบแล้วเพิ่มใหม่</p>
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : item.unconfirmed ? "ยืนยันและบันทึก" : "บันทึก"}</button>

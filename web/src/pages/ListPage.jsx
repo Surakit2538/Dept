@@ -5,6 +5,7 @@ import { Icon, iconFor, ItemIcon } from "../icons.jsx";
 import { SectionTitle, DeleteButton, Lazy, Collapsible, DateTile, PayerAv as Payer, PayFlow as Flow } from "../ui.jsx";
 import { baht, monthShort, guessBillIcon, freqLabel } from "../model.js";
 import { YearBars, MonthStrip } from "../freq.jsx";
+import { PayTag, PayBadge, payKeyFor, payInfo } from "../payfrom.jsx";
 import {
     deleteBill, deleteBills, updateBillIcons, loadTemplates, stopTemplate,
     deleteWalletEntry, deleteWalletEntries, loadWalletTemplates, stopWalletTemplate, categorizeWalletEntries, confirmWalletEntries
@@ -60,11 +61,11 @@ function BillRow({ b, pictures = {}, canEdit, canDelete = canEdit, onDeleted, on
     );
 }
 
-function WalletRow({ it, me = "", pictures = {}, monthly = false, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
+function WalletRow({ it, me = "", pictures = {}, monthly = false, cards = [], onDeleted, onError, onEdit, selecting, picked, onToggle }) {
     const income = it.type === "income";
     const name = it.desc || (income ? "รายรับ" : "รายจ่าย");
     const lead = <ItemIcon desc={income ? "" : it.desc} name={income ? "down" : iconFor(it.icon)} />;
-    const sub = <><KindTag kind={income ? "income" : "personal"} />{!income && me && <Payer name={me} pictures={pictures} />}<span class="s-t">{it.card ? `บัตร ${it.card}` : income ? "" : "เห็นเฉพาะคุณ"}</span></>;
+    const sub = <><KindTag kind={income ? "income" : "personal"} />{!income && me && <Payer name={me} pictures={pictures} />}{!income && payKeyFor(it, cards) ? <PayTag it={it} cards={cards} /> : <span class="s-t">{income ? "" : "เห็นเฉพาะคุณ"}</span>}</>;
     // รายเดือน (รายการที่ระบบสร้างจากรายจ่ายรายเดือนที่ตั้งไว้) = แถบซ้าย
     const recurring = it.recurring || monthly;
     const badge = it.unconfirmed ? <span class="tag warn">ยังไม่ยืนยัน</span> : null;
@@ -189,7 +190,7 @@ function Recurring({ me, isAdmin, version, onError, onMine = () => {}, pictures 
 }
 
 /** รวมรายการของเดือน (บิลกลุ่ม + กระเป๋า) ตามตัวกรองและคำค้น เรียงวันใหม่ก่อน */
-export function mergeItems({ bills, wallet, filter = "all", mineOnly = false, search = "" }) {
+export function mergeItems({ bills, wallet, filter = "all", mineOnly = false, search = "", pay = "", cards = [] }) {
     const q = String(search || "").trim().toUpperCase();
     const out = [];
     if (filter === "all" || filter === "group") {
@@ -200,6 +201,7 @@ export function mergeItems({ bills, wallet, filter = "all", mineOnly = false, se
             if (filter === "personal" && it.type === "income") continue;
             if (filter === "income" && it.type !== "income") continue;
             if (q && !String(it.desc || "").toUpperCase().includes(q)) continue;
+            if (pay && (it.type === "income" || payKeyFor(it, cards) !== pay)) continue;
             out.push({ kind: "wallet", key: "w:" + it.id, id: it.id, date: it.date, ts: it.ts || 0, it });
         }
     }
@@ -215,9 +217,10 @@ function groupByDay(list) {
     return out;
 }
 
-export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, isSuper = false, openFrom = "", privateMode = false, onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
+export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, isSuper = false, openFrom = "", privateMode = false, cards = [], onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
     const [filter, setFilter] = useState("all");
     const [mineOnly, setMineOnly] = useState(false);
+    const [pay, setPay] = useState(""); // กรองตามบัญชี/บัตร (เฉพาะตัวกรอง ส่วนตัว)
     const [mineTpls, setMineTpls] = useState([]);
     const isMonthly = (it) => it.type === "expense" && mineTpls.some((t) => String(t.desc) === String(it.desc) && Math.abs(Number(t.amount) - Number(it.amount)) < 0.005);
     const [editingBill, setEditingBill] = useState(null);
@@ -231,7 +234,11 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
     // เดือนที่ปิดยอดแล้ว: แก้ชื่อ/หมวดได้ แต่ลบไม่ได้ (ยกเว้นผู้ดูแลหลัก)
     const locked = (b) => !isSuper && Boolean(openFrom) && String(b.date || "") < openFrom;
     const canDelete = (b) => canEdit(b) && !locked(b);
-    const items = mergeItems({ bills, wallet, filter, mineOnly, search });
+    // บัญชี/บัตรที่มีรายการเดือนนี้ (ไว้ทำชิปกรอง)
+    const payKeys = [...new Set(wallet.items.filter((x) => x.type !== "income").map((x) => payKeyFor(x, cards)).filter(Boolean))];
+    const payOn = filter === "personal" && payKeys.includes(pay) ? pay : "";
+    const items = mergeItems({ bills, wallet, filter, mineOnly, search, pay: payOn, cards });
+    const paySum = payOn ? items.reduce((a, x) => a + (Number(x.it && x.it.amount) || 0), 0) : 0;
     const selectable = items.filter((x) => x.kind === "wallet" || canEdit(x.b)).map((x) => x.key);
     const live = picked.filter((k) => selectable.includes(k));
     const toggle = (k) => setPicked((cur) => (cur.includes(k) ? cur.filter((x) => x !== k) : [...cur, k]));
@@ -297,6 +304,13 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                 <div class="fchips" role="group" aria-label="ตัวกรอง">
                     {FILTERS.map(([k, l]) => <button type="button" key={k} class={filter === k ? "on" : ""} aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>)}
                 </div>
+                {filter === "personal" && payKeys.length > 0 && (
+                    <div class="fchips paygrp" role="group" aria-label="กรองตามบัญชีหรือบัตร">
+                        <button type="button" class={payOn ? "" : "on"} aria-pressed={!payOn} onClick={() => setPay("")}>ทุกบัญชี</button>
+                        {payKeys.map((k) => { const inf = payInfo(k, cards); return <button type="button" key={k} class={payOn === k ? "on" : ""} aria-pressed={payOn === k} onClick={() => setPay(k)}><PayBadge info={inf} />{inf ? inf.label : k}</button>; })}
+                    </div>
+                )}
+                {payOn && <p class="lbl num paysum">{payInfo(payOn, cards).label} เดือนนี้ {items.length} รายการ รวม {baht(paySum, { decimals: 2 })}</p>}
                 {!selecting && (filter === "all" || filter === "personal") && <UnconfirmedBar items={wallet.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
                 {!selecting && (filter === "all" || filter === "personal") && <AutoCategorize items={wallet.items} onDone={onChanged} onError={onError} onInfo={onInfo} />}
                 {items.length === 0 ? <p class="empty">{search ? `ไม่พบรายการที่ตรงกับ "${search}"` : filter === "all" ? "ยังไม่มีรายการในเดือนนี้ กดปุ่ม “บันทึก” เพื่อเพิ่ม" : "ไม่มีรายการในหมวดนี้"}</p>
@@ -306,7 +320,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                             <ul class="plain">
                                 {list.map((x) => x.kind === "bill"
                                     ? <BillRow key={x.key} b={x.b} pictures={pictures} canEdit={canEdit(x.b)} canDelete={canDelete(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
-                                    : <WalletRow key={x.key} it={x.it} me={me} pictures={pictures} monthly={isMonthly(x.it)} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
+                                    : <WalletRow key={x.key} it={x.it} me={me} pictures={pictures} cards={cards} monthly={isMonthly(x.it)} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
                             </ul>
                         </div>
                     ))}
@@ -314,7 +328,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
             </section>
             <Recurring me={me} isAdmin={isAdmin} version={version} onError={onError} onMine={setMineTpls} pictures={pictures} />
             {editingBill && <Lazy load={() => import("../editbill.jsx")} name="EditBillSheet" bill={editingBill} onClose={() => setEditingBill(null)} onSaved={() => onChanged()} />}
-            {editingWallet && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editingWallet} onClose={() => setEditingWallet(null)} onSaved={() => onChanged()} onSplit={onSplit ? (it) => { setEditingWallet(null); onSplit(it); } : null} />}
+            {editingWallet && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editingWallet} cards={cards} onClose={() => setEditingWallet(null)} onSaved={() => onChanged()} onSplit={onSplit ? (it) => { setEditingWallet(null); onSplit(it); } : null} />}
         </div>
     );
 }
