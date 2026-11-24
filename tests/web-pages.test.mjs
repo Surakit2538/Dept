@@ -505,10 +505,10 @@ test("ตัวโหลดตอนเข้าเว็บ: มาร์กอ
 test("หน้า บันทึกแบบไหน (แตะแจ้งเตือนบน iPhone): แสดงรายการ ยอด บัตร และปุ่ม ส่วนตัว / หารกับเพื่อน", { skip: !hasTools }, async () => {
     const { h, toString } = await render();
     const { ChooseSheet } = await bundle("web/src/editbill.jsx", "choose");
-    const html = toString(h(ChooseSheet, { item: { id: "a", type: "expense", amount: 175, date: "2026-11-17", desc: "LINE MAN <b>", card: "ttb-0518" }, onClose() {}, onSplit() {}, onEdit() {}, onConfirmed() {} }));
+    const html = toString(h(ChooseSheet, { item: { id: "a", type: "expense", amount: 175, date: "2026-11-17", desc: "LINE MAN <b>", card: "ttb-2468" }, onClose() {}, onSplit() {}, onEdit() {}, onConfirmed() {} }));
     assert.match(html, /บันทึกแบบไหน/);
     assert.match(html, /175\.00 บาท/);
-    assert.match(html, /บัตร ttb-0518/);
+    assert.match(html, /บัตร ttb-2468/);
     assert.match(html, /ส่วนตัว/);
     assert.match(html, /หารกับเพื่อน/);
     assert.ok(!html.includes("<b>"), "ชื่อร้านต้องถูก escape");

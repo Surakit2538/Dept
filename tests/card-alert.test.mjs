@@ -50,23 +50,23 @@ test("CardX: รหัส OTP ซื้อออนไลน์", () => {
 });
 
 test("ttb: ยอดชำระ THB0 (เช็กบัตรเฉยๆ) ข้ามเงียบ", () => {
-    const r = parseCardAlert("ยอดชำระของคุณคือ THB0 และรหัส OTP คือ 453938 (AwFGQK) กับ LP LINE SERVICES จากบัตรเครดิต ttb หมายเลข 405016******0518");
+    const r = parseCardAlert("ยอดชำระของคุณคือ THB0 และรหัส OTP คือ 453938 (AwFGQK) กับ LP LINE SERVICES จากบัตรเครดิต ttb หมายเลข 400000******2468");
     assert.deepEqual(r, { kind: "ignore", reason: "zero_amount" });
 });
 
 test("ttb: ถ้ายอดชำระมากกว่า 0 ให้บันทึก ร้านอยู่ระหว่าง 'กับ' และ 'จากบัตร'", () => {
-    const r = parseCardAlert("ยอดชำระของคุณคือ THB250.50 และรหัส OTP คือ 482243 (ziOHla) กับ SHOPEE จากบัตรเครดิต ttb หมายเลข 405016******0518");
+    const r = parseCardAlert("ยอดชำระของคุณคือ THB250.50 และรหัส OTP คือ 482243 (ziOHla) กับ SHOPEE จากบัตรเครดิต ttb หมายเลข 400000******2468");
     assert.equal(r.amount, 250.5);
     assert.equal(r.merchant, "SHOPEE");
-    assert.equal(r.card, "ttb-0518");
+    assert.equal(r.card, "ttb-2468");
 });
 
 test("ttb: แจ้งเตือนในแอป ใช้จ่ายผ่านบัตร (มีวันเวลา)", () => {
-    const r = parseCardAlert("ใช้จ่ายผ่านบัตร ท่านใช้จ่าย 175.00 THB ที่ LPTH*PF_LM_Dragon W58rr - TH ผ่านบัตรเครดิต ทีทีบี หมายเลข xx0518 (17/11/2026@13:23) หากมีข้อสงสัยโทร 1428", NOW);
+    const r = parseCardAlert("ใช้จ่ายผ่านบัตร ท่านใช้จ่าย 175.00 THB ที่ LPTH*PF_LM_Dragon W58rr - TH ผ่านบัตรเครดิต ทีทีบี หมายเลข xx2468 (17/11/2026@13:23) หากมีข้อสงสัยโทร 1428", NOW);
     assert.equal(r.kind, "expense");
     assert.equal(r.amount, 175);
     assert.equal(r.merchant, "LINE MAN Dragon");
-    assert.equal(r.card, "ttb-0518");
+    assert.equal(r.card, "ttb-2468");
     assert.equal(r.date, "2026-11-17");
     assert.equal(r.time, "13:23");
 });

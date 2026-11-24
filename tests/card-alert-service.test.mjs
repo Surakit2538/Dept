@@ -69,7 +69,7 @@ test("ยอดเท่ากันวันเดียวกันแต่�
 test("ยอด THB0, โอนชำระบัตร, eStatement -> เงียบ ไม่บันทึก", async () => {
     const { db, auto } = setup();
     for (const t of [
-        "ยอดชำระของคุณคือ THB0 และรหัส OTP คือ ****** (AwFGQK) กับ LP LINE SERVICES จากบัตรเครดิต ttb หมายเลข 405016******0518",
+        "ยอดชำระของคุณคือ THB0 และรหัส OTP คือ ****** (AwFGQK) กับ LP LINE SERVICES จากบัตรเครดิต ttb หมายเลข 400000******2468",
         "คุณทำรายการโอนชำระ/ตั้งชำระยอด14780.16 บาทให้กับUOB Master Card เรียบร้อยแล้ว",
         "Dear customer, your Credit Card eStatement is ready for viewing."
     ]) {
@@ -82,13 +82,13 @@ test("ยอด THB0, โอนชำระบัตร, eStatement -> เงี
 
 test("แจ้งเตือน ttb ในแอป (มีวันเวลาในข้อความ) -> ใช้วันที่ในข้อความ", async () => {
     const { db, auto } = setup();
-    const r = await auto("ใช้จ่ายผ่านบัตร ท่านใช้จ่าย 175.00 THB ที่ LPTH*PF_LM_Dragon W58rr - TH ผ่านบัตรเครดิต ทีทีบี หมายเลข xx0518 (14/11/2023@13:23) หากมีข้อสงสัยโทร 1428");
+    const r = await auto("ใช้จ่ายผ่านบัตร ท่านใช้จ่าย 175.00 THB ที่ LPTH*PF_LM_Dragon W58rr - TH ผ่านบัตรเครดิต ทีทีบี หมายเลข xx2468 (14/11/2023@13:23) หากมีข้อสงสัยโทร 1428");
     assert.equal(r.body.status, "saved");
     const row = db.all("wallet_entries")[0];
     assert.equal(row.desc, "LINE MAN Dragon");
     assert.equal(row.date, "2023-11-14");
     assert.equal(row.icon, "fa-box"); // LINE MAN -> เดลิเวอรี่ (กลุ่มอาหารเหมือนเดิม)
-    assert.equal(row.card, "ttb-0518");
+    assert.equal(row.card, "ttb-2468");
 });
 
 test("ตรงกับรายจ่ายรายเดือนที่ตั้งไว้ (SMS มาก่อน cron) -> ใช้รายการเดียว และ cron เดือนนั้นไม่สร้างซ้ำ", async () => {

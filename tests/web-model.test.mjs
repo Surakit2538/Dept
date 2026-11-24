@@ -232,11 +232,11 @@ test("หน้าแรก: ทุกกลุ่มหมวดมีไอค
 
 test("กระเป๋า: ส่งป้ายยังไม่ยืนยันและบัตรต่อไปให้หน้าเว็บ", () => {
     const m = buildWalletModel({ name: "GAME", month: "2026-11", walletItems: [
-        { id: "a", type: "expense", amount: 175, date: "2026-11-17", desc: "LINE MAN", card: "ttb-0518", unconfirmed: true },
+        { id: "a", type: "expense", amount: 175, date: "2026-11-17", desc: "LINE MAN", card: "ttb-2468", unconfirmed: true },
         { id: "b", type: "expense", amount: 50, date: "2026-11-16", desc: "ข้าว" }
     ], transactions: [], settlements: [] });
     assert.equal(m.items.find((x) => x.id === "a").unconfirmed, true);
-    assert.equal(m.items.find((x) => x.id === "a").card, "ttb-0518");
+    assert.equal(m.items.find((x) => x.id === "a").card, "ttb-2468");
     assert.equal(m.items.find((x) => x.id === "b").unconfirmed, false);
 });
 
