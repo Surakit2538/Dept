@@ -38,10 +38,10 @@ test("บันทึก: รายจ่ายเก็บป้าย รา�
 });
 
 test("บัตร: รายการที่เลือกเองนับเข้ารอบบิล รวมกับรายการจาก SMS / กุญแจกรองรวมเป็นบัตรใบเดียวกัน", () => {
-    const cards = [{ id: "k1", bank: "KTC", last4: "6306" }];
+    const cards = [{ id: "k1", bank: "KTC", last4: "4321" }];
     const items = [
         { type: "expense", date: "2026-11-10", amount: 259, cardId: "k1" },
-        { type: "expense", date: "2026-11-11", amount: 100, card: "ktc-6306", bank: "KTC" },
+        { type: "expense", date: "2026-11-11", amount: 100, card: "ktc-4321", bank: "KTC" },
         { type: "expense", date: "2026-11-12", amount: 65, account: "cash" }
     ];
     assert.equal(cycleSpend(cards[0], cards, items, "2026-11-01", "2026-11-30").amountSat, 35900);

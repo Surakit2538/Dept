@@ -41,11 +41,11 @@ test("KTC: ซ่อน OTP ในเครื่องแล้ว ยังแ
 });
 
 test("CardX: รหัส OTP ซื้อออนไลน์", () => {
-    const r = parseCardAlert("โปรดตรวจสอบก่อนยืนยันธุรกรรม บัตร CardX XX-2700 จำนวน 2246 THB รหัส OTP=164102 ใช้ใน 5 นาที ห้ามบอก OTP นี้ แก่ผู้อื่น @THE REVENUE DEPARTMENT Ref:Qvfhw หากไม่ได้ทำรายการโทร. 1468");
+    const r = parseCardAlert("โปรดตรวจสอบก่อนยืนยันธุรกรรม บัตร CardX XX-8642 จำนวน 2246 THB รหัส OTP=164102 ใช้ใน 5 นาที ห้ามบอก OTP นี้ แก่ผู้อื่น @THE REVENUE DEPARTMENT Ref:Qvfhw หากไม่ได้ทำรายการโทร. 1468");
     assert.equal(r.kind, "expense");
     assert.equal(r.amount, 2246);
     assert.equal(r.merchant, "THE REVENUE DEPARTMENT");
-    assert.equal(r.card, "CardX-2700");
+    assert.equal(r.card, "CardX-8642");
     assert.equal(r.otp, true);
 });
 

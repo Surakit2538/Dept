@@ -1222,3 +1222,33 @@ button.plastic:focus-visible { outline: 3px solid var(--sun); outline-offset: 2p
 .paygrp button { display: inline-flex; align-items: center; gap: 6px; }
 .paygrp .paybk.s { min-width: 22px; height: 22px; border-radius: 999px; font-size: 9px; }
 .paysum { margin: 0 0 var(--s2); }
+
+/* สีบัตรเพิ่ม (แบบ B) วัดจากรูปบัตรจริงบนเว็บธนาคาร 24 พ.ย. 2569 · ทอง/เงิน ตัวหนังสือสีเข้มเหมือนทานตะวัน */
+.plastic.pc-black { background: linear-gradient(140deg, #0e0e0e 0%, #2d2e2f 100%); }
+.plastic.pc-bronze { background: linear-gradient(140deg, #241b17 0%, #4a3a2e 100%); }
+.plastic.pc-copper { background: linear-gradient(140deg, #8b3a16 0%, #c2672f 100%); }
+.plastic.pc-midnight { background: linear-gradient(140deg, #01012b 0%, #154fb0 100%); }
+.plastic.pc-cyan { background: linear-gradient(140deg, #1ccecb 0%, #0972ce 100%); }
+.plastic.pc-sky { background: linear-gradient(140deg, #50a5cb 0%, #8fd0e8 100%); }
+.plastic.pc-peri { background: linear-gradient(140deg, #5574b4 0%, #6e8fc9 100%); }
+.plastic.pc-forest { background: linear-gradient(140deg, #01332a 0%, #074b46 100%); }
+.plastic.pc-teal { background: linear-gradient(140deg, #0a7a8d 0%, #18a3b5 100%); }
+.plastic.pc-gold { background: linear-gradient(140deg, #b8923a 0%, #f1d98a 100%); }
+.plastic.pc-silver { background: linear-gradient(140deg, #9aa3ad 0%, #e6e9ee 100%); }
+.plastic.pc-gold, .plastic.pc-silver { color: #2e2100; box-shadow: 0 14px 30px rgba(18, 26, 51, .2); }
+.plastic.pc-gold::before, .plastic.pc-silver::before { border-color: rgba(35, 67, 201, .14); }
+.pc-gold .pc-chip, .pc-silver .pc-chip { background: linear-gradient(135deg, #2343c9, #4466f2); }
+.pc-gold .pc-due, .pc-silver .pc-due { background: rgba(46, 33, 0, .12); }
+.pc-gold .pc-due.hot, .pc-silver .pc-due.hot { background: #2343c9; color: #ffffff; }
+.cc-thumbs { display: flex; gap: 10px; overflow-x: auto; padding: 4px 4px 10px; margin: 0 -4px; scrollbar-width: none; }
+.cc-thumbs::-webkit-scrollbar { display: none; }
+.plastic.mini { flex: none; width: 92px; padding: 7px 9px; border-radius: 10px; gap: 2px; justify-content: space-between; font-size: 11px; box-shadow: 0 3px 8px rgba(18, 26, 51, .18); cursor: pointer; }
+.plastic.mini::before { border-width: 9px; }
+.plastic.mini::after { border-width: 5px; }
+.plastic.mini b { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plastic.mini.on { outline: 3px solid var(--sun); outline-offset: 2px; transform: translateY(-2px); }
+
+/* คอม (เมาส์): แถวบัตรใบเล็กและแถว จ่ายจาก ขึ้นบรรทัดใหม่แทนการเลื่อนซ้ายขวา */
+@media (hover: hover) and (pointer: fine) {
+    .cc-thumbs, .paychips { flex-wrap: wrap; overflow: visible; }
+}

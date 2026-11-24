@@ -5,7 +5,7 @@ import { cardIdForItem } from "../../lib/card-cycle.mjs";
 
 const USE_KEY = "dm:v2:payuse";
 // สีบัตรตามลายที่เลือกในหน้าบัตร (cards.jsx)
-const CARD_BG = { accent: ["#2343c9", "#ffffff"], navy: ["#121a33", "#ffffff"], sun: ["#ffc23d", "#2e2100"], green: ["#0f7f63", "#ffffff"] };
+const CARD_BG = { accent: ["#2343c9", "#ffffff"], navy: ["#121a33", "#ffffff"], sun: ["#ffc23d", "#2e2100"], green: ["#0f7f63", "#ffffff"], black: ["#0e0e0e", "#ffffff"], bronze: ["#241b17", "#ffffff"], copper: ["#8b3a16", "#ffffff"], midnight: ["#01012b", "#ffffff"], cyan: ["#1ccecb", "#ffffff"], sky: ["#50a5cb", "#ffffff"], peri: ["#5574b4", "#ffffff"], forest: ["#01332a", "#ffffff"], teal: ["#0a7a8d", "#ffffff"], gold: ["#b8923a", "#2e2100"], silver: ["#9aa3ad", "#2e2100"] };
 
 function readUse() {
     try { const v = JSON.parse(localStorage.getItem(USE_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; }

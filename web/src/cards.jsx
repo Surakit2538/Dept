@@ -8,7 +8,7 @@ import { Sheet, DeleteButton } from "./ui.jsx";
 import { baht, cardName, dayShort } from "./model.js";
 
 export const CARD_BANKS = ["KTC", "CardX", "ttb", "SCB", "KBank", "Krungsri", "UOB", "อื่นๆ"];
-export const CARD_COLORS = [["accent", "น้ำเงิน"], ["navy", "ดำ"], ["sun", "ทานตะวัน"], ["green", "เขียว"]];
+export const CARD_COLORS = [["accent", "น้ำเงิน"], ["navy", "ดำน้ำเงิน"], ["sun", "ทานตะวัน"], ["green", "เขียว"], ["black", "ดำ"], ["bronze", "บรอนซ์"], ["copper", "ทองแดง"], ["midnight", "กรมท่า"], ["cyan", "ฟ้าเทอร์ควอยซ์"], ["sky", "ฟ้า"], ["peri", "ม่วงคราม"], ["forest", "เขียวเข้ม"], ["teal", "เขียวหัวเป็ด"], ["gold", "ทอง"], ["silver", "เงิน"]];
 const money = (sat) => baht(sat / 100, { decimals: sat % 100 ? 2 : 0 });
 
 /** บัตรที่ต้องสนใจก่อน: รอบที่ต้องจ่ายและยังไม่จ่าย (ใกล้ครบกำหนดก่อน) แล้วค่อยรอบที่ใช้อยู่ */
@@ -128,9 +128,14 @@ export function CardEditSheet({ card = null, onSave, onDelete, onClose }) {
         <Sheet title={card ? "แก้ไขบัตร" : "เพิ่มบัตรเครดิต"} onClose={onClose} as="form" onSubmit={save} class="cc-sheet">
             <CardFace card={{ ...preview, statementDay, dueDay }} />
             <div class="field">
-                <span class="field-l">สีบัตร</span>
-                <div class="cc-colors" role="group" aria-label="สีบัตร">
-                    {CARD_COLORS.map(([k, l]) => <button type="button" key={k} class={`pc-${k} ${color === k ? "on" : ""}`} aria-pressed={color === k} aria-label={`สี${l}`} onClick={() => setColor(k)} />)}
+                <span class="field-l">สีบัตร <span class="mute">{(CARD_COLORS.find(([k]) => k === color) || ["", ""])[1]}</span></span>
+                {/* แบบ B: บัตรใบเล็กเลื่อนซ้ายขวา เห็นสีจริงทุกใบ */}
+                <div class="cc-thumbs" role="group" aria-label="สีบัตร">
+                    {CARD_COLORS.map(([k, l]) => (
+                        <button type="button" key={k} class={`plastic mini pc-${k} ${color === k ? "on" : ""}`} aria-pressed={color === k} aria-label={`สี${l}`} onClick={() => setColor(k)}>
+                            <b>{bank === "อื่นๆ" ? "บัตร" : bank}</b><span class="num">{last4 ? `••${last4}` : "••••"}</span>
+                        </button>
+                    ))}
                 </div>
             </div>
             <div class="field">

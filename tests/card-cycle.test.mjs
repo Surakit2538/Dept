@@ -262,3 +262,19 @@ test("งานอัตโนมัติ: เตือนรายวัน 10
     assert.match(hook, /setPaid\(normalizeName\(memberName\)/);
     assert.equal(cardsDocId("GAME"), "c_GAME");
 });
+
+test("สีบัตร 15 สี (แบบ B): เว็บกับเซิร์ฟเวอร์ใช้ชุดเดียวกัน ทุกสีมีลายบัตรและสีป้าย จ่ายจาก / บันทึกสีใหม่ได้", async () => {
+    const { CARD_COLORS: LIB } = await import("../lib/card-cycle.mjs");
+    const { cleanCardInput } = await import("../lib/card-cycle.mjs");
+    const web = fs.readFileSync(new URL("../web/src/cards.jsx", import.meta.url), "utf8");
+    const css = fs.readFileSync(new URL("../web/src/styles.css", import.meta.url), "utf8");
+    const pay = fs.readFileSync(new URL("../web/src/payfrom.jsx", import.meta.url), "utf8");
+    assert.equal(LIB.length, 15);
+    for (const k of LIB) {
+        assert.ok(web.includes(`["${k}", "`), "ชื่อสีในเว็บ " + k);
+        if (k !== "accent") assert.ok(css.includes(`.plastic.pc-${k} { background`), "ลายบัตร " + k); // น้ำเงิน = สีพื้นของ .plastic
+        assert.ok(pay.includes(` ${k}: ["#`), "สีป้ายจ่ายจาก " + k);
+    }
+    assert.equal(cleanCardInput({ bank: "KTC", color: "bronze", statementDay: 5, dueDay: 25 }).card.color, "bronze");
+    assert.equal(cleanCardInput({ bank: "KTC", color: "rainbow", statementDay: 5, dueDay: 25 }).card.color, "accent");
+});
