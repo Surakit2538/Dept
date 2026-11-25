@@ -94,7 +94,7 @@ test("fs-compat (admin): เขียน/อ่าน/ค้นหา/อัป�
 
 test("บริการจริง (shortcut-service, subscriptions) ทำงานบนฐานข้อมูลแบบ admin ได้", async () => {
     const adm = createFakeAdminDb();
-    await compat.setDoc(compat.doc(adm.db, "members", "me"), { name: "G A M E 👾", realName: "สุรกิจ พัฒนเธียรสกุล" });
+    await compat.setDoc(compat.doc(adm.db, "members", "me"), { name: "G A M E 👾", realName: "ธนกร พงษ์ประเสริฐ" });
     const handler = createShortcutHandler({
         db: adm.db, fs: compat,
         verifyDeviceToken: async () => ({ authenticated: true, memberId: "me", name: "G A M E 👾" }),

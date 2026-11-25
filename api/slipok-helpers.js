@@ -143,7 +143,7 @@ export function matchReceiverName(slipReceiver, realName) {
         return { matched: true, field: 'name', confidence: 0.90, debug: { slip: nameNorm, db: realNameNorm } };
     }
 
-    // ตัวสำรอง: เทียบแบบยืดหยุ่น (ย่อนามสกุล เช่น 'สุรกิจ พ' กับ 'สุรกิจ พัฒนเธียรสกุล')
+    // ตัวสำรอง: เทียบแบบยืดหยุ่น (ย่อนามสกุล เช่น 'ธนกร พ' กับ 'ธนกร พงษ์ประเสริฐ')
     for (const [field, value] of [['displayName', slipReceiver.displayName], ['name', slipReceiver.name]]) {
         const loose = nameMatches(value, realName);
         if (loose.matched && loose.confidence >= 0.85) {

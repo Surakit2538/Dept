@@ -163,7 +163,7 @@ const SCB_BILL = `SCB
 09 พ.ย. 2569 - 11:54
 รหัสอ้างอิง: 202611090WNBHkeUOT0VXV45y
 จาก
-นาย สุรกิจ พ.
+นาย ธนกร พ.
 xxx-xxx651-9
 ไปยัง
 METROPOLITAN
@@ -179,10 +179,10 @@ Biller ID : 099400016520011
 const KPLUS_REAL = `โอนเงินสำเร็จ
 6 พ.ย. 69 20:26 น.
 K+
-นาย สุรกิจ พ
+นาย ธนกร พ
 ธ.กสิกรไทย
 xxx-x-x7002-x
-นาย สุรกิจ พัฒนเธียรสกุล
+นาย ธนกร พงษ์ประเสริฐ
 ธ.ไทยพาณิชย์
 xxx-x-x0617-x
 เลขที่รายการ:
@@ -206,7 +206,7 @@ test("สลิป K PLUS จริง: ไม่มีป้าย 'ไปย�
     const r = parseSlipText(KPLUS_REAL);
     assert.equal(r.amount, 10000);
     assert.equal(r.bank, "KBANK");
-    assert.equal(r.payee, "นาย สุรกิจ พัฒนเธียรสกุล");
+    assert.equal(r.payee, "นาย ธนกร พงษ์ประเสริฐ");
     assert.equal(r.transRef, "016310202618COR01495");
     assert.equal(r.slipTime, "20:26");
 });

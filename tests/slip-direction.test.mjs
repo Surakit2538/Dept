@@ -7,7 +7,7 @@ import { matchReceiverName } from "../api/slipok-helpers.js";
 import { createShortcutHandler } from "../lib/shortcut-service.mjs";
 import { createFakeFirestore, createFakeRes } from "./fake-firestore.mjs";
 
-const ME = { name: "G A M E 👾", realName: "สุรกิจ พัฒนเธียรสกุล" };
+const ME = { name: "G A M E 👾", realName: "ธนกร พงษ์ประเสริฐ" };
 const OTHERS = [
     { name: "AOY", realName: "สมหญิง ใจดี" },
     { name: "BEN", realName: "Somchai Jaidee" },
@@ -15,49 +15,49 @@ const OTHERS = [
 ];
 
 test("nameMatches: ตัดคำนำหน้า, ย่อนามสกุล, ชื่อต้องตรง, นามสกุลต่างกัน = ไม่ตรง", () => {
-    assert.equal(nameMatches("นาย สุรกิจ พ", "สุรกิจ พัฒนเธียรสกุล").matched, true);
-    assert.equal(nameMatches("นาย สุรกิจ พ.", "สุรกิจ พัฒนเธียรสกุล").matched, true);
+    assert.equal(nameMatches("นาย ธนกร พ", "ธนกร พงษ์ประเสริฐ").matched, true);
+    assert.equal(nameMatches("นาย ธนกร พ.", "ธนกร พงษ์ประเสริฐ").matched, true);
     assert.equal(nameMatches("น.ส. สมหญิง ใจดี", "สมหญิง ใจดี").confidence >= 0.9, true);
     assert.equal(nameMatches("MR. SOMCHAI JAIDEE", "Somchai Jaidee").matched, true);
-    assert.equal(nameMatches("นาย สุรกิจ พ", "สุรกิจ ศรีสุข").matched, false);
-    assert.equal(nameMatches("นาย กิตติ ก", "สุรกิจ พัฒนเธียรสกุล").matched, false);
-    assert.equal(nameMatches("", "สุรกิจ").matched, false);
-    assert.equal(nameMatches("สุรกิจ", "สุรกิจ พัฒนเธียรสกุล").confidence < 0.8, true); // มีแต่ชื่อต้น = มั่นใจน้อยกว่า
+    assert.equal(nameMatches("นาย ธนกร พ", "ธนกร ศรีสุข").matched, false);
+    assert.equal(nameMatches("นาย กิตติ ก", "ธนกร พงษ์ประเสริฐ").matched, false);
+    assert.equal(nameMatches("", "ธนกร").matched, false);
+    assert.equal(nameMatches("ธนกร", "ธนกร พงษ์ประเสริฐ").confidence < 0.8, true); // มีแต่ชื่อต้น = มั่นใจน้อยกว่า
 });
 
 test("classifyDirection: ครบทุกประเภท", () => {
     const c = (sender, receiver, me = ME) => classifyDirection({ sender, receiver }, me, OTHERS);
-    assert.equal(c("นาย กิตติ ก", "นาย สุรกิจ พัฒนเธียรสกุล").kind, "income");
-    assert.equal(c("นาย กิตติ ก", "นาย สุรกิจ พัฒนเธียรสกุล").confident, true);
-    assert.equal(c("", "นาย สุรกิจ พัฒนเธียรสกุล").confident, false);
-    const back = c("นางสาว สมหญิง ใ", "นาย สุรกิจ พัฒนเธียรสกุล");
+    assert.equal(c("นาย กิตติ ก", "นาย ธนกร พงษ์ประเสริฐ").kind, "income");
+    assert.equal(c("นาย กิตติ ก", "นาย ธนกร พงษ์ประเสริฐ").confident, true);
+    assert.equal(c("", "นาย ธนกร พงษ์ประเสริฐ").confident, false);
+    const back = c("นางสาว สมหญิง ใ", "นาย ธนกร พงษ์ประเสริฐ");
     assert.deepEqual([back.kind, back.counterparty], ["received_back", "AOY"]);
-    const paid = c("นาย สุรกิจ พ", "MR. SOMCHAI JAIDEE");
+    const paid = c("นาย ธนกร พ", "MR. SOMCHAI JAIDEE");
     assert.deepEqual([paid.kind, paid.counterparty], ["paid_back", "BEN"]);
-    assert.equal(c("นาย สุรกิจ พ", "ร้าน ข้าวมันไก่ป้าแดง").kind, "expense");
-    assert.equal(c("นาย สุรกิจ พ", "นาย สุรกิจ พัฒนเธียรสกุล").kind, "self_transfer");
-    assert.equal(c("นาย สุรกิจ พ", "ร้าน ข้าวมันไก่ป้าแดง", { name: "X" }).reason, "no_real_name"); // ยังไม่ตั้งชื่อจริง → เหมือนเดิม
-    assert.equal(c("นาย สุรกิจ พ", "สมศักดิ์ ไม่มีชื่อจริงในระบบ").kind, "expense");
+    assert.equal(c("นาย ธนกร พ", "ร้าน ข้าวมันไก่ป้าแดง").kind, "expense");
+    assert.equal(c("นาย ธนกร พ", "นาย ธนกร พงษ์ประเสริฐ").kind, "self_transfer");
+    assert.equal(c("นาย ธนกร พ", "ร้าน ข้าวมันไก่ป้าแดง", { name: "X" }).reason, "no_real_name"); // ยังไม่ตั้งชื่อจริง → เหมือนเดิม
+    assert.equal(c("นาย ธนกร พ", "สมศักดิ์ ไม่มีชื่อจริงในระบบ").kind, "expense");
 });
 
 test("extractSender ผ่าน parseSlipText: มีป้าย 'จาก' และแบบไม่มีป้าย", () => {
-    const withLabel = parseSlipText(["SCB", "จ่ายบิลสำเร็จ", "จาก", "นาย สุรกิจ พ.", "xxx-xxx651-9", "ไปยัง", "METROPOLITAN", "ELECTRICITY AUTHORITY", "จำนวนเงิน", "1,084.97"].join("\n"));
-    assert.equal(withLabel.sender, "นาย สุรกิจ พ.");
+    const withLabel = parseSlipText(["SCB", "จ่ายบิลสำเร็จ", "จาก", "นาย ธนกร พ.", "xxx-xxx651-9", "ไปยัง", "METROPOLITAN", "ELECTRICITY AUTHORITY", "จำนวนเงิน", "1,084.97"].join("\n"));
+    assert.equal(withLabel.sender, "นาย ธนกร พ.");
     assert.equal(withLabel.payee, "METROPOLITAN ELECTRICITY AUTHORITY");
     const noLabel = parseSlipText(["K PLUS", "โอนเงินสำเร็จ", "นาย กิตติ ก", "xxx-x-x1234-x", "ไปยัง", "ร้าน ข้าวมันไก่ป้าแดง", "จำนวน:", "150.00 บาท"].join("\n"));
     assert.equal(noLabel.sender, "นาย กิตติ ก");
 });
 
 test("matchReceiverName: ผ่านเมื่อสลิปย่อนามสกุล, ไม่ผ่านเมื่อคนละคน", () => {
-    assert.equal(matchReceiverName({ displayName: "นาย สุรกิจ พ", name: "" }, "สุรกิจ พัฒนเธียรสกุล").matched, true);
-    assert.equal(matchReceiverName({ displayName: "นาย กิตติ ก", name: "" }, "สุรกิจ พัฒนเธียรสกุล").matched, false);
+    assert.equal(matchReceiverName({ displayName: "นาย ธนกร พ", name: "" }, "ธนกร พงษ์ประเสริฐ").matched, true);
+    assert.equal(matchReceiverName({ displayName: "นาย กิตติ ก", name: "" }, "ธนกร พงษ์ประเสริฐ").matched, false);
 });
 
 // ---------- ทดสอบผ่านบริการจริง (parse / auto / save) ----------
 const NOV13 = Date.parse("2026-11-13T05:00:00Z");
 function setup() {
     const db = createFakeFirestore();
-    db.seed("members", "me", { name: "G A M E 👾", lineUserId: "U_me", realName: "สุรกิจ พัฒนเธียรสกุล" });
+    db.seed("members", "me", { name: "G A M E 👾", lineUserId: "U_me", realName: "ธนกร พงษ์ประเสริฐ" });
     db.seed("members", "aoy", { name: "AOY", realName: "สมหญิง ใจดี" });
     const handler = createShortcutHandler({
         db: {}, fs: db.fs,
@@ -75,26 +75,26 @@ const slip = (from, to, amount, ref) => ["โอนเงินสำเร็�
 
 test("parse: บอกประเภท (kind) ในคำตอบ และเก็บใน pending", async () => {
     const { call, db } = setup();
-    const r = await call({ action: "parse", text: slip("นาย กิตติ ก", "นาย สุรกิจ พัฒนเธียรสกุล", "500.00", "REF000000000001") });
+    const r = await call({ action: "parse", text: slip("นาย กิตติ ก", "นาย ธนกร พงษ์ประเสริฐ", "500.00", "REF000000000001") });
     assert.equal(r.body.status, "ok");
     assert.equal(r.body.kind, "income");
     assert.match(r.body.message, /เงินเข้า/);
     assert.equal(db.all("pending_slips")[0].kind, "income");
 });
 
-test("auto: เงินเข้าจากคนนอก (มั่นใจ) → บันทึกเป็นรายรับในกระเป๋า ไม่ใช่รายจ่าย", async () => {
+test("auto: เงินเข้าจากคนนอก → ไม่บันทึกอัตโนมัติ เงียบ (เจ้าของขอ 25 พ.ย. 2569: รายรับกรอกในเว็บอย่างเดียว)", async () => {
     const { call, db } = setup();
-    const r = await call({ action: "auto", text: slip("นาย กิตติ ก", "นาย สุรกิจ พัฒนเธียรสกุล", "500.00", "REF000000000002") });
-    assert.equal(r.body.status, "saved");
-    const w = db.all("wallet_entries");
-    assert.equal(w.length, 1);
-    assert.deepEqual([w[0].type, w[0].amount, w[0].desc], ["income", 500, "รับจาก นาย กิตติ ก"]);
+    const r = await call({ action: "auto", text: slip("นาย กิตติ ก", "นาย ธนกร พงษ์ประเสริฐ", "500.00", "REF000000000002") });
+    assert.equal(r.body.status, "ignored");
+    assert.equal(r.body.kind, "income");
+    assert.equal(r.body.message, "", "ไม่แจ้งเตือน");
+    assert.equal(db.count("wallet_entries"), 0);
     assert.equal(db.count("transactions"), 0);
 });
 
 test("auto: เพื่อนโอนคืนหนี้ → ไม่นับรายรับ ไม่บันทึกอะไร", async () => {
     const { call, db } = setup();
-    const r = await call({ action: "auto", text: slip("นางสาว สมหญิง ใ", "นาย สุรกิจ พัฒนเธียรสกุล", "150.00", "REF000000000003") });
+    const r = await call({ action: "auto", text: slip("นางสาว สมหญิง ใ", "นาย ธนกร พงษ์ประเสริฐ", "150.00", "REF000000000003") });
     assert.equal(r.body.status, "ignored");
     assert.match(r.body.message, /AOY/);
     assert.equal(db.count("wallet_entries"), 0);
@@ -102,19 +102,19 @@ test("auto: เพื่อนโอนคืนหนี้ → ไม่นั
 
 test("auto: โอนให้เพื่อน → ไม่บันทึกเป็นรายจ่าย; โอนเข้าบัญชีตัวเอง → ไม่บันทึก", async () => {
     const { call, db } = setup();
-    const a = await call({ action: "auto", text: slip("นาย สุรกิจ พ", "นางสาว สมหญิง ใจดี", "150.00", "REF000000000004") });
+    const a = await call({ action: "auto", text: slip("นาย ธนกร พ", "นางสาว สมหญิง ใจดี", "150.00", "REF000000000004") });
     assert.equal(a.body.status, "ignored");
-    const b = await call({ action: "auto", text: slip("นาย สุรกิจ พ", "นาย สุรกิจ พัฒนเธียรสกุล", "999.00", "REF000000000005") });
+    const b = await call({ action: "auto", text: slip("นาย ธนกร พ", "นาย ธนกร พงษ์ประเสริฐ", "999.00", "REF000000000005") });
     assert.equal(b.body.status, "ignored");
     assert.equal(db.count("wallet_entries"), 0);
 });
 
 test("auto: เงินเข้าแต่ไม่ทราบผู้โอน → ไม่บันทึกเอง (กันผิด) / จ่ายร้านค้า → รายจ่ายส่วนตัวเหมือนเดิม", async () => {
     const { call, db } = setup();
-    const unknownSender = ["โอนเงินสำเร็จ", "ไปยัง", "นาย สุรกิจ พัฒนเธียรสกุล", "จำนวน:", "70.00 บาท", "เลขที่รายการ:", "REF000000000006"].join("\n");
+    const unknownSender = ["โอนเงินสำเร็จ", "ไปยัง", "นาย ธนกร พงษ์ประเสริฐ", "จำนวน:", "70.00 บาท", "เลขที่รายการ:", "REF000000000006"].join("\n");
     assert.equal((await call({ action: "auto", text: unknownSender })).body.status, "ignored");
     assert.equal(db.count("wallet_entries"), 0);
-    const shop = await call({ action: "auto", text: slip("นาย สุรกิจ พ", "ร้าน ข้าวมันไก่ป้าแดง", "60.00", "REF000000000007") });
+    const shop = await call({ action: "auto", text: slip("นาย ธนกร พ", "ร้าน ข้าวมันไก่ป้าแดง", "60.00", "REF000000000007") });
     assert.equal(shop.body.status, "saved");
     assert.equal(db.all("wallet_entries")[0].type, "expense");
 });

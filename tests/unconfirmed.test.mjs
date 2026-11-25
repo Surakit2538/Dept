@@ -105,7 +105,7 @@ test("wallet-get: ดึงรายการเดียวของตัว�
 
 test("สลิปโอนให้เพื่อน: ยังไม่บันทึก ส่งชื่อเพื่อนและยอดให้แจ้งเตือน แล้วกด บันทึกเป็นรายจ่าย ได้ภายหลัง", async () => {
     const db = createFakeFirestore();
-    db.seed("members", "me", { name: ME, realName: "สุรกิจ พัฒนเธียรสกุล" });
+    db.seed("members", "me", { name: ME, realName: "ธนกร พงษ์ประเสริฐ" });
     db.seed("members", "ben", { name: "BEN", realName: "Somchai Jaidee" });
     const handler = createShortcutHandler({
         db: {}, fs: db.fs,
@@ -113,7 +113,7 @@ test("สลิปโอนให้เพื่อน: ยังไม่บั
         env: {}, fetchFn: async () => ({ ok: true }), now: () => Date.parse("2026-11-17T05:00:00Z")
     });
     const call = async (body) => { const res = createFakeRes(); await handler({ method: "POST", headers: { authorization: "Bearer me" }, body }, res); return res; };
-    const slip = "K PLUS\nโอนเงินสำเร็จ\n17 พ.ย. 69 11:23 น.\nจาก\nนาย สุรกิจ พ\nไปยัง\nMR. SOMCHAI JAIDEE\nจำนวน:\n100.00 บาท\nเลขที่รายการ:\n016314142399999999";
+    const slip = "K PLUS\nโอนเงินสำเร็จ\n17 พ.ย. 69 11:23 น.\nจาก\nนาย ธนกร พ\nไปยัง\nMR. SOMCHAI JAIDEE\nจำนวน:\n100.00 บาท\nเลขที่รายการ:\n016314142399999999";
     const r = await call({ action: "auto", text: slip });
     assert.equal(r.body.kind, "paid_back");
     assert.equal(r.body.counterparty, "BEN");

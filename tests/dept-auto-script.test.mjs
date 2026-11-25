@@ -7,7 +7,7 @@ import vm from "node:vm";
 const code = fs.readFileSync(new URL("../scriptable/DeptAuto.js", import.meta.url), "utf8");
 const SAVED = { success: true, status: "saved", message: "บันทึกรายจ่าย", id: "w1", type: "expense", amount: 533.93, desc: "AIS SERVICE", scriptVersion: "2.1.0" };
 
-async function runAuto({ text = "", query = null, store = new Map(), respond = () => SAVED, token = "tok123", answers = [] }) {
+async function runAuto({ text = "", query = null, store = new Map(), respond = () => SAVED, token = "tok123", answers = [], prefix = "" }) {
     const calls = [];
     const notes = [];
     const outputs = [];
@@ -55,7 +55,7 @@ async function runAuto({ text = "", query = null, store = new Map(), respond = (
         console: { log() {} }
     };
     vm.createContext(sandbox);
-    await vm.runInContext("(async () => {\n" + code + "\n})()", sandbox);
+    await vm.runInContext("(async () => {\n" + prefix + code + "\n})()", sandbox);
     return { calls, notes, outputs, store, alerts, opened };
 }
 
@@ -77,8 +77,7 @@ test("DeptAuto: บันทึกแล้วเด้งแจ้งเตื�
     assert.match(n.title, /พบรายจ่าย 533.93 บาท/);
     assert.match(n.body, /AIS SERVICE/);
     assert.match(n.body, /แตะเพื่อแก้ชื่อ/);
-    assert.deepEqual(n.actions.map((x) => x.title), ["แก้ไข"]);
-    assert.equal(n.actions[0].url, "scriptable:///run/DeptAuto?edit=w1");
+    assert.deepEqual(n.actions, [], "ไม่มีปุ่ม แก้ไข (ปุ่มบนแจ้งเตือนรันเบื้องหลัง เปิดกล่องแก้ไขไม่ได้) แตะตัวแจ้งเตือนแทน");
     assert.equal(n.openURL, "scriptable:///run/DeptAuto?edit=w1");
     assert.deepEqual(outputs, [], "ไม่ส่งข้อความกลับให้คำสั่งลัด (กันแจ้งเตือนซ้ำกับคำสั่งลัดแบบเก่า)");
 });
@@ -163,10 +162,20 @@ test("DeptAuto: กด บันทึกเป็นรายจ่าย (save
     assert.match(expired.alerts[0].message, /หมดอายุ/);
 });
 
-test("DeptAuto: เงินเข้า แจ้งเตือนมีปุ่ม แก้ไข ปุ่มเดียว", async () => {
+test("DeptAuto: เงินเข้า (รุ่นเก่าที่ยังบันทึก) แจ้งเตือนไม่มีปุ่ม แตะตัวแจ้งเตือนเพื่อแก้", async () => {
     const { notes } = await runAuto({ text: "สลิปเงินเข้า", respond: () => ({ ...SAVED, type: "income", amount: 500, desc: "รับจาก AOY" }) });
     assert.match(notes[0].title, /พบเงินเข้า/);
-    assert.deepEqual(notes[0].actions.map((a) => a.title), ["แก้ไข"]);
+    assert.deepEqual(notes[0].actions, []);
+    assert.equal(notes[0].openURL, "scriptable:///run/DeptAuto?edit=w1");
+});
+
+test("DeptAuto: รันเบื้องหลัง (ปุ่มบนแจ้งเตือน/Siri) ไม่เปิดกล่องข้อความ แจ้งเตือนให้แตะเปิดแอปแทน (เคยขึ้น Alerts are not supported in Siri)", async () => {
+    const code2 = "const config = { runsInApp: false };\n";
+    const { notes, alerts } = await runAuto({ query: { edit: "w9" }, prefix: code2 });
+    assert.equal(alerts.length, 0, "ไม่มี Alert");
+    assert.equal(notes.length, 1);
+    assert.match(notes[0].title, /แตะเพื่อแก้ไขรายการ/);
+    assert.equal(notes[0].openURL, "scriptable:///run/DeptAuto?edit=w9");
 });
 
 test("DeptAuto: เวอร์ชันสคริปต์ตรงกับที่เซิร์ฟเวอร์ประกาศ", async () => {

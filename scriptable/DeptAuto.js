@@ -15,7 +15,7 @@
  * เซิร์ฟเวอร์บอกเวอร์ชันล่าสุดมาด้วย ถ้าเครื่องนี้เก่ากว่าจะเตือนให้รันตัวติดตั้งอีกครั้ง
  */
 
-const SCRIPT_VERSION = "2.2.0";
+const SCRIPT_VERSION = "2.3.0";
 const BASE_URL = "https://dept-game.vercel.app";
 const WEB_URL = "https://liff.line.me/2008948704-db2goT00"; // เปิดผ่าน LINE ล็อกอินเงียบ
 const SELF_URL = "scriptable:///run/" + encodeURIComponent(Script.name());
@@ -128,8 +128,15 @@ function editUrlOf(id) {
     return SELF_URL + "?edit=" + encodeURIComponent(id);
 }
 
-/** กล่องข้อความแจ้งผลในแอป (มีปุ่มเดียว) */
+// ถูกรันเบื้องหลัง (ปุ่มบนแจ้งเตือน, คำสั่งลัด, Siri) แสดงกล่องข้อความไม่ได้
+// (เคยขึ้น "Alerts are not supported in Siri" ตอนกด แก้ไข/ลบ จากแจ้งเตือน 25 พ.ย. 2569)
+function canShowUI() {
+    return typeof config === "undefined" || config.runsInApp !== false;
+}
+
+/** กล่องข้อความแจ้งผลในแอป (มีปุ่มเดียว) รันเบื้องหลังใช้แจ้งเตือนแทน */
 async function tell(title, message) {
+    if (!canShowUI()) { await notify(title, message || ""); return; }
     const a = new Alert();
     a.title = title;
     a.message = message;
@@ -152,6 +159,11 @@ async function pickCategory(current) {
  * บันทึกส่วนตัว = ส่งชื่อ/หมวดขึ้นเว็บและยืนยันเลย, หารกับเพื่อน = ส่งชื่อ/หมวดแล้วเปิดเว็บเลือกเพื่อน, ลบ = ไม่ใช่รายการจริง
  */
 async function editItem(token, id) {
+    if (!canShowUI()) {
+        // กล่องแก้ไขต้องเปิดในแอป: แจ้งเตือนใหม่ที่แตะแล้วเปิดแอป Scriptable
+        await notify("แตะเพื่อแก้ไขรายการ", "เปิดกล่องแก้ไขในแอป Scriptable", { openURL: editUrlOf(id) });
+        return;
+    }
     let item;
     try {
         const r = await callApi(token, { action: "wallet-get", id });
@@ -246,10 +258,10 @@ async function askHowToSave(res) {
     const url = editUrlOf(res.id);
     const desc = res.desc ? String(res.desc) : "";
     if (res.type === "income") {
-        await notify("พบเงินเข้า " + baht(res.amount), (desc ? desc + "\n" : "") + "แตะเพื่อแก้ชื่อและยืนยัน", { openURL: url, actions: [["แก้ไข", url]] });
+        await notify("พบเงินเข้า " + baht(res.amount), (desc ? desc + "\n" : "") + "แตะเพื่อแก้ชื่อและยืนยัน", { openURL: url }); // ไม่มีปุ่ม แก้ไข: ปุ่มบนแจ้งเตือนรันเบื้องหลัง เปิดกล่องแก้ไขไม่ได้ แตะตัวแจ้งเตือนแทน
         return;
     }
-    await notify("พบรายจ่าย " + baht(res.amount), (desc ? desc + "\n" : "") + "แตะเพื่อแก้ชื่อ แล้วเลือก ส่วนตัว หรือ หารกับเพื่อน", { openURL: url, actions: [["แก้ไข", url]] });
+    await notify("พบรายจ่าย " + baht(res.amount), (desc ? desc + "\n" : "") + "แตะเพื่อแก้ชื่อ แล้วเลือก ส่วนตัว หรือ หารกับเพื่อน", { openURL: url }); // ไม่มีปุ่ม แก้ไข: ปุ่มบนแจ้งเตือนรันเบื้องหลัง เปิดกล่องแก้ไขไม่ได้ แตะตัวแจ้งเตือนแทน
 }
 
 /** สลิปโอนให้เพื่อนในกลุ่ม: น่าจะคืนเงิน ยังไม่บันทึก ให้เลือกไปเคลียร์หนี้ หรือบันทึกเป็นรายจ่าย */
