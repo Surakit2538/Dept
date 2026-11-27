@@ -170,7 +170,17 @@ test("หน้าผูกบัญชี กรอกข้อมูลคร�
     assert.match(eb, /ลบบิลแล้วเพิ่มใหม่/);
     assert.ok(!eb.includes("<b onclick"));
     const inst = toString(h(EditBillSheet, { bill: { id: "t", desc: "x (1/3)", icon: "", type: "installment" }, onClose() {}, onSaved() {} }));
-    assert.match(inst, /แก้ได้เฉพาะหมวด/);
+    assert.match(inst, /จึงแก้ชื่อไม่ได้/);
+    assert.match(inst, /ทุกงวดที่ยังไม่ปิดเดือน/);
+    // แก้คนหาร: แสดงคนในบิลเดิมเลือกไว้แล้ว + โหมดหารเดิม (ยอดไม่เท่า = กำหนดยอดเอง) และ escape ชื่อ
+    const sp = toString(h(EditBillSheet, { bill: { id: "t", desc: "ข้าว", icon: "", type: "normal", payer: "GAME", amountSat: 30000, date: "2026-11-02", splits: { GAME: 100, [evil]: 200 } }, members: ["GAME", "CARE"], me: "GAME", onClose() {}, onSaved() {} }));
+    assert.match(sp, /หารกับใคร <span class="mute">\(2 คน\)/);
+    assert.match(sp, /aria-pressed="true">กำหนดยอดเอง/);
+    assert.match(sp, /ค้นหาคนอื่น/, "เพิ่มคนที่ยังไม่อยู่ในบิลได้");
+    assert.ok(!sp.includes("<b onclick"));
+    const lockedHtml = toString(h(EditBillSheet, { bill: { id: "t", desc: "ข้าว", icon: "", type: "normal", payer: "GAME", amountSat: 10000, splits: { GAME: 50, CARE: 50 } }, members: ["GAME", "CARE"], me: "GAME", locked: true, onClose() {}, onSaved() {} }));
+    assert.match(lockedHtml, /เดือนที่ปิดยอดแล้ว คนหารแก้ไม่ได้/);
+    assert.ok(!lockedHtml.includes("หารกับใคร"));
 });
 
 test("จัดการข้อมูล (แอดมิน): ส่งออก CSV ถูกรูปแบบและหน้าลบทั้งเดือนต้องยืนยัน", { skip: !hasTools }, async () => {

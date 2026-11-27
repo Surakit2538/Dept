@@ -1,7 +1,7 @@
 // Firebase (firebase/app + firebase/firestore) จำลองสำหรับทดสอบโค้ดเว็บ web/src/data.js ตรงๆ
 // ใช้แทนแพ็กเกจจริงตอน bundle เทสต์ (ไม่แตะฐานข้อมูลจริง) รองรับเฉพาะที่เทสต์ใช้: query/where/limit/FieldPath/getDocs/deleteDoc
 const store = new Map(); // ชื่อคอลเลกชัน -> Map(id -> data)
-export const calls = { queries: [], deleted: [] };
+export const calls = { queries: [], deleted: [], updated: [] };
 
 const col = (name) => {
     if (!store.has(name)) store.set(name, new Map());
@@ -10,7 +10,7 @@ const col = (name) => {
 
 /** ใส่ข้อมูลตั้งต้น / ล้างทั้งหมด (เรียกจากเทสต์) */
 export function __seed(name, id, data) { col(name).set(id, JSON.parse(JSON.stringify(data))); }
-export function __reset() { store.clear(); calls.queries.length = 0; calls.deleted.length = 0; }
+export function __reset() { store.clear(); calls.queries.length = 0; calls.deleted.length = 0; calls.updated.length = 0; }
 export function __get(name, id) { return col(name).get(id); }
 
 export function initializeApp() { return {}; }
@@ -75,4 +75,17 @@ export async function getDoc(ref) { const d = col(ref.col).get(ref.id); return {
 export async function updateDoc() { throw new Error("fake firebase: updateDoc not used in this test"); }
 export async function addDoc() { throw new Error("fake firebase: addDoc not used in this test"); }
 export function onSnapshot() { return () => {}; }
-export function writeBatch() { throw new Error("fake firebase: writeBatch not used in this test"); }
+// ชุดเขียน: รองรับเฉพาะ update (แทนฟิลด์ระดับบนทั้งก้อน เหมือนของจริง) เขียนตอน commit พร้อมกัน
+export function writeBatch() {
+    const ops = [];
+    return {
+        update(ref, data) { ops.push([ref, data]); },
+        async commit() {
+            for (const [ref] of ops) if (!col(ref.col).has(ref.id)) throw new Error(`fake firebase: no document ${ref.col}/${ref.id}`);
+            for (const [ref, data] of ops) {
+                col(ref.col).set(ref.id, { ...col(ref.col).get(ref.id), ...JSON.parse(JSON.stringify(data)) });
+                calls.updated.push(`${ref.col}/${ref.id}`);
+            }
+        }
+    };
+}

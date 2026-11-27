@@ -723,6 +723,34 @@ export async function updateBillFields(id, fields) {
     await updateDoc(doc(db, "transactions", String(id)), allowed);
 }
 
+/**
+ * แก้คนหาร/วิธีหารของบิล (ยอด คนจ่าย วันที่ คงเดิม) เขียน splits + ป้าย people ใหม่
+ * บิลผ่อน: แก้ทุกงวดในกลุ่มที่ยังอยู่ในเดือนที่เปิด (งวดละยอดของงวดนั้น) งวดเดือนที่ปิดแล้วไม่แตะ
+ * @param bill {id, date, payer, amount, type, groupId} · splitsFor(amount) คืน splits ของยอดนั้น
+ * @returns {Promise<string[]>} เดือนที่เปลี่ยน
+ */
+export async function updateBillSplits(bill, splitsFor) {
+    const sup = Boolean((readPrivacy() || {}).super);
+    if (!sup && isClosedMonth(bill.date, Date.now())) throw new Error(closedMonthMessage(bill.date));
+    let rows = [{ id: String(bill.id), date: bill.date, amount: Number(bill.amount), payer: bill.payer }];
+    if (bill.type === "installment" && bill.groupId) {
+        const snap = await getDocs(query(collection(db, "transactions"), ...mineTx(), where("groupId", "==", String(bill.groupId))));
+        const more = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+            .filter((t) => t.id !== String(bill.id) && (sup || !isClosedMonth(t.date, Date.now())))
+            .map((t) => ({ id: t.id, date: t.date, amount: Number(t.amount), payer: t.payer }));
+        rows = rows.concat(more);
+    }
+    const batch = writeBatch(db);
+    for (const r of rows) {
+        const splits = splitsFor(r.amount);
+        batch.update(doc(db, "transactions", r.id), { splits, people: withPeople("transactions", { payer: r.payer, splits }).people });
+    }
+    await batch.commit();
+    const months = [...new Set(rows.map((r) => String(r.date).slice(0, 7)))];
+    months.forEach((m) => invalidateMonth(m));
+    return months;
+}
+
 /** ---------- จัดการสมาชิก (แอดมิน) ---------- */
 export async function addMemberName(name) {
     await addDoc(collection(db, "members"), { name, createdAt: new Date().toISOString(), quickAdded: true, role: "member" });

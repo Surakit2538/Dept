@@ -91,12 +91,24 @@ await t("สมาชิก: เพิ่มหรือลบสมาชิก
     await assertFails(addDoc(collection(db, "members"), { name: "NEW", role: "member" }));
     await assertFails(deleteDoc(doc(db, "members/ben")));
 });
-await t("คนจ่ายบิล: แก้ชื่อ/หมวดได้ ลบได้ แต่แก้ยอดหรือคนหารไม่ได้", async () => {
+await t("คนจ่ายบิล: แก้ชื่อ/หมวดได้ ลบได้ แต่แก้ยอดไม่ได้", async () => {
     const db = as("care", "CARE");
     await assertSucceeds(updateDoc(doc(db, "transactions/t_care"), { desc: "ข้าวมันไก่", icon: "fa-utensils" }));
     await assertFails(updateDoc(doc(db, "transactions/t_care"), { amount: 1 }));
-    await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 300 } }));
     await assertSucceeds(deleteDoc(doc(db, "transactions/t_care")));
+});
+await t("คนจ่ายบิล: แก้คนหารเดือนนี้ได้ (splits + people) แต่แก้ยอด/คนจ่าย/วันที่พร้อมกันไม่ได้", async () => {
+    const db = as("care", "CARE");
+    await assertSucceeds(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 100, BEN: 100, "T H A 🍀": 100 }, people: ["BEN", "CARE", "T H A 🍀"] }));
+    await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 1 }, people: ["CARE"], amount: 1 }), "แก้ยอดไม่ได้");
+    await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { BEN: 300 }, people: ["BEN"], payer: "BEN" }), "เปลี่ยนคนจ่ายไม่ได้");
+    await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: {}, people: ["CARE"] }), "คนหารว่างไม่ได้");
+    await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 300 }, people: [] }), "ป้ายว่างไม่ได้");
+    await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 150, BEN: 150 }, people: ["CARE"] }), "ซ่อนบิลจากคนหารไม่ได้");
+    await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 300 }, people: ["BEN", "CARE", "GAME"] }), "เพิ่มคนนอกในป้ายไม่ได้");
+    await assertSucceeds(updateDoc(doc(db, "transactions/t_care"), { splits: { BEN: 300 }, people: ["BEN", "CARE"] }), "จ่ายแทนเพื่อน (คนจ่ายอยู่ในป้ายแต่ไม่อยู่ในคนหาร)");
+    await assertFails(updateDoc(doc(as("ben", "BEN"), "transactions/t_care"), { splits: { BEN: 300 }, people: ["BEN", "CARE"] }), "คนหารที่ไม่ได้จ่ายแก้ไม่ได้");
+    await assertSucceeds(updateDoc(doc(as("admin1", "GAME"), "transactions/t_care"), { splits: { CARE: 150, BEN: 150 }, people: ["BEN", "CARE"] }), "ผู้ดูแลแก้ได้");
 });
 await t("คนที่ไม่ได้จ่าย (แม้อยู่ในคนหาร): แก้หรือลบบิลไม่ได้", async () => {
     const db = as("ben", "BEN");
@@ -258,6 +270,9 @@ await t("ปิดเดือน: คนจ่าย/ผู้ดูแลล�
     await assertSucceeds(updateDoc(doc(as("care", "CARE"), "transactions/t_old"), { desc: "ข้าวเก่า" }));
     await assertSucceeds(updateDoc(doc(as("admin1", "GAME"), "transactions/t_old"), { icon: "fa-mug-hot" }));
     await assertFails(updateDoc(doc(as("admin1", "GAME"), "transactions/t_old"), { amount: 1 }), "ผู้ดูแลแก้ยอดเดือนที่ปิดไม่ได้");
+    await assertFails(updateDoc(doc(as("care", "CARE"), "transactions/t_old"), { splits: { CARE: 100 }, people: ["CARE"] }), "คนจ่ายแก้คนหารเดือนที่ปิดไม่ได้");
+    await assertFails(updateDoc(doc(as("admin1", "GAME"), "transactions/t_old"), { splits: { CARE: 100 }, people: ["CARE"] }), "ผู้ดูแลแก้คนหารเดือนที่ปิดไม่ได้");
+    await assertSucceeds(updateDoc(doc(as("boss", "BOSS"), "transactions/t_old"), { splits: { CARE: 100 }, people: ["CARE"] }), "ผู้ดูแลหลักแก้ได้");
     await assertFails(updateDoc(doc(as("admin1", "GAME"), "transactions/t_care"), { date: `${OLD}-01` }), "ย้ายบิลไปเดือนที่ปิดไม่ได้");
     await assertSucceeds(deleteDoc(doc(as("boss", "BOSS"), "transactions/t_old")));
 });

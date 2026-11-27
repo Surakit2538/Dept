@@ -217,7 +217,7 @@ function groupByDay(list) {
     return out;
 }
 
-export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, isSuper = false, openFrom = "", privateMode = false, cards = [], onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {} }) {
+export function ListPage({ bills, wallet, month = "", today = "", search, onSearch, me, isAdmin, isSuper = false, openFrom = "", privateMode = false, cards = [], onChanged, onError, onInfo = () => {}, onSplit = null, version = 0, openEdit = null, pictures = {}, members = [] }) {
     const [filter, setFilter] = useState("all");
     const [mineOnly, setMineOnly] = useState(false);
     const [pay, setPay] = useState(""); // กรองตามบัญชี/บัตร (เฉพาะตัวกรอง ส่วนตัว)
@@ -327,7 +327,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                 {selecting && <BulkBar count={live.length} total={selectable.length} onAll={() => setPicked(selectable)} onNone={() => setPicked([])} onCategory={bulkCategory} onDelete={bulkDelete} note="เปลี่ยนเฉพาะหมวด ไม่แก้ยอดและคนหาร รายรับไม่มีหมวด บิลที่เลือกได้คือบิลที่คุณจ่ายเอง (แอดมินเลือกได้ทุกบิล)" />}
             </section>
             <Recurring me={me} isAdmin={isAdmin} version={version} onError={onError} onMine={setMineTpls} pictures={pictures} />
-            {editingBill && <Lazy load={() => import("../editbill.jsx")} name="EditBillSheet" bill={editingBill} onClose={() => setEditingBill(null)} onSaved={() => onChanged()} />}
+            {editingBill && <Lazy load={() => import("../editbill.jsx")} name="EditBillSheet" bill={editingBill} members={members} me={me} locked={locked(editingBill)} onClose={() => setEditingBill(null)} onSaved={(msg) => { onChanged(); if (msg) onInfo(msg); }} />}
             {editingWallet && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editingWallet} cards={cards} onClose={() => setEditingWallet(null)} onSaved={() => onChanged()} onSplit={onSplit ? (it) => { setEditingWallet(null); onSplit(it); } : null} />}
         </div>
     );

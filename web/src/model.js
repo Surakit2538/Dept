@@ -371,7 +371,7 @@ export function buildBillsModel({ name, month, transactions, search = "" }) {
         .map((t) => ({
             id: t.id, desc: t.desc || "", date: t.date, icon: t.icon || "", payer: t.payer || "",
             amountSat: toSat(t.amount), myShareSat: shareOf(t, me), iPaid: normalizeName(t.payer) === me,
-            people: Object.keys(t.splits || {}), type: t.paymentType || "normal", ts: Number(t.timestamp) || 0
+            people: Object.keys(t.splits || {}), splits: t.splits || {}, groupId: t.groupId || "", type: t.paymentType || "normal", ts: Number(t.timestamp) || 0
         }))
         .filter((b) => !q || b.desc.toUpperCase().includes(q) || normalizeName(b.payer).includes(q))
         .sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts);
@@ -411,6 +411,75 @@ export function equalSplit(amount, people) {
     return Object.fromEntries(people.map((p, i) => [p, (base + (i < extra ? 1 : 0)) / 100]));
 }
 
+/** แบ่งยอดตามวิธีที่เลือก (ใช้ร่วมตอนเพิ่มบิลและตอนแก้คนหาร) people = ชื่อที่ normalize แล้ว */
+function makeSplits({ amount, payer, people, mode, custom }) {
+    if (mode === "custom") {
+        const splits = {};
+        let sum = 0;
+        for (const p of people) {
+            const v = Math.round(Number((custom || {})[p]) * 100);
+            if (!Number.isFinite(v) || v <= 0) return { ok: false, error: `ใส่ยอดของ ${p} ให้มากกว่า 0 (หรือเอาออกจากคนหาร)` };
+            splits[p] = v / 100;
+            sum += v;
+        }
+        const diff = Math.round(amount * 100) - sum;
+        if (diff !== 0) return { ok: false, error: `ยอดที่แบ่งรวมกัน ${baht(sum / 100, { decimals: 2 })} ไม่เท่ายอดบิล ${baht(amount, { decimals: 2 })} (${diff > 0 ? "ขาด" : "เกิน"} ${baht(Math.abs(diff) / 100, { decimals: 2 })})` };
+        return { ok: true, splits };
+    }
+    // ผู้จ่ายอยู่ท้ายสุด เศษสตางค์จะตกกับเพื่อนก่อน
+    const ordered = people.includes(payer) ? [...people.filter((p) => p !== payer), payer] : people;
+    return { ok: true, splits: equalSplit(amount, ordered) };
+}
+
+/**
+ * แก้คนหาร/วิธีหารของบิลที่บันทึกแล้ว (ยอด คนจ่าย วันที่ คงเดิม) กติกาเดียวกับตอนเพิ่มบิล
+ * @returns {{ok:true, splits:Record<string,number>}|{ok:false, error:string}}
+ */
+export function buildSplitEdit({ amount, payer, participants, mode, custom }) {
+    const total = Math.round(Number(amount) * 100) / 100;
+    if (!Number.isFinite(total) || total <= 0) return { ok: false, error: "ยอดบิลไม่ถูกต้อง" };
+    const pay = normalizeName(payer);
+    const people = [...new Set((participants || []).map(normalizeName).filter(Boolean))];
+    if (people.length === 0) return { ok: false, error: "เลือกคนหารอย่างน้อย 1 คน" };
+    if (people.length === 1 && people[0] === pay) return { ok: false, error: "บิลที่มีแต่คนจ่ายคนเดียวไม่ต้องหาร ถ้าไม่มีเพื่อนหารแล้วให้ลบบิลนี้" };
+    const customN = {};
+    for (const [k, v] of Object.entries(custom || {})) customN[normalizeName(k)] = v;
+    return makeSplits({ amount: total, payer: pay, people, mode, custom: customN });
+}
+
+/** ยอดที่แบ่งไว้เป็นแบบหารเท่ากันหรือไม่ (ไว้เลือกโหมดเริ่มต้นตอนเปิดหน้าแก้) */
+export function isEqualSplit(splits, amount, payer) {
+    const people = Object.keys(splits || {}).map(normalizeName);
+    if (people.length === 0) return true;
+    const pay = normalizeName(payer);
+    const ordered = people.includes(pay) ? [...people.filter((p) => p !== pay), pay] : people;
+    const eq = equalSplit(amount, ordered);
+    const mine = Object.fromEntries(Object.entries(splits).map(([k, v]) => [normalizeName(k), Math.round(Number(v) * 100)]));
+    return ordered.every((p) => Math.round(eq[p] * 100) === mine[p]);
+}
+
+/**
+ * แบ่งยอดงวดอื่นของบิลผ่อนตามสัดส่วนเดียวกับงวดที่แก้ (สตางค์ เศษไล่ให้คนที่ปัดทิ้งมากสุด ผลรวมเท่ายอดงวดเป๊ะ)
+ * หารเท่ากันใช้ equalSplit ตรงๆ (คนจ่ายอยู่ท้าย) แบบเดียวกับตอนเพิ่มบิล
+ */
+export function splitsForAmount({ splits, amount, payer, mode }) {
+    const names = Object.keys(splits || {});
+    if (mode !== "custom") {
+        const pay = normalizeName(payer);
+        const ordered = names.includes(pay) ? [...names.filter((p) => p !== pay), pay] : names;
+        return equalSplit(amount, ordered);
+    }
+    const total = Math.round(Number(amount) * 100);
+    const weights = names.map((k) => Math.round(Number(splits[k]) * 100));
+    const wsum = weights.reduce((a, b) => a + b, 0) || 1;
+    const raw = weights.map((w) => (total * w) / wsum);
+    const parts = raw.map(Math.floor);
+    let left = total - parts.reduce((a, b) => a + b, 0);
+    const order = raw.map((r, i) => [r - Math.floor(r), i]).sort((a, b) => b[0] - a[0] || a[1] - b[1]);
+    for (let k = 0; left > 0; k = (k + 1) % order.length, left--) parts[order[k][1]] += 1;
+    return Object.fromEntries(names.map((k, i) => [k, parts[i] / 100]));
+}
+
 /**
  * สร้างเอกสารบิลจากค่าที่กรอก (ไม่แตะฐานข้อมูล)
  * @returns {{ok:true, docs:object[], template:object|null, summary:string}|{ok:false, error:string}}
@@ -426,23 +495,9 @@ export function buildBill(f) {
     if (people.length === 0) return { ok: false, error: "เลือกคนหารอย่างน้อย 1 คน" };
     if (people.length === 1 && people[0] === payer) return { ok: false, error: "บิลที่มีแต่ตัวเองคนเดียวไม่ต้องหาร ให้ใช้รายจ่ายส่วนตัวแทน" };
 
-    let splits;
-    if (f.mode === "custom") {
-        splits = {};
-        let sum = 0;
-        for (const p of people) {
-            const v = Math.round(Number((f.custom || {})[p]) * 100);
-            if (!Number.isFinite(v) || v <= 0) return { ok: false, error: `ใส่ยอดของ ${p} ให้มากกว่า 0 (หรือเอาออกจากคนหาร)` };
-            splits[p] = v / 100;
-            sum += v;
-        }
-        const diff = Math.round(amount * 100) - sum;
-        if (diff !== 0) return { ok: false, error: `ยอดที่แบ่งรวมกัน ${baht(sum / 100, { decimals: 2 })} ไม่เท่ายอดบิล ${baht(amount, { decimals: 2 })} (${diff > 0 ? "ขาด" : "เกิน"} ${baht(Math.abs(diff) / 100, { decimals: 2 })})` };
-    } else {
-        // ผู้จ่ายอยู่ท้ายสุด เศษสตางค์จะตกกับเพื่อนก่อน
-        const ordered = people.includes(payer) ? [...people.filter((p) => p !== payer), payer] : people;
-        splits = equalSplit(amount, ordered);
-    }
+    const made = makeSplits({ amount, payer, people, mode: f.mode, custom: f.custom });
+    if (!made.ok) return made;
+    const splits = made.splits;
 
     const desc = String(f.desc || "").trim().slice(0, 100) || "ไม่ระบุ";
     const icon = f.icon || "fa-money-bill";

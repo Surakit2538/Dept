@@ -1,36 +1,123 @@
-// แก้ไขบิลที่บันทึกแล้ว: เปลี่ยนชื่อรายการและหมวดได้ (ยอดและคนหารไม่แก้ เพราะกระทบยอดหนี้ของเพื่อน ถ้าผิดให้ลบแล้วเพิ่มใหม่)
+// แก้ไขบิลที่บันทึกแล้ว: ชื่อรายการ หมวด และคนหาร/วิธีหาร (ยอด คนจ่าย วันที่ แก้ไม่ได้ ถ้าผิดให้ลบแล้วเพิ่มใหม่)
 import { useState } from "preact/hooks";
 import { Sheet } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
-import { BILL_ICONS, guessBillIcon, buildBill, equalSplit } from "./model.js";
-import { updateBillFields, updateWalletEntry, updateWalletTemplate, updateTemplate, confirmWalletEntries } from "./data.js";
+import { BILL_ICONS, guessBillIcon, buildBill, equalSplit, buildSplitEdit, isEqualSplit, splitsForAmount, baht } from "./model.js";
+import { updateBillFields, updateBillSplits, updateWalletEntry, updateWalletTemplate, updateTemplate, confirmWalletEntries } from "./data.js";
 import { YearRing, FreqPicker } from "./freq.jsx";
 import { PayFromPicker, payKeyFor, payFields, rememberPay } from "./payfrom.jsx";
 const TH_MONTH_FULL = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"];
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 
-export function EditBillSheet({ bill, onClose, onSaved }) {
+const upName = (n) => String(n || "").trim().replace(/\s+/g, " ").toUpperCase();
+const SPLIT_MODES = [{ key: "equal", label: "หารเท่ากัน" }, { key: "custom", label: "กำหนดยอดเอง" }];
+
+/** locked = บิลเดือนที่ปิดยอดแล้ว (และไม่ใช่ผู้ดูแลหลัก) แก้คนหารไม่ได้ · canSplit = คนจ่ายหรือผู้ดูแล */
+export function EditBillSheet({ bill, onClose, onSaved, members = [], me = "", locked = false }) {
     const grouped = bill.type === "installment";
     const cur = (BILL_ICONS.find((i) => i.fa === bill.icon) || BILL_ICONS[BILL_ICONS.length - 1]).key;
+    const amount = (Number(bill.amountSat) || 0) / 100;
+    const origSplits = bill.splits || {};
+    const origNames = Object.keys(origSplits).map(upName);
+    const payer = upName(bill.payer);
+    const meN = upName(me);
     const [desc, setDesc] = useState(bill.desc || "");
     const [iconKey, setIconKey] = useState(cur);
+    const [people, setPeople] = useState(() => new Set(origNames));
+    const [mode, setMode] = useState(() => (isEqualSplit(origSplits, amount, payer) ? "equal" : "custom"));
+    const [custom, setCustom] = useState(() => Object.fromEntries(Object.entries(origSplits).map(([k, v]) => [upName(k), String(v)])));
+    const [more, setMore] = useState(false);
+    const [find, setFind] = useState("");
     const [busy, setBusy] = useState(false);
     const [err, setErr] = useState("");
+
+    // รายชื่อ: สมาชิกตอนนี้ + คนในบิลเดิม (เผื่อคนที่ออกจากกลุ่มไปแล้ว)
+    const all = [...new Set([...members.map(upName), ...origNames])].filter(Boolean);
+    const chosen = all.filter((m) => people.has(m));
+    const base = [...new Set([meN, payer, ...origNames])].filter((m) => all.includes(m));
+    const strip = [...base, ...chosen.filter((m) => !base.includes(m))];
+    const others = all.filter((m) => !strip.includes(m) && (!find.trim() || m.toLowerCase().includes(find.trim().toLowerCase())));
+    const label = (m) => (m === meN ? "ฉัน" : m);
+    const toggle = (m) => setPeople((c) => { const s = new Set(c); if (s.has(m)) s.delete(m); else s.add(m); return s; });
+    const preview = mode === "equal" && chosen.length ? buildSplitEdit({ amount, payer, participants: chosen, mode }) : null;
+    const customSum = chosen.reduce((a, p) => a + (Math.round(Number(custom[p]) * 100) || 0), 0);
+
     async function save(e) {
         e.preventDefault();
         setErr("");
         const fields = { icon: BILL_ICONS.find((i) => i.key === iconKey).fa };
         if (!grouped) fields.desc = desc.trim().slice(0, 100) || "ไม่ระบุ";
+        let next = null;
+        if (!locked) {
+            const r = buildSplitEdit({ amount, payer, participants: chosen, mode, custom });
+            if (!r.ok) { setErr(r.error); return; }
+            const same = Object.keys(r.splits).length === origNames.length && Object.entries(origSplits).every(([k, v]) => Math.round(Number(r.splits[upName(k)]) * 100) === Math.round(Number(v) * 100));
+            if (!same) next = r.splits;
+        }
         setBusy(true);
-        try { await updateBillFields(bill.id, fields); onSaved(); onClose(); } catch (ex) { setErr(ex.message || "บันทึกไม่สำเร็จ"); setBusy(false); }
+        try {
+            await updateBillFields(bill.id, fields);
+            if (next) await updateBillSplits({ id: bill.id, date: bill.date, payer: bill.payer, amount, type: bill.type, groupId: bill.groupId }, (amt) => splitsForAmount({ splits: next, amount: amt, payer, mode }));
+            onSaved(next ? "แก้คนหารแล้ว ยอดเคลียร์เงินเปลี่ยนตามทันที" : "");
+            onClose();
+        } catch (ex) { setErr(ex.message || "บันทึกไม่สำเร็จ"); setBusy(false); }
     }
     return (
         <Sheet as="form" title="แก้ไขบิล" onClose={onClose} onSubmit={save}>
             {grouped
-                ? <p class="lbl">บิลผ่อนชำระ แก้ได้เฉพาะหมวด ชื่อรายการมีลำดับงวดกำกับอยู่</p>
+                ? <p class="lbl">บิลผ่อนชำระ ชื่อรายการมีลำดับงวดกำกับอยู่ จึงแก้ชื่อไม่ได้</p>
                 : <div class="field"><label for="eb-desc">ชื่อรายการ</label><input id="eb-desc" type="text" maxLength={100} value={desc} onInput={(e) => setDesc(e.currentTarget.value)} /></div>}
             <CategoryPicker value={iconKey} onPick={setIconKey} labelId="eb-cat" />
-            <p class="lbl">ยอดเงินและคนหารแก้ไม่ได้ เพราะกระทบยอดหนี้ของเพื่อน ถ้าผิดให้ลบบิลแล้วเพิ่มใหม่</p>
+            {locked ? (
+                <p class="lbl">บิลนี้อยู่ในเดือนที่ปิดยอดแล้ว คนหารแก้ไม่ได้ (ยอดที่เตือนไปแล้วจะได้ไม่เปลี่ยน)</p>
+            ) : (
+                <>
+                    <div class="field">
+                        <div class="hd-row">
+                            <span class="fl" id="eb-people-l">หารกับใคร <span class="mute">({chosen.length} คน)</span></span>
+                            {(others.length > 0 || more) && <button type="button" class="link" aria-expanded={more} aria-controls="eb-pick" onClick={() => { setMore(!more); setFind(""); }}>{more ? "ปิดค้นหา" : "ค้นหาคนอื่น"}</button>}
+                        </div>
+                        <div class="pstrip" role="group" aria-labelledby="eb-people-l">
+                            {strip.map((m) => (
+                                <button type="button" key={m} class={`pchip ${people.has(m) ? "on" : ""}`} aria-pressed={people.has(m)} onClick={() => toggle(m)}>
+                                    <span class="pav-s">{people.has(m) ? <Icon name="check" size={14} /> : [...m][0]}</span>{label(m)}
+                                </button>
+                            ))}
+                        </div>
+                        {more && (
+                            <div id="eb-pick" class="picker">
+                                <input type="search" aria-label="ค้นหาชื่อ" placeholder="พิมพ์ชื่อเพื่อค้นหา" value={find} onInput={(e) => setFind(e.currentTarget.value)} />
+                                <div class="plist">
+                                    {others.map((m) => <button type="button" key={m} onClick={() => toggle(m)}><span class="pav-s">{[...m][0]}</span>{m}<Icon name="plus" size={14} class="mute" /></button>)}
+                                    {others.length === 0 && <p class="mute">{find.trim() ? "ไม่พบชื่อนี้" : "เลือกครบทุกคนแล้ว"}</p>}
+                                </div>
+                            </div>
+                        )}
+                        {!people.has(payer) && chosen.length > 0 && <small class="payer-note">{payer === meN ? "คุณ" : payer} (คนจ่าย) ไม่ได้อยู่ในคนหาร: เป็นการจ่ายแทนเพื่อน</small>}
+                    </div>
+                    <div class="field">
+                        <div class="seg" role="group" aria-label="วิธีแบ่ง">
+                            {SPLIT_MODES.map((o) => <button type="button" key={o.key} class={mode === o.key ? "on" : ""} aria-pressed={mode === o.key} onClick={() => setMode(o.key)}>{o.label}</button>)}
+                        </div>
+                        {mode === "custom" ? (
+                            <div class="split-custom">
+                                {chosen.map((m) => (
+                                    <div class="cust" key={m}>
+                                        <label for={`ec-${m}`}>{label(m)}</label>
+                                        <input id={`ec-${m}`} class="num" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0.00" value={custom[m] ?? ""} onInput={(e) => setCustom({ ...custom, [m]: e.currentTarget.value })} />
+                                    </div>
+                                ))}
+                                <p class={`lbl num ${customSum !== Math.round(amount * 100) ? "pay" : ""}`}>รวม {baht(customSum / 100, { decimals: 2 })} จากยอด{grouped ? "งวดนี้" : "บิล"} {baht(amount, { decimals: 2 })}</p>
+                            </div>
+                        ) : (
+                            preview && preview.ok && <p class="lbl num">{grouped ? "งวดนี้ " : ""}คนละ {baht(Math.min(...Object.values(preview.splits)), { decimals: 2 })}</p>
+                        )}
+                    </div>
+                    {grouped && <p class="lbl">บิลผ่อน: เปลี่ยนคนหารให้ทุกงวดที่ยังไม่ปิดเดือน งวดของเดือนที่ปิดแล้วคงเดิม</p>}
+                    {bill.type === "subscription" && <p class="lbl">บิลรายเดือน: เปลี่ยนเฉพาะบิลเดือนนี้ เดือนถัดไปยังหารแบบเดิม</p>}
+                </>
+            )}
+            <p class="lbl">ยอดเงิน คนจ่าย และวันที่แก้ไม่ได้ ถ้าผิดให้ลบบิลแล้วเพิ่มใหม่</p>
             {err && <p class="msg" role="alert">{err}</p>}
             <button type="submit" class="btn block" disabled={busy}>{busy ? "กำลังบันทึก" : "บันทึก"}</button>
         </Sheet>
