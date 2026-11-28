@@ -128,7 +128,8 @@ const PANELS = [
 /** ฟอร์มบิลหารกับเพื่อน แบบสั้นหน้าเดียว: ยอด รายการ หารกับใคร (ชิปทางลัด) หมวด และตัวเลือกเพิ่มเติมแบบเปิดทีละหัวข้อ */
 // openFrom: วันแรกของเดือนที่ยังเปิด (เดือนที่ปิดยอดแล้วลงบิลไม่ได้ lib/month-lock.mjs) ว่าง = ผู้ดูแลหลัก เลือกได้ทุกวัน
 function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [], prefill = null, convertWallet = null, openFrom = "", canScan = false, readReceipt = null }) {
-    const all = members || [];
+    // มีชื่อตัวเองเสมอ แม้รายชื่อเพื่อนยังโหลดไม่เสร็จ
+    const all = [...new Set([me, ...(members || [])])].filter(Boolean);
     const quick = suggested.filter((m) => all.includes(m));
     const [amount, setAmount] = useState(prefill ? String(prefill.amount) : "");
     const [desc, setDesc] = useState(prefill ? prefill.desc || "" : "");

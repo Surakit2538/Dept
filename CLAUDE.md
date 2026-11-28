@@ -21,7 +21,7 @@
 
 ## 4. คำสั่ง
 ```bash
-npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 432 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
+npm test                          # ราก ต้องผ่านก่อน commit (ตอนนี้ 437 เคส) ไฟล์เทสต์ใหม่ต้องเพิ่มชื่อใน package.json
 cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง build และ commit app/ ด้วย
 ```
 พรีวิว: `preview_start` ชื่อ `dept-web-preview` → `http://localhost:5199/app/preview.html#wallet` (ข้อมูลจำลอง) `?form=bill|expense`, `?choose=1`, `?state=loader` (ตัวโหลด), `?as=CARE` (มุมมองคนอื่น) · มือถือ `resize_window mobile` แล้วคืน desktop · เจ้าของอาจล็อกอินเว็บจริงในแท็บไว้ให้ทดสอบ (ใช้รายการทดสอบแล้วลบทิ้ง ห้ามสร้างบิลหารจริง) · Vercel project `prj_Fpp9zYAIxBLFBfBgpr8N87W932xt` team `team_PafVGKnzY7uArq1JGveKUosB`
@@ -54,6 +54,7 @@ cd web && npm run build && cd ..  # แก้ web/ แล้วต้อง buil
 - ความแม่นยำอ่านสลิป (`lib/slip-core.mjs`) เจอผิดให้ขอข้อความจริงมาเป็นเทสต์
 - เทสต์กฎลบสมาชิก (`deleteMemberIfUnused`) มีแล้ว `tests/member-delete.test.mjs` (bundle `web/src/data.js` จริง แทน Firebase ด้วย `tests/fake-firebase-web.mjs`) ใช้วิธีเดียวกันทดสอบโค้ดเว็บที่แตะ Firestore ได้
 - ความปลอดภัย (22 พ.ย. เจ้าของเลือกแนวทาง A + ปิดการสมัครเอง): เว็บล็อกอิน Firebase ด้วยบัตรผ่านที่เซิร์ฟเวอร์ออกหลังตรวจ LINE (`lib/member-login.mjs`, `api/device-token.js` action `login`/`link`, `GET ?firebase=1` ต่อบัตรด้วยรหัสเว็บ) · `web/src/data.js` ทุกคำสั่ง Firestore รอ `fbGate` · คนใหม่ต้องให้ผู้ดูแลเพิ่มชื่อก่อน ไม่มีปุ่มสมัครเอง · กฎใหม่อยู่ `firestore.rules` (ต้องถือบัตร `mid`) **เจ้าของเปิด Authentication และ Publish กฎแล้ว 22 พ.ย. ใช้งานได้ปกติ** (วิธีย้อนกลับใน `FIRESTORE_RULES_ROLLOUT.md`) · กฎแยกตามสิทธิ์ (คนจ่ายแก้ชื่อ/หมวด/ลบบิลตัวเอง, ประวัติเคลียร์เงินและจัดการสมาชิกเฉพาะผู้ดูแลจากเอกสารสมาชิก) อยู่ใน `firestore.rules` ทดสอบกับ emulator `tests/rules/firestore-rules.emulator.mjs` (ต้องมี Java, ไม่อยู่ใน npm test) **แก้ปุ่มที่เขียน Firestore จากเว็บต้องแก้กฎ+เทสต์ emulator ด้วย** เจ้าของ Publish กฎแยกสิทธิ์แล้ว 22 พ.ย. ใช้งานได้ปกติ (ย้อนกลับตาม `FIRESTORE_RULES_ROLLOUT.md`) · เจ้าของเลือกไม่ทำ: สำรองข้อมูล, เปลี่ยนรหัส SlipOK, ลบ `dbMode`
+- เพื่อนบางเครื่องต่อ Firestore ตรงไม่ได้ (28 พ.ย. CARE: รายชื่อเพื่อนว่าง รูปไม่ขึ้น เพราะ Firestore คืนผลว่างจากแคชแทน error) แก้ใน `web/src/data.js`: ผล `metadata.fromCache` = ต่อไม่ได้ -> จำ `localStorage dm:lp=1` + โหลดหน้าใหม่ครั้งเดียว (sessionStorage กันวน) ครั้งต่อไปใช้ `experimentalForceLongPolling` · รายชื่อ/รูป/พร้อมเพย์สำรองจาก action `member-list` (`lib/member-profiles.mjs` ใช้ร่วม) ไม่จำรายชื่อว่าง · writeBatch เกิน 25 วิ แจ้งผู้ใช้ ไม่หมุนค้าง · ฟอร์มบิลมี ฉัน เสมอ · เทสต์ `tests/member-list.test.mjs` (fake มี `net.offline`) **ยังไม่ได้ยืนยันกับเครื่อง CARE จริง**
 - พรีวิวเว็บหลังเพิ่มแพ็กเกจใหม่ ถ้าขึ้น "Component auth has not been registered" = แคช Vite เก่า ลบ `web/node_modules/.vite` แล้วเริ่มใหม่ (ไฟล์ build จริงไม่เป็น) · `dept-app-built` ใน launch.json เปิดไฟล์ build ที่ port 5200
 
 ## 9. แผนที่ไฟล์

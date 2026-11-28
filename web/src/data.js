@@ -1,11 +1,12 @@
 // การเชื่อมต่อ: LINE (LIFF), Firestore (เฉพาะคอลเลกชันข้อมูลกลุ่มที่กฎอนุญาต ต้องถือบัตรผ่านสมาชิก) และ API ของเรา (กระเป๋า)
 import { initializeApp } from "firebase/app";
 import {
-    getFirestore, collection, query, where, doc, limit, FieldPath, deleteField,
+    initializeFirestore, collection, query, where, doc, limit, FieldPath, deleteField,
     getDocs as fsGetDocs, getDoc as fsGetDoc, onSnapshot as fsOnSnapshot, updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc, addDoc as fsAddDoc, writeBatch as fsWriteBatch
 } from "firebase/firestore";
 import { getAuth, signInWithCustomToken, signOut } from "firebase/auth";
 import { withPeople, settlementPeople } from "../../lib/privacy.mjs";
+import { buildProfiles, memberNamesOf } from "../../lib/member-profiles.mjs";
 import { isClosedMonth, closedMonthMessage } from "../../lib/month-lock.mjs";
 
 const firebaseConfig = {
@@ -19,7 +20,23 @@ const firebaseConfig = {
 export const LIFF_ID = "2008948704-db2goT00";
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// บางเครือข่าย/เบราว์เซอร์ใน LINE ต่อ Firestore แบบปกติไม่ได้ (ได้ผลว่างเปล่าจากแคชแทนที่จะ error)
+// เจอครั้งแรกจะจำไว้ในเครื่อง (dm:lp) แล้วโหลดหน้าใหม่ 1 ครั้งให้ใช้วิธี long polling ที่ผ่านได้แทบทุกเครือข่าย
+const LP_KEY = "dm:lp";
+const forceLP = (() => { try { return localStorage.getItem(LP_KEY) === "1"; } catch (e) { return false; } })();
+const db = initializeFirestore(app, forceLP ? { experimentalForceLongPolling: true } : { experimentalAutoDetectLongPolling: true });
+/** ต่อฐานข้อมูลไม่ได้: เปลี่ยนเป็น long polling แล้วโหลดหน้าใหม่ (ครั้งเดียวต่อการเปิดแอป กันวนไม่จบ) */
+function markOffline() {
+    if (forceLP) return;
+    try {
+        localStorage.setItem(LP_KEY, "1");
+        if (sessionStorage.getItem(LP_KEY) === "1") return;
+        sessionStorage.setItem(LP_KEY, "1");
+        setTimeout(() => location.reload(), 300);
+    } catch (e) { /* ไม่มีที่เก็บ ไม่เป็นไร */ }
+}
+/** ผลที่มาจากแคชในเครื่อง (ไม่ถึงเซิร์ฟเวอร์) = ต่อไม่ได้ ห้ามเชื่อว่าว่างจริง */
+const fromCache = (snap) => Boolean(snap && snap.metadata && snap.metadata.fromCache);
 const fbAuth = getAuth(app);
 
 // ---------- บัตรผ่าน Firebase (firestore.rules ให้อ่าน/เขียนข้อมูลกลุ่มได้เฉพาะสมาชิกที่ถือบัตร) ----------
@@ -58,7 +75,13 @@ function onSnapshot(q, next, fail) {
 function writeBatch(d) {
     const b = fsWriteBatch(d);
     const commit = b.commit.bind(b);
-    b.commit = async () => { await fbGate(); return commit(); };
+    // ต่อเซิร์ฟเวอร์ไม่ได้ Firestore จะรอส่งเงียบๆ ไม่จบ: เกิน 25 วินาทีบอกผู้ใช้ (และเปลี่ยนวิธีเชื่อมต่อครั้งหน้า) ไม่ให้หมุนค้าง
+    b.commit = async () => {
+        await fbGate();
+        let timer;
+        const slow = new Promise((_, bad) => { timer = setTimeout(() => { markOffline(); bad(new Error("การเชื่อมต่อช้ามาก ข้อมูลอาจบันทึกไปแล้ว ดูในแท็บ รายการ ก่อนกดซ้ำ")); }, 25000); });
+        try { return await Promise.race([commit(), slow]); } finally { clearTimeout(timer); }
+    };
     return b;
 }
 
@@ -311,9 +334,15 @@ export function clearCache() {
 export async function loadMembers() {
     const hit = cacheGet("members", TTL_MEMBERS);
     if (hit) return hit;
-    const s = await getDocs(collection(db, "members"));
-    const names = [...new Set(s.docs.map((d) => upName(d.data().name)).filter(Boolean))];
-    cacheSet("members", names);
+    let names = [];
+    try {
+        const s = await getDocs(collection(db, "members"));
+        if (fromCache(s)) markOffline();
+        else names = memberNamesOf(s.docs.map((d) => ({ id: d.id, data: d.data() })));
+    } catch (e) { console.warn("members:", e && e.message); }
+    // อ่านตรงไม่ได้หรือได้ว่าง: ขอจากเซิร์ฟเวอร์แทน (ไม่จำรายชื่อว่าง)
+    if (!names.length) names = [...new Set((await serverProfiles()).map((p) => p.name))];
+    if (names.length) cacheSet("members", names);
     return names;
 }
 
@@ -338,6 +367,7 @@ export function watchMonth(month, onData) {
     const fail = (e) => onData({ error: e });
     const un = [
         onSnapshot(query(collection(db, "transactions"), ...mineTx(), where("date", ">=", `${month}-01`), where("date", "<=", `${month}-31`)), (s) => {
+            if (fromCache(s) && s.empty) markOffline();
             state.transactions = s.docs.map((d) => ({ id: d.id, ...d.data() }));
             emit();
         }, fail),
@@ -573,22 +603,25 @@ export async function addWallet(entry) {
 export async function loadProfiles() {
     const hit = cacheGet("profiles", TTL_MEMBERS);
     if (hit) return hit;
-    const s = await getDocs(collection(db, "members"));
-    const byName = new Map();
-    s.docs.forEach((d) => {
-        const x = d.data();
-        const name = upName(x.name);
-        if (!name) return;
-        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), pictureUrl: /^https?:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "", role: x.role === "admin" ? "admin" : "member", cardAlerts: x.cardAlerts === true, receiptScan: x.receiptScan === true, ids: [d.id] };
-        const cur = byName.get(name);
-        // ชื่อซ้ำหลายเอกสาร: เก็บรหัสทุกเอกสารไว้ (เปิด/ปิดเตือนบัตรต้องแก้ทุกเอกสาร) และนับว่าเปิดถ้ามีเอกสารไหนเปิด
-        if (cur) { p.ids = [...cur.ids, d.id]; p.cardAlerts = p.cardAlerts || cur.cardAlerts; p.receiptScan = p.receiptScan || cur.receiptScan; }
-        if (!cur || (!cur.hasLine && p.hasLine) || (!cur.promptpay && p.promptpay) || (!cur.pictureUrl && p.pictureUrl)) byName.set(name, p);
-        else { cur.ids = p.ids; cur.cardAlerts = p.cardAlerts; cur.receiptScan = p.receiptScan; }
-    });
-    const list = [...byName.values()];
-    cacheSet("profiles", list);
+    // ชื่อซ้ำหลายเอกสาร: รวมรหัสทุกเอกสาร (เปิด/ปิดสวิตช์ต้องแก้ทุกเอกสาร) lib/member-profiles.mjs
+    let list = [];
+    try {
+        const s = await getDocs(collection(db, "members"));
+        if (fromCache(s)) markOffline();
+        else list = buildProfiles(s.docs.map((d) => ({ id: d.id, data: d.data() })));
+    } catch (e) { console.warn("profiles:", e && e.message); }
+    // อ่านตรงไม่ได้หรือได้ว่าง: ขอจากเซิร์ฟเวอร์แทน (ไม่จำรายการว่าง)
+    if (!list.length) list = await serverProfiles();
+    if (list.length) cacheSet("profiles", list);
     return list;
+}
+
+/** สำรอง: รายชื่อ/รูป/พร้อมเพย์จากเซิร์ฟเวอร์ (action member-list) ใช้เมื่อเครื่องอ่าน Firestore ตรงไม่ได้ */
+async function serverProfiles() {
+    try {
+        const r = await api("/api/shortcut-transaction", { action: "member-list" });
+        return Array.isArray(r.profiles) ? r.profiles : [];
+    } catch (e) { console.warn("member-list:", e && e.message); return []; }
 }
 
 /** ล้างข้อมูลที่จำไว้ของเดือนหนึ่ง (หลังมีการแก้ไข) */

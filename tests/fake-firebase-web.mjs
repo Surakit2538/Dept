@@ -2,6 +2,7 @@
 // ใช้แทนแพ็กเกจจริงตอน bundle เทสต์ (ไม่แตะฐานข้อมูลจริง) รองรับเฉพาะที่เทสต์ใช้: query/where/limit/FieldPath/getDocs/deleteDoc
 const store = new Map(); // ชื่อคอลเลกชัน -> Map(id -> data)
 export const calls = { queries: [], deleted: [], updated: [] };
+export const net = { offline: false };
 
 const col = (name) => {
     if (!store.has(name)) store.set(name, new Map());
@@ -15,6 +16,8 @@ export function __get(name, id) { return col(name).get(id); }
 
 export function initializeApp() { return {}; }
 export function getFirestore() { return {}; }
+export const firestoreSettings = [];
+export function initializeFirestore(_app, settings) { firestoreSettings.push(settings); return {}; }
 
 // firebase/auth จำลอง: ค่าเริ่มต้น = มีบัตรสมาชิกจำไว้ในเครื่องแล้ว (ประตูเปิดทันที) เทสต์ตั้ง currentUser = null เพื่อดูขั้นขอบัตร
 export const authState = { currentUser: { uid: "m_test" }, signIns: [], order: [] };
@@ -62,8 +65,10 @@ export async function getDocs(q) {
     calls.queries.push({ name, cons: q.cons || [] });
     authState.order.push("read:" + name);
     rows = rows.slice(0, max);
+    // net.offline = จำลองเครื่องที่ต่อเซิร์ฟเวอร์ไม่ได้: Firestore ไม่ error แต่คืนผลว่างจากแคช (fromCache)
+    if (net.offline) return { docs: [], empty: true, size: 0, metadata: { fromCache: true }, forEach: () => {} };
     const docs = rows.map(([id, d]) => ({ id, data: () => JSON.parse(JSON.stringify(d)) }));
-    return { docs, empty: docs.length === 0, size: docs.length, forEach: (fn) => docs.forEach(fn) };
+    return { docs, empty: docs.length === 0, size: docs.length, metadata: { fromCache: false }, forEach: (fn) => docs.forEach(fn) };
 }
 
 export async function deleteDoc(ref) {
