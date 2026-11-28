@@ -3,7 +3,7 @@ import { useState, useEffect } from "preact/hooks";
 import { Avatar, Sheet, DeleteButton } from "./ui.jsx";
 import { Icon } from "./icons.jsx";
 import { validPromptpay, maskPromptpay } from "./model.js";
-import { addMemberName, updateMember, deleteMemberIfUnused, setCardAlerts, loadLineQuota } from "./data.js";
+import { addMemberName, updateMember, deleteMemberIfUnused, setCardAlerts, setReceiptScan, loadLineQuota } from "./data.js";
 
 /** สวิตช์เปิดเตือนบัตรเครดิตทาง LINE ให้สมาชิกคนนี้ (ใช้โควต้าข้อความ LINE ที่ส่งหาเอง) */
 function CardSwitch({ p, onChanged, onToast }) {
@@ -20,6 +20,25 @@ function CardSwitch({ p, onChanged, onToast }) {
             <input type="checkbox" role="switch" checked={on} disabled={busy} onChange={flip} />
             <span class="sw" aria-hidden="true" />
             <span>เตือนบัตรเครดิตทาง LINE{!p.hasLine && on ? " (ยังไม่ผูก LINE จึงยังส่งไม่ได้)" : ""}</span>
+        </label>
+    );
+}
+
+/** สวิตช์เปิดถ่ายรูปใบเสร็จให้ AI อ่าน (หารตามรายการ) ให้สมาชิกคนนี้ ปิดอยู่ยังพิมพ์รายการเองได้ */
+function ReceiptSwitch({ p, onChanged, onToast }) {
+    const [on, setOn] = useState(Boolean(p.receiptScan));
+    const [busy, setBusy] = useState(false);
+    async function flip() {
+        const v = !on;
+        setBusy(true);
+        try { await setReceiptScan(p, v); setOn(v); onToast(v ? `เปิดถ่ายรูปใบเสร็จให้ ${p.name} แล้ว` : `ปิดถ่ายรูปใบเสร็จของ ${p.name} แล้ว`); onChanged(); } catch (ex) { onToast(ex.message); }
+        setBusy(false);
+    }
+    return (
+        <label class="cc-switch">
+            <input type="checkbox" role="switch" checked={on} disabled={busy} onChange={flip} />
+            <span class="sw" aria-hidden="true" />
+            <span>ถ่ายรูปใบเสร็จ (หารตามรายการ)</span>
         </label>
     );
 }
@@ -87,6 +106,7 @@ function Row({ p, isMe, onChanged, onToast }) {
                         {!complete && <span class="tag warn">ข้อมูลไม่ครบ</span>}
                     </div>
                     {cardSw}
+                    <ReceiptSwitch p={p} onChanged={onChanged} onToast={onToast} />
                 </div>
                 <button type="button" class="btn sm ghost" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "ปิด" : "แก้ไข"}</button>
             </div>

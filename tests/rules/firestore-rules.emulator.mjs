@@ -9,7 +9,7 @@
 import fs from "node:fs";
 import assert from "node:assert/strict";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, limit, FieldPath, writeBatch } from "firebase/firestore";
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, limit, FieldPath, writeBatch, deleteField } from "firebase/firestore";
 
 const env = await initializeTestEnvironment({
     projectId: "demo-dept",
@@ -107,6 +107,7 @@ await t("คนจ่ายบิล: แก้คนหารเดือนน
     await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 150, BEN: 150 }, people: ["CARE"] }), "ซ่อนบิลจากคนหารไม่ได้");
     await assertFails(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 300 }, people: ["BEN", "CARE", "GAME"] }), "เพิ่มคนนอกในป้ายไม่ได้");
     await assertSucceeds(updateDoc(doc(db, "transactions/t_care"), { splits: { BEN: 300 }, people: ["BEN", "CARE"] }), "จ่ายแทนเพื่อน (คนจ่ายอยู่ในป้ายแต่ไม่อยู่ในคนหาร)");
+    await assertSucceeds(updateDoc(doc(db, "transactions/t_care"), { splits: { CARE: 150, BEN: 150 }, people: ["BEN", "CARE"], receipt: deleteField() }), "แก้คนหารพร้อมลบรายการสินค้าเดิม");
     await assertFails(updateDoc(doc(as("ben", "BEN"), "transactions/t_care"), { splits: { BEN: 300 }, people: ["BEN", "CARE"] }), "คนหารที่ไม่ได้จ่ายแก้ไม่ได้");
     await assertSucceeds(updateDoc(doc(as("admin1", "GAME"), "transactions/t_care"), { splits: { CARE: 150, BEN: 150 }, people: ["BEN", "CARE"] }), "ผู้ดูแลแก้ได้");
 });

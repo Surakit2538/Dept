@@ -2,6 +2,7 @@ import * as fs from "./auth-helpers.js";
 import { getDbInstance, verifyDeviceToken } from "./auth-helpers.js";
 import { createShortcutHandler } from "../lib/shortcut-service.mjs";
 import { createGeminiSlipReader } from "../lib/gemini-slip.mjs";
+import { createGeminiReceiptReader } from "../lib/gemini-receipt.mjs";
 import { createLineIdAuthenticator } from "../lib/line-auth.mjs";
 
 const db = getDbInstance();
@@ -22,5 +23,8 @@ export default createShortcutHandler({
     }),
     readSlipImage: process.env.GEMINI_API_KEY
         ? createGeminiSlipReader({ apiKey: process.env.GEMINI_API_KEY })
+        : null,
+    readReceiptImage: process.env.GEMINI_API_KEY
+        ? createGeminiReceiptReader({ apiKey: process.env.GEMINI_API_KEY })
         : null
 });

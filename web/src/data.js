@@ -1,7 +1,7 @@
 // การเชื่อมต่อ: LINE (LIFF), Firestore (เฉพาะคอลเลกชันข้อมูลกลุ่มที่กฎอนุญาต ต้องถือบัตรผ่านสมาชิก) และ API ของเรา (กระเป๋า)
 import { initializeApp } from "firebase/app";
 import {
-    getFirestore, collection, query, where, doc, limit, FieldPath,
+    getFirestore, collection, query, where, doc, limit, FieldPath, deleteField,
     getDocs as fsGetDocs, getDoc as fsGetDoc, onSnapshot as fsOnSnapshot, updateDoc as fsUpdateDoc, deleteDoc as fsDeleteDoc, addDoc as fsAddDoc, writeBatch as fsWriteBatch
 } from "firebase/firestore";
 import { getAuth, signInWithCustomToken, signOut } from "firebase/auth";
@@ -530,6 +530,34 @@ export async function setCardAlerts(p, on) {
     for (const id of p.ids && p.ids.length ? p.ids : [p.id]) await updateDoc(doc(db, "members", String(id)), { cardAlerts: Boolean(on) });
     invalidateProfiles();
 }
+/** ผู้ดูแล: เปิด/ปิดถ่ายรูปใบเสร็จให้ AI อ่าน (หารตามรายการ) ให้สมาชิก */
+export async function setReceiptScan(p, on) {
+    for (const id of p.ids && p.ids.length ? p.ids : [p.id]) await updateDoc(doc(db, "members", String(id)), { receiptScan: Boolean(on) });
+    invalidateProfiles();
+}
+
+/** ย่อรูปในเครื่องให้ด้านยาวไม่เกิน 1600px (JPEG) ก่อนส่ง ประหยัดเน็ตและไม่เกินขนาดที่เซิร์ฟเวอร์รับ */
+async function shrinkImage(file, max = 1600) {
+    const url = URL.createObjectURL(file);
+    try {
+        const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("เปิดรูปไม่ได้ ลองถ่ายใหม่")); i.src = url; });
+        const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        const c = document.createElement("canvas");
+        c.width = Math.round(img.naturalWidth * k);
+        c.height = Math.round(img.naturalHeight * k);
+        c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+        return c.toDataURL("image/jpeg", 0.82).split(",")[1];
+    } finally { URL.revokeObjectURL(url); }
+}
+
+/** ถ่ายรูปใบเสร็จแล้วให้เซิร์ฟเวอร์ส่ง Gemini อ่าน -> { store, currency, total, items } (รูปไม่ถูกเก็บ) */
+export async function readReceipt(file) {
+    const imageBase64 = await shrinkImage(file);
+    const r = await api("/api/shortcut-transaction", { action: "receipt-read", imageBase64, mimeType: "image/jpeg" });
+    if (!r.receipt) throw new Error(r.message || "อ่านรายการจากรูปนี้ไม่ได้ ลองถ่ายให้เห็นทั้งใบ หรือพิมพ์รายการเอง");
+    return r.receipt;
+}
+
 /** ผู้ดูแล: ข้อความ LINE ที่ส่งหาเองได้ต่อเดือน { limit, used } หรือ null */
 export async function loadLineQuota() {
     const r = await api("/api/shortcut-transaction", { action: "line-quota" });
@@ -551,12 +579,12 @@ export async function loadProfiles() {
         const x = d.data();
         const name = upName(x.name);
         if (!name) return;
-        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), pictureUrl: /^https?:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "", role: x.role === "admin" ? "admin" : "member", cardAlerts: x.cardAlerts === true, ids: [d.id] };
+        const p = { id: d.id, name, promptpay: x.promptpay || "", realName: x.realName || "", englishName: x.englishName || "", hasLine: Boolean(x.lineUserId), pictureUrl: /^https?:\/\//i.test(x.pictureUrl || "") ? x.pictureUrl : "", role: x.role === "admin" ? "admin" : "member", cardAlerts: x.cardAlerts === true, receiptScan: x.receiptScan === true, ids: [d.id] };
         const cur = byName.get(name);
         // ชื่อซ้ำหลายเอกสาร: เก็บรหัสทุกเอกสารไว้ (เปิด/ปิดเตือนบัตรต้องแก้ทุกเอกสาร) และนับว่าเปิดถ้ามีเอกสารไหนเปิด
-        if (cur) { p.ids = [...cur.ids, d.id]; p.cardAlerts = p.cardAlerts || cur.cardAlerts; }
+        if (cur) { p.ids = [...cur.ids, d.id]; p.cardAlerts = p.cardAlerts || cur.cardAlerts; p.receiptScan = p.receiptScan || cur.receiptScan; }
         if (!cur || (!cur.hasLine && p.hasLine) || (!cur.promptpay && p.promptpay) || (!cur.pictureUrl && p.pictureUrl)) byName.set(name, p);
-        else { cur.ids = p.ids; cur.cardAlerts = p.cardAlerts; }
+        else { cur.ids = p.ids; cur.cardAlerts = p.cardAlerts; cur.receiptScan = p.receiptScan; }
     });
     const list = [...byName.values()];
     cacheSet("profiles", list);
@@ -743,7 +771,8 @@ export async function updateBillSplits(bill, splitsFor) {
     const batch = writeBatch(db);
     for (const r of rows) {
         const splits = splitsFor(r.amount);
-        batch.update(doc(db, "transactions", r.id), { splits, people: withPeople("transactions", { payer: r.payer, splits }).people });
+        // รายการสินค้า (หารตามรายการ) ไม่ตรงกับคนหารใหม่แล้ว จึงเอาออก เหลือยอดต่อคน
+        batch.update(doc(db, "transactions", r.id), { splits, people: withPeople("transactions", { payer: r.payer, splits }).people, receipt: deleteField() });
     }
     await batch.commit();
     const months = [...new Set(rows.map((r) => String(r.date).slice(0, 7)))];

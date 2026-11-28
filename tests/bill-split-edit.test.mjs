@@ -77,7 +77,7 @@ const NEXT = cm === 12 ? `${cy + 1}-01` : `${cy}-${String(cm + 1).padStart(2, "0
 test("updateBillSplits: เขียน splits + ป้าย people ใหม่ (รวมคนจ่ายที่จ่ายแทน)", { skip: !hasTools }, async () => {
     const { data, fake } = await load();
     fake.__reset();
-    fake.__seed("transactions", "t1", { payer: "CARE", amount: 300, date: `${CUR}-02`, splits: { CARE: 150, BEN: 150 }, people: ["BEN", "CARE"], desc: "ข้าว" });
+    fake.__seed("transactions", "t1", { payer: "CARE", amount: 300, date: `${CUR}-02`, splits: { CARE: 150, BEN: 150 }, people: ["BEN", "CARE"], desc: "ข้าว", receipt: { items: [{ name: "ข้าว", qty: 2, amount: 300, units: { CARE: 1, BEN: 1 } }] } });
     const months = await data.updateBillSplits({ id: "t1", date: `${CUR}-02`, payer: "CARE", amount: 300, type: "normal" }, () => ({ BEN: 100, GAME: 200 }));
     assert.deepEqual(months, [CUR]);
     const t = fake.__get("transactions", "t1");
@@ -85,6 +85,7 @@ test("updateBillSplits: เขียน splits + ป้าย people ใหม�
     assert.deepEqual(t.people, ["BEN", "CARE", "GAME"]);
     assert.equal(t.amount, 300);
     assert.equal(t.desc, "ข้าว");
+    assert.equal(t.receipt, undefined, "รายการสินค้าเดิมไม่ตรงกับคนหารใหม่ จึงเอาออก");
 });
 
 test("updateBillSplits: เดือนที่ปิดแล้วแก้ไม่ได้ ไม่แตะข้อมูล", { skip: !hasTools }, async () => {

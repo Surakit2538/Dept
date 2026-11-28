@@ -36,7 +36,7 @@ function RowBody({ lead, title, value, tone = "", sub, badge = null, actions = n
     );
 }
 
-function BillRow({ b, pictures = {}, canEdit, canDelete = canEdit, onDeleted, onError, onEdit, selecting, picked, onToggle }) {
+function BillRow({ b, pictures = {}, canEdit, canDelete = canEdit, onDeleted, onError, onEdit, onView, selecting, picked, onToggle }) {
     const monthly = b.type === "subscription";
     const name = b.desc || "ไม่ระบุ";
     const has = b.myShareSat > 0;
@@ -51,10 +51,11 @@ function BillRow({ b, pictures = {}, canEdit, canDelete = canEdit, onDeleted, on
     if (selecting) return <li class={`row ${cls} dim`} aria-disabled="true"><RowBody lead={lead} title={title} value={value} tone={tone} sub={sub} badge={badge} monthly={monthly} /></li>;
     return (
         <li class={`row ${cls}`}>
-            <RowBody lead={lead} title={title} value={value} tone={tone} sub={sub} badge={badge} monthly={monthly} actions={canEdit ? (
+            <RowBody lead={lead} title={title} value={value} tone={tone} sub={sub} badge={badge} monthly={monthly} actions={canEdit || b.receipt ? (
                 <>
-                    <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(b)}><Icon name="pencil" size={16} /></button>
-                    {canDelete && <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />}
+                    {b.receipt && <button type="button" class="icon-btn" aria-label={`ดูรายการ ${name}`} onClick={() => onView(b)}><Icon name="list" size={16} /></button>}
+                    {canEdit && <button type="button" class="icon-btn" aria-label={`แก้ไข ${name}`} onClick={() => onEdit(b)}><Icon name="pencil" size={16} /></button>}
+                    {canEdit && canDelete && <DeleteButton label={name} onConfirm={async () => { try { await deleteBill(b.id); onDeleted(); } catch (e) { onError(e.message); } }} />}
                 </>
             ) : null} />
         </li>
@@ -224,6 +225,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
     const [mineTpls, setMineTpls] = useState([]);
     const isMonthly = (it) => it.type === "expense" && mineTpls.some((t) => String(t.desc) === String(it.desc) && Math.abs(Number(t.amount) - Number(it.amount)) < 0.005);
     const [editingBill, setEditingBill] = useState(null);
+    const [viewingBill, setViewingBill] = useState(null);
     const [editingWallet, setEditingWallet] = useState(null);
     const [selecting, setSelecting] = useState(false);
     const [picked, setPicked] = useState([]);
@@ -319,7 +321,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                             <h3 class="day-h">{dayLabel(d)}</h3>
                             <ul class="plain">
                                 {list.map((x) => x.kind === "bill"
-                                    ? <BillRow key={x.key} b={x.b} pictures={pictures} canEdit={canEdit(x.b)} canDelete={canDelete(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
+                                    ? <BillRow key={x.key} b={x.b} pictures={pictures} canEdit={canEdit(x.b)} canDelete={canDelete(x.b)} onDeleted={onChanged} onError={onError} onEdit={setEditingBill} onView={setViewingBill} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />
                                     : <WalletRow key={x.key} it={x.it} me={me} pictures={pictures} cards={cards} monthly={isMonthly(x.it)} onDeleted={onChanged} onError={onError} onEdit={setEditingWallet} selecting={selecting} picked={live.includes(x.key)} onToggle={() => toggle(x.key)} />)}
                             </ul>
                         </div>
@@ -327,6 +329,7 @@ export function ListPage({ bills, wallet, month = "", today = "", search, onSear
                 {selecting && <BulkBar count={live.length} total={selectable.length} onAll={() => setPicked(selectable)} onNone={() => setPicked([])} onCategory={bulkCategory} onDelete={bulkDelete} note="เปลี่ยนเฉพาะหมวด ไม่แก้ยอดและคนหาร รายรับไม่มีหมวด บิลที่เลือกได้คือบิลที่คุณจ่ายเอง (แอดมินเลือกได้ทุกบิล)" />}
             </section>
             <Recurring me={me} isAdmin={isAdmin} version={version} onError={onError} onMine={setMineTpls} pictures={pictures} />
+            {viewingBill && <Lazy load={() => import("../itemsplit.jsx")} name="ReceiptBillSheet" bill={viewingBill} me={me} onClose={() => setViewingBill(null)} />}
             {editingBill && <Lazy load={() => import("../editbill.jsx")} name="EditBillSheet" bill={editingBill} members={members} me={me} locked={locked(editingBill)} onClose={() => setEditingBill(null)} onSaved={(msg) => { onChanged(); if (msg) onInfo(msg); }} />}
             {editingWallet && <Lazy load={() => import("../editbill.jsx")} name="EditWalletSheet" item={editingWallet} cards={cards} onClose={() => setEditingWallet(null)} onSaved={() => onChanged()} onSplit={onSplit ? (it) => { setEditingWallet(null); onSplit(it); } : null} />}
         </div>

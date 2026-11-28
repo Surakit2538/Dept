@@ -2,6 +2,7 @@ import { render } from "preact";
 import { useState, useEffect, useMemo, useRef } from "preact/hooks";
 import "./styles.css";
 import { Loader } from "./icons.jsx";
+import { readReceipt } from "./data.js";
 import { signIn, onLoginExpired, relogin, getLoginDiag, getCachedUser, setCachedUser, loadSnapshot, saveSnapshot, deleteWalletEntry, fetchWalletEntry, getStaleMembers, loadMembers, loadProfiles, loadPastMonth, watchMonth, loadWalletMonths, addWallet, saveBill, bangkokToday, clearCache, invalidateMonth, loadPlan, saveBudget, saveGoal, moveGoal, deleteGoal, saveSharedGoal, moveSharedGoal, deleteSharedGoal, leaveSharedGoal, loadBillSchedule, loadCards, saveCard, deleteCard, setCardPaid, readPrivacy, readSeeAll, setSeeAll, readScopeFor, setReadScope, loadClearPlan } from "./data.js";
 import { buildHomeModel, buildMonthly, buildClearModel, buildWalletModel, buildBillsModel, buildBudgetModel, buildBillSchedule, suggestPeople, lastMonths, shiftMonth, validPromptpay } from "./model.js";
 import { MonthPicker, Shell, Skeleton, ErrorState, Lazy, PageSwap } from "./ui.jsx";
@@ -156,6 +157,7 @@ function App() {
     // บัตรเครดิต: เฉพาะคนที่ผู้ดูแลเปิดให้ (ดูจากข้อมูลสมาชิกที่โหลดอยู่แล้ว ไม่เปิด = ไม่เรียก API) โหลดเมื่ออยู่หน้าแรกหรือแท็บ ฉัน
     const mineProfile = profiles && auth.state === "ok" ? (profiles.find((p) => p.id === auth.user.memberId || (p.ids || []).includes(auth.user.memberId)) || profiles.find((p) => p.name === auth.user.name)) : null;
     const cardsOn = Boolean(mineProfile && mineProfile.cardAlerts);
+    const scanOn = Boolean(mineProfile && mineProfile.receiptScan);
     useEffect(() => {
         if (auth.state !== "ok" || !profiles || !["home", "me", "list"].includes(tab)) return;
         if (!cardsOn) { setCardsData({ enabled: false, cards: [] }); return; }
@@ -319,7 +321,7 @@ function App() {
                 tools={needsData && <MonthPicker month={month} onChange={setMonth} min={since} max={nowMonth} />}>
                 <PageSwap page={page}>{body}</PageSwap>
             </Shell>
-            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} openFrom={openFrom} cards={myCards} onClose={() => { setSheet(null); setPrefill(null); }}
+            {sheet && <Lazy load={loadAdd} name="AddSheet" initial={sheet === "income" ? "income" : sheet === "bill" ? "bill" : null} prefill={prefill} convertWallet={deleteWalletEntry} today={today} members={members || []} me={auth.user.name} suggested={suggested} save={addWallet} saveBill={saveBill} openFrom={openFrom} cards={myCards} canScan={scanOn} readReceipt={readReceipt} onClose={() => { setSheet(null); setPrefill(null); }}
                 onSaved={(msg, months = []) => { setToast(msg); months.forEach((m) => changed(m)); setReload((n) => n + 1); }} />}
             {choose && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={choose} members={members || []} me={auth.user.name} suggested={suggested} today={today}
                 saveBill={saveBill} removeWallet={deleteWalletEntry} onClose={() => setChoose(null)}

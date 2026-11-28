@@ -371,7 +371,7 @@ export function buildBillsModel({ name, month, transactions, search = "" }) {
         .map((t) => ({
             id: t.id, desc: t.desc || "", date: t.date, icon: t.icon || "", payer: t.payer || "",
             amountSat: toSat(t.amount), myShareSat: shareOf(t, me), iPaid: normalizeName(t.payer) === me,
-            people: Object.keys(t.splits || {}), splits: t.splits || {}, groupId: t.groupId || "", type: t.paymentType || "normal", ts: Number(t.timestamp) || 0
+            people: Object.keys(t.splits || {}), splits: t.splits || {}, groupId: t.groupId || "", receipt: t.receipt && Array.isArray(t.receipt.items) ? t.receipt : null, type: t.paymentType || "normal", ts: Number(t.timestamp) || 0
         }))
         .filter((b) => !q || b.desc.toUpperCase().includes(q) || normalizeName(b.payer).includes(q))
         .sort((a, b) => b.date.localeCompare(a.date) || b.ts - a.ts);
@@ -531,7 +531,7 @@ export function buildBill(f) {
     }
     return {
         ok: true,
-        docs: [{ ...base, date: f.date, desc, amount, splits, paymentType: "normal", timestamp: now }],
+        docs: [{ ...base, date: f.date, desc, amount, splits, paymentType: "normal", timestamp: now, ...(f.receipt ? { receipt: f.receipt } : {}) }],
         template: null,
         summary: people.includes(payer) ? `หารกับเพื่อน ${people.length} คน (รวมผู้จ่าย)` : `จ่ายแทน ${people.length} คน (ไม่มีส่วนของผู้จ่าย)`
     };

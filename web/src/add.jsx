@@ -5,12 +5,14 @@ import { brandOf } from "./brands.js";
 import { Sheet, Avatar, DatePickerField } from "./ui.jsx";
 import { CategoryPicker, faOf, keyOfFa, hasCategory } from "./cats.jsx";
 import { buildBill, equalSplit, guessBillIcon, BILL_ICONS, baht } from "./model.js";
+import { ItemSplit } from "./itemsplit.jsx";
+import { computeItemSplit, receiptForBill } from "../../lib/receipt-split.mjs";
 import { FreqBox } from "./freq.jsx";
 import { PayFromPicker, payOptions, lastPay, payFields, rememberPay } from "./payfrom.jsx";
 
-export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null, openFrom = "", cards = [] }) {
+export function AddSheet({ onClose, onSaved, save, saveBill, today, members, me, suggested = [], initial = null, prefill = null, convertWallet = null, openFrom = "", cards = [], canScan = false, readReceipt = null }) {
     const [mode, setMode] = useState(initial); // null | "bill" | "expense" | "income"
-    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} prefill={prefill} convertWallet={convertWallet} openFrom={openFrom} />;
+    if (mode === "bill") return <BillForm onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} saveBill={saveBill} today={today} members={members} me={me} suggested={suggested} prefill={prefill} convertWallet={convertWallet} openFrom={openFrom} canScan={canScan} readReceipt={readReceipt} />;
     if (mode) return <AddForm type={mode} onBack={() => setMode(null)} onClose={onClose} onSaved={onSaved} save={save} today={today} cards={cards} />;
     return (
         <Sheet title="บันทึกอะไร" onClose={onClose}>
@@ -97,7 +99,8 @@ const TYPES = [
     { key: "installment", label: "ผ่อนชำระ" },
     { key: "subscription", label: "ทำซ้ำ" }
 ];
-const MODES = [{ key: "equal", label: "หารเท่ากัน" }, { key: "custom", label: "กำหนดยอดเอง" }];
+const MODES = [{ key: "equal", label: "หารเท่ากัน" }, { key: "custom", label: "กำหนดยอดเอง" }, { key: "items", label: "ตามรายการ" }];
+const EMPTY_RECEIPT = { items: [], store: "", cur: "THB", foreignTotal: 0 };
 
 function Segmented({ id, label, value, options, onChange }) {
     return (
@@ -124,7 +127,7 @@ const PANELS = [
 
 /** ฟอร์มบิลหารกับเพื่อน แบบสั้นหน้าเดียว: ยอด รายการ หารกับใคร (ชิปทางลัด) หมวด และตัวเลือกเพิ่มเติมแบบเปิดทีละหัวข้อ */
 // openFrom: วันแรกของเดือนที่ยังเปิด (เดือนที่ปิดยอดแล้วลงบิลไม่ได้ lib/month-lock.mjs) ว่าง = ผู้ดูแลหลัก เลือกได้ทุกวัน
-function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [], prefill = null, convertWallet = null, openFrom = "" }) {
+function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, suggested = [], prefill = null, convertWallet = null, openFrom = "", canScan = false, readReceipt = null }) {
     const all = members || [];
     const quick = suggested.filter((m) => all.includes(m));
     const [amount, setAmount] = useState(prefill ? String(prefill.amount) : "");
@@ -138,6 +141,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const [find, setFind] = useState("");
     const [mode, setMode] = useState("equal");
     const [custom, setCustom] = useState({});
+    const [rcpt, setRcpt] = useState(EMPTY_RECEIPT);
     const [type, setType] = useState("normal");
     const [installments, setInstallments] = useState("3");
     const [recurring, setRecurring] = useState(true);
@@ -164,6 +168,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     let resultTone = "mute";
     if (chosen.length > 0) {
         if (mode === "custom") { resultText = "กำหนดยอดเอง"; }
+        else if (mode === "items") { resultText = "หารตามรายการ"; }
         else if (type === "installment" && n > 0 && Number(installments) >= 2) { resultText = `ผ่อน ${installments} เดือน หาร ${chosen.length} คน`; }
         else { resultText = `${payer === me ? "ฉัน" : payer} จ่าย หารเท่ากัน ${chosen.length} คน${chosen.includes(payer) ? "" : " (จ่ายแทน)"}`; }
         resultTone = "";
@@ -171,7 +176,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
     const each = preview ? (preview[chosen[0]] ?? 0) : 0;
     const values = {
         payer: payer === me ? "ฉัน" : payer,
-        split: mode === "custom" ? "ยอดเอง" : "เท่ากัน",
+        split: mode === "custom" ? "ยอดเอง" : mode === "items" ? "ตามรายการ" : "เท่ากัน",
         type: type === "installment" ? `ผ่อน ${installments} งวด` : type === "subscription" ? (every === 1 ? "ทุกเดือน" : every === 12 ? "ทุกปี" : `ทุก ${every} เดือน`) : "ครั้งเดียว"
     };
     const catHint = !iconTouched && desc.trim() ? "เลือกให้อัตโนมัติ" : "";
@@ -180,7 +185,15 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
         e.preventDefault();
         setErr("");
         const fa = (BILL_ICONS.find((i) => i.key === iconKey) || BILL_ICONS[BILL_ICONS.length - 1]).fa;
-        const r = buildBill({ amount, desc, payer, date, today, participants: chosen, mode, custom, type, installments, recurring, every, icon: fa });
+        let r;
+        if (mode === "items") {
+            // หารตามรายการ = บิลครั้งเดียวแบบกำหนดยอดเอง + เก็บรายการไว้ให้เพื่อนเปิดดู
+            const calc = computeItemSplit({ items: rcpt.items, total: amount, payer });
+            if (!calc.ok) { setErr(calc.error); return; }
+            r = buildBill({ amount, desc: desc || rcpt.store, payer, date, today, participants: calc.people, mode: "custom", custom: calc.splits, type: "normal", icon: fa, receipt: receiptForBill(rcpt) });
+        } else {
+            r = buildBill({ amount, desc, payer, date, today, participants: chosen, mode, custom, type, installments, recurring, every, icon: fa });
+        }
         if (!r.ok) {
             setErr(r.error);
             // ปัญหาอยู่ในหัวข้อที่ปิดอยู่ ให้เปิดหัวข้อนั้นให้เห็นเลย
@@ -244,6 +257,14 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
                 )}
             </div>
 
+            {mode === "items" && (
+                <div class="field">
+                    <ItemSplit value={rcpt} onChange={setRcpt} people={chosen} me={me} payer={payer} total={n}
+                        canScan={canScan && Boolean(readReceipt)} readReceipt={readReceipt}
+                        onReceipt={({ total, store }) => { if (total > 0) setAmount(String(total)); if (store && !desc.trim()) onDesc(store); }} />
+                </div>
+            )}
+
             <CategoryPicker value={iconKey} onPick={(k) => { setIconKey(k); setIconTouched(true); }} labelId="b-icon-l" hint={catHint} />
 
             <div class={`result ${resultTone}`} role="status">
@@ -255,7 +276,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
             <div class="opts">
                 <span class="fl" id="b-opt-l">ตัวเลือกเพิ่มเติม</span>
                 <div class="opt-chips" role="group" aria-labelledby="b-opt-l">
-                    {PANELS.map((p) => (
+                    {PANELS.filter((p) => !(mode === "items" && p.key === "type")).map((p) => (
                         <button type="button" key={p.key} class={panel === p.key ? "on" : ""} aria-expanded={panel === p.key} aria-controls={`b-p-${p.key}`} onClick={() => setPanel(panel === p.key ? null : p.key)}>
                             <small>{p.label}</small><b>{values[p.key]}</b>
                         </button>
@@ -289,7 +310,7 @@ function BillForm({ onBack, onClose, onSaved, saveBill, today, members, me, sugg
                 {panel === "split" && (
                     <div id="b-p-split" class="opt-panel">
                         <div class="seg" role="group" aria-label="วิธีแบ่ง">
-                            {MODES.map((o) => <button type="button" key={o.key} class={mode === o.key ? "on" : ""} aria-pressed={mode === o.key} onClick={() => setMode(o.key)}>{o.label}</button>)}
+                            {MODES.map((o) => <button type="button" key={o.key} class={mode === o.key ? "on" : ""} aria-pressed={mode === o.key} onClick={() => { setMode(o.key); if (o.key === "items") { setType("normal"); setPanel(null); } }}>{o.label}</button>)}
                         </div>
                         {mode === "custom" && (
                             <div class="split-custom">

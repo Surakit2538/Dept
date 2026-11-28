@@ -91,8 +91,8 @@ service cloud.firestore {
     match /transactions/{id} {
       allow read: if canSee();
       allow create: if isMember() && okPeople() && (openMonth(request.resource.data.get('date', '')) || isSuperAdmin());
-      // คนจ่าย: แก้ชื่อ/หมวดได้เสมอ แก้คนหาร (splits + ป้าย people) ได้เฉพาะเดือนที่เปิด ยอด คนจ่าย วันที่ แก้ไม่ได้
-      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && (onlyChanged(['desc', 'icon']) || (onlyChanged(['desc', 'icon', 'splits', 'people']) && openMonth(resource.data.get('date', '')) && okPeople() && okSplits()))) || (isAdmin() && (onlyChanged(['desc', 'icon']) || (openMonth(resource.data.get('date', '')) && openMonth(request.resource.data.get('date', '')))) ) || isSuperAdmin());
+      // คนจ่าย: แก้ชื่อ/หมวดได้เสมอ แก้คนหาร (splits + ป้าย people, ลบรายการสินค้า receipt ที่ไม่ตรงแล้ว) ได้เฉพาะเดือนที่เปิด ยอด คนจ่าย วันที่ แก้ไม่ได้
+      allow update: if isMember() && ((isMe(resource.data.get('payer', '')) && (onlyChanged(['desc', 'icon']) || (onlyChanged(['desc', 'icon', 'splits', 'people', 'receipt']) && openMonth(resource.data.get('date', '')) && okPeople() && okSplits()))) || (isAdmin() && (onlyChanged(['desc', 'icon']) || (openMonth(resource.data.get('date', '')) && openMonth(request.resource.data.get('date', '')))) ) || isSuperAdmin());
       allow delete: if isMember() && (((isMe(resource.data.get('payer', '')) || isAdmin()) && openMonth(resource.data.get('date', ''))) || isSuperAdmin());
     }
     match /settlements/{id} {

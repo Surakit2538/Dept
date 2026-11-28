@@ -38,6 +38,7 @@ export const collection = (_db, name) => ({ type: "col", name });
 export const doc = (_db, name, id) => ({ type: "doc", col: name, id });
 export const where = (field, op, value) => ({ kind: "where", path: segs(field), op, value });
 export const limit = (n) => ({ kind: "limit", n });
+export const deleteField = () => ({ __delete: true });
 export const query = (c, ...cons) => ({ type: "query", name: c.name, cons });
 
 // Firestore เทียบได้เฉพาะชนิดเดียวกัน (ตัวเลขกับตัวเลข) ฟิลด์ที่ไม่มี = ไม่ตรง
@@ -83,7 +84,11 @@ export function writeBatch() {
         async commit() {
             for (const [ref] of ops) if (!col(ref.col).has(ref.id)) throw new Error(`fake firebase: no document ${ref.col}/${ref.id}`);
             for (const [ref, data] of ops) {
-                col(ref.col).set(ref.id, { ...col(ref.col).get(ref.id), ...JSON.parse(JSON.stringify(data)) });
+                const next = { ...col(ref.col).get(ref.id) };
+                for (const [k, v] of Object.entries(data)) {
+                    if (v && v.__delete) delete next[k]; else next[k] = JSON.parse(JSON.stringify(v));
+                }
+                col(ref.col).set(ref.id, next);
                 calls.updated.push(`${ref.col}/${ref.id}`);
             }
         }

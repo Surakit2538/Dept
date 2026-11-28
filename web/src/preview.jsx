@@ -47,6 +47,18 @@ lastMonths(now, 6).forEach((m, mi) => {
     }
     tx.push({ id: `rent${mi}`, date: `${m}-01`, payer: "GAME", amount: 9000, splits: { GAME: 4500, CARE: 4500 }, desc: "ค่าห้อง", icon: "fa-house", timestamp: 0, paymentType: "subscription" });
 });
+// บิลหารตามรายการ (ใบเสร็จหมูย่างเกาหลีของเจ้าของ) แตะปุ่มรายการในแท็บ รายการ
+tx.push({ id: "bbq", date: `${now}-13`, payer: "GAME", amount: 2604, desc: "หมูย่างเกาหลี", icon: "fa-utensils", timestamp: 9, paymentType: "normal",
+    splits: { CARE: 625.5, BEN: 496.5, AOY: 386.5, GAME: 1095.5 },
+    receipt: { store: "หมูย่างเกาหลี", items: [
+        { name: "บุฟเฟต์ ผู้ใหญ่", qty: 4, amount: 1516, units: { GAME: 1, CARE: 1, BEN: 1, AOY: 1 } },
+        { name: "บุฟเฟต์ เด็ก", qty: 1, amount: 239, units: { CARE: 1 } },
+        { name: "Singha", qty: 4, amount: 440, units: { GAME: 3, BEN: 1 } },
+        { name: "ข้าวผัดกิมจิ", qty: 1, amount: 379, units: { GAME: 1 } }] } });
+// อ่านใบเสร็จจำลอง (?receipt=jpy ได้ใบเงินเยน)
+const fakeRead = () => new Promise((ok) => setTimeout(() => ok(new URLSearchParams(location.search).get("receipt") === "jpy"
+    ? { store: "マツモトキヨシ", currency: "JPY", total: 8530, items: [{ name: "DCRTUS", qty: 1, amount: 3100 }, { name: "SD パウダー", qty: 1, amount: 680 }, { name: "アイブロウ", qty: 1, amount: 800 }, { name: "PT アイズ", qty: 1, amount: 980 }, { name: "Hydr", qty: 1, amount: 2400 }, { name: "ボディケア", qty: 1, amount: 570 }] }
+    : { store: "หมูย่างเกาหลี", currency: "THB", total: 2604, items: [{ name: "Pro 30 Discount Adult", qty: 5, amount: 1895 }, { name: "Pro 30 Discount Child", qty: 1, amount: 239 }, { name: "Singha", qty: 4, amount: 440 }] }), 1200));
 const settlements = [{ id: "s1", status: "verified", month: now, from: "BEN", to: "GAME", amount: 300, createdAt: "2026-11-10", verifiedByAdmin: false }];
 const wallet = lastMonths(now, 6).flatMap((m, i) => [
     { id: `inc${i}`, type: "income", amount: 25000, date: `${m}-01`, desc: "เงินเดือน", timestamp: 1 },
@@ -161,7 +173,7 @@ function Preview() {
     return (
         <>
             <Shell tab={tab} onTab={go} userName={who} onAdd={() => setSheet("menu")} tools={tab !== "me" && <MonthPicker month={month} onChange={setMonth} min={shiftMonth(now, -11)} max={now} />}><PageSwap page={tab}>{body}</PageSwap></Shell>
-            {sheet && <Lazy load={loadAdd} name="AddSheet" cards={cardsData.enabled ? cardsData.cards : []} openFrom={who === "GAME" ? "" : `${now}-01`} initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
+            {sheet && <Lazy load={loadAdd} name="AddSheet" canScan={params.get("scan") !== "off"} readReceipt={fakeRead} cards={cardsData.enabled ? cardsData.cards : []} openFrom={who === "GAME" ? "" : `${now}-01`} initial={params.get("form") || (sheet === "income" ? "income" : null)} today={today} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} save={async () => new Promise((r) => setTimeout(r, 600))} saveBill={async () => new Promise((r) => setTimeout(r, 600))} onClose={() => setSheet(null)} onSaved={setToast} />}
             {params.get("choose") && <Lazy load={() => import("./editbill.jsx")} name="ChooseSheet" item={{ id: "auto0", type: "expense", amount: 175, date: `${now}-17`, desc: "LINE MAN Dragon", card: "ttb-2468", unconfirmed: true }} members={members} me={who} suggested={members.filter((x) => x !== who).slice(0, 4)} today={today} saveBill={async () => new Promise((r) => setTimeout(r, 600))} removeWallet={async () => {}} onClose={() => setToast("ปิด (ตัวอย่าง)")} onDone={setToast} onMoreSplit={() => setToast("เปิดฟอร์มบิลเต็ม (ตัวอย่าง)")} />}
             {cardSheet && (cardSheet.kind === "add" || cardSheet.kind === "edit") && <Lazy load={() => import("./cards.jsx")} name="CardEditSheet" card={cardSheet.card || null} onClose={() => setCardSheet(null)} onSave={(c) => cardFake(c.id ? "แก้บัตรแล้ว" : "เพิ่มบัตรแล้ว")} onDelete={(id) => cardFake("ลบบัตรแล้ว", (cs) => cs.filter((x) => x.id !== id))} />}
             {cardOpen && <Lazy load={() => import("./cards.jsx")} name="CardDetailSheet" card={cardOpen} onClose={() => setCardSheet(null)} onEdit={(c) => setCardSheet({ kind: "edit", card: c })} onPaid={(id, paid) => cardFake(paid ? "จ่ายแล้ว" : "ยกเลิก จ่ายแล้ว", (cs) => cs.map((x) => (x.id === id && x.due ? { ...x, due: { ...x.due, paid } } : x)))} />}
